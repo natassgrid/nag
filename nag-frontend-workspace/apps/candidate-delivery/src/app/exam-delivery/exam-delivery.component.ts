@@ -71,6 +71,9 @@ export class ExamDeliveryComponent implements OnInit, OnDestroy {
   readonly countAnswered = this.deliveryService.countAnswered;
   readonly countFlagged = this.deliveryService.countFlagged;
   readonly countUnvisited = this.deliveryService.countUnvisited;
+  readonly sessionError = this.deliveryService.sessionError;
+  readonly isConcurrentConflict = this.deliveryService.isConcurrentConflict;
+  readonly isLoading = this.deliveryService.isLoading;
 
   ngOnInit(): void {
     this.route.queryParams.subscribe((params) => {
@@ -78,10 +81,15 @@ export class ExamDeliveryComponent implements OnInit, OnDestroy {
       const examId = params['examId'] || null;
       const paperId = params['paperId'] || null;
       const sessionId = params['sessionId'] || null;
+      const langParam = params['lang'] || null;
       const mode: ExamDeliveryMode =
         modeParam === 'PRACTICE' || modeParam === 'PREVIEW' ? modeParam : 'LIVE';
 
-      this.deliveryService.initialize(mode, examId, paperId, sessionId);
+      if (langParam) {
+        this.i18nService.setLanguage(langParam as SupportedLanguage);
+      }
+
+      this.deliveryService.initialize(mode, examId, paperId, sessionId, langParam);
     });
 
     this.deliveryService.startTimer(() => this.autoSubmit());
@@ -93,6 +101,7 @@ export class ExamDeliveryComponent implements OnInit, OnDestroy {
 
   onLanguageChange(lang: SupportedLanguage): void {
     this.i18nService.setLanguage(lang);
+    this.deliveryService.setLanguage(lang);
   }
 
   selectOption(item: ExamItem, optionId: string): void {
@@ -117,6 +126,13 @@ export class ExamDeliveryComponent implements OnInit, OnDestroy {
 
   prevQuestion(): void {
     this.deliveryService.prevQuestion();
+  }
+
+  resolveConflictAndStart(): void {
+    const id = this.examId();
+    if (id) {
+      this.deliveryService.terminateActiveAndStart(id, this.deliveryService.paperId());
+    }
   }
 
   onCloseReceipt(): void {

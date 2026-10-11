@@ -334,7 +334,7 @@ Each aggregator needs one tiny entrypoint class under `src/main/java/com/exampla
     }
 )
 public class AuthAdminApplication {
-    public static void main(String[] args) {
+    static void main(String[] args) {
         SpringApplication.run(AuthAdminApplication.class, args);
     }
 }

@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, map, tap } from 'rxjs';
+import { Observable, map, tap, of } from 'rxjs';
 import {
   DifficultyLevel,
   Question,
@@ -9,6 +9,8 @@ import {
   QuestionStatus,
   VectorSearchResult,
   PagedQuestionsResponse,
+  BulkTransitionRequest,
+  BulkTransitionResponse,
 } from '../models/question.model';
 
 @Injectable({
@@ -31,6 +33,9 @@ export class QuestionBankService {
     this.loading.set(true);
     const current = { ...this.filter(), ...(customFilter || {}) };
     this.filter.set(current);
+    if (current.size !== undefined && typeof this.pageSize.set === 'function') {
+      this.pageSize.set(current.size);
+    }
 
     let params = new HttpParams()
       .set('page', current.page.toString())
@@ -65,6 +70,12 @@ export class QuestionBankService {
     if (current.sort) {
       params = params.set('sort', current.sort);
       params = params.set('order', current.order || 'desc');
+    }
+    if (current.targetLang) {
+      params = params.set('targetLang', current.targetLang);
+    }
+    if (current.translationStatus && current.translationStatus !== 'ALL') {
+      params = params.set('translationStatus', current.translationStatus);
     }
 
     return this.http
@@ -107,9 +118,32 @@ export class QuestionBankService {
       );
   }
 
-  createQuestion(question: any): Observable<Question> {
+  getQuestionsByIds(ids: string[]): Observable<Question[]> {
+    if (!ids || ids.length === 0) {
+      return of([]);
+    }
     return this.http
-      .post<{ status?: string; data?: any }>(this.baseUrl, question)
+      .post<{ status?: string; data?: any[] }>(`${this.baseUrl}/by-ids`, ids)
+      .pipe(
+        map((res) => {
+          const rawItems = res?.data || (Array.isArray(res) ? res : []);
+          return (Array.isArray(rawItems) ? rawItems : []).map((raw: any) => this.mapToQuestion(raw));
+        })
+      );
+  }
+
+  createQuestion(question: any): Observable<Question> {
+    const qType = question.questionType || question.type || 'SINGLE_MCQ';
+    const qState = question.state || question.status || 'DRAFT';
+    const payload = {
+      ...question,
+      questionType: qType,
+      type: qType,
+      state: qState,
+      status: qState,
+    };
+    return this.http
+      .post<{ status?: string; data?: any }>(this.baseUrl, payload)
       .pipe(
         map((res) => this.mapToQuestion(res.data || res)),
         tap((created) => {
@@ -161,9 +195,9 @@ export class QuestionBankService {
       );
   }
 
-  rejectQuestion(id: string, reason?: string): Observable<Question> {
+  rejectQuestion(id: string, comments?: string): Observable<Question> {
     return this.http
-      .put<{ status?: string; data?: any }>(`${this.baseUrl}/${id}/reject`, { reason })
+      .put<{ status?: string; data?: any }>(`${this.baseUrl}/${id}/reject`, { comments })
       .pipe(
         map((res) => this.mapToQuestion(res.data || res)),
         tap((updated) => {
@@ -171,6 +205,28 @@ export class QuestionBankService {
             list.map((item) => (item.id === id ? updated : item))
           );
         })
+      );
+  }
+
+  publishQuestion(id: string): Observable<Question> {
+    return this.http
+      .put<{ status?: string; data?: any }>(`${this.baseUrl}/${id}/publish`, {})
+      .pipe(
+        map((res) => this.mapToQuestion(res.data || res)),
+        tap((updated) => {
+          this.questions.update((list) =>
+            list.map((item) => (item.id === id ? updated : item))
+          );
+        })
+      );
+  }
+
+
+  bulkTransition(request: BulkTransitionRequest): Observable<BulkTransitionResponse> {
+    return this.http
+      .post<{ status?: string; data?: BulkTransitionResponse }>(`${this.baseUrl}/bulk-transition`, request)
+      .pipe(
+        map((res) => res?.data || (res as any))
       );
   }
 
@@ -243,6 +299,8 @@ export class QuestionBankService {
       subjectId: raw.subjectId ? String(raw.subjectId) : undefined,
       topicId: raw.topicId ? String(raw.topicId) : undefined,
       subtopicId: raw.subtopicId ? String(raw.subtopicId) : undefined,
+      authorId: raw.authorId || undefined,
+      reviewComments: raw.reviewComments || undefined,
       marks: raw.marks ?? 4,
       negativeMarks: raw.negativeMarks ?? 1,
       options: parsedOptions,
@@ -251,6 +309,8 @@ export class QuestionBankService {
       tags: tags.length > 0 ? tags : (raw.tags || []),
       passageId: raw.passageId,
       passageOrderIndex: raw.passageOrderIndex,
+      translationStatus: raw.translationStatus,
+      translationStatusMap: raw.translationStatusMap,
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
     };

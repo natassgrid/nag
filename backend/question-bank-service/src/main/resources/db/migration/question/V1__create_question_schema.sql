@@ -126,7 +126,7 @@ CREATE TABLE question_service.question (
     options                 JSONB,
     answer_key              TEXT,
     explanation             TEXT,
-    "references"            TEXT,
+    source_references       TEXT,
     embedding               halfvec(384),
     has_images              BOOLEAN NOT NULL DEFAULT FALSE,
     state                   VARCHAR(20) NOT NULL DEFAULT 'DRAFT',
@@ -137,6 +137,7 @@ CREATE TABLE question_service.question (
     used_in_shift_ids_json  JSONB,
     author_id               UUID NOT NULL,
     reviewer_id             UUID,
+    review_comments         TEXT,
     created_at              TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at              TIMESTAMP NOT NULL DEFAULT NOW(),
     version                 BIGINT NOT NULL DEFAULT 0,
@@ -172,6 +173,10 @@ CREATE INDEX IF NOT EXISTS idx_question_has_images
 
 COMMENT ON COLUMN question_service.question.has_images
     IS 'Set TRUE when content, explanation, or any option contains image/SVG media.';
+
+COMMENT ON COLUMN question_service.question.review_comments
+    IS 'Reviewer feedback comments set when a question is rejected (REVIEW -> DRAFT). '
+       'Visible to the author for revision guidance.';
 
 -- halfvec cosine similarity index (IVFFlat) for duplicate detection
 -- Uses cosine distance operator <=> on halfvec(384)

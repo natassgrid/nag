@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -64,7 +64,7 @@ public class ExaminationScheduleController {
 
     private final ExaminationScheduleService scheduleService;
 
-    // ── Schedules ─────────────────────────────────────────────────────────────
+    // ── Schedules ────────────────────────────────────────────────────────
 
     @PostMapping
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN')")
@@ -144,7 +144,7 @@ public class ExaminationScheduleController {
                 .body(ApiResponse.success(response, "Schedule amendment created as version " + response.getScheduleVersion()));
     }
 
-    // ── Shifts ────────────────────────────────────────────────────────────────
+    // ── Shifts ───────────────────────────────────────────────────────────
 
     @PostMapping("/{scheduleId}/shifts")
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN')")
@@ -155,10 +155,9 @@ public class ExaminationScheduleController {
             @Valid @RequestBody CreateShiftRequest request,
             @AuthenticationPrincipal Jwt jwt) {
 
-        UUID actorId = UUID.fromString(jwt.getSubject());
-        ShiftResponse response = scheduleService.addShift(scheduleId, request, actorId, tenantId);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(response, "Shift created successfully"));
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(
+                scheduleService.addShift(scheduleId, request, UUID.fromString(jwt.getSubject()), tenantId),
+                "Shift created successfully"));
     }
 
     @PutMapping("/{scheduleId}/shifts/{shiftId}")
@@ -171,9 +170,9 @@ public class ExaminationScheduleController {
             @Valid @RequestBody CreateShiftRequest request,
             @AuthenticationPrincipal Jwt jwt) {
 
-        UUID actorId = UUID.fromString(jwt.getSubject());
-        ShiftResponse response = scheduleService.updateShift(scheduleId, shiftId, request, actorId, tenantId);
-        return ResponseEntity.ok(ApiResponse.success(response, "Shift updated successfully"));
+        return ResponseEntity.ok(ApiResponse.success(
+                scheduleService.updateShift(scheduleId, shiftId, request, UUID.fromString(jwt.getSubject()), tenantId),
+                "Shift updated successfully"));
     }
 
     @GetMapping("/{scheduleId}/shifts")
@@ -188,13 +187,13 @@ public class ExaminationScheduleController {
         return ResponseEntity.ok(ApiResponse.success(shifts, "Shifts retrieved successfully"));
     }
 
-    // ── Helper ────────────────────────────────────────────────────────────────
+    // ── Helper ───────────────────────────────────────────────────────────
 
     @SuppressWarnings("unchecked")
     private Set<String> extractRoles(Jwt jwt) {
         try {
             java.util.Map<String, Object> realmAccess =
-                    (java.util.Map<String, Object>) jwt.getClaim("realm_access");
+                jwt.getClaim("realm_access");
             if (realmAccess == null) return Set.of();
             java.util.Collection<String> roles =
                     (java.util.Collection<String>) realmAccess.get("roles");

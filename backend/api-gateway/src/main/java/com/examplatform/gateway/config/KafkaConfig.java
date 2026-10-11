@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -30,7 +30,6 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.support.serializer.JacksonJsonSerializer;
 
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -46,14 +45,15 @@ public class KafkaConfig {
 
     @Bean
     public ProducerFactory<String, Object> producerFactory() {
-        Map<String, Object> props = new HashMap<>();
-        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JacksonJsonSerializer.class);
-        props.put(ProducerConfig.ACKS_CONFIG, "all");
-        props.put(ProducerConfig.RETRIES_CONFIG, 3);
-        props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
-        props.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 1);
+        Map<String, Object> props = Map.of(
+                ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers,
+                ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
+                ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JacksonJsonSerializer.class,
+                ProducerConfig.ACKS_CONFIG, "all",
+                ProducerConfig.RETRIES_CONFIG, 3,
+                ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true,
+                ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 1
+        );
         return new DefaultKafkaProducerFactory<>(props);
     }
 

@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -14,9 +14,15 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 package com.examplatform.questionbank.service;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 import com.examplatform.questionbank.ai.embedding.EmbeddingService;
 import com.examplatform.questionbank.ai.similarity.SimilarityCheckResult;
@@ -34,6 +40,8 @@ import com.examplatform.questionbank.repository.SubtopicRepository;
 import com.examplatform.questionbank.repository.TopicRepository;
 import com.examplatform.questionbank.translation.domain.Translation;
 import com.examplatform.questionbank.translation.repository.TranslationRepository;
+import com.examplatform.questionbank.domain.QuestionVersion;
+import com.examplatform.questionbank.repository.QuestionVersionRepository;
 import com.examplatform.questionbank.util.EmbeddingUtils;
 import com.examplatform.shared.messaging.EventPublisher;
 import jakarta.persistence.EntityNotFoundException;
@@ -75,6 +83,7 @@ public class QuestionService {
     private final EmbeddingService embeddingService;
     private final EventPublisher eventPublisher;
     private final TranslationRepository translationRepository;
+    private final QuestionVersionRepository questionVersionRepository;
 
     @Value("${app.encryption.enabled:true}")
     private boolean encryptionEnabled;
@@ -212,11 +221,11 @@ public class QuestionService {
                 .answerKey(answerKey)
                 .options(request.getOptions())
                 .explanation(request.getExplanation())
-                .references(request.getReferences())
+                .sourceReferences(request.getReferences())
                 .hasImages(hasImages)
                 .passageId(request.getPassageId())
                 .passageOrderIndex(request.getPassageOrderIndex())
-                .state("DRAFT")
+                .state((request.getState() != null && !request.getState().isBlank()) ? request.getState() : "DRAFT")
                 .encryptionKeyId(dekKeyName)
                 .authorId(authorId)
                 .build();
@@ -248,7 +257,7 @@ public class QuestionService {
         QuestionResponse response = toResponse(saved);
         if (similarityResult != null && similarityResult.status() == SimilarityCheckResult.Status.WARN) {
             List<QuestionResponse.SimilarQuestionWarning> warnings = similarityResult.similarQuestions().stream()
-                    .<QuestionResponse.SimilarQuestionWarning>map(sq -> QuestionResponse.SimilarQuestionWarning.builder()
+                    .map(sq -> QuestionResponse.SimilarQuestionWarning.builder()
                             .questionId(sq.questionId())
                             .similarity(sq.similarity())
                             .contentSnippet(sq.content())
@@ -258,6 +267,58 @@ public class QuestionService {
         }
 
         return response;
+    }
+
+    /**
+     * Persists an AI-generated question conforming to system hierarchy,
+     * duplicate detection, envelope encryption, and audit tracking.
+     */
+    public QuestionResponse createQuestionFromGenerated(
+            CreateQuestionRequest request,
+            UUID authorId,
+            String tenantId) {
+        if (request.getState() == null || request.getState().isBlank()) {
+            request.setState("DRAFT");
+        }
+        return createQuestion(request, authorId, tenantId);
+    }
+
+    /**
+     * Persists a batch of AI-generated questions as DRAFT items.
+     */
+    public List<QuestionResponse> createQuestionsFromGeneratedBatch(
+            List<CreateQuestionRequest> requests,
+            UUID authorId,
+            String tenantId) {
+        if (requests == null || requests.isEmpty()) {
+            return List.of();
+        }
+        return requests.stream()
+                .map(r -> createQuestionFromGenerated(r, authorId, tenantId))
+                .toList();
+    }
+
+    /**
+     * Retrieves aggregated metrics for Question Bank items.
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> getQuestionBankMetrics(String tenantId) {
+        long total = questionRepository.countByTenantId(tenantId);
+        long draft = questionRepository.countByStateAndTenantId("DRAFT", tenantId);
+        long submitted = questionRepository.countByStateAndTenantId("SUBMITTED", tenantId)
+                + questionRepository.countByStateAndTenantId("UNDER_REVIEW", tenantId);
+        long approved = questionRepository.countByStateAndTenantId("APPROVED", tenantId)
+                + questionRepository.countByStateAndTenantId("PUBLISHED", tenantId);
+        long rejected = questionRepository.countByStateAndTenantId("REJECTED", tenantId)
+                + questionRepository.countByStateAndTenantId("REVISION_REQUESTED", tenantId);
+
+        return Map.of(
+                "total", total,
+                "draft", draft,
+                "submitted", submitted,
+                "approved", approved,
+                "rejected", rejected
+        );
     }
 
     /**
@@ -275,10 +336,17 @@ public class QuestionService {
         org.springframework.data.domain.Sort.Direction direction = "asc".equalsIgnoreCase(order)
                 ? org.springframework.data.domain.Sort.Direction.ASC
                 : org.springframework.data.domain.Sort.Direction.DESC;
-        String sortProperty = resolveQuestionSortProperty(sort);
+        org.springframework.data.domain.Sort sortSpec;
+        if (sort == null || sort.isBlank() || "updatedat".equalsIgnoreCase(sort.trim())) {
+            sortSpec = org.springframework.data.domain.Sort.by(direction, "updatedAt")
+                    .and(org.springframework.data.domain.Sort.by(direction, "createdAt"));
+        } else {
+            String sortProperty = resolveQuestionSortProperty(sort);
+            sortSpec = org.springframework.data.domain.Sort.by(direction, sortProperty)
+                    .and(Sort.by(Sort.Direction.DESC, "createdAt"));
+        }
         org.springframework.data.domain.Pageable pageable =
-                org.springframework.data.domain.PageRequest.of(page, size,
-                        org.springframework.data.domain.Sort.by(direction, sortProperty));
+                org.springframework.data.domain.PageRequest.of(page, size, sortSpec);
 
         org.springframework.data.jpa.domain.Specification<Question> spec =
                 org.springframework.data.jpa.domain.Specification.where(tenantEquals(tenantId));
@@ -345,7 +413,7 @@ public class QuestionService {
             String difficulty, String state, String search,
             String targetLang, String translationStatus,
             int page, int size, String tenantId) {
-        return listQuestions(subject, subjectId, topic, topicId, difficulty, state, search, targetLang, translationStatus, null, "desc", page, size, tenantId);
+        return listQuestions(subject, subjectId, topic, topicId, difficulty, state, search, targetLang, translationStatus, "updatedAt", "desc", page, size, tenantId);
     }
 
     @Transactional(readOnly = true)
@@ -353,18 +421,18 @@ public class QuestionService {
             String subject, Long subjectId, String topic, Long topicId,
             String difficulty, String state, String search,
             int page, int size, String tenantId) {
-        return listQuestions(subject, subjectId, topic, topicId, difficulty, state, search, null, null, null, "desc", page, size, tenantId);
+        return listQuestions(subject, subjectId, topic, topicId, difficulty, state, search, null, null, "updatedAt", "desc", page, size, tenantId);
     }
 
     @Transactional(readOnly = true)
     public org.springframework.data.domain.Page<QuestionResponse> listQuestions(
             String subject, String topic, String difficulty, String state,
             String search, int page, int size, String tenantId) {
-        return listQuestions(subject, null, topic, null, difficulty, state, search, null, null, null, "desc", page, size, tenantId);
+        return listQuestions(subject, null, topic, null, difficulty, state, search, null, null, "updatedAt", "desc", page, size, tenantId);
     }
 
     private String resolveQuestionSortProperty(String sort) {
-        if (sort == null || sort.isBlank()) return "createdAt";
+        if (sort == null || sort.isBlank()) return "updatedAt";
         return switch (sort.trim().toLowerCase()) {
             case "subject", "subjectname" -> "subject";
             case "topic", "topicname" -> "topic";
@@ -377,7 +445,7 @@ public class QuestionService {
             case "updatedat" -> "updatedAt";
             case "createdat", "created" -> "createdAt";
             case "id" -> "id";
-            default -> "createdAt";
+            default -> "updatedAt";
         };
     }
 
@@ -429,23 +497,19 @@ public class QuestionService {
         };
     }
 
+    private static final List<String> SEARCHABLE_QUESTION_FIELDS = List.of(
+            "subject", "topic", "subtopic", "chapter", "difficulty",
+            "cognitiveLevel", "questionType", "content", "explanation", "state", "sourceReferences"
+    );
+
     private jakarta.persistence.criteria.Predicate matchAnyField(
             jakarta.persistence.criteria.Root<Question> root,
             jakarta.persistence.criteria.CriteriaBuilder cb,
             String pattern) {
-        return cb.or(
-                cb.like(cb.lower(cb.coalesce(root.get("subject"), "")), pattern),
-                cb.like(cb.lower(cb.coalesce(root.get("topic"), "")), pattern),
-                cb.like(cb.lower(cb.coalesce(root.get("subtopic"), "")), pattern),
-                cb.like(cb.lower(cb.coalesce(root.get("chapter"), "")), pattern),
-                cb.like(cb.lower(cb.coalesce(root.get("difficulty"), "")), pattern),
-                cb.like(cb.lower(cb.coalesce(root.get("cognitiveLevel"), "")), pattern),
-                cb.like(cb.lower(cb.coalesce(root.get("questionType"), "")), pattern),
-                cb.like(cb.lower(cb.coalesce(root.get("content"), "")), pattern),
-                cb.like(cb.lower(cb.coalesce(root.get("explanation"), "")), pattern),
-                cb.like(cb.lower(cb.coalesce(root.get("state"), "")), pattern),
-                cb.like(cb.lower(cb.coalesce(root.get("references"), "")), pattern)
-        );
+        jakarta.persistence.criteria.Predicate[] predicates = SEARCHABLE_QUESTION_FIELDS.stream()
+                .map(field -> cb.like(cb.lower(cb.coalesce(root.get(field), "")), pattern))
+                .toArray(jakarta.persistence.criteria.Predicate[]::new);
+        return cb.or(predicates);
     }
 
     /**
@@ -571,7 +635,61 @@ public class QuestionService {
     }
 
     /**
-     * Finds approved questions matching blueprint criteria for Paper Generator.
+     * Deletes a question and cleans up associated versions and translations.
+     * Rejects deletion if question is in PUBLISHED state or has been used in exams.
+     *
+     * @param questionId UUID of the question to delete
+     * @param actorId    UUID of the user requesting deletion
+     * @param tenantId   optional tenant identifier to verify tenant scoping
+     */
+    public void deleteQuestion(UUID questionId, UUID actorId, String tenantId) {
+        Question question = questionRepository.findById(questionId)
+                .orElseThrow(() -> new EntityNotFoundException("Question not found: " + questionId));
+
+        if (tenantId != null && !tenantId.isBlank() && !"default".equals(tenantId)) {
+            if (!tenantId.equals(question.getTenantId())) {
+                throw new EntityNotFoundException("Question not found: " + questionId);
+            }
+        }
+
+        if ("PUBLISHED".equalsIgnoreCase(question.getState()) || question.getUsageCount() > 0) {
+            throw new IllegalStateException("Cannot delete question in PUBLISHED state or with active exam usage. Transition to ARCHIVED instead.");
+        }
+
+        // Clean up translations
+        List<Translation> translations = translationRepository.findByQuestionIdAndTenantId(questionId, question.getTenantId());
+        if (translations != null && !translations.isEmpty()) {
+            translationRepository.deleteAll(translations);
+        }
+
+        // Clean up version history
+        List<QuestionVersion> versions = questionVersionRepository.findByQuestionIdOrderByVersionNumberDesc(questionId);
+        if (versions != null && !versions.isEmpty()) {
+            questionVersionRepository.deleteAll(versions);
+        }
+
+        questionRepository.delete(question);
+
+        log.info("Deleted question id={} by actor={} tenant={}", questionId, actorId, question.getTenantId());
+
+        Map<String, Object> extra = new HashMap<>();
+        if (question.getQuestionType() != null) {
+            extra.put("questionType", question.getQuestionType());
+        }
+        if (question.getState() != null) {
+            extra.put("state", question.getState());
+        }
+        publishAuditEvent("QUESTION_DELETED", questionId, actorId != null ? actorId : question.getAuthorId(),
+                question.getTenantId(), extra);
+    }
+
+    public void deleteQuestion(UUID questionId, String tenantId) {
+        deleteQuestion(questionId, null, tenantId);
+    }
+
+    /**
+     * Finds published questions matching blueprint criteria for Paper Generator.
+     * Only PUBLISHED questions (final approver sign-off complete) are eligible for paper assembly.
      */
     @Transactional(readOnly = true)
     public List<QuestionResponse> findBlueprintQuestions(String subject, String topic, String difficulty, String cognitiveLevel, String tenantId) {
@@ -590,7 +708,7 @@ public class QuestionService {
                     topic != null ? topic.trim() : "",
                     (difficulty != null && !difficulty.isBlank()) ? difficulty.trim() : null,
                     effectiveTenant
-            );
+        );
         }
 
         return questions.stream().map(this::toResponse).toList();
@@ -611,21 +729,7 @@ public class QuestionService {
 
     private void publishAuditEvent(String eventType, UUID questionId, UUID actorId,
                                     String tenantId, Map<String, Object> extra) {
-        try {
-            Map<String, Object> event = new java.util.HashMap<>();
-            event.put("eventType", eventType);
-            event.put("questionId", questionId.toString());
-            event.put("actorId", actorId.toString());
-            event.put("tenantId", tenantId);
-            event.put("occurredAt", Instant.now().toString());
-            if (extra != null) {
-                event.putAll(extra);
-            }
-
-            eventPublisher.publish(AUDIT_TOPIC, questionId.toString(), event);
-        } catch (Exception e) {
-            log.error("Unexpected error publishing audit event [type={}]: {}", eventType, e.getMessage());
-        }
+        AuditEventHelper.publishAuditEvent(eventPublisher, log, AUDIT_TOPIC, eventType, "questionId", questionId, actorId, tenantId, extra);
     }
 
     private static final com.fasterxml.jackson.databind.ObjectMapper MAPPER =
@@ -636,13 +740,6 @@ public class QuestionService {
     }
 
     public QuestionResponse toResponse(Question question, List<Translation> translations, String targetLang) {
-        LocalDateTime createdAt = question.getCreatedAt() != null
-                ? LocalDateTime.ofInstant(question.getCreatedAt(), ZoneOffset.UTC)
-                : null;
-        LocalDateTime updatedAt = question.getUpdatedAt() != null
-                ? LocalDateTime.ofInstant(question.getUpdatedAt(), ZoneOffset.UTC)
-                : null;
-
         java.util.List<com.examplatform.questionbank.dto.QuestionOption> options = question.getOptions();
         if ((options == null || options.isEmpty())) {
             String questionType = question.getQuestionType();
@@ -685,39 +782,13 @@ public class QuestionService {
             activeTransStatus = "MISSING";
         }
 
-        return QuestionResponse.builder()
-                .id(question.getId())
-                .subjectId(question.getSubjectId())
-                .topicId(question.getTopicId())
-                .subtopicId(question.getSubtopicId())
-                .subject(question.getSubject())
-                .topic(question.getTopic())
-                .subtopic(question.getSubtopic())
-                .chapter(question.getChapter())
-                .difficulty(question.getDifficulty())
-                .cognitiveLevel(question.getCognitiveLevel())
-                .questionType(question.getQuestionType())
-                .content(question.getContent())
-                .answerKey(question.getAnswerKey())
-                .explanation(question.getExplanation())
-                .references(question.getReferences())
-                .state(question.getState())
-                .authorId(question.getAuthorId())
-                .reviewerId(question.getReviewerId())
-                .encryptionKeyId(question.getEncryptionKeyId())
-                .passageId(question.getPassageId())
-                .passageOrderIndex(question.getPassageOrderIndex())
-                .version(question.getVersion())
-                .createdAt(createdAt)
-                .updatedAt(updatedAt)
+        return QuestionResponse.builderFrom(question)
                 .options(options)
-                .hasImages(question.isHasImages())
                 .translatedLanguages(translatedLangs)
                 .translationStatusMap(statusMap)
                 .translationStatus(activeTransStatus)
                 .build();
     }
-
     private String resolveTranslationStatus(Translation t) {
         if (t == null) return "MISSING";
         if (t.getStatus() == Translation.TranslationStatus.DRAFT) {
@@ -743,8 +814,7 @@ public class QuestionService {
 
     public static boolean containsImageTagOrMarkdown(String text) {
         if (text == null || text.isBlank()) return false;
-        if (text.contains("<img") || text.contains("<svg")) return true;
-        if (text.matches(".*!\\[[^\\]]*\\]\\([^)]+\\).*")) return true;
-        return false;
+        if (text.contains("<img") || text.contains("<svg") || text.contains("data:image/")) return true;
+        return text.matches(".*!\\[[^\\]]*\\]\\([^)]+\\).*");
     }
 }

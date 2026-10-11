@@ -6,6 +6,7 @@ import com.examplatform.practice.dto.CreatePracticeSetRequest;
 import com.examplatform.practice.dto.UpdatePracticeSetRequest;
 import com.examplatform.practice.repository.PracticeSetRepository;
 import com.examplatform.practice.service.PracticeSetService;
+import com.examplatform.shared.security.UserContext;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
@@ -14,8 +15,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -39,7 +38,6 @@ public class AdminPracticeSetController {
 
     @PostMapping
     public ResponseEntity<PracticeSet> create(
-            @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody CreatePracticeSetRequest request) {
 
         PracticeSet practiceSet = new PracticeSet();
@@ -62,12 +60,9 @@ public class AdminPracticeSetController {
             practiceSet.setQuestionIds("[]");
         }
 
-        if (jwt != null && jwt.getSubject() != null) {
-            try {
-                practiceSet.setCreatedBy(UUID.fromString(jwt.getSubject()));
-            } catch (IllegalArgumentException ignored) {
-            }
-        }
+        UUID userId = UserContext.getUserId();
+        practiceSet.setCreatedBy(userId != null ? userId : UUID.randomUUID());
+
         return ResponseEntity.status(HttpStatus.CREATED).body(practiceSetRepository.save(practiceSet));
     }
 

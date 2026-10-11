@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -51,11 +51,19 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+/**
+ * QuestionController REST endpoint integration tests (MockMvc).
+ * All service dependencies are mocked — only the HTTP layer + Spring Security is exercised.
+ *
+ * Section 5 covers the review workflow edge cases added for Issue #275.
+ */
 @DisplayName("QuestionController REST Endpoints E2E Tests (MockMvc)")
 class QuestionControllerIntegrationTest extends AbstractIntegrationTest {
 
@@ -316,6 +324,7 @@ class QuestionControllerIntegrationTest extends AbstractIntegrationTest {
 
     // =========================================================================
     // 5. Lifecycle Transitions (Submit, Transition, Approve, Reject)
+    //    — expanded for Issue #275: review workflow edge cases
     // =========================================================================
     @Nested
     @DisplayName("Question Lifecycle Endpoints")
@@ -443,6 +452,119 @@ class QuestionControllerIntegrationTest extends AbstractIntegrationTest {
                     .andExpect(jsonPath("$.status").value("success"))
                     .andExpect(jsonPath("$.data.state").value("DRAFT"));
         }
+
+        // === Issue #275 edge cases ===
+
+        @Test
+        @DisplayName("-ve: Reject without comments returns 400 Bad Request")
+        void rejectWithoutCommentsReturnsBadRequest() throws Exception {
+            mockMvc.perform(put("/api/v1/questions/{id}/reject", QUESTION_ID)
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_REVIEWER"))
+                                    .jwt(j -> j.subject(REVIEWER_ID.toString())))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of())))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.status").value("error"));
+        }
+
+        @Test
+        @DisplayName("-ve: Reject with blank comments returns 400 Bad Request")
+        void rejectWithBlankCommentsReturnsBadRequest() throws Exception {
+            mockMvc.perform(put("/api/v1/questions/{id}/reject", QUESTION_ID)
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_REVIEWER"))
+                                    .jwt(j -> j.subject(REVIEWER_ID.toString())))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of("comments", "  "))))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.status").value("error"));
+        }
+
+        @Test
+        @DisplayName("-ve: Author tries to approve their own question (four-eyes) - returns 403 Forbidden")
+        void authorCannotApproveOwnQuestion() throws Exception {
+            when(questionLifecycleService.approve(eq(QUESTION_ID), eq(AUTHOR_ID), eq(TENANT_ID)))
+                    .thenThrow(new FourEyesPrincipleViolationException());
+
+            mockMvc.perform(put("/api/v1/questions/{id}/approve", QUESTION_ID)
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_REVIEWER"))
+                                    .jwt(j -> j.subject(AUTHOR_ID.toString())))
+                            .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.status").value("error"))
+                    .andExpect(jsonPath("$.message")
+                            .value("Four-eyes principle violation: reviewer cannot also approve publication"));
+        }
+
+        @Test
+        @DisplayName("-ve: CANDIDATE role cannot call approve endpoint - returns 403 Forbidden")
+        void candidateCannotApprove() throws Exception {
+            mockMvc.perform(put("/api/v1/questions/{id}/approve", QUESTION_ID)
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(REVIEWER_ID.toString())))
+                            .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isForbidden());
+        }
+
+        @Test
+        @DisplayName("-ve: CANDIDATE role cannot call reject endpoint - returns 403 Forbidden")
+        void candidateCannotReject() throws Exception {
+            mockMvc.perform(put("/api/v1/questions/{id}/reject", QUESTION_ID)
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(REVIEWER_ID.toString())))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(Map.of("comments", "Should not reach here"))))
+                    .andExpect(status().isForbidden());
+        }
+
+        @Test
+        @DisplayName("+ve: Author can re-submit rejected question (DRAFT -> REVIEW again) - returns 200 OK")
+        void authorCanResubmitAfterRejection() throws Exception {
+            QuestionResponse inReview = sampleQuestionResponse();
+            inReview.setState("REVIEW");
+
+            when(questionService.submitForReview(eq(QUESTION_ID), eq(AUTHOR_ID), eq(TENANT_ID)))
+                    .thenReturn(inReview);
+
+            mockMvc.perform(put("/api/v1/questions/{id}/submit", QUESTION_ID)
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_QUESTION_AUTHOR"))
+                                    .jwt(j -> j.subject(AUTHOR_ID.toString())))
+                            .contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("success"))
+                    .andExpect(jsonPath("$.data.state").value("REVIEW"));
+        }
+
+        @Test
+        @DisplayName("+ve: Rejected question response includes reviewComments field")
+        void rejectedQuestionResponseIncludesReviewComments() throws Exception {
+            QuestionResponse rejected = sampleQuestionResponse();
+            rejected.setState("DRAFT");
+            rejected.setReviewComments("Missing distractors in options B and C.");
+
+            when(questionLifecycleService.reject(
+                    eq(QUESTION_ID), eq(REVIEWER_ID),
+                    eq("Missing distractors in options B and C."), eq(TENANT_ID)))
+                    .thenReturn(rejected);
+
+            mockMvc.perform(put("/api/v1/questions/{id}/reject", QUESTION_ID)
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_REVIEWER"))
+                                    .jwt(j -> j.subject(REVIEWER_ID.toString())))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(
+                                    Map.of("comments", "Missing distractors in options B and C."))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("success"))
+                    .andExpect(jsonPath("$.data.state").value("DRAFT"))
+                    .andExpect(jsonPath("$.data.reviewComments")
+                            .value("Missing distractors in options B and C."));
+        }
     }
 
     // =========================================================================
@@ -485,6 +607,152 @@ class QuestionControllerIntegrationTest extends AbstractIntegrationTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("success"))
                     .andExpect(jsonPath("$.data.content[0].id").value(QUESTION_ID.toString()));
+        }
+    }
+
+    // =========================================================================
+    // 7. Blueprint Match & Batch Find Endpoints (/match-blueprint, /blueprint-match, /by-ids, /batch-find)
+    // =========================================================================
+    @Nested
+    @DisplayName("Blueprint Match and Batch Find Endpoints")
+    class BlueprintMatchAndBatchFindEndpoints {
+
+        @Test
+        @DisplayName("+ve: Match blueprint via /api/v1/questions/blueprint-match alias - returns 200 OK")
+        void matchBlueprintViaAlias() throws Exception {
+            when(questionService.findBlueprintQuestions(eq("Physics"), eq("Thermodynamics"), eq("MEDIUM"), eq("APPLY"), eq(TENANT_ID)))
+                    .thenReturn(List.of(sampleQuestionResponse()));
+
+            String requestJson = """
+                    {
+                      "subject": "Physics",
+                      "topic": "Thermodynamics",
+                      "difficulty": "MEDIUM",
+                      "cognitiveLevel": "APPLY"
+                    }
+                    """;
+
+            mockMvc.perform(post("/api/v1/questions/blueprint-match")
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(requestJson))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("success"))
+                    .andExpect(jsonPath("$.data[0].id").value(QUESTION_ID.toString()));
+        }
+
+        @Test
+        @DisplayName("+ve: Match blueprint via /api/v1/questions/match-blueprint - returns 200 OK")
+        void matchBlueprintStandard() throws Exception {
+            when(questionService.findBlueprintQuestions(eq("Physics"), eq("Thermodynamics"), eq("MEDIUM"), eq("APPLY"), eq(TENANT_ID)))
+                    .thenReturn(List.of(sampleQuestionResponse()));
+
+            String requestJson = """
+                    {
+                      "subject": "Physics",
+                      "topic": "Thermodynamics",
+                      "difficulty": "MEDIUM",
+                      "cognitiveLevel": "APPLY"
+                    }
+                    """;
+
+            mockMvc.perform(post("/api/v1/questions/match-blueprint")
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(requestJson))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("success"))
+                    .andExpect(jsonPath("$.data[0].id").value(QUESTION_ID.toString()));
+        }
+
+        @Test
+        @DisplayName("+ve: Find questions by IDs via /api/v1/questions/batch-find alias - returns 200 OK")
+        void findQuestionsByIdsViaAlias() throws Exception {
+            when(questionService.findQuestionsByIds(eq(List.of(QUESTION_ID)), eq(TENANT_ID)))
+                    .thenReturn(List.of(sampleQuestionResponse()));
+
+            mockMvc.perform(post("/api/v1/questions/batch-find")
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(List.of(QUESTION_ID))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("success"))
+                    .andExpect(jsonPath("$.data[0].id").value(QUESTION_ID.toString()));
+        }
+    }
+
+    // =========================================================================
+    // 8. DELETE /api/v1/questions/{id} (Delete Question)
+    // =========================================================================
+    @Nested
+    @DisplayName("DELETE /api/v1/questions/{id}")
+    class DeleteQuestionEndpoint {
+
+        @Test
+        @DisplayName("+ve: QUESTION_AUTHOR can delete question - returns 200 OK")
+        void authorCanDeleteQuestion() throws Exception {
+            doNothing().when(questionService).deleteQuestion(eq(QUESTION_ID), eq(AUTHOR_ID), eq(TENANT_ID));
+
+            mockMvc.perform(delete("/api/v1/questions/{id}", QUESTION_ID)
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_QUESTION_AUTHOR"))
+                                    .jwt(j -> j.subject(AUTHOR_ID.toString()))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("success"))
+                    .andExpect(jsonPath("$.message").value("Question deleted successfully"));
+        }
+
+        @Test
+        @DisplayName("+ve: ADMIN can delete question - returns 200 OK")
+        void adminCanDeleteQuestion() throws Exception {
+            UUID adminId = UUID.randomUUID();
+            doNothing().when(questionService).deleteQuestion(eq(QUESTION_ID), eq(adminId), eq(TENANT_ID));
+
+            mockMvc.perform(delete("/api/v1/questions/{id}", QUESTION_ID)
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
+                                    .jwt(j -> j.subject(adminId.toString()))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("success"))
+                    .andExpect(jsonPath("$.message").value("Question deleted successfully"));
+        }
+
+        @Test
+        @DisplayName("-ve: CANDIDATE forbidden from deleting question - returns 403 Forbidden")
+        void candidateCannotDeleteQuestion() throws Exception {
+            mockMvc.perform(delete("/api/v1/questions/{id}", QUESTION_ID)
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(AUTHOR_ID.toString()))))
+                    .andExpect(status().isForbidden());
+        }
+
+        @Test
+        @DisplayName("-ve: Question not found - returns 404 Not Found")
+        void questionNotFoundReturns404() throws Exception {
+            doThrow(new EntityNotFoundException("Question not found: " + QUESTION_ID))
+                    .when(questionService).deleteQuestion(eq(QUESTION_ID), eq(AUTHOR_ID), eq(TENANT_ID));
+
+            mockMvc.perform(delete("/api/v1/questions/{id}", QUESTION_ID)
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_QUESTION_AUTHOR"))
+                                    .jwt(j -> j.subject(AUTHOR_ID.toString()))))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.status").value("error"));
+        }
+
+        @Test
+        @DisplayName("-ve: Question in published state cannot be deleted - returns 409 Conflict")
+        void publishedQuestionReturnsConflict() throws Exception {
+            doThrow(new IllegalStateException("Cannot delete question in PUBLISHED state"))
+                    .when(questionService).deleteQuestion(eq(QUESTION_ID), eq(AUTHOR_ID), eq(TENANT_ID));
+
+            mockMvc.perform(delete("/api/v1/questions/{id}", QUESTION_ID)
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_QUESTION_AUTHOR"))
+                                    .jwt(j -> j.subject(AUTHOR_ID.toString()))))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.status").value("error"));
         }
     }
 }

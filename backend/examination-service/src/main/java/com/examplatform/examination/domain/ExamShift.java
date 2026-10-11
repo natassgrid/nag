@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -19,6 +19,7 @@
 
 package com.examplatform.examination.domain;
 
+import com.examplatform.examination.dto.schedule.CreateShiftRequest;
 import com.examplatform.shared.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -106,4 +107,17 @@ public class ExamShift extends BaseEntity {
     @Column(name = "buffer_minutes", nullable = false)
     @Builder.Default
     private int bufferMinutes = 0;
+
+    public void updateFromRequest(CreateShiftRequest request) {
+        this.shiftNumber = request.getShiftNumber();
+        this.shiftName = request.getShiftName();
+        this.reportingTime = request.getReportingTime();
+        this.gateClosingTime = request.getGateClosingTime();
+        this.loginStartTime = request.getLoginStartTime();
+        this.examStartTime = request.getExamStartTime();
+        this.examEndTime = request.getExamEndTime();
+        this.exitTime = request.getExitTime();
+        this.durationMinutes = request.getDurationMinutes();
+        this.bufferMinutes = request.getBufferMinutes();
+    }
 }

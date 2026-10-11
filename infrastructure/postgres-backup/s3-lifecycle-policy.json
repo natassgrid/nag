@@ -1,0 +1,23 @@
+{
+  "Rules": [
+    {
+      "ID": "nag-postgres-glacier-deep-archive-tiering-and-expiry",
+      "Status": "Enabled",
+      "Filter": {
+        "Prefix": "backups/postgres/"
+      },
+      "Transitions": [
+        {
+          "Days": 7,
+          "StorageClass": "DEEP_ARCHIVE"
+        }
+      ],
+      "Expiration": {
+        "Days": 60
+      },
+      "AbortIncompleteMultipartUpload": {
+        "DaysAfterInitiation": 1
+      }
+    }
+  ]
+}

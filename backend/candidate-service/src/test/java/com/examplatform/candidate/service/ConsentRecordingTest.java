@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -22,6 +22,8 @@ package com.examplatform.candidate.service;
 import com.examplatform.candidate.domain.CandidateProfile;
 import com.examplatform.candidate.exception.ProfileNotFoundException;
 import com.examplatform.candidate.repository.CandidateProfileRepository;
+import com.examplatform.shared.crypto.HashingService;
+import com.examplatform.shared.crypto.VaultCryptoService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -11,7 +11,7 @@
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU标志 Affero General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
@@ -23,16 +23,19 @@ import com.examplatform.questionbank.ai.embedding.EmbeddingService;
 import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.dto.CreateQuestionRequest;
 import com.examplatform.questionbank.dto.QuestionResponse;
+import com.examplatform.questionbank.exception.InvalidTransitionException;
 import com.examplatform.questionbank.repository.QuestionRepository;
 import com.examplatform.questionbank.util.EmbeddingUtils;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.UUID;
 
 /**
@@ -67,6 +70,13 @@ public class QuestionUpdateService {
         Question existing = questionRepository.findById(questionId)
                 .orElseThrow(() -> new EntityNotFoundException("Question not found: " + questionId));
 
+        // PUBLISHED questions are immutable — they cannot be edited.
+        // Any other state (DRAFT, REVIEW, APPROVED) can be edited; the act of editing
+        // resets the state to DRAFT so the question must re-enter the review workflow.
+        if ("PUBLISHED".equals(existing.getState())) {
+            throw new InvalidTransitionException(existing.getState(), "DRAFT");
+        }
+
         // Clone current state for diff comparison
         Question oldState = cloneQuestionState(existing);
 
@@ -85,7 +95,7 @@ public class QuestionUpdateService {
         existing.setContent(request.getContent());
         existing.setAnswerKey(request.getAnswerKey());
         existing.setExplanation(request.getExplanation());
-        existing.setReferences(request.getReferences());
+        existing.setSourceReferences(request.getReferences());
         existing.setOptions(request.getOptions());
 
         if (request.getPassageId() != null) {
@@ -98,8 +108,19 @@ public class QuestionUpdateService {
         boolean hasImages = QuestionService.detectHasImages(request.getContent(), request.getExplanation(), request.getOptions());
         existing.setHasImages(hasImages);
 
+        // Editing a question resets it to DRAFT regardless of prior state (REVIEW, APPROVED).
+        // The reviewer and review comments are cleared so the question must go through
+        // the full review workflow again.
+        String previousState = existing.getState();
+        existing.setState("DRAFT");
+        existing.setReviewerId(null);
+        existing.setReviewComments(null);
+
         // Save updated question
         Question updated = questionRepository.save(existing);
+
+        log.info("Question reset to DRAFT after edit: id={}, previousState={}, author={}, tenant={}",
+                questionId, previousState, authorId, tenantId);
 
         // Regenerate embedding if content changed (keeps similarity search accurate)
         if (!java.util.Objects.equals(oldState.getContent(), updated.getContent())) {
@@ -124,65 +145,15 @@ public class QuestionUpdateService {
     }
 
     private Question cloneQuestionState(Question source) {
-        return Question.builder()
-                .subjectId(source.getSubjectId())
-                .topicId(source.getTopicId())
-                .subtopicId(source.getSubtopicId())
-                .subject(source.getSubject())
-                .topic(source.getTopic())
-                .subtopic(source.getSubtopic())
-                .chapter(source.getChapter())
-                .difficulty(source.getDifficulty())
-                .cognitiveLevel(source.getCognitiveLevel())
-                .questionType(source.getQuestionType())
-                .content(source.getContent())
-                .answerKey(source.getAnswerKey())
-                .explanation(source.getExplanation())
-                .references(source.getReferences())
-                .options(source.getOptions())
-                .hasImages(source.isHasImages())
-                .passageId(source.getPassageId())
-                .passageOrderIndex(source.getPassageOrderIndex())
-                .state(source.getState())
-                .authorId(source.getAuthorId())
-                .build();
+        Question copy = new Question();
+        BeanUtils.copyProperties(source, copy);
+        if (source.getOptions() != null) {
+            copy.setOptions(new ArrayList<>(source.getOptions()));
+        }
+        return copy;
     }
 
     private QuestionResponse toResponse(Question question) {
-        LocalDateTime createdAt = question.getCreatedAt() != null
-                ? LocalDateTime.ofInstant(question.getCreatedAt(), ZoneOffset.UTC)
-                : null;
-        LocalDateTime updatedAt = question.getUpdatedAt() != null
-                ? LocalDateTime.ofInstant(question.getUpdatedAt(), ZoneOffset.UTC)
-                : null;
-
-        return QuestionResponse.builder()
-                .id(question.getId())
-                .subjectId(question.getSubjectId())
-                .topicId(question.getTopicId())
-                .subtopicId(question.getSubtopicId())
-                .subject(question.getSubject())
-                .topic(question.getTopic())
-                .subtopic(question.getSubtopic())
-                .chapter(question.getChapter())
-                .difficulty(question.getDifficulty())
-                .cognitiveLevel(question.getCognitiveLevel())
-                .questionType(question.getQuestionType())
-                .content(question.getContent())
-                .answerKey(question.getAnswerKey())
-                .explanation(question.getExplanation())
-                .references(question.getReferences())
-                .state(question.getState())
-                .authorId(question.getAuthorId())
-                .reviewerId(question.getReviewerId())
-                .encryptionKeyId(question.getEncryptionKeyId())
-                .passageId(question.getPassageId())
-                .passageOrderIndex(question.getPassageOrderIndex())
-                .version(question.getVersion())
-                .createdAt(createdAt)
-                .updatedAt(updatedAt)
-                .options(question.getOptions())
-                .hasImages(question.isHasImages())
-                .build();
+        return QuestionResponse.fromEntity(question);
     }
 }

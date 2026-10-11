@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -32,6 +32,7 @@ import com.examplatform.questionbank.exception.SimilarQuestionException;
 import com.examplatform.questionbank.repository.QuestionRepository;
 import com.examplatform.questionbank.repository.SimilarityResult;
 import com.examplatform.questionbank.translation.repository.TranslationRepository;
+import com.examplatform.questionbank.repository.QuestionVersionRepository;
 import com.examplatform.shared.messaging.EventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -88,6 +89,9 @@ class DuplicateDetectionIntegrationTest {
     @Mock
     private TranslationRepository translationRepository;
 
+    @Mock
+    private QuestionVersionRepository questionVersionRepository;
+
     // Real SimilarityDetectionService with mocked dependencies
     private SimilarityDetectionService similarityDetectionService;
 
@@ -118,7 +122,8 @@ class DuplicateDetectionIntegrationTest {
                 similarityDetectionService,
                 embeddingService,
                 eventPublisher,
-                translationRepository
+                translationRepository,
+                questionVersionRepository
         );
 
         // Set encryptionEnabled = false to avoid Vault dependency in tests

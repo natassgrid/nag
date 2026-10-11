@@ -52,3 +52,4 @@ infrastructure/docker-compose/.env*
 # Documentation & Specs
 docs/
 *.md
+/docs/cpd/

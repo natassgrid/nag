@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -559,7 +559,7 @@ class CandidateProfileControllerIntegrationTest extends AbstractIntegrationTest 
         @DisplayName("+ve: Public callback handles OAuth2 code exchange - returns 200 OK")
         void handlesDigiLockerCallback() throws Exception {
             when(digiLockerService.handleCallback(eq("auth_code_999"), eq("mock_state"), any()))
-                    .thenReturn(Map.of("status", "VERIFIED", "userId", CANDIDATE_ID.toString(), "digiLockerVerified", "VERIFIED"));
+                    .thenReturn(DigiLockerCallbackResult.success(CANDIDATE_ID.toString(), "DigiLocker document and demographic identity verified successfully"));
 
             mockMvc.perform(get("/api/v1/candidates/digilocker/callback")
                             .param("code", "auth_code_999")

@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -54,6 +54,10 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
     List<Question> findByAuthorIdAndTenantId(UUID authorId, String tenantId);
 
     List<Question> findByTenantId(String tenantId);
+
+    long countByTenantId(String tenantId);
+
+    long countByStateAndTenantId(String state, String tenantId);
 
     Page<Question> findByTenantId(String tenantId, Pageable pageable);
 
@@ -171,7 +175,7 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
 
     /**
      * Finds questions with null embeddings for a given tenant, used by the
-     * batch embedding backfill endpoint (FR-9). Processes in pageable batches of 50.
+     * batch embedding backfill endpoint (FR-9). Processes in pageable batches of 50.\
      *
      * Validates: Requirements FR-9 (Batch Embedding Backfill)
      */
@@ -190,14 +194,16 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
     void updateEmbedding(@Param("id") UUID id, @Param("embedding") String embedding);
 
     /**
-     * Finds approved questions matching blueprint criteria (subject, topic, difficulty, cognitive level).
+     * Finds published questions matching blueprint criteria (subject, topic, difficulty, cognitive level).
+     * Only PUBLISHED questions are eligible for paper assembly — APPROVED questions have not yet
+     * received final approver sign-off and must not appear in generated papers.
      */
     @Query(value = """
             SELECT * FROM question_service.question
             WHERE (tenant_id = :tenantId OR tenant_id = 'default')
               AND UPPER(TRIM(subject)) = UPPER(TRIM(:subject))
               AND UPPER(TRIM(topic)) = UPPER(TRIM(:topic))
-              AND state = 'APPROVED'
+              AND state = 'PUBLISHED'
               AND (:difficulty IS NULL OR UPPER(TRIM(difficulty)) = UPPER(TRIM(:difficulty)))
               AND (:cognitiveLevel IS NULL OR UPPER(TRIM(cognitive_level)) = UPPER(TRIM(:cognitiveLevel)))
             ORDER BY RANDOM()
@@ -211,13 +217,14 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
 
     /**
      * Fallback lookup for blueprint questions ignoring cognitive level if exact match has no rows.
+     * Only PUBLISHED questions are eligible for paper assembly.
      */
     @Query(value = """
             SELECT * FROM question_service.question
             WHERE (tenant_id = :tenantId OR tenant_id = 'default')
               AND UPPER(TRIM(subject)) = UPPER(TRIM(:subject))
               AND UPPER(TRIM(topic)) = UPPER(TRIM(:topic))
-              AND state = 'APPROVED'
+              AND state = 'PUBLISHED'
               AND (:difficulty IS NULL OR UPPER(TRIM(difficulty)) = UPPER(TRIM(:difficulty)))
             ORDER BY RANDOM()
             """, nativeQuery = true)

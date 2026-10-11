@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -21,7 +21,7 @@ package com.examplatform.result.controller;
 
 import com.examplatform.result.domain.Result;
 import com.examplatform.result.dto.ScorecardUrlResponse;
-import com.examplatform.result.repository.ResultRepository;
+import com.examplatform.result.service.ScorecardPdfService;
 import com.examplatform.result.storage.ScorecardStorageProperties;
 import com.examplatform.result.storage.ScorecardStorageProvider;
 import jakarta.persistence.EntityNotFoundException;
@@ -46,7 +46,6 @@ import org.springframework.web.bind.annotation.RestController;
 import java.io.InputStream;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -62,7 +61,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ScorecardController {
 
-    private final ResultRepository resultRepository;
+    private final ScorecardPdfService scorecardPdfService;
     private final ScorecardStorageProvider storageProvider;
     private final ScorecardStorageProperties storageProperties;
 
@@ -89,7 +88,7 @@ public class ScorecardController {
             @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId,
             Authentication auth) {
 
-        Result result = findResult(id, tenantId);
+        Result result = scorecardPdfService.findResult(id, tenantId);
         validateAccess(result, auth);
 
         if (result.getScorecardPdfRef() == null || result.getScorecardPdfRef().isBlank()) {
@@ -121,7 +120,7 @@ public class ScorecardController {
             @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId,
             Authentication auth) {
 
-        Result result = findResult(id, tenantId);
+        Result result = scorecardPdfService.findResult(id, tenantId);
         validateAccess(result, auth);
 
         if (result.getScorecardPdfRef() == null || result.getScorecardPdfRef().isBlank()) {
@@ -146,7 +145,7 @@ public class ScorecardController {
             @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId,
             Authentication auth) {
 
-        Result result = findResult(id, tenantId);
+        Result result = scorecardPdfService.findResult(id, tenantId);
         validateAccess(result, auth);
 
         if (result.getScorecardPdfRef() == null || result.getScorecardPdfRef().isBlank()) {
@@ -190,40 +189,8 @@ public class ScorecardController {
                 .build();
     }
 
-    private Result findResult(UUID id, String tenantId) {
-        // Attempt 1: Lookup by Result ID
-        Optional<Result> byResultId = resultRepository.findById(id);
-        if (byResultId.isPresent()) {
-            return byResultId.get();
-        }
-
-        // Attempt 2: Lookup by Candidate ID
-        List<Result> results = resultRepository.findByCandidateIdAndTenantId(id, tenantId);
-        if (results.isEmpty()) {
-            throw new EntityNotFoundException("No results found for ID: " + id);
-        }
-
-        return results.stream()
-                .filter(r -> r.getScorecardPdfRef() != null)
-                .findFirst()
-                .orElseThrow(() -> new EntityNotFoundException("No scorecard available for candidate: " + id));
-    }
-
     private void validateAccess(Result result, Authentication auth) {
-        if (auth == null) {
-            return;
-        }
-
-        boolean isElevated = auth.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN")
-                        || a.getAuthority().equals("ROLE_SUPER_ADMIN")
-                        || a.getAuthority().equals("ROLE_EXAM_CONTROLLER"));
-
-        if (!isElevated && auth.getPrincipal() instanceof Jwt jwt) {
-            String userId = jwt.getSubject();
-            if (userId != null && !userId.equals(result.getCandidateId().toString())) {
-                throw new AccessDeniedException("Candidates can only access their own scorecards");
-            }
-        }
+        ResultAccessSecurityHelper.validateCandidateAccess(
+                result != null ? result.getCandidateId() : null, auth, "Candidates can only access their own scorecards");
     }
 }

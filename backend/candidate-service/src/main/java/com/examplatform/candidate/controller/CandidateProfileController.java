@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -24,6 +24,7 @@ import com.examplatform.candidate.dto.CandidateEducationResponse;
 import com.examplatform.candidate.dto.CandidateProfileResponse;
 import com.examplatform.candidate.dto.ConsentRequest;
 import com.examplatform.candidate.dto.CreateCandidateProfileRequest;
+import com.examplatform.candidate.dto.DigiLockerCallbackResult;
 import com.examplatform.candidate.dto.FaceVerificationRequest;
 import com.examplatform.candidate.dto.UpdateCandidateProfileRequest;
 import com.examplatform.candidate.service.CandidateEducationService;
@@ -92,15 +93,7 @@ public class CandidateProfileController {
     public ResponseEntity<CandidateProfileResponse> getByUserId(
             @PathVariable(required = false) UUID userId,
             @AuthenticationPrincipal Jwt jwt) {
-        UUID effectiveUserId = userId;
-        if (effectiveUserId == null && jwt != null && jwt.getSubject() != null) {
-            try {
-                effectiveUserId = UUID.fromString(jwt.getSubject());
-            } catch (IllegalArgumentException ignored) {}
-        }
-        if (effectiveUserId == null) {
-            throw new AccessDeniedException("User ID is required");
-        }
+        UUID effectiveUserId = resolveEffectiveUserId(userId, jwt);
         enforceOwnershipOrAdmin(effectiveUserId, jwt);
         String tenantId = getTenantId();
         CandidateProfileResponse response = candidateProfileService.getByUserId(effectiveUserId, tenantId);
@@ -116,15 +109,7 @@ public class CandidateProfileController {
             @PathVariable(required = false) UUID userId,
             @RequestBody UpdateCandidateProfileRequest request,
             @AuthenticationPrincipal Jwt jwt) {
-        UUID effectiveUserId = userId;
-        if (effectiveUserId == null && jwt != null && jwt.getSubject() != null) {
-            try {
-                effectiveUserId = UUID.fromString(jwt.getSubject());
-            } catch (IllegalArgumentException ignored) {}
-        }
-        if (effectiveUserId == null) {
-            throw new AccessDeniedException("User ID is required");
-        }
+        UUID effectiveUserId = resolveEffectiveUserId(userId, jwt);
         enforceOwnership(effectiveUserId, jwt);
         String tenantId = getTenantId();
         CandidateProfileResponse response = candidateProfileService.update(effectiveUserId, request, tenantId);
@@ -237,15 +222,7 @@ public class CandidateProfileController {
             @PathVariable(required = false) UUID userId,
             @RequestParam(required = false) String redirectUri,
             @AuthenticationPrincipal Jwt jwt) {
-        UUID effectiveUserId = userId;
-        if (effectiveUserId == null && jwt != null && jwt.getSubject() != null) {
-            try {
-                effectiveUserId = UUID.fromString(jwt.getSubject());
-            } catch (IllegalArgumentException ignored) {}
-        }
-        if (effectiveUserId == null) {
-            throw new AccessDeniedException("User ID is required");
-        }
+        UUID effectiveUserId = resolveEffectiveUserId(userId, jwt);
         enforceOwnership(effectiveUserId, jwt);
         String tenantId = getTenantId();
         Map<String, String> authInfo = digiLockerService.initiateAuth(effectiveUserId, tenantId, redirectUri);
@@ -258,11 +235,11 @@ public class CandidateProfileController {
      * Validates: Requirements 1.3
      */
     @GetMapping("/digilocker/callback")
-    public ResponseEntity<Map<String, Object>> handleDigiLockerCallbackGet(
+    public ResponseEntity<DigiLockerCallbackResult> handleDigiLockerCallbackGet(
             @RequestParam String code,
             @RequestParam(required = false) String state,
             @RequestParam(required = false) String redirectUri) {
-        Map<String, Object> result = digiLockerService.handleCallback(code, state, redirectUri);
+        DigiLockerCallbackResult result = digiLockerService.handleCallback(code, state, redirectUri);
         return ResponseEntity.ok(result);
     }
 
@@ -272,12 +249,12 @@ public class CandidateProfileController {
      * Validates: Requirements 1.3
      */
     @PostMapping("/digilocker/callback")
-    public ResponseEntity<Map<String, Object>> handleDigiLockerCallbackPost(
+    public ResponseEntity<DigiLockerCallbackResult> handleDigiLockerCallbackPost(
             @RequestBody Map<String, String> body) {
         String code = body != null ? body.get("code") : "";
         String state = body != null ? body.get("state") : "";
         String redirectUri = body != null ? body.get("redirectUri") : null;
-        Map<String, Object> result = digiLockerService.handleCallback(code, state, redirectUri);
+        DigiLockerCallbackResult result = digiLockerService.handleCallback(code, state, redirectUri);
         return ResponseEntity.ok(result);
     }
 
@@ -320,7 +297,20 @@ public class CandidateProfileController {
         return TenantContext.get() != null ? TenantContext.get() : "default";
     }
 
-    // ── Private helpers ──────────────────────────────────────────────────────────
+    // ── Private helpers ──────────────────────────────────────────────────
+
+    private UUID resolveEffectiveUserId(UUID userId, Jwt jwt) {
+        if (userId != null) {
+            return userId;
+        }
+        if (jwt != null && jwt.getSubject() != null) {
+            try {
+                return UUID.fromString(jwt.getSubject());
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+        throw new AccessDeniedException("User ID is required");
+    }
 
     private void enforceOwnership(UUID userId, Jwt jwt) {
         if (jwt == null) return;
@@ -337,7 +327,7 @@ public class CandidateProfileController {
     private void enforceOwnershipOrAdmin(UUID userId, Jwt jwt) {
         if (jwt == null) return;
         String sub = jwt.getSubject();
-        if (sub != null && userId.toString().equals(sub)) {
+        if (userId.toString().equals(sub)) {
             return; // Owner access
         }
         // Check if user has SUPER_ADMIN role

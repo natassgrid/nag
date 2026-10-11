@@ -1,8 +1,8 @@
-# Deployment Architecture — National Assessment Grid
+# Deployment Architecture — NextGen Assessment Grid
 
 ## 1. Overview
 
-The National Assessment Grid (NAG) is designed for versatile operational deployment across multiple environments. The platform provides pre-packaged configurations for three distinct deployment topologies:
+The NextGen Assessment Grid (NAG) is designed for versatile operational deployment across multiple environments. The platform provides pre-packaged configurations for three distinct deployment topologies:
 
 1. **Microservices Deployment** (Production Kubernetes / Cloud Multi-AZ / High Scale)
 2. **Macro-Services Deployment** (Consolidated Containers / EC2 Single or Dual VM / Medium Scale)

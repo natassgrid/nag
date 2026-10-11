@@ -2,7 +2,7 @@
 
 ## 1. Core Principles & Defense-in-Depth
 
-The **National Assessment Grid (NAG)** security architecture is engineered around the principle of **Defense-in-Depth**, **Zero Trust Networks**, and **Least Privilege Security**. Every layer of the stack—from edge ingress to backend persistence—enforces independent validation controls.
+The **NextGen Assessment Grid (NAG)** security architecture is engineered around the principle of **Defense-in-Depth**, **Zero Trust Networks**, and **Least Privilege Security**. Every layer of the stack—from edge ingress to backend persistence—enforces independent validation controls.
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐

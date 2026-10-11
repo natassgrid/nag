@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -23,6 +23,7 @@ import com.examplatform.analytics.domain.CandidateAnalyticsResult;
 import com.examplatform.analytics.domain.ExamAnalytics;
 import com.examplatform.analytics.repository.CandidateAnalyticsResultRepository;
 import com.examplatform.analytics.repository.ExamAnalyticsRepository;
+import com.examplatform.shared.util.DataConversionUtils;
 import com.examplatform.shared.util.UuidV7Generator;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -269,28 +270,9 @@ public class AnalyticsService {
 
         for (Double score : scores) {
             if (score == null) continue;
-            double s = score;
-            if (s < 10.0) {
-                distribution.compute("0-10", (k, v) -> v + 1);
-            } else if (s < 20.0) {
-                distribution.compute("10-20", (k, v) -> v + 1);
-            } else if (s < 30.0) {
-                distribution.compute("20-30", (k, v) -> v + 1);
-            } else if (s < 40.0) {
-                distribution.compute("30-40", (k, v) -> v + 1);
-            } else if (s < 50.0) {
-                distribution.compute("40-50", (k, v) -> v + 1);
-            } else if (s < 60.0) {
-                distribution.compute("50-60", (k, v) -> v + 1);
-            } else if (s < 70.0) {
-                distribution.compute("60-70", (k, v) -> v + 1);
-            } else if (s < 80.0) {
-                distribution.compute("70-80", (k, v) -> v + 1);
-            } else if (s < 90.0) {
-                distribution.compute("80-90", (k, v) -> v + 1);
-            } else {
-                distribution.compute("90-100", (k, v) -> v + 1);
-            }
+            int bucket = Math.min(9, Math.max(0, (int) (score / 10.0)));
+            String key = (bucket * 10) + "-" + ((bucket + 1) * 10);
+            distribution.compute(key, (k, v) -> (v != null ? v : 0L) + 1L);
         }
 
         return distribution;
@@ -311,7 +293,7 @@ public class AnalyticsService {
                 Map<String, Object> sectionMap = objectMapper.readValue(json, new TypeReference<>() {});
                 for (Map.Entry<String, Object> entry : sectionMap.entrySet()) {
                     String section = entry.getKey();
-                    double val = toDouble(entry.getValue());
+                    double val = DataConversionUtils.toDouble(entry.getValue());
                     sumMap.put(section, sumMap.getOrDefault(section, 0.0) + val);
                     countMap.put(section, countMap.getOrDefault(section, 0) + 1);
                 }
@@ -333,16 +315,15 @@ public class AnalyticsService {
     }
 
     private byte[] exportAsCsv(ExamAnalytics analytics) {
-        StringBuilder csv = new StringBuilder();
-        csv.append("exam_id,total_registered,total_appeared,top_10_percentile,bottom_10_percentile,computed_at\n");
-        csv.append(String.format("%s,%d,%d,%s,%s,%s\n",
+        String csv = "exam_id,total_registered,total_appeared,top_10_percentile,bottom_10_percentile,computed_at\n" +
+            String.format("%s,%d,%d,%s,%s,%s\n",
                 analytics.getExamId(),
                 analytics.getTotalRegistered(),
                 analytics.getTotalAppeared(),
                 analytics.getTop10PercentileThreshold(),
                 analytics.getBottom10PercentileThreshold(),
-                analytics.getComputedAt()));
-        return csv.toString().getBytes();
+                analytics.getComputedAt());
+        return csv.getBytes();
     }
 
     private String serializeJson(Object obj) {

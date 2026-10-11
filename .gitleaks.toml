@@ -1,0 +1,20 @@
+# Gitleaks configuration - extends the default ruleset
+title = "NAG gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Global allowlist (non-secret files and placeholders)"
+paths = [
+  '''(^|/)package-lock\.json$''',
+  '''(^|/)gradle/wrapper/''',
+  '''(^|/)\.env\.example$''',
+  '''(^|/)build/''',
+  '''(^|/)node_modules/''',
+  '''(^|/)dist/''',
+  '''(^|/)\.gradle/''',
+]
+regexes = [
+  '''(?i)(changeme|change-me|your[_-]?(api[_-]?)?(key|secret|token|password)|dummy|example|placeholder|<[a-z_ -]+>)''',
+]

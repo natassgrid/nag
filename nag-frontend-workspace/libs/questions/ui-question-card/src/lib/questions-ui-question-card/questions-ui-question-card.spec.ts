@@ -74,4 +74,17 @@ describe('QuestionsUiQuestionCard', () => {
     component.onDeleteClicked(fakeEvent);
     expect(deleteSpy).toHaveBeenCalledWith('q-101');
   });
+
+  it('should emit cardSelect when checkbox is toggled', () => {
+    fixture.componentRef.setInput('data', mockData);
+    fixture.componentRef.setInput('selectable', true);
+    fixture.detectChanges();
+
+    const selectSpy = jest.spyOn(component.cardSelect, 'emit');
+    const fakeEvent = { stopPropagation: jest.fn() } as unknown as Event;
+
+    component.onSelectClicked(fakeEvent);
+    expect(fakeEvent.stopPropagation).toHaveBeenCalled();
+    expect(selectSpy).toHaveBeenCalledWith(mockData);
+  });
 });

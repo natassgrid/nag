@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -20,8 +20,9 @@
 package com.examplatform.evaluation.controller;
 
 import com.examplatform.evaluation.domain.Evaluation;
+import com.examplatform.evaluation.dto.AggregatedScoreResult;
+import com.examplatform.evaluation.dto.ScoreRecordedResponse;
 import com.examplatform.evaluation.dto.ScoreRequest;
-import com.examplatform.evaluation.repository.EvaluationRepository;
 import com.examplatform.evaluation.service.ManualEvaluationService;
 import com.examplatform.evaluation.service.ScoreAggregationService;
 import com.examplatform.shared.tenant.TenantContext;
@@ -55,7 +56,6 @@ public class EvaluationController {
 
     private final ManualEvaluationService manualEvaluationService;
     private final ScoreAggregationService scoreAggregationService;
-    private final EvaluationRepository evaluationRepository;
 
     /**
      * Record a manual evaluator's score for an evaluation.
@@ -63,7 +63,7 @@ public class EvaluationController {
      */
     @PostMapping("/{id}/score")
     @PreAuthorize("hasAnyRole('EVALUATOR', 'EXAM_CONTROLLER')")
-    public ResponseEntity<Map<String, Object>> recordScore(
+    public ResponseEntity<ScoreRecordedResponse> recordScore(
             @PathVariable UUID id,
             @Valid @RequestBody ScoreRequest request) {
 
@@ -73,11 +73,11 @@ public class EvaluationController {
         Evaluation evaluation = manualEvaluationService.recordScore(
                 id, request.getEvaluatorId(), request.getScore(), request.getComments());
 
-        return ResponseEntity.ok(Map.of(
-                "evaluationId", evaluation.getId(),
-                "status", evaluation.getStatus().name(),
-                "score", evaluation.getScore(),
-                "message", "Score recorded successfully"
+        return ResponseEntity.ok(new ScoreRecordedResponse(
+                evaluation.getId(),
+                evaluation.getStatus().name(),
+                evaluation.getScore(),
+                "Score recorded successfully"
         ));
     }
 
@@ -87,7 +87,7 @@ public class EvaluationController {
      */
     @PostMapping("/aggregate")
     @PreAuthorize("hasAnyRole('EVALUATOR', 'EXAM_CONTROLLER')")
-    public ResponseEntity<Map<String, Object>> aggregateScores(
+    public ResponseEntity<AggregatedScoreResult> aggregateScores(
             @RequestBody Map<String, String> body) {
 
         UUID sessionId = UUID.fromString(body.get("sessionId"));
@@ -97,7 +97,7 @@ public class EvaluationController {
 
         log.info("Score aggregation requested for session={}, candidate={}, exam={}", sessionId, candidateId, examId);
 
-        Map<String, Object> result = scoreAggregationService.aggregateScores(
+        AggregatedScoreResult result = scoreAggregationService.aggregateScores(
                 sessionId, candidateId, examId, tenantId);
 
         return ResponseEntity.ok(result);
@@ -116,12 +116,7 @@ public class EvaluationController {
 
         log.info("Fetching evaluations for candidate={}, sessionId={}, tenant={}", candidateId, sessionId, tenantId);
 
-        List<Evaluation> evaluations;
-        if (sessionId != null) {
-            evaluations = evaluationRepository.findBySessionIdAndTenantId(sessionId, tenantId);
-        } else {
-            evaluations = evaluationRepository.findByCandidateIdAndTenantId(candidateId, tenantId);
-        }
+        List<Evaluation> evaluations = manualEvaluationService.getEvaluations(candidateId, sessionId, tenantId);
         return ResponseEntity.ok(evaluations);
     }
 }

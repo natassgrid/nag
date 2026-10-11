@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -29,14 +29,16 @@ import com.examplatform.delivery.dto.ShiftAssignment;
 import com.examplatform.delivery.exception.ConcurrentSessionException;
 import com.examplatform.delivery.repository.ExamSessionRepository;
 import com.examplatform.shared.config.DynamicConfigService;
+import com.examplatform.shared.crypto.VaultCryptoService;
+import com.examplatform.shared.event.SessionEvents;
 import com.examplatform.shared.messaging.EventPublisher;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -58,7 +60,6 @@ import java.util.UUID;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 @Transactional
 public class SessionStartService {
 
@@ -71,9 +72,45 @@ public class SessionStartService {
     private final EventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
     private final DynamicConfigService dynamicConfigService;
+    private final ObjectProvider<JdbcTemplate> jdbcTemplateProvider;
 
-    @Autowired(required = false)
-    private JdbcTemplate jdbcTemplate;
+    public SessionStartService(
+            ExamSessionRepository examSessionRepository,
+            ShiftAssignmentClient shiftAssignmentClient,
+            DisabilityExtensionService disabilityExtensionService,
+            VaultCryptoService vaultCryptoService,
+            ExamQuestionDeliveryService examQuestionDeliveryService,
+            RedisTemplate<String, Object> redisTemplate,
+            EventPublisher eventPublisher,
+            ObjectMapper objectMapper,
+            DynamicConfigService dynamicConfigService) {
+        this(examSessionRepository, shiftAssignmentClient, disabilityExtensionService, vaultCryptoService,
+                examQuestionDeliveryService, redisTemplate, eventPublisher, objectMapper, dynamicConfigService, null);
+    }
+
+    @Autowired
+    public SessionStartService(
+            ExamSessionRepository examSessionRepository,
+            ShiftAssignmentClient shiftAssignmentClient,
+            DisabilityExtensionService disabilityExtensionService,
+            VaultCryptoService vaultCryptoService,
+            ExamQuestionDeliveryService examQuestionDeliveryService,
+            RedisTemplate<String, Object> redisTemplate,
+            EventPublisher eventPublisher,
+            ObjectMapper objectMapper,
+            DynamicConfigService dynamicConfigService,
+            ObjectProvider<JdbcTemplate> jdbcTemplateProvider) {
+        this.examSessionRepository = examSessionRepository;
+        this.shiftAssignmentClient = shiftAssignmentClient;
+        this.disabilityExtensionService = disabilityExtensionService;
+        this.vaultCryptoService = vaultCryptoService;
+        this.examQuestionDeliveryService = examQuestionDeliveryService;
+        this.redisTemplate = redisTemplate;
+        this.eventPublisher = eventPublisher;
+        this.objectMapper = objectMapper;
+        this.dynamicConfigService = dynamicConfigService;
+        this.jdbcTemplateProvider = jdbcTemplateProvider;
+    }
 
     private static final String SESSION_CACHE_PREFIX = "session:";
     private static final String TOPIC_SESSION_EVENTS = "exam.session.events";
@@ -152,11 +189,7 @@ public class SessionStartService {
             }
         }
 
-        UUID paperId = request.getPaperId() != null
-                ? request.getPaperId()
-                : (assignment != null && assignment.getPaperId() != null
-                        ? assignment.getPaperId()
-                        : UUID.nameUUIDFromBytes(("paper-" + request.getExamId()).getBytes(StandardCharsets.UTF_8)));
+        UUID paperId = resolvePaperId(request.getPaperId(), assignment, request.getExamId());
 
         // 4. Resolve delivery questions
         List<QuestionDeliveryDto> baseQuestions = examQuestionDeliveryService != null
@@ -169,14 +202,13 @@ public class SessionStartService {
         List<QuestionDeliveryDto> questions = (examQuestionDeliveryService != null && baseQuestions != null && !baseQuestions.isEmpty())
                 ? examQuestionDeliveryService.randomizeOptions(baseQuestions, sessionId)
                 : baseQuestions;
-
-        String firstQuestionContent = extractFirstQuestion(decryptedPaper);
-        if (firstQuestionContent == null && questions != null && !questions.isEmpty()) {
-            try {
-                firstQuestionContent = objectMapper.writeValueAsString(questions.get(0));
-            } catch (JsonProcessingException ignored) {}
+        if (examQuestionDeliveryService != null && questions != null && !questions.isEmpty()) {
+            examQuestionDeliveryService.applyLanguagePreference(questions, request.getLanguageCode());
         }
-        int totalQuestions = (questions != null && !questions.isEmpty()) ? questions.size() : countQuestions(decryptedPaper);
+
+        QuestionPreparationResult qPrep = prepareQuestionsMetadata(decryptedPaper, questions);
+        String firstQuestionContent = qPrep.firstQuestionContent();
+        int totalQuestions = qPrep.totalQuestions();
 
         // 6. Apply disability extension time
         int disabilityExtension = disabilityExtensionService.getExtraTimeMinutes(candidateId, effectiveTenant);
@@ -215,14 +247,12 @@ public class SessionStartService {
 
         // 10. Publish SESSION_STARTED event (fire-and-forget)
         try {
-            Map<String, Object> event = Map.of(
-                    "eventType", "SESSION_STARTED",
-                    "sessionId", savedSession.getSessionId().toString(),
-                    "candidateId", candidateId.toString(),
-                    "examId", request.getExamId().toString(),
-                    "shiftId", shiftId.toString(),
-                    "startedAt", now.toString(),
-                    "tenantId", effectiveTenant
+            SessionEvents.SessionStarted event = SessionEvents.SessionStarted.of(
+                    savedSession.getSessionId().toString(),
+                    candidateId.toString(),
+                    request.getExamId().toString(),
+                    shiftId.toString(),
+                    effectiveTenant
             );
             eventPublisher.publish(TOPIC_SESSION_EVENTS, savedSession.getSessionId().toString(), event);
         } catch (Exception e) {
@@ -230,11 +260,7 @@ public class SessionStartService {
         }
 
         // 11. Read dynamic delivery parameters
-        boolean kioskEnforced = dynamicConfigService.getBoolean("delivery.kiosk.mode.enforced", effectiveTenant, true);
-        int heartbeatSec = dynamicConfigService.getInt("delivery.telemetry.heartbeat.seconds", effectiveTenant, 10);
-        int autosaveSec = dynamicConfigService.getInt("delivery.autosave.interval.seconds", effectiveTenant, 15);
-        int maxDisconnectGraceSec = dynamicConfigService.getInt("delivery.max.disconnect.grace.seconds", effectiveTenant, 180);
-        boolean tamperEnabled = dynamicConfigService.getBoolean("delivery.tamper.detection.enabled", effectiveTenant, true);
+        DynamicDeliveryParams deliveryParams = resolveDynamicDeliveryParams(effectiveTenant);
 
         String examTitle = resolveExamTitle(request.getExamId());
 
@@ -254,11 +280,11 @@ public class SessionStartService {
                 .firstQuestionContent(firstQuestionContent)
                 .totalQuestions(totalQuestions)
                 .questions(questions)
-                .kioskModeEnforced(kioskEnforced)
-                .heartbeatIntervalSeconds(heartbeatSec)
-                .autosaveIntervalSeconds(autosaveSec)
-                .maxDisconnectGraceSeconds(maxDisconnectGraceSec)
-                .tamperDetectionEnabled(tamperEnabled)
+                .kioskModeEnforced(deliveryParams.kioskEnforced())
+                .heartbeatIntervalSeconds(deliveryParams.heartbeatSec())
+                .autosaveIntervalSeconds(deliveryParams.autosaveSec())
+                .maxDisconnectGraceSeconds(deliveryParams.maxDisconnectGraceSec())
+                .tamperDetectionEnabled(deliveryParams.tamperEnabled())
                 .build();
     }
 
@@ -292,11 +318,7 @@ public class SessionStartService {
             }
         }
 
-        UUID paperId = session.getPaperId() != null
-                ? session.getPaperId()
-                : (assignment != null && assignment.getPaperId() != null
-                    ? assignment.getPaperId()
-                    : UUID.nameUUIDFromBytes(("paper-" + session.getExamId()).getBytes(StandardCharsets.UTF_8)));
+        UUID paperId = resolvePaperId(session.getPaperId(), assignment, session.getExamId());
 
         // 2. Fetch delivery questions (randomized options seeded with the existing session ID)
         List<QuestionDeliveryDto> baseQuestions = examQuestionDeliveryService != null
@@ -306,25 +328,22 @@ public class SessionStartService {
         List<QuestionDeliveryDto> questions = (examQuestionDeliveryService != null && baseQuestions != null && !baseQuestions.isEmpty())
                 ? examQuestionDeliveryService.randomizeOptions(baseQuestions, session.getSessionId())
                 : baseQuestions;
-
-        String firstQuestionContent = extractFirstQuestion(decryptedPaper);
-        if (firstQuestionContent == null && questions != null && !questions.isEmpty()) {
-            try {
-                firstQuestionContent = objectMapper.writeValueAsString(questions.get(0));
-            } catch (JsonProcessingException ignored) {}
+        if (examQuestionDeliveryService != null && questions != null && !questions.isEmpty()) {
+            examQuestionDeliveryService.applyLanguagePreference(questions, session.getLanguageCode());
         }
-        int totalQuestions = (questions != null && !questions.isEmpty()) ? questions.size() : countQuestions(decryptedPaper);
+
+        QuestionPreparationResult qPrep = prepareQuestionsMetadata(decryptedPaper, questions);
+        String firstQuestionContent = qPrep.firstQuestionContent();
+        int totalQuestions = qPrep.totalQuestions();
 
         // 3. Publish SESSION_RESUMED telemetry event
         try {
-            Map<String, Object> event = Map.of(
-                    "eventType", "SESSION_RESUMED",
-                    "sessionId", session.getSessionId().toString(),
-                    "candidateId", session.getCandidateId().toString(),
-                    "examId", session.getExamId().toString(),
-                    "shiftId", session.getShiftId().toString(),
-                    "resumedAt", now.toString(),
-                    "tenantId", effectiveTenant
+            SessionEvents.SessionResumed event = SessionEvents.SessionResumed.of(
+                    session.getSessionId().toString(),
+                    session.getCandidateId().toString(),
+                    session.getExamId().toString(),
+                    session.getShiftId().toString(),
+                    effectiveTenant
             );
             eventPublisher.publish(TOPIC_SESSION_EVENTS, session.getSessionId().toString(), event);
         } catch (Exception e) {
@@ -332,11 +351,7 @@ public class SessionStartService {
         }
 
         // 4. Read dynamic delivery parameters
-        boolean kioskEnforced = dynamicConfigService.getBoolean("delivery.kiosk.mode.enforced", effectiveTenant, true);
-        int heartbeatSec = dynamicConfigService.getInt("delivery.telemetry.heartbeat.seconds", effectiveTenant, 10);
-        int autosaveSec = dynamicConfigService.getInt("delivery.autosave.interval.seconds", effectiveTenant, 15);
-        int maxDisconnectGraceSec = dynamicConfigService.getInt("delivery.max.disconnect.grace.seconds", effectiveTenant, 180);
-        boolean tamperEnabled = dynamicConfigService.getBoolean("delivery.tamper.detection.enabled", effectiveTenant, true);
+        DynamicDeliveryParams deliveryParams = resolveDynamicDeliveryParams(effectiveTenant);
 
         String examTitle = resolveExamTitle(session.getExamId());
 
@@ -363,22 +378,13 @@ public class SessionStartService {
                 .firstQuestionContent(firstQuestionContent)
                 .totalQuestions(totalQuestions)
                 .questions(questions)
-                .kioskModeEnforced(kioskEnforced)
-                .heartbeatIntervalSeconds(heartbeatSec)
-                .autosaveIntervalSeconds(autosaveSec)
-                .maxDisconnectGraceSeconds(maxDisconnectGraceSec)
-                .tamperDetectionEnabled(tamperEnabled)
+                .kioskModeEnforced(deliveryParams.kioskEnforced())
+                .heartbeatIntervalSeconds(deliveryParams.heartbeatSec())
+                .autosaveIntervalSeconds(deliveryParams.autosaveSec())
+                .maxDisconnectGraceSeconds(deliveryParams.maxDisconnectGraceSec())
+                .tamperDetectionEnabled(deliveryParams.tamperEnabled())
                 .build();
     }
-
-    /**
-     * Resume an existing active session by session ID.
-     *
-     * @param sessionId   the exam session UUID
-     * @param candidateId the candidate UUID
-     * @param tenantId    the tenant identifier
-     * @return the session start/resume response
-     */
 
     /**
      * Terminate candidate's current active exam session(s).
@@ -448,12 +454,13 @@ public class SessionStartService {
 
     private String resolveExamTitle(UUID examId) {
         if (examId == null) {
-            return "National Assessment Grid Examination";
+            return "NextGen Assessment Grid Examination";
         }
         String examIdStr = examId.toString();
         if (STANDARD_EXAM_TITLES.containsKey(examIdStr)) {
             return STANDARD_EXAM_TITLES.get(examIdStr);
         }
+        JdbcTemplate jdbcTemplate = jdbcTemplateProvider != null ? jdbcTemplateProvider.getIfAvailable() : null;
         if (jdbcTemplate != null) {
             try {
                 String title = jdbcTemplate.queryForObject(
@@ -467,13 +474,14 @@ public class SessionStartService {
             } catch (Exception ignored) {
             }
         }
-        return "National Assessment Grid Examination (" + examIdStr.substring(0, 8) + ")";
+        return "NextGen Assessment Grid Examination (" + examIdStr.substring(0, 8) + ")";
     }
 
     private int resolveExamDurationMinutes(UUID examId, ShiftAssignment assignment) {
         if (assignment != null && assignment.getDurationMinutes() > 0) {
             return assignment.getDurationMinutes();
         }
+        JdbcTemplate jdbcTemplate = jdbcTemplateProvider != null ? jdbcTemplateProvider.getIfAvailable() : null;
         if (jdbcTemplate != null && examId != null) {
             try {
                 Integer duration = jdbcTemplate.queryForObject(
@@ -488,5 +496,48 @@ public class SessionStartService {
             }
         }
         return 60;
+    }
+    record DynamicDeliveryParams(
+            boolean kioskEnforced,
+            int heartbeatSec,
+            int autosaveSec,
+            int maxDisconnectGraceSec,
+            boolean tamperEnabled
+    ) {}
+
+    private DynamicDeliveryParams resolveDynamicDeliveryParams(String effectiveTenant) {
+        return new DynamicDeliveryParams(
+                dynamicConfigService.getBoolean("delivery.kiosk.mode.enforced", effectiveTenant, true),
+                dynamicConfigService.getInt("delivery.telemetry.heartbeat.seconds", effectiveTenant, 10),
+                dynamicConfigService.getInt("delivery.autosave.interval.seconds", effectiveTenant, 15),
+                dynamicConfigService.getInt("delivery.max.disconnect.grace.seconds", effectiveTenant, 180),
+                dynamicConfigService.getBoolean("delivery.tamper.detection.enabled", effectiveTenant, true)
+        );
+    }
+
+    record QuestionPreparationResult(
+            String firstQuestionContent,
+            int totalQuestions
+    ) {}
+
+    private QuestionPreparationResult prepareQuestionsMetadata(String decryptedPaper, List<QuestionDeliveryDto> questions) {
+        String firstQuestionContent = extractFirstQuestion(decryptedPaper);
+        if (firstQuestionContent == null && questions != null && !questions.isEmpty()) {
+            try {
+                firstQuestionContent = objectMapper.writeValueAsString(questions.get(0));
+            } catch (JsonProcessingException ignored) {}
+        }
+        int totalQuestions = (questions != null && !questions.isEmpty()) ? questions.size() : countQuestions(decryptedPaper);
+        return new QuestionPreparationResult(firstQuestionContent, totalQuestions);
+    }
+
+    private UUID resolvePaperId(UUID explicitPaperId, ShiftAssignment assignment, UUID examId) {
+        if (explicitPaperId != null) {
+            return explicitPaperId;
+        }
+        if (assignment != null && assignment.getPaperId() != null) {
+            return assignment.getPaperId();
+        }
+        return UUID.nameUUIDFromBytes(("paper-" + examId).getBytes(StandardCharsets.UTF_8));
     }
 }

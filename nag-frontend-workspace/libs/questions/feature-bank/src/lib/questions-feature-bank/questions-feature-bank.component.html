@@ -1,7 +1,7 @@
 <div class="p-6 md:p-8 space-y-6 max-w-7xl mx-auto">
   <!-- Page Header -->
   <nag-page-header
-    title="Curated Item Bank"
+    title="Curated Question Bank"
     description="Search, filter, inspect and govern high-stakes assessment items with strict taxonomy verification"
   >
     <div actions class="flex items-center gap-3">
@@ -9,13 +9,35 @@
         routerLink="/questions/authoring"
         mat-flat-button
         color="primary"
-        class="!rounded-xl flex items-center gap-2 !bg-indigo-600 hover:!bg-indigo-700 !text-white font-semibold text-xs"
+        class="!rounded-xl inline-flex items-center justify-center gap-2 !bg-indigo-600 hover:!bg-indigo-700 !text-white font-semibold text-xs"
       >
-        <mat-icon class="!text-base leading-none">add</mat-icon>
-        Author New Item
+        <mat-icon class="!w-4 !h-4 !text-base !leading-none flex items-center justify-center shrink-0">add</mat-icon>
+        <span class="leading-none">Author New Question</span>
       </a>
     </div>
   </nag-page-header>
+
+  <!-- Review Workflow Tabs (Issue #275) -->
+  <div class="flex items-center gap-1 bg-slate-100 rounded-xl p-1">
+    @for (tab of tabs; track tab.id) {
+      <button
+        type="button"
+        (click)="switchTab(tab.id)"
+        class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer"
+        [class.bg-white]="activeTab() === tab.id"
+        [class.shadow-sm]="activeTab() === tab.id"
+        [class.text-indigo-700]="activeTab() === tab.id"
+        [class.text-slate-500]="activeTab() !== tab.id"
+        [class.hover:text-slate-700]="activeTab() !== tab.id"
+      >
+        <mat-icon class="!w-4 !h-4 !text-base !leading-none flex items-center justify-center shrink-0">{{ tab.icon }}</mat-icon>
+        <span class="inline-flex items-center leading-none">{{ tab.label }}</span>
+        @if (tab.id === 'REVIEW' && isReviewer()) {
+          <span class="ml-1 w-2 h-2 rounded-full bg-amber-500 inline-block shrink-0"></span>
+        }
+      </button>
+    }
+  </div>
 
   <!-- Filter & Action Controls Card Sub-component -->
   <nag-bank-filter-bar
@@ -38,7 +60,7 @@
     (toggleSemanticSearch)="showVectorDrawer.set(!showVectorDrawer())"
   ></nag-bank-filter-bar>
 
-  <!-- Main Items List & Pagination Sub-component -->
+    <!-- Main Items List & Pagination Sub-component -->
   <nag-bank-items-list
     [questions]="questionService.questions()"
     [loading]="questionService.loading()"
@@ -48,11 +70,73 @@
     [total]="questionService.total()"
     [showingStart]="showingStart()"
     [showingEnd]="showingEnd()"
+    [currentUserId]="currentUserId()"
+    [isReviewer]="isReviewer()"
+    [isAuthor]="isAuthor()"
+    [selectedIds]="selectedQuestionIds()"
+    [isAllSelected]="isAllSelected()"
+    (toggleSelectQuestion)="toggleSelectQuestion($event)"
+    (toggleSelectAll)="toggleSelectAll()"
     (pageChange)="goToPage($event)"
     (editQuestion)="onEditQuestion($event)"
     (deleteQuestion)="onDeleteQuestion($event)"
+    (submitQuestion)="onSubmitQuestion($event)"
+    (approveQuestion)="onApproveQuestion($event)"
+    (rejectQuestion)="onRejectQuestion($event)"
+    (publishQuestion)="onPublishQuestion($event)"
     (createQuestion)="resetFilters()"
   ></nag-bank-items-list>
+
+  <!-- Bulk Action Toolbar (Issue #323) -->
+  @if (selectedQuestionIds().size > 0) {
+    <div class="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900 text-white px-6 py-3.5 rounded-2xl shadow-2xl border border-slate-700 flex items-center gap-4">
+      <div class="flex items-center gap-2 border-r border-slate-700 pr-4">
+        <span class="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-bold">
+          {{ selectedQuestionIds().size }}
+        </span>
+        <span class="text-xs font-semibold">Selected</span>
+      </div>
+
+      <div class="flex items-center gap-2">
+        @if (isAuthor() || isReviewer()) {
+          <button
+            mat-flat-button
+            color="primary"
+            (click)="onBulkTransition('REVIEW')"
+            class="!text-xs !rounded-xl !bg-indigo-600 hover:!bg-indigo-500 cursor-pointer inline-flex items-center gap-1.5"
+          >
+            <mat-icon class="!w-4 !h-4 !text-base !leading-none flex items-center justify-center shrink-0">rate_review</mat-icon>
+            <span class="leading-none">Submit for Review</span>
+          </button>
+        }
+        @if (isReviewer()) {
+          <button
+            mat-flat-button
+            (click)="onBulkTransition('APPROVED')"
+            class="!text-xs !rounded-xl !bg-emerald-600 hover:!bg-emerald-500 !text-white cursor-pointer inline-flex items-center gap-1.5"
+          >
+            <mat-icon class="!w-4 !h-4 !text-base !leading-none flex items-center justify-center shrink-0">check_circle</mat-icon>
+            <span class="leading-none">Approve Selected</span>
+          </button>
+          <button
+            mat-flat-button
+            (click)="onBulkTransition('PUBLISHED')"
+            class="!text-xs !rounded-xl !bg-purple-600 hover:!bg-purple-500 !text-white cursor-pointer inline-flex items-center gap-1.5"
+          >
+            <mat-icon class="!w-4 !h-4 !text-base !leading-none flex items-center justify-center shrink-0">publish</mat-icon>
+            <span class="leading-none">Publish Selected</span>
+          </button>
+        }
+        <button
+          mat-stroked-button
+          (click)="clearSelection()"
+          class="!text-xs !rounded-xl !border-slate-600 !text-slate-300 hover:!bg-slate-800 cursor-pointer"
+        >
+          Clear
+        </button>
+      </div>
+    </div>
+  }
 
   <!-- Semantic Vector Similarity Search Drawer Sub-component -->
   <nag-bank-semantic-search-drawer
@@ -61,4 +145,11 @@
     (close)="showVectorDrawer.set(false)"
     (search)="runVectorSearch($event)"
   ></nag-bank-semantic-search-drawer>
+
+  <!-- Reject Comments Dialog (Issue #275) -->
+  <nag-reject-comments-dialog
+    [open]="showRejectDialog()"
+    (confirmed)="onRejectConfirmed($event)"
+    (cancelled)="onRejectCancelled()"
+  ></nag-reject-comments-dialog>
 </div>

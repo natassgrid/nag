@@ -1,8 +1,8 @@
-# C4 Model Level 1: System Context — National Assessment Grid
+# C4 Model Level 1: System Context — NextGen Assessment Grid
 
 ## 1. Overview
 
-The System Context Diagram shows the National Assessment Grid (NAG) platform in relation to external users (candidates, authors, controllers, administrators) and external third-party systems.
+The System Context Diagram shows the NextGen Assessment Grid (NAG) platform in relation to external users (candidates, authors, controllers, administrators) and external third-party systems.
 
 ---
 
@@ -19,7 +19,7 @@ graph TD
     Controller["Exam Controller / Admin"]:::user
     Auditor["External Auditor"]:::user
 
-    NAG["National Assessment Grid (NAG Platform)"]:::system
+    NAG["NextGen Assessment Grid (NAG Platform)"]:::system
 
     Keycloak["Keycloak IAM / OIDC"]:::external
     SMSService["SMS / Email Notification Gateway"]:::external

@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -21,6 +21,7 @@ package com.examplatform.candidate.service;
 
 import com.examplatform.candidate.client.DigiLockerClient;
 import com.examplatform.candidate.domain.CandidateProfile;
+import com.examplatform.candidate.dto.DigiLockerCallbackResult;
 import com.examplatform.candidate.dto.DigiLockerResponse;
 import com.examplatform.candidate.exception.ProfileNotFoundException;
 import com.examplatform.candidate.repository.CandidateProfileRepository;
@@ -114,9 +115,9 @@ class DigiLockerServiceTest {
             when(candidateProfileRepository.save(any(CandidateProfile.class)))
                     .thenReturn(profile);
 
-            Map<String, Object> result = digiLockerService.handleCallback("auth_code_123", state, null);
+            DigiLockerCallbackResult result = digiLockerService.handleCallback("auth_code_123", state, null);
 
-            assertThat(result.get("status")).isEqualTo("VERIFIED");
+            assertThat(result.status()).isEqualTo("VERIFIED");
             assertThat(profile.getDigiLockerVerified()).isEqualTo("VERIFIED");
             verify(candidateProfileRepository).save(profile);
         }
@@ -138,9 +139,9 @@ class DigiLockerServiceTest {
             when(candidateProfileRepository.save(any(CandidateProfile.class)))
                     .thenReturn(profile);
 
-            Map<String, Object> result = digiLockerService.handleCallback("auth_code_123", state, null);
+            DigiLockerCallbackResult result = digiLockerService.handleCallback("auth_code_123", state, null);
 
-            assertThat(result.get("status")).isEqualTo("FAILED");
+            assertThat(result.status()).isEqualTo("FAILED");
             assertThat(profile.getDigiLockerVerified()).isEqualTo("FAILED");
         }
 
@@ -155,9 +156,9 @@ class DigiLockerServiceTest {
             when(digiLockerClient.exchangeCodeForToken(anyString(), any()))
                     .thenReturn(Map.of()); // No access token
 
-            Map<String, Object> result = digiLockerService.handleCallback("auth_code_123", state, null);
+            DigiLockerCallbackResult result = digiLockerService.handleCallback("auth_code_123", state, null);
 
-            assertThat(result.get("status")).isEqualTo("FAILED");
+            assertThat(result.status()).isEqualTo("FAILED");
             assertThat(profile.getDigiLockerVerified()).isEqualTo("FAILED");
         }
     }

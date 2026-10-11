@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -120,7 +120,7 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
                     .build();
             ReflectionTestUtils.setField(paper, "id", PAPER_ID);
 
-            when(paperRepository.findPapers(eq(TENANT_ID), any(), any(), any()))
+            when(paperAssemblyService.listPapers(eq(TENANT_ID), any(), any(), any()))
                     .thenReturn(new PageImpl<>(List.of(paper)));
 
             mockMvc.perform(get("/api/v1/papers")
@@ -159,7 +159,7 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
                     .build();
             ReflectionTestUtils.setField(paper, "id", PAPER_ID);
 
-            when(paperRepository.findByIdAndTenantId(eq(PAPER_ID), eq(TENANT_ID))).thenReturn(Optional.of(paper));
+            when(paperAssemblyService.getPaperById(eq(PAPER_ID), eq(TENANT_ID))).thenReturn(Optional.of(paper));
 
             mockMvc.perform(get("/api/v1/papers/{paperId}", PAPER_ID)
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EXAM_CONTROLLER"))
@@ -173,7 +173,7 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
         @Test
         @DisplayName("-ve: Non-existent paper ID returns 404 Not Found")
         void nonExistentPaperReturnsNotFound() throws Exception {
-            when(paperRepository.findByIdAndTenantId(eq(PAPER_ID), eq(TENANT_ID))).thenReturn(Optional.empty());
+            when(paperAssemblyService.getPaperById(eq(PAPER_ID), eq(TENANT_ID))).thenReturn(Optional.empty());
 
             mockMvc.perform(get("/api/v1/papers/{paperId}", PAPER_ID)
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EXAM_CONTROLLER"))
@@ -435,6 +435,58 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
                     .andExpect(jsonPath("$.jobId").value(JOB_ID.toString()))
                     .andExpect(jsonPath("$.status").value("IN_PROGRESS"))
                     .andExpect(jsonPath("$.progressPercentage").value(50.0));
+        }
+
+        @Test
+        @DisplayName("+ve: Query latest paper translation status via /translation-status - returns 200 OK")
+        void queryLatestPaperTranslationStatus() throws Exception {
+            PaperTranslateResponse response = PaperTranslateResponse.builder()
+                    .jobId(JOB_ID)
+                    .paperId(PAPER_ID)
+                    .status("IN_PROGRESS")
+                    .targetLanguage("hi")
+                    .totalQuestions(10)
+                    .processedQuestions(5)
+                    .successfulQuestions(5)
+                    .progressPercentage(50.0)
+                    .build();
+
+            when(paperTranslationService.getLatestTranslationStatus(eq(PAPER_ID), eq(TENANT_ID)))
+                    .thenReturn(response);
+
+            mockMvc.perform(get("/api/v1/papers/{paperId}/translation-status", PAPER_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EXAM_CONTROLLER"))
+                                    .jwt(j -> j.subject(USER_ID.toString()).claim("tenant_id", TENANT_ID))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.jobId").value(JOB_ID.toString()))
+                    .andExpect(jsonPath("$.status").value("IN_PROGRESS"))
+                    .andExpect(jsonPath("$.progressPercentage").value(50.0));
+        }
+
+        @Test
+        @DisplayName("+ve: Query paper translation status via /translation-status/{jobId} alias - returns 200 OK")
+        void queryPaperTranslationStatusViaJobIdAlias() throws Exception {
+            PaperTranslateResponse response = PaperTranslateResponse.builder()
+                    .jobId(JOB_ID)
+                    .paperId(PAPER_ID)
+                    .status("COMPLETED")
+                    .targetLanguage("hi")
+                    .totalQuestions(10)
+                    .processedQuestions(10)
+                    .successfulQuestions(10)
+                    .progressPercentage(100.0)
+                    .build();
+
+            when(paperTranslationService.getTranslationStatus(eq(PAPER_ID), eq(JOB_ID), eq(TENANT_ID)))
+                    .thenReturn(response);
+
+            mockMvc.perform(get("/api/v1/papers/{paperId}/translation-status/{jobId}", PAPER_ID, JOB_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EXAM_CONTROLLER"))
+                                    .jwt(j -> j.subject(USER_ID.toString()).claim("tenant_id", TENANT_ID))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.jobId").value(JOB_ID.toString()))
+                    .andExpect(jsonPath("$.status").value("COMPLETED"))
+                    .andExpect(jsonPath("$.progressPercentage").value(100.0));
         }
     }
 }

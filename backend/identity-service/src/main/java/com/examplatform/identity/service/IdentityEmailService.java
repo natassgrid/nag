@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -51,7 +51,7 @@ public class IdentityEmailService {
      * Sends candidate email OTP verification email with direct verification link.
      */
     public boolean sendCandidateEmailOtp(String recipientEmail, String otpCode, String candidateName, UUID userId) {
-        String subject = "National Assessment Grid - Verify Your Email Address";
+        String subject = "NextGen Assessment Grid - Verify Your Email Address";
         String displayName = (candidateName != null && !candidateName.isBlank()) ? candidateName : "Candidate";
 
         String encodedEmail = URLEncoder.encode(recipientEmail, StandardCharsets.UTF_8);
@@ -84,12 +84,12 @@ public class IdentityEmailService {
             <body>
               <div class="container">
                 <div class="header">
-                  <h1>National Assessment Grid (NAG)</h1>
+                  <h1>NextGen Assessment Grid (NAG)</h1>
                   <p>Digital Public Infrastructure for Standardized Examinations</p>
                 </div>
                 <div class="content">
                   <p>Dear <strong>%s</strong>,</p>
-                  <p>Thank you for registering on the National Assessment Grid. Please use the following One-Time Password (OTP) to verify your email address and activate your account:</p>
+                  <p>Thank you for registering on the NextGen Assessment Grid. Please use the following One-Time Password (OTP) to verify your email address and activate your account:</p>
                   <div class="otp-box">
                     <div class="otp-code">%s</div>
                   </div>
@@ -103,7 +103,7 @@ public class IdentityEmailService {
                   <p>If you did not initiate this registration, please disregard this email.</p>
                 </div>
                 <div class="footer">
-                  &copy; 2025 National Assessment Grid (NAG). All rights reserved.
+                  &copy; 2025 NextGen Assessment Grid (NAG). All rights reserved.
                 </div>
               </div>
             </body>
@@ -111,7 +111,7 @@ public class IdentityEmailService {
             """.formatted(escapeHtml(displayName), escapeHtml(otpCode), escapeHtml(directVerifyUrl));
 
         String textContent = "Dear " + displayName + ",\n\n"
-                + "Your National Assessment Grid (NAG) email verification OTP is: " + otpCode + "\n\n"
+                + "Your NextGen Assessment Grid (NAG) email verification OTP is: " + otpCode + "\n\n"
                 + "You can also verify directly using this link:\n" + directVerifyUrl + "\n\n"
                 + "This OTP is valid for 10 minutes.\n"
                 + "Security Notice: Never share this OTP with anyone.\n\n"
@@ -131,7 +131,7 @@ public class IdentityEmailService {
      * Sends invitation email to onboard a new Administrator or Staff member.
      */
     public boolean sendAdminInvitationEmail(String recipientEmail, String fullName, String roles, String invitationToken) {
-        String subject = "Invitation to Join National Assessment Grid (NAG) Admin Portal";
+        String subject = "Invitation to Join NextGen Assessment Grid (NAG) Admin Portal";
         String inviteLink = adminPortalUrl + "/auth/accept-invite?token=" + invitationToken;
 
         String htmlContent = """
@@ -156,12 +156,12 @@ public class IdentityEmailService {
             <body>
               <div class="container">
                 <div class="header">
-                  <h1>National Assessment Grid</h1>
+                  <h1>NextGen Assessment Grid</h1>
                   <p style="margin:4px 0 0 0; opacity:0.8; font-size:13px;">Staff & Administration Portal</p>
                 </div>
                 <div class="content">
                   <p>Hello <strong>%s</strong>,</p>
-                  <p>You have been invited to join the National Assessment Grid (NAG) administrative portal.</p>
+                  <p>You have been invited to join the NextGen Assessment Grid (NAG) administrative portal.</p>
                   <div class="roles-box">
                     <strong>Assigned Role(s):</strong> %s
                   </div>
@@ -175,7 +175,7 @@ public class IdentityEmailService {
                   <p style="font-size: 13px; color: #64748b;">This invitation link is valid for <strong>48 hours</strong>.</p>
                 </div>
                 <div class="footer">
-                  &copy; 2025 National Assessment Grid (NAG). All rights reserved.
+                  &copy; 2025 NextGen Assessment Grid (NAG). All rights reserved.
                 </div>
               </div>
             </body>
@@ -189,7 +189,7 @@ public class IdentityEmailService {
         );
 
         String textContent = "Hello " + fullName + ",\n\n"
-                + "You have been invited to join the National Assessment Grid administrative portal.\n"
+                + "You have been invited to join the NextGen Assessment Grid administrative portal.\n"
                 + "Assigned Role(s): " + roles + "\n\n"
                 + "Please accept your invitation and configure 2FA by clicking the following link:\n"
                 + inviteLink + "\n\n"

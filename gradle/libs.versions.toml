@@ -2,32 +2,37 @@
 # Central dependency version catalog for the Examination Platform
 
 [versions]
-# ── Platforms & BOMs ──────────────────────────────────────────────────
-spring-boot = "4.1.0"
+# ── Platforms & BOMs ──────────────────────────────────────────
+spring-boot = "4.1.1"
 spring-cloud = "2025.1.2"
-spring-ai = "2.0.0"
+spring-ai = "2.0.1"
 
-# ── Plugins ───────────────────────────────────────────────────────────
-lombok-plugin = "9.5.0"
+# ── Plugins ───────────────────────────────────────────────────
+lombok-plugin = "9.8.0"
 spring-dependency-management = "1.1.7"
-protobuf-plugin = "0.9.4"
+protobuf-plugin = "0.10.0"
+rewrite-plugin = "7.39.0"
 
 # ── Libraries with explicit versions (not managed by Boot BOM) ────────
-jqwik = "1.8.5"
-java-uuid-generator = "5.1.0"
+jqwik = "1.10.1"
+java-uuid-generator = "5.2.0"
 resilience4j = "2.4.0"
-pdfbox = "3.0.1"
-tika = "2.9.2"
-httpclient5 = "5.4.1"
-httpcore5 = "5.3.1"
+pdfbox = "3.0.8"
+tika = "4.1.0"
+httpclient5 = "5.6.4"
+httpcore5 = "5.4.4"
 opensearch = "2.10.0"
 pgvector = "0.1.6"
-aws-sdk = "2.31.1"
-testcontainers = "1.20.4"
-grpc = "1.68.1"
-protobuf-version = "3.25.5"
+aws-sdk = "2.55.11"
+testcontainers = "1.21.4"
+grpc = "1.83.1"
+protobuf-version = "4.35.1"
+archunit = "1.5.1"
+geoip2 = "5.2.0"
+pmd = "7.10.0"
+rewrite-recipe-bom = "3.40.0"
 
-# ────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────
 
 [libraries]
 # ── Spring Boot starters (version managed by Boot BOM) ────────────────
@@ -119,6 +124,9 @@ httpcore5-h2 = { module = "org.apache.httpcomponents.core5:httpcore5-h2", versio
 opensearch-java = { module = "org.opensearch.client:opensearch-java", version.ref = "opensearch" }
 opensearch-rest-client = { module = "org.opensearch.client:opensearch-rest-client", version.ref = "opensearch" }
 
+# ── MaxMind GeoIP2 ────────────────────────────────────────────────────
+geoip2 = { module = "com.maxmind.geoip2:geoip2", version.ref = "geoip2" }
+
 # ── AWS SDK v2 (for Bedrock Batch Inference + S3) ─────────────────────
 aws-bom = { module = "software.amazon.awssdk:bom", version.ref = "aws-sdk" }
 aws-bedrock = { module = "software.amazon.awssdk:bedrock" }
@@ -145,8 +153,13 @@ jqwik = { module = "net.jqwik:jqwik", version.ref = "jqwik" }
 testcontainers-postgresql = { module = "org.testcontainers:postgresql", version.ref = "testcontainers" }
 testcontainers-kafka = { module = "org.testcontainers:kafka", version.ref = "testcontainers" }
 testcontainers-junit-jupiter = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers" }
+archunit-junit5 = { module = "com.tngtech.archunit:archunit-junit5", version.ref = "archunit" }
 
-# ────────────────────────────────────────────────────────────────────────────
+# ── Static Analysis & Code Quality ────────────────────────────────────
+pmd-cli = { module = "net.sourceforge.pmd:pmd-cli", version.ref = "pmd" }
+pmd-java = { module = "net.sourceforge.pmd:pmd-java", version.ref = "pmd" }
+
+# ──────────────────────────────────────────────────────────────
 
 [plugins]
 spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }

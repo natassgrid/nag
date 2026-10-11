@@ -57,6 +57,7 @@ describe('QuestionBankService', () => {
         expect(res.content[0].id).toBe('q-1');
         expect(service.questions().length).toBe(1);
         expect(service.total()).toBe(1);
+        expect(service.pageSize()).toBe(10);
         expect(service.loading()).toBe(false);
         done();
       });
@@ -65,7 +66,8 @@ describe('QuestionBankService', () => {
       (r) =>
         r.url === '/api/v1/questions' &&
         r.params.get('search') === 'Newton' &&
-        r.params.get('difficulty') === 'MEDIUM'
+        r.params.get('difficulty') === 'MEDIUM' &&
+        r.params.get('size') === '10'
     );
     expect(req.request.method).toBe('GET');
     req.flush(mockBackendResponse);
@@ -81,6 +83,33 @@ describe('QuestionBankService', () => {
     const req = httpMock.expectOne('/api/v1/questions/q-99');
     expect(req.request.method).toBe('GET');
     req.flush({ data: { id: 'q-99', text: 'Calculus derivative of sin(x)' } });
+  });
+
+  it('should retrieve questions by IDs batch', (done) => {
+    service.getQuestionsByIds(['q-1', 'q-2']).subscribe((questions) => {
+      expect(questions.length).toBe(2);
+      expect(questions[0].id).toBe('q-1');
+      expect(questions[1].id).toBe('q-2');
+      done();
+    });
+
+    const req = httpMock.expectOne('/api/v1/questions/by-ids');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual(['q-1', 'q-2']);
+    req.flush({
+      data: [
+        { id: 'q-1', text: 'Question 1', difficulty: 'EASY' },
+        { id: 'q-2', text: 'Question 2', difficulty: 'HARD' },
+      ],
+    });
+  });
+
+  it('should return empty observable if empty array passed to getQuestionsByIds', (done) => {
+    service.getQuestionsByIds([]).subscribe((questions) => {
+      expect(questions).toEqual([]);
+      done();
+    });
+    httpMock.expectNone('/api/v1/questions/by-ids');
   });
 
   it('should delete question and remove from state', (done) => {

@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -16,11 +16,11 @@ import com.examplatform.candidate.grpc.CandidateExtensionGrpcResponse;
 import com.examplatform.candidate.grpc.CandidateProfileGrpcServiceGrpc;
 import com.examplatform.delivery.dto.CandidateExtension;
 import com.examplatform.shared.grpc.GrpcChannelFactory;
-import io.grpc.ManagedChannel;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -51,14 +51,13 @@ public class CandidateProfileClientImpl implements CandidateProfileClient {
                 host, port, candidateId, tenantId);
 
         try {
-            ManagedChannel channel = GrpcChannelFactory.getChannel(host, port);
             CandidateProfileGrpcServiceGrpc.CandidateProfileGrpcServiceBlockingStub stub =
-                    CandidateProfileGrpcServiceGrpc.newBlockingStub(channel)
+                    CandidateProfileGrpcServiceGrpc.newBlockingStub(GrpcChannelFactory.getChannel(host, port))
                             .withDeadlineAfter(timeoutMs, TimeUnit.MILLISECONDS);
 
             CandidateExtensionGrpcRequest request = CandidateExtensionGrpcRequest.newBuilder()
                     .setCandidateId(candidateId != null ? candidateId.toString() : "")
-                    .setTenantId(tenantId != null ? tenantId : "")
+                    .setTenantId(Objects.requireNonNullElse(tenantId, ""))
                     .build();
 
             CandidateExtensionGrpcResponse response = stub.getCandidateExtension(request);

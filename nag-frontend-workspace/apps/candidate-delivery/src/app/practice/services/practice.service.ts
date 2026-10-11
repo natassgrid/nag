@@ -27,8 +27,12 @@ export class PracticeService {
     return this.http.get<PracticeSession>(`${this.base}/sessions/${sessionId}`);
   }
 
-  getSessionQuestions(sessionId: string): Observable<any[]> {
-    return this.http.get<any[]>(`${this.base}/sessions/${sessionId}/questions`);
+  getSessionQuestions(sessionId: string, lang?: string): Observable<any[]> {
+    let params = new HttpParams();
+    if (lang) {
+      params = params.set('lang', lang);
+    }
+    return this.http.get<any[]>(`${this.base}/sessions/${sessionId}/questions`, { params });
   }
 
   saveResponse(sessionId: string, req: SaveResponseRequest): Observable<void> {
@@ -39,8 +43,12 @@ export class PracticeService {
     return this.http.post<PracticeResult>(`${this.base}/sessions/${sessionId}/submit`, {});
   }
 
-  getResult(sessionId: string): Observable<PracticeResult> {
-    return this.http.get<PracticeResult>(`${this.base}/sessions/${sessionId}/result`);
+  getResult(sessionId: string, lang?: string): Observable<PracticeResult> {
+    let params = new HttpParams();
+    if (lang) {
+      params = params.set('lang', lang);
+    }
+    return this.http.get<PracticeResult>(`${this.base}/sessions/${sessionId}/result`, { params });
   }
 
   getHistory(page = 0, size = 10): Observable<PagedResponse<PracticeHistoryItem>> {

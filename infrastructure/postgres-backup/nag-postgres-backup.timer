@@ -1,0 +1,11 @@
+[Unit]
+Description=Timer for NAG PostgreSQL Daily Backup Pipeline (02:00 UTC)
+Documentation=https://github.com/natassgrid/nag
+
+[Timer]
+OnCalendar=*-*-* 02:00:00 UTC
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

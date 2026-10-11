@@ -1,4 +1,4 @@
-# Sequence Diagrams — National Assessment Grid
+# Sequence Diagrams — NextGen Assessment Grid
 
 ## 1. Overview
 
@@ -6,6 +6,7 @@ This document illustrates the core end-to-end sequence flows across NAG microser
 1. Schedule Creation & Approval Workflow Transition
 2. Cryptographic Paper Generation & Package Locking
 3. Candidate Answer Submission & Signature Verification
+4. AI-Assisted Question Generation (SpringAiGenerationService: Fast Path & Multi-Agent Committee)
 
 ---
 
@@ -94,4 +95,72 @@ sequenceDiagram
     DeliverySvc->>Kafka: Publish AnswerSubmittedEvent (Audit Stream)
     DeliverySvc-->>GW: Return Submission Acknowledgment (HTTP 200)
     GW-->>Terminal: Show Confirmation Screen & Hash Receipt
+```
+
+---
+
+## 5. AI-Assisted Question Generation Sequence (`SpringAiGenerationService`)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Author as Question Author
+    participant UI as Admin Portal
+    participant Ctrl as QuestionAiController
+    participant Svc as SpringAiGenerationService
+    participant Parser as SampleDocumentParserService
+    participant Embed as EmbeddingService
+    participant DB as PostgreSQL (pgvector)
+    participant Triage as ComplexityEvaluator
+    participant Committee as Multi-Agent Committee
+    participant LLM as Spring AI ChatClient (LiteLLM)
+
+    Author->>UI: Upload sample PDF/Image + generation criteria
+    UI->>Ctrl: POST /api/v1/questions/generate/with-samples (multipart)
+    Ctrl->>Parser: parseUploadedFile(file)
+    Parser-->>Ctrl: List<NormalizedSampleQuestion> (Tier 0/1/2 ladder)
+    Ctrl->>Svc: generateWithSamples(request, sampleQuestions, tenantId, authorId)
+
+    Note over Svc,Embed: Step 0: Pre-Generation RAG Retrieval
+    Svc->>Embed: embed(compositeSearchQuery)
+    Embed-->>Svc: 768-dim query embedding vector
+    Svc->>DB: findTopSimilarQuestions(embeddingStr, subject, tenantId, topK=5)
+    DB-->>Svc: Top-5 existing questions (used as negative duplicate constraints)
+
+    Note over Svc,Triage: Step 1: Complexity Triage ("Agent Only When Needed")
+    Svc->>Triage: evaluate(request, sampleQuestions)
+    Triage-->>Svc: ComplexityEvaluationResult (useMultiAgent, targetModel, rationale)
+
+    alt Fast Path (Low complexity, standard MCQs)
+        Svc->>LLM: callLlm(targetModel, systemPrompt, userPromptWithSamples)
+        LLM-->>Svc: Candidate JSON output (<2s latency)
+    else Multi-Agent Committee (High stakes, complex question types, formulas)
+        Svc->>Committee: RequirementAnalystAgent.formulateBlueprint(...)
+        Committee-->>Svc: Synthesized Blueprint
+        Svc->>Committee: QuestionAuthorAgent.buildPromptWithBlueprint(...)
+        Committee-->>Svc: Few-shot demonstration prompt
+        Svc->>LLM: callLlm(targetModel, systemPrompt, specializedPrompt)
+        LLM-->>Svc: Raw Candidate Questions
+        loop For each candidate question
+            Svc->>Committee: PsychometricCriticAgent.reviewQuestion(...)
+            alt Issues found
+                Svc->>Committee: RefinementAgent.refine(candidate, criticIssues)
+            end
+            Svc->>Committee: SimilarityAuditorAgent.auditUniqueness(content, subject, tenantId)
+        end
+    end
+
+    Note over Svc: Normalization & Persistence
+    Svc->>Svc: normalizeLatexDelimiters (Convert \( \) and \[ \] to $$...$$)
+    Svc->>Svc: validateQuestion (4 options, single key, Bloom level)
+
+    opt autoSave is true and validation passed
+        Svc->>DB: persistAsDraft(question, state='DRAFT')
+        Svc->>Embed: embed(questionContent)
+        Svc->>DB: updateEmbedding(savedId, embeddingStr)
+    end
+
+    Svc-->>Ctrl: QuestionGenerationResponse (questions, modelUsed, executionMode, counts)
+    Ctrl-->>UI: Return HTTP 200 ApiResponse with generated questions
+    UI-->>Author: Display generated cards with KaTeX rendering & critic feedback
 ```

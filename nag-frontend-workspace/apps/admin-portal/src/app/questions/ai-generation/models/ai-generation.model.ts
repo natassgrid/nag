@@ -3,16 +3,6 @@ export interface SelectOption<T = string> {
   label: string;
 }
 
-export const DEFAULT_AI_SUBJECTS: string[] = [
-  'Mathematics',
-  'Physics',
-  'Chemistry',
-  'Computer Science',
-  'General Knowledge & Indian History',
-  'Biology & Life Sciences',
-  'Logical Reasoning & Aptitude',
-];
-
 export const DEFAULT_AI_DIFFICULTIES: string[] = ['EASY', 'MEDIUM', 'HARD'];
 
 export const AI_COGNITIVE_LEVELS: SelectOption[] = [
@@ -29,14 +19,17 @@ export const AI_QUESTION_TYPES: SelectOption[] = [
   { value: 'MULTI_MCQ', label: 'Multiple Correct (MSQ)' },
   { value: 'NUMERICAL', label: 'Numerical / Decimal Answer' },
   { value: 'DESCRIPTIVE', label: 'Descriptive / Long Answer' },
+  { value: 'ASSERTION_REASON', label: 'Assertion & Reason' },
+  { value: 'PARAGRAPH_SET', label: 'Paragraph / Reading Comprehension Set' },
 ];
 
-export const DEFAULT_SUBJECT_TOPICS: Record<string, { topic: string; subtopic: string }> = {
-  Mathematics: { topic: 'Linear Algebra & Matrices', subtopic: 'Eigenvalues and Eigenvectors' },
-  Physics: { topic: 'Electromagnetism & Waves', subtopic: 'Gauss Law and Flux' },
-  Chemistry: { topic: 'Organic Chemistry', subtopic: 'Electrophilic Aromatic Substitution' },
-  'Computer Science': { topic: 'Algorithms & Data Structures', subtopic: 'Graph Traversal & Shortest Path' },
-  'General Knowledge & Indian History': { topic: 'Indian Constitution', subtopic: 'Fundamental Rights & Directive Principles' },
-  'Biology & Life Sciences': { topic: 'Cell Biology & Genetics', subtopic: 'Mendelian Inheritance' },
-  'Logical Reasoning & Aptitude': { topic: 'Deductive Logic', subtopic: 'Syllogisms and Venn Diagrams' },
-};
+export const AI_EXECUTION_MODES: SelectOption[] = [
+  { value: 'AUTO', label: 'Auto (Triage-based routing)' },
+  { value: 'FAST', label: 'Fast (Single lightweight model, <2s)' },
+  { value: 'MULTI_AGENT', label: 'Multi-Agent (Deep review committee)' },
+];
+
+export const AI_GENERATION_QUALITY: SelectOption[] = [
+  { value: 'STANDARD', label: 'Standard' },
+  { value: 'EXAM_READY', label: 'Exam-Ready (Strict psychometric rubric)' },
+];

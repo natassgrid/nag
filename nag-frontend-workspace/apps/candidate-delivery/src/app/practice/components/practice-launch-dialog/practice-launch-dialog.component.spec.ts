@@ -62,14 +62,16 @@ describe('PracticeLaunchDialogComponent', () => {
     expect(component).toBeTruthy();
     expect(component.set.id).toBe('set-abc-123');
     expect(component.selectedMode()).toBe('TIMED');
+    expect(component.selectedLanguage()).toBe('en');
   });
 
-  it('should start session and navigate to delivery runner', () => {
+  it('should start session and navigate to delivery runner with default language', () => {
     component.startSession();
 
     expect(practiceServiceMock.startSession).toHaveBeenCalledWith({
       practiceSetId: 'set-abc-123',
       mode: 'TIMED',
+      preferredLanguage: 'en',
     });
     expect(dialogRefMock.close).toHaveBeenCalled();
     expect(routerMock.navigate).toHaveBeenCalledWith(['/delivery'], {
@@ -77,6 +79,27 @@ describe('PracticeLaunchDialogComponent', () => {
         mode: 'PRACTICE',
         paperId: 'set-abc-123',
         sessionId: 'session-xyz-789',
+        lang: 'en',
+      },
+    });
+  });
+
+  it('should allow candidate to select preferred language (e.g. Hindi) and propagate to startSession', () => {
+    component.selectedLanguage.set('hi');
+    component.startSession();
+
+    expect(practiceServiceMock.startSession).toHaveBeenCalledWith({
+      practiceSetId: 'set-abc-123',
+      mode: 'TIMED',
+      preferredLanguage: 'hi',
+    });
+    expect(dialogRefMock.close).toHaveBeenCalled();
+    expect(routerMock.navigate).toHaveBeenCalledWith(['/delivery'], {
+      queryParams: {
+        mode: 'PRACTICE',
+        paperId: 'set-abc-123',
+        sessionId: 'session-xyz-789',
+        lang: 'hi',
       },
     });
   });

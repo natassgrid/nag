@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -99,6 +99,13 @@ public class KeycloakService {
      * Exchange a valid refresh token for new JWT access and refresh tokens.
      * POST {serverUrl}/realms/{realm}/protocol/openid-connect/token with grant_type=refresh_token
      */
+    /**
+     * Exchange username + password for JWT tokens, with optional userId and preferredLanguage.
+     */
+    public AuthTokenResponse getTokens(String username, String password, String userId, String preferredLanguage) {
+        return getTokens(username, password, userId);
+    }
+
     public AuthTokenResponse refreshToken(String refreshToken) {
         if (refreshToken == null || refreshToken.isBlank()) {
             throw new AuthenticationException("Refresh token is required");
@@ -324,3 +331,4 @@ public class KeycloakService {
         return null;
     }
 }
+

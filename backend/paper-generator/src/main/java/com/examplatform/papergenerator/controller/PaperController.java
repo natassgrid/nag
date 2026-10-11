@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -25,13 +25,15 @@ import com.examplatform.papergenerator.domain.Paper;
 import com.examplatform.papergenerator.dto.BlueprintFeasibilityRequest;
 import com.examplatform.papergenerator.dto.BlueprintFeasibilityResponse;
 import com.examplatform.papergenerator.dto.MerkleLeafVerifyRequest;
+import com.examplatform.papergenerator.dto.PaperAcceptedResponse;
+import com.examplatform.papergenerator.dto.PaperApprovalResponse;
 import com.examplatform.papergenerator.dto.PaperGenerationRequest;
 import com.examplatform.papergenerator.dto.PaperResponse;
 import com.examplatform.papergenerator.dto.PaperSummaryResponse;
 import com.examplatform.papergenerator.dto.PaperTranslateRequest;
 import com.examplatform.papergenerator.dto.PaperTranslateResponse;
+import com.examplatform.papergenerator.dto.PaperValidationResponse;
 import com.examplatform.papergenerator.dto.QuestionSummary;
-import com.examplatform.papergenerator.repository.PaperRepository;
 import com.examplatform.papergenerator.service.ExaminationLookupService;
 import com.examplatform.papergenerator.service.PaperAnchoringService;
 import com.examplatform.papergenerator.service.PaperApprovalService;
@@ -90,7 +92,6 @@ public class PaperController {
     private final PaperApprovalService paperApprovalService;
     private final PaperTranslationService paperTranslationService;
     private final PaperAnchoringService paperAnchoringService;
-    private final PaperRepository paperRepository;
     private final QuestionBankClient questionBankClient;
     private final ObjectMapper objectMapper;
     private final ExaminationLookupService examinationLookupService;
@@ -116,7 +117,7 @@ public class PaperController {
         log.info("Listing papers: examId={}, status={}, page={}, size={}, tenant={}",
                 examId, status, page, size, tenantId);
 
-        Page<Paper> papers = paperRepository.findPapers(tenantId, examId, status, PageRequest.of(page, size));
+        Page<Paper> papers = paperAssemblyService.listPapers(tenantId, examId, status, PageRequest.of(page, size));
 
         Set<UUID> examIds = papers.getContent().stream()
                 .map(Paper::getExamId)
@@ -133,43 +134,8 @@ public class PaperController {
         Page<PaperSummaryResponse> response = papers.map(p -> {
             String examName = examNames.get(p.getExamId());
             String shiftName = shiftNames.get(p.getShiftId());
-            String resolvedName = p.getName();
-            if (resolvedName == null || resolvedName.isBlank()) {
-                StringBuilder sb = new StringBuilder();
-                if (p.isPractice()) {
-                    sb.append("Practice - ");
-                }
-                if (examName != null && !examName.isBlank()) {
-                    sb.append(examName);
-                } else {
-                    sb.append("Exam Paper");
-                }
-                if (shiftName != null && !shiftName.isBlank()) {
-                    sb.append(" (").append(shiftName).append(")");
-                } else if (p.getShiftId() != null && !p.getShiftId().isBlank()) {
-                    sb.append(" [Shift: ").append(p.getShiftId()).append("]");
-                }
-                resolvedName = sb.toString();
-            }
-
-            return PaperSummaryResponse.builder()
-                    .paperId(p.getId())
-                    .name(resolvedName)
-                    .examId(p.getExamId())
-                    .examName(examName)
-                    .shiftId(p.getShiftId())
-                    .shiftName(shiftName)
-                    .status(p.getStatus())
-                    .isPractice(p.isPractice())
-                    .variant(p.getVariant())
-                    .difficultyScore(p.getDifficultyScore())
-                    .encryptionKeyId(p.getEncryptionKeyId())
-                    .paperRootHash(p.getPaperRootHash())
-                    .ledgerTxHash(p.getLedgerTxHash())
-                    .ledgerExplorerUrl(p.getLedgerExplorerUrl())
-                    .anchoredAt(p.getAnchoredAt())
-                    .createdAt(p.getCreatedAt())
-                    .build();
+            String resolvedName = resolvePaperName(p, examName, shiftName);
+            return buildPaperSummary(p, resolvedName, examName, shiftName);
         });
 
         return ResponseEntity.ok(response);
@@ -187,28 +153,11 @@ public class PaperController {
         String tenantId = getEffectiveTenantId();
         log.info("Retrieving paper: paperId={}, tenant={}", paperId, tenantId);
 
-        Paper paper = paperRepository.findByIdAndTenantId(paperId, tenantId)
-                .or(() -> paperRepository.findById(paperId))
+        Paper paper = paperAssemblyService.getPaperById(paperId, tenantId)
                 .orElseThrow(() -> new EntityNotFoundException("Paper not found: " + paperId));
 
-        int totalQuestions = 0;
-        List<UUID> questionIds = new ArrayList<>();
-        if (paper.getPaperDefinitionJson() != null && !paper.getPaperDefinitionJson().isBlank()) {
-            try {
-                JsonNode root = objectMapper.readTree(paper.getPaperDefinitionJson());
-                JsonNode qIdsNode = root.get("questionIds");
-                if (qIdsNode != null && qIdsNode.isArray()) {
-                    for (JsonNode qNode : qIdsNode) {
-                        try {
-                            questionIds.add(UUID.fromString(qNode.asText()));
-                        } catch (IllegalArgumentException ignored) {}
-                    }
-                    totalQuestions = questionIds.size();
-                }
-            } catch (Exception e) {
-                log.warn("Failed to parse paperDefinitionJson for paper {}: {}", paperId, e.getMessage());
-            }
-        }
+        List<UUID> questionIds = PaperAssemblyService.extractQuestionIds(paper, objectMapper);
+        int totalQuestions = questionIds.size();
 
         Map<String, Integer> topicDistribution = new HashMap<>();
         if (paper.getTopicDistributionJson() != null && !paper.getTopicDistributionJson().isBlank()) {
@@ -242,24 +191,7 @@ public class PaperController {
 
         String examName = examNames.get(paper.getExamId());
         String shiftName = shiftNames.get(paper.getShiftId());
-        String resolvedName = paper.getName();
-        if (resolvedName == null || resolvedName.isBlank()) {
-            StringBuilder sb = new StringBuilder();
-            if (paper.isPractice()) {
-                sb.append("Practice - ");
-            }
-            if (examName != null && !examName.isBlank()) {
-                sb.append(examName);
-            } else {
-                sb.append("Exam Paper");
-            }
-            if (shiftName != null && !shiftName.isBlank()) {
-                sb.append(" (").append(shiftName).append(")");
-            } else if (paper.getShiftId() != null && !paper.getShiftId().isBlank()) {
-                sb.append(" [Shift: ").append(paper.getShiftId()).append("]");
-            }
-            resolvedName = sb.toString();
-        }
+        String resolvedName = resolvePaperName(paper, examName, shiftName);
 
         PaperResponse response = PaperResponse.builder()
                 .id(paper.getId())
@@ -333,7 +265,7 @@ public class PaperController {
      */
     @PostMapping("/generate")
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN')")
-    public ResponseEntity<Map<String, Object>> generatePaper(
+    public ResponseEntity<PaperAcceptedResponse> generatePaper(
             @Valid @RequestBody PaperGenerationRequest request,
             @AuthenticationPrincipal Jwt jwt) {
 
@@ -345,15 +277,15 @@ public class PaperController {
 
         Paper paper = paperAssemblyService.generatePaper(request, generatedBy, tenantId);
 
-        Map<String, Object> response = Map.of(
-                "paperId", paper.getId(),
-                "name", paper.getName() != null ? paper.getName() : "",
-                "status", paper.getStatus(),
-                "isPractice", paper.isPractice(),
-                "variant", paper.getVariant() != null ? paper.getVariant() : "SET-A",
-                "paperRootHash", paper.getPaperRootHash() != null ? paper.getPaperRootHash() : "",
-                "manifestDigest", paper.getManifestDigest() != null ? paper.getManifestDigest() : "",
-                "message", "Paper generation submitted successfully"
+        PaperAcceptedResponse response = new PaperAcceptedResponse(
+                paper.getId(),
+                paper.getName() != null ? paper.getName() : "",
+                paper.getStatus(),
+                paper.isPractice(),
+                paper.getVariant() != null ? paper.getVariant() : "SET-A",
+                paper.getPaperRootHash() != null ? paper.getPaperRootHash() : "",
+                paper.getManifestDigest() != null ? paper.getManifestDigest() : "",
+                "Paper generation submitted successfully"
         );
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
@@ -368,22 +300,17 @@ public class PaperController {
      */
     @PostMapping("/validate")
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN')")
-    public ResponseEntity<Map<String, Object>> validatePaper(@RequestBody String json) {
+    public ResponseEntity<PaperValidationResponse> validatePaper(@RequestBody String json) {
         log.info("Paper schema validation requested");
 
         List<String> errors = paperSerializer.validate(json);
 
         if (errors.isEmpty()) {
-            return ResponseEntity.ok(Map.of(
-                    "valid", true,
-                    "message", "Paper document is valid"
-            ));
+            return ResponseEntity.ok(PaperValidationResponse.valid("Paper document is valid"));
         }
 
-        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(Map.of(
-                "valid", false,
-                "errors", errors
-        ));
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+                .body(PaperValidationResponse.invalid(errors));
     }
 
     /**
@@ -395,25 +322,26 @@ public class PaperController {
      */
     @PostMapping("/{paperId}/approve")
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN')")
-    public ResponseEntity<Map<String, Object>> approvePaper(@PathVariable UUID paperId) {
+    public ResponseEntity<PaperApprovalResponse> approvePaper(@PathVariable UUID paperId) {
         String tenantId = getEffectiveTenantId();
         log.info("Paper approval requested for paperId={}", paperId);
 
         Paper paper = paperApprovalService.approvePaper(paperId, tenantId);
 
-        Map<String, Object> resp = new HashMap<>();
-        resp.put("paperId", paper.getId());
-        resp.put("name", paper.getName() != null ? paper.getName() : "");
-        resp.put("status", paper.getStatus());
-        resp.put("isPractice", paper.isPractice());
-        resp.put("variant", paper.getVariant() != null ? paper.getVariant() : "SET-A");
-        resp.put("encryptionKeyId", paper.getEncryptionKeyId() != null ? paper.getEncryptionKeyId() : "");
-        resp.put("paperRootHash", paper.getPaperRootHash() != null ? paper.getPaperRootHash() : "");
-        resp.put("ledgerTxHash", paper.getLedgerTxHash() != null ? paper.getLedgerTxHash() : "");
-        resp.put("ledgerConsensusTimestamp", paper.getLedgerConsensusTimestamp() != null ? paper.getLedgerConsensusTimestamp() : "");
-        resp.put("ledgerExplorerUrl", paper.getLedgerExplorerUrl() != null ? paper.getLedgerExplorerUrl() : "");
-        resp.put("ledgerNetwork", paper.getLedgerNetwork() != null ? paper.getLedgerNetwork() : "");
-        resp.put("message", "Paper approved, encrypted, and anchored to public ledger successfully");
+        PaperApprovalResponse resp = new PaperApprovalResponse(
+                paper.getId(),
+                paper.getName() != null ? paper.getName() : "",
+                paper.getStatus(),
+                paper.isPractice(),
+                paper.getVariant() != null ? paper.getVariant() : "SET-A",
+                paper.getEncryptionKeyId() != null ? paper.getEncryptionKeyId() : "",
+                paper.getPaperRootHash() != null ? paper.getPaperRootHash() : "",
+                paper.getLedgerTxHash() != null ? paper.getLedgerTxHash() : "",
+                paper.getLedgerConsensusTimestamp() != null ? paper.getLedgerConsensusTimestamp() : "",
+                paper.getLedgerExplorerUrl() != null ? paper.getLedgerExplorerUrl() : "",
+                paper.getLedgerNetwork() != null ? paper.getLedgerNetwork() : "",
+                "Paper approved, encrypted, and anchored to public ledger successfully"
+        );
 
         return ResponseEntity.ok(resp);
     }
@@ -526,7 +454,7 @@ public class PaperController {
      * @param jobId   the batch translation job UUID
      * @return 200 OK with current progress statistics
      */
-    @GetMapping("/{paperId}/translate/{jobId}")
+    @GetMapping({"/{paperId}/translate/{jobId}", "/{paperId}/translation-status/{jobId}"})
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN','ADMIN')")
     public ResponseEntity<PaperTranslateResponse> getPaperTranslationStatus(
             @PathVariable UUID paperId,
@@ -534,6 +462,19 @@ public class PaperController {
 
         String tenantId = getEffectiveTenantId();
         PaperTranslateResponse response = paperTranslationService.getTranslationStatus(paperId, jobId, tenantId);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Retrieves the latest translation status of a paper.
+     */
+    @GetMapping({"/{paperId}/translation-status", "/{paperId}/translate/status"})
+    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN','ADMIN')")
+    public ResponseEntity<PaperTranslateResponse> getLatestPaperTranslationStatus(
+            @PathVariable UUID paperId) {
+
+        String tenantId = getEffectiveTenantId();
+        PaperTranslateResponse response = paperTranslationService.getLatestTranslationStatus(paperId, tenantId);
         return ResponseEntity.ok(response);
     }
 
@@ -549,7 +490,7 @@ public class PaperController {
         String tenantId = getEffectiveTenantId();
         log.info("Fetching public practice papers for examId={}, tenant={}", examId, tenantId);
 
-        List<Paper> papers = paperRepository.findPracticePapersByExamId(examId, tenantId);
+        List<Paper> papers = paperAssemblyService.findPracticePapers(examId, tenantId);
 
         String examName = examinationLookupService.findExamNames(Set.of(examId)).get(examId);
 
@@ -558,25 +499,28 @@ public class PaperController {
             if (resolvedName == null || resolvedName.isBlank()) {
                 resolvedName = (examName != null ? examName : "Practice Paper");
             }
-            return PaperSummaryResponse.builder()
-                    .paperId(p.getId())
-                    .name(resolvedName)
-                    .examId(p.getExamId())
-                    .examName(examName)
-                    .shiftId(p.getShiftId())
-                    .status(p.getStatus())
-                    .isPractice(p.isPractice())
-                    .variant(p.getVariant())
-                    .difficultyScore(p.getDifficultyScore())
-                    .paperRootHash(p.getPaperRootHash())
-                    .ledgerTxHash(p.getLedgerTxHash())
-                    .ledgerExplorerUrl(p.getLedgerExplorerUrl())
-                    .anchoredAt(p.getAnchoredAt())
-                    .createdAt(p.getCreatedAt())
-                    .build();
+            return buildPaperSummary(p, resolvedName, examName, null);
         }).collect(Collectors.toList());
 
         return ResponseEntity.ok(response);
+    }
+
+    private PaperSummaryResponse buildPaperSummary(Paper p, String resolvedName, String examName, String shiftName) {
+        PaperSummaryResponse resp = new PaperSummaryResponse();
+        org.springframework.beans.BeanUtils.copyProperties(p, resp);
+        resp.setPaperId(p.getId());
+        resp.setName(resolvedName);
+        resp.setExamName(examName);
+        resp.setShiftName(shiftName);
+        return resp;
+    }
+
+    private String resolvePaperName(Paper p, String examName, String shiftName) {
+        String resolvedName = p.getName();
+        if (resolvedName != null && !resolvedName.isBlank()) {
+            return resolvedName;
+        }
+        return PaperAssemblyService.formatPaperTitle(p.isPractice(), examName, shiftName, p.getShiftId());
     }
 
     private String getEffectiveTenantId() {

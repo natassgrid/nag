@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -20,8 +20,8 @@
 package com.examplatform.evaluation.controller;
 
 import com.examplatform.evaluation.domain.Evaluation;
+import com.examplatform.evaluation.dto.AggregatedScoreResult;
 import com.examplatform.evaluation.dto.ScoreRequest;
-import com.examplatform.evaluation.repository.EvaluationRepository;
 import com.examplatform.evaluation.service.ManualEvaluationService;
 import com.examplatform.evaluation.service.ScoreAggregationService;
 import com.examplatform.evaluation.support.AbstractIntegrationTest;
@@ -57,9 +57,6 @@ class EvaluationControllerIntegrationTest extends AbstractIntegrationTest {
 
     @MockitoBean
     private ScoreAggregationService scoreAggregationService;
-
-    @MockitoBean
-    private EvaluationRepository evaluationRepository;
 
     private static final String TENANT_ID = "tenant-test";
     private static final UUID EVALUATION_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
@@ -232,12 +229,14 @@ class EvaluationControllerIntegrationTest extends AbstractIntegrationTest {
                     "candidateId", CANDIDATE_ID.toString()
             );
 
-            Map<String, Object> aggregationResult = Map.of(
-                    "sessionId", SESSION_ID.toString(),
-                    "candidateId", CANDIDATE_ID.toString(),
-                    "totalScore", 45.5,
-                    "totalMaxMarks", 50.0,
-                    "allEvaluated", true
+            AggregatedScoreResult aggregationResult = new AggregatedScoreResult(
+                    SESSION_ID.toString(),
+                    CANDIDATE_ID.toString(),
+                    BigDecimal.valueOf(45.5),
+                    BigDecimal.valueOf(50.0),
+                    Map.of("AUTO", BigDecimal.valueOf(45.5)),
+                    10,
+                    TENANT_ID
             );
 
             when(scoreAggregationService.aggregateScores(eq(SESSION_ID), eq(CANDIDATE_ID), any(), any()))
@@ -245,13 +244,13 @@ class EvaluationControllerIntegrationTest extends AbstractIntegrationTest {
 
             mockMvc.perform(post("/api/v1/evaluations/aggregate")
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EVALUATOR"))
-                                    .jwt(j -> j.subject(EVALUATOR_ID.toString()).claim("tenant_id", TENANT_ID)))
+                                     .jwt(j -> j.subject(EVALUATOR_ID.toString()).claim("tenant_id", TENANT_ID)))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(body)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.sessionId").value(SESSION_ID.toString()))
-                    .andExpect(jsonPath("$.totalScore").value(45.5))
-                    .andExpect(jsonPath("$.allEvaluated").value(true));
+                    .andExpect(jsonPath("$.totalRawScore").value(45.5))
+                    .andExpect(jsonPath("$.totalMaxMarks").value(50.0));
         }
 
         @Test
@@ -262,8 +261,18 @@ class EvaluationControllerIntegrationTest extends AbstractIntegrationTest {
                     "candidateId", CANDIDATE_ID.toString()
             );
 
+            AggregatedScoreResult aggregationResult = new AggregatedScoreResult(
+                    SESSION_ID.toString(),
+                    CANDIDATE_ID.toString(),
+                    BigDecimal.valueOf(50.0),
+                    BigDecimal.valueOf(50.0),
+                    Map.of("AUTO", BigDecimal.valueOf(50.0)),
+                    10,
+                    TENANT_ID
+            );
+
             when(scoreAggregationService.aggregateScores(eq(SESSION_ID), eq(CANDIDATE_ID), any(), any()))
-                    .thenReturn(Map.of("allEvaluated", true));
+                    .thenReturn(aggregationResult);
 
             mockMvc.perform(post("/api/v1/evaluations/aggregate")
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EXAM_CONTROLLER"))
@@ -271,7 +280,8 @@ class EvaluationControllerIntegrationTest extends AbstractIntegrationTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(body)))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.allEvaluated").value(true));
+                    .andExpect(jsonPath("$.sessionId").value(SESSION_ID.toString()))
+                    .andExpect(jsonPath("$.totalRawScore").value(50.0));
         }
 
         @Test
@@ -324,7 +334,7 @@ class EvaluationControllerIntegrationTest extends AbstractIntegrationTest {
                     .build();
             ReflectionTestUtils.setField(eval, "id", EVALUATION_ID);
 
-            when(evaluationRepository.findByCandidateIdAndTenantId(eq(CANDIDATE_ID), eq(TENANT_ID)))
+            when(manualEvaluationService.getEvaluations(eq(CANDIDATE_ID), any(), eq(TENANT_ID)))
                     .thenReturn(List.of(eval));
 
             mockMvc.perform(get("/api/v1/evaluations/candidate/{candidateId}", CANDIDATE_ID)

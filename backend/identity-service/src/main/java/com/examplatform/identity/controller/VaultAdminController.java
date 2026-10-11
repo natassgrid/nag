@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -21,7 +21,7 @@ package com.examplatform.identity.controller;
 
 import com.examplatform.identity.service.AuditEventPublisher;
 import com.examplatform.identity.service.KeyRevocationScheduler;
-import com.examplatform.identity.service.VaultCryptoService;
+import com.examplatform.shared.crypto.VaultCryptoService;
 import com.examplatform.shared.audit.AuditEventType;
 import com.examplatform.shared.response.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;

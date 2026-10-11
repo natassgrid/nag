@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -240,17 +240,7 @@ public class ExaminationService {
         examination.setReviewFlagEnabled(Boolean.TRUE.equals(request.getReviewFlagEnabled()));
         examination.setPractice(Boolean.TRUE.equals(request.getIsPractice()));
         examination.setSectionsJson(serializeSections(request.getSections()));
-
-        Examination saved = examinationRepository.save(examination);
-        log.info("Updated examination id={} for tenant={}", saved.getId(), tenantId);
-
-        publishAuditEvent("EXAM_UPDATED", saved.getId().toString(), tenantId, Map.of(
-                "examId", saved.getId().toString(),
-                "name", saved.getName()
-        ));
-
-        List<Section> sections = deserializeSections(saved.getSectionsJson());
-        return toResponse(saved, sections);
+        return persistAndBuildResponse(examination, "Updated", "EXAM_UPDATED", tenantId);
     }
 
     /**
@@ -270,16 +260,7 @@ public class ExaminationService {
         }
 
         examination.setStatus("PUBLISHED");
-        Examination saved = examinationRepository.save(examination);
-        log.info("Published examination id={} for tenant={}", saved.getId(), tenantId);
-
-        publishAuditEvent("EXAM_PUBLISHED", saved.getId().toString(), tenantId, Map.of(
-                "examId", saved.getId().toString(),
-                "name", saved.getName()
-        ));
-
-        List<Section> sections = deserializeSections(saved.getSectionsJson());
-        return toResponse(saved, sections);
+        return persistAndBuildResponse(examination, "Published", "EXAM_PUBLISHED", tenantId);
     }
 
     /**
@@ -294,11 +275,42 @@ public class ExaminationService {
         }
 
         examination.setStatus("CLOSED");
+        return persistAndBuildResponse(examination, "Closed", null, tenantId);
+    }
+
+    private ExaminationResponse persistAndBuildResponse(
+            Examination examination, String actionVerb, String auditEventType, String tenantId) {
         Examination saved = examinationRepository.save(examination);
-        log.info("Closed examination id={} for tenant={}", saved.getId(), tenantId);
+        log.info("{} examination id={} for tenant={}", actionVerb, saved.getId(), tenantId);
+
+        if (auditEventType != null) {
+            publishAuditEvent(auditEventType, saved.getId().toString(), tenantId, Map.of(
+                    "examId", saved.getId().toString(),
+                    "name", saved.getName()
+            ));
+        }
 
         List<Section> sections = deserializeSections(saved.getSectionsJson());
         return toResponse(saved, sections);
+    }
+
+    /**
+     * Status breakdown of examinations for operational dashboards and service-to-service RPC.
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> getExaminationStatusBreakdown(String tenantId) {
+        long scheduled = examinationRepository.countByStatusAndTenantId("PUBLISHED", tenantId);
+        long live = examinationRepository.countByStatusAndTenantId("IN_PROGRESS", tenantId);
+        long completed = examinationRepository.countByStatusAndTenantId("CLOSED", tenantId)
+                + examinationRepository.countByStatusAndTenantId("ARCHIVED", tenantId);
+        long cancelled = examinationRepository.countByStatusAndTenantId("CANCELLED", tenantId);
+
+        return Map.of(
+                "scheduled", scheduled,
+                "liveInProgress", live,
+                "completed", completed,
+                "cancelled", cancelled
+        );
     }
 
     private void validateSectionMarks(CreateExaminationRequest request) {
@@ -360,26 +372,7 @@ public class ExaminationService {
     }
 
     private ExaminationResponse toResponse(Examination exam, List<Section> sections) {
-        return ExaminationResponse.builder()
-                .id(exam.getId())
-                .name(exam.getName())
-                .code(exam.getCode())
-                .conductingAuthority(exam.getConductingAuthority())
-                .category(exam.getCategory())
-                .examinationType(exam.getExaminationType())
-                .academicYear(exam.getAcademicYear())
-                .examinationMode(exam.getExaminationMode())
-                .durationMinutes(exam.getDurationMinutes())
-                .totalMarks(exam.getTotalMarks())
-                .negativeMarkingEnabled(exam.isNegativeMarkingEnabled())
-                .negativeMarkingValue(exam.getNegativeMarkingValue())
-                .navigationPolicy(exam.getNavigationPolicy())
-                .calculatorPolicy(exam.getCalculatorPolicy())
-                .reviewFlagEnabled(exam.isReviewFlagEnabled())
-                .isPractice(exam.isPractice())
-                .sections(sections != null ? sections : List.of())
-                .status(exam.getStatus())
-                .build();
+        return ExaminationResponse.from(exam, sections);
     }
 
     private void publishAuditEvent(String eventType, String entityId, String tenantId, Map<String, Object> details) {

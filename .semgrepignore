@@ -1,0 +1,12 @@
+node_modules/
+build/
+dist/
+.gradle/
+.nx/
+coverage/
+**/generated/
+**/*.spec.ts
+**/src/test/
+e2e-tests/
+docs/
+package-lock.json

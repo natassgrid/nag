@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -14,8 +14,7 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
 
 package com.examplatform.questionbank.repository;
 
@@ -31,7 +30,11 @@ public interface SubtopicRepository extends JpaRepository<Subtopic, Long> {
 
     Optional<Subtopic> findByIdAndTenantId(Long id, String tenantId);
 
+    Optional<Subtopic> findByIdAndTopicIdAndTenantId(Long id, Long topicId, String tenantId);
+
     List<Subtopic> findByTopicIdAndTenantId(Long topicId, String tenantId);
+
+    List<Subtopic> findByTopicIdAndTenantIdOrderByNameAsc(Long topicId, String tenantId);
 
     Optional<Subtopic> findByNameAndTopicIdAndTenantId(String name, Long topicId, String tenantId);
 

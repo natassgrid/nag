@@ -91,27 +91,16 @@
         Enter Live Exam
       </a>
     } @else if (exam().status === 'UPCOMING' || exam().status === 'SCHEDULED') {
-      <div class="flex items-center gap-2 flex-1">
-        <a
-          mat-stroked-button
-          color="primary"
-          routerLink="/delivery"
-          [queryParams]="{ examId: exam().id, mode: 'PREVIEW' }"
-          class="!flex-1 !rounded-xl !text-xs font-semibold"
-        >
-          <mat-icon class="!text-sm">visibility</mat-icon>
-          Preview
-        </a>
-        <button
-          type="button"
-          mat-flat-button
-          (click)="launchPractice.emit(exam())"
-          class="!flex-1 !rounded-xl !text-xs font-bold !bg-purple-600 hover:!bg-purple-700 !text-white shadow-xs cursor-pointer"
-        >
-          <mat-icon class="!text-sm">psychology</mat-icon>
-          Practice Mock
-        </button>
-      </div>
+      <a
+        mat-stroked-button
+        color="primary"
+        routerLink="/delivery"
+        [queryParams]="{ examId: exam().id, mode: 'PREVIEW' }"
+        class="!flex-1 !rounded-xl !text-xs font-semibold"
+      >
+        <mat-icon class="!text-sm">visibility</mat-icon>
+        Preview
+      </a>
     } @else {
       <a
         mat-flat-button

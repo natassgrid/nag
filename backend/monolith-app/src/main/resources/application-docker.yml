@@ -5,6 +5,10 @@ server:
   port: ${SERVER_PORT:9000}
 
 spring:
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: false
+
   datasource:
     url: jdbc:postgresql://postgres:5432/${POSTGRES_DB:exam_platform}?currentSchema=identity_service,candidate_service,question_service,examination_service,paper_generator,delivery_service,response_service,evaluation_service,result_service,audit_service,notification_service,admin_service,analytics_service,asset_service,public
     username: ${POSTGRES_USER:exam_admin}
@@ -66,6 +70,16 @@ app:
     server-url: http://keycloak:8080
   question-bank:
     service-url: ${QUESTION_BANK_SERVICE_URI:http://localhost:9000}
+    grpc-enabled: ${QUESTION_BANK_GRPC_ENABLED:true}
   frontend:
     admin-url: ${ADMIN_PORTAL_URL:http://localhost:4200}
     candidate-url: ${CANDIDATE_PORTAL_URL:http://localhost:4300}
+
+grpc:
+  server:
+    port: ${GRPC_QUESTION_BANK_PORT:9083}
+  client:
+    questionbank:
+      host: ${GRPC_QUESTION_BANK_HOST:localhost}
+      port: ${GRPC_QUESTION_BANK_PORT:9083}
+      timeout-ms: ${GRPC_QUESTION_BANK_TIMEOUT_MS:5000}

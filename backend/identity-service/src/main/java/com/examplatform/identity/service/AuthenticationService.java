@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -18,6 +18,8 @@
  */
 
 package com.examplatform.identity.service;
+
+import com.examplatform.shared.crypto.HashingService;
 
 import com.examplatform.identity.config.AppSecurityProperties;
 import com.examplatform.identity.domain.ActiveSession;
@@ -252,7 +254,7 @@ public class AuthenticationService {
         int timeoutMinutes = dynamicConfigService.getInt(
                 "auth.session.timeout.minutes",
                 effectiveTenant,
-                appSecurityProperties != null ? Math.max(1, (int) (appSecurityProperties.getSessionIdleTimeoutSeconds() / 60)) : 30
+                appSecurityProperties != null ? Math.max(1, appSecurityProperties.getSessionIdleTimeoutSeconds() / 60) : 30
         );
         String sessionToken = UUID.randomUUID().toString();
         LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(timeoutMinutes);
@@ -267,7 +269,10 @@ public class AuthenticationService {
         session.setTenantId(effectiveTenant);
         activeSessionRepository.save(session);
 
-        // 8. Publish LOGIN audit event asynchronously
+        // 8. Record last login IP in Redis and publish LOGIN audit event asynchronously
+        if (riskAssessmentService != null && ipAddress != null) {
+            riskAssessmentService.recordSuccessfulLoginIp(account.getId(), ipAddress, effectiveTenant);
+        }
         publishAuditEventAsync(
                 AuditEventType.LOGIN,
                 account.getId().toString(),

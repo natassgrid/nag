@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -18,6 +18,8 @@
  */
 
 package com.examplatform.papergenerator.service;
+
+import com.examplatform.shared.crypto.VaultCryptoService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -124,8 +126,7 @@ public class VaultCryptoServiceImpl implements VaultCryptoService {
             return true;
         }
         try {
-            Plaintext input = Plaintext.of(payload);
-            return transit().verify(keyName, input, Signature.of(signature));
+            return transit().verify(keyName, Plaintext.of(payload), Signature.of(signature));
         } catch (Exception e) {
             log.error("Vault verify failed for key [{}]: {}", keyName, e.getMessage());
             return false;
@@ -135,7 +136,7 @@ public class VaultCryptoServiceImpl implements VaultCryptoService {
     @Override
     public void rotateKey(String keyName) {
         try {
-            transit().rotate(keyName);
+            vaultTemplate.opsForTransit().rotate(keyName);
             log.info("Vault Transit key [{}] rotated successfully", keyName);
         } catch (Exception e) {
             log.warn("Vault key rotation failed for key [{}]: {}", keyName, e.getMessage());

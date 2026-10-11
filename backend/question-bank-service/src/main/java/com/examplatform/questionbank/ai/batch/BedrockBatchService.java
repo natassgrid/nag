@@ -431,7 +431,7 @@ public class BedrockBatchService {
                     .answerKey(raw.answerKey)
                     .explanation(raw.explanation)
                     .options(raw.options)
-                    .references("AI-generated (Bedrock batch) via " + job.getModelUsed())
+                    .sourceReferences("AI-generated (Bedrock batch) via " + job.getModelUsed())
                     .state("DRAFT")
                     .authorId(job.getInitiatedBy())
                     .build();
@@ -502,7 +502,7 @@ public class BedrockBatchService {
             if (raw.options == null || raw.options.size() != 4) return false;
             long correct = raw.options.stream().filter(QuestionOption::isCorrect).count();
             if ("SINGLE_MCQ".equals(type) && correct != 1) return false;
-            if ("MULTI_MCQ".equals(type) && correct < 2) return false;
+            return !"MULTI_MCQ".equals(type) || correct >= 2;
         }
         return true;
     }

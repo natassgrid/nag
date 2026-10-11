@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -63,22 +63,10 @@ public class AnalyticsResultController {
             @PathVariable UUID examId,
             Authentication auth) {
 
-        String tenantId = extractTenantId(auth);
+        String tenantId = ResultAccessSecurityHelper.extractTenantId(auth);
         log.info("GET question analytics for exam={}, tenant={}", examId, tenantId);
 
         List<QuestionAnalyticsResult> analytics = questionAnalyticsService.computeAnalytics(examId, tenantId);
         return ResponseEntity.ok(analytics);
-    }
-
-    private String extractTenantId(Authentication auth) {
-        if (auth != null && auth.getDetails() instanceof java.util.Map) {
-            @SuppressWarnings("unchecked")
-            java.util.Map<String, Object> details = (java.util.Map<String, Object>) auth.getDetails();
-            Object tenant = details.get("tenant_id");
-            if (tenant != null) {
-                return tenant.toString();
-            }
-        }
-        return "default";
     }
 }

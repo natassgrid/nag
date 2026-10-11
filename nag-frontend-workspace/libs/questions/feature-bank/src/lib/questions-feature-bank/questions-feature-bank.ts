@@ -19,12 +19,17 @@ import {
   SubjectTopicService,
   Subject,
 } from '@nag-frontend-workspace/questions-data-access';
+import { AuthService } from '@nag-frontend-workspace/shared-data-access-auth';
 import { QuestionCardData } from '@nag-frontend-workspace/questions-ui-question-card';
 import {
   BankFilterBarComponent,
   BankItemsListComponent,
   BankSemanticSearchDrawerComponent,
+  RejectCommentsDialogComponent,
 } from '../components';
+
+/** Tab options for the question bank view */
+type BankTab = 'ALL' | 'DRAFT' | 'REVIEW' | 'APPROVED' | 'PUBLISHED';
 
 @Component({
   selector: 'nag-questions-feature-bank',
@@ -38,6 +43,7 @@ import {
     BankFilterBarComponent,
     BankItemsListComponent,
     BankSemanticSearchDrawerComponent,
+    RejectCommentsDialogComponent,
   ],
   templateUrl: './questions-feature-bank.component.html',
   styleUrl: './questions-feature-bank.component.scss',
@@ -48,7 +54,47 @@ export class QuestionsFeatureBank implements OnInit {
   readonly questionService = inject(QuestionBankService);
   private readonly subjectTopicService = inject(SubjectTopicService);
   private readonly notificationService = inject(NotificationService);
+  private readonly authService = inject(AuthService);
 
+  // -------------------------------------------------------------------------
+  // Auth-derived properties for four-eyes enforcement
+  // -------------------------------------------------------------------------
+
+  /** Current logged-in user's UUID — passed down to each card for four-eyes check */
+  readonly currentUserId = computed<string | null>(
+    () => this.authService.currentUser()?.userId ?? null
+  );
+
+  readonly isReviewer = computed<boolean>(() =>
+    this.authService.hasAnyRole(['REVIEWER', 'APPROVER', 'EXAM_CONTROLLER', 'ADMIN', 'SUPER_ADMIN'])
+  );
+
+  readonly isAuthor = computed<boolean>(() =>
+    this.authService.hasAnyRole(['QUESTION_AUTHOR', 'ADMIN', 'SUPER_ADMIN'])
+  );
+
+  // -------------------------------------------------------------------------
+  // Review-queue tab state
+  // -------------------------------------------------------------------------
+  readonly activeTab = signal<BankTab>('ALL');
+
+  readonly tabs: { id: BankTab; label: string; icon: string }[] = [
+    { id: 'ALL', label: 'All Items', icon: 'menu_book' },
+    { id: 'DRAFT', label: 'Drafts', icon: 'edit_note' },
+    { id: 'REVIEW', label: 'Review Queue', icon: 'rate_review' },
+    { id: 'APPROVED', label: 'Approved', icon: 'check_circle' },
+    { id: 'PUBLISHED', label: 'Published', icon: 'publish' },
+  ];
+
+  // -------------------------------------------------------------------------
+  // Reject dialog state
+  // -------------------------------------------------------------------------
+  readonly showRejectDialog = signal<boolean>(false);
+  private pendingRejectId = signal<string | null>(null);
+
+  // -------------------------------------------------------------------------
+  // Filter / search state
+  // -------------------------------------------------------------------------
   readonly showVectorDrawer = signal<boolean>(false);
   readonly searchingVector = signal<boolean>(false);
 
@@ -67,7 +113,7 @@ export class QuestionsFeatureBank implements OnInit {
   ]);
 
   readonly difficulties = ['ALL', 'EASY', 'MEDIUM', 'HARD'];
-  readonly statuses = ['ALL', 'APPROVED', 'REVIEW', 'DRAFT', 'REJECTED'];
+  readonly statuses = ['ALL', 'APPROVED', 'REVIEW', 'DRAFT', 'REJECTED', 'PUBLISHED'];
   readonly pageSizes = [10, 20, 50, 100];
 
   readonly showingStart = computed(() => {
@@ -89,9 +135,14 @@ export class QuestionsFeatureBank implements OnInit {
       !!this.searchQuery() ||
       this.selectedSubject() !== 'ALL' ||
       this.selectedDifficulty() !== 'ALL' ||
-      this.selectedStatus() !== 'ALL'
+      this.selectedStatus() !== 'ALL' ||
+      this.activeTab() !== 'ALL'
     );
   });
+
+  // -------------------------------------------------------------------------
+  // Lifecycle
+  // -------------------------------------------------------------------------
 
   ngOnInit(): void {
     this.loadSubjects();
@@ -112,6 +163,28 @@ export class QuestionsFeatureBank implements OnInit {
       },
     });
   }
+
+  // -------------------------------------------------------------------------
+  // Tab navigation
+  // -------------------------------------------------------------------------
+
+  switchTab(tab: BankTab): void {
+    this.activeTab.set(tab);
+    // Sync selectedStatus with the tab
+    const tabStatusMap: Record<BankTab, string> = {
+      ALL: 'ALL',
+      DRAFT: 'DRAFT',
+      REVIEW: 'REVIEW',
+      APPROVED: 'APPROVED',
+      PUBLISHED: 'PUBLISHED',
+    };
+    this.selectedStatus.set(tabStatusMap[tab]);
+    this.applyFilters(0);
+  }
+
+  // -------------------------------------------------------------------------
+  // Filter handlers
+  // -------------------------------------------------------------------------
 
   onSearchTextChange(query: string): void {
     this.searchQuery.set(query);
@@ -134,8 +207,11 @@ export class QuestionsFeatureBank implements OnInit {
   }
 
   onPageSizeChange(size: number): void {
+    if (typeof (this.questionService.pageSize as any)?.set === 'function') {
+      (this.questionService.pageSize as any).set(size);
+    }
     this.questionService.filter.update((f) => ({ ...f, size }));
-    this.applyFilters(0);
+    this.applyFilters(0, size);
   }
 
   goToPage(page: number): void {
@@ -149,6 +225,7 @@ export class QuestionsFeatureBank implements OnInit {
     this.selectedSubject.set('ALL');
     this.selectedDifficulty.set('ALL');
     this.selectedStatus.set('ALL');
+    this.activeTab.set('ALL');
     this.applyFilters(0);
   }
 
@@ -167,7 +244,14 @@ export class QuestionsFeatureBank implements OnInit {
     });
   }
 
-  applyFilters(page: number): void {
+  applyFilters(page: number, size?: number): void {
+    if (size !== undefined) {
+      if (typeof (this.questionService.pageSize as any)?.set === 'function') {
+        (this.questionService.pageSize as any).set(size);
+      }
+      this.questionService.filter.update((f) => ({ ...f, size }));
+    }
+    const currentSize = size ?? this.questionService.pageSize();
     const sub = this.selectedSubject();
     const diff = this.selectedDifficulty();
     const stat = this.selectedStatus();
@@ -176,7 +260,7 @@ export class QuestionsFeatureBank implements OnInit {
     this.questionService
       .loadQuestions({
         page,
-        size: this.questionService.pageSize(),
+        size: currentSize,
         search: search ? search : undefined,
         subject: sub !== 'ALL' ? sub : undefined,
         difficulty: diff !== 'ALL' ? diff : undefined,
@@ -187,6 +271,10 @@ export class QuestionsFeatureBank implements OnInit {
       .subscribe();
   }
 
+  // -------------------------------------------------------------------------
+  // Card action handlers
+  // -------------------------------------------------------------------------
+
   onEditQuestion(card: QuestionCardData): void {
     this.router.navigate(['/questions/authoring'], {
       queryParams: { edit: card.id },
@@ -196,7 +284,8 @@ export class QuestionsFeatureBank implements OnInit {
   async onDeleteQuestion(id: string): Promise<void> {
     const confirmed = await this.notificationService.confirm({
       title: 'Delete Question Item?',
-      message: 'Are you sure you want to delete this question item? This action will remove it from active item pools.',
+      message:
+        'Are you sure you want to delete this question item? This action will remove it from active item pools.',
       confirmText: 'Delete Question',
       cancelText: 'Cancel',
       type: 'danger',
@@ -205,8 +294,207 @@ export class QuestionsFeatureBank implements OnInit {
     if (confirmed) {
       this.questionService.deleteQuestion(id).subscribe(() => {
         this.applyFilters(this.questionService.currentPage());
-        this.notificationService.success('Question Deleted', 'Question item was successfully removed.');
+        this.notificationService.success(
+          'Question Deleted',
+          'Question item was successfully removed.'
+        );
       });
     }
   }
+
+  // -------------------------------------------------------------------------
+  // Review workflow handlers (Issue #275)
+  // -------------------------------------------------------------------------
+
+  onSubmitQuestion(id: string): void {
+    this.questionService.submitForReview(id).subscribe({
+      next: () => {
+        this.notificationService.success(
+          'Submitted for Review',
+          'Question has been sent to the review queue.'
+        );
+        this.applyFilters(this.questionService.currentPage());
+      },
+      error: (err) => {
+        this.notificationService.error(
+          'Submission Failed',
+          err?.error?.message || 'Could not submit question for review.'
+        );
+      },
+    });
+  }
+
+  onApproveQuestion(id: string): void {
+    this.questionService.approveQuestion(id).subscribe({
+      next: () => {
+        this.notificationService.success(
+          'Question Approved',
+          'The question has been approved and is ready for publication.'
+        );
+        this.applyFilters(this.questionService.currentPage());
+      },
+      error: (err) => {
+        const msg = err?.error?.message || 'Could not approve question.';
+        // Four-eyes violation returns 403
+        if (err?.status === 403) {
+          this.notificationService.error(
+            'Four-Eyes Principle Violation',
+            'You cannot approve a question that you authored.'
+          );
+        } else {
+          this.notificationService.error('Approval Failed', msg);
+        }
+      },
+    });
+  }
+
+  /** Opens the reject-comments dialog; actual rejection happens in onRejectConfirmed */
+  onRejectQuestion(id: string): void {
+    this.pendingRejectId.set(id);
+    this.showRejectDialog.set(true);
+  }
+
+  onRejectConfirmed(comments: string): void {
+    const id = this.pendingRejectId();
+    if (!id) return;
+
+    this.questionService.rejectQuestion(id, comments).subscribe({
+      next: () => {
+        this.notificationService.warning(
+          'Question Rejected',
+          'The question has been returned to the author with your feedback.'
+        );
+        this.pendingRejectId.set(null);
+        this.applyFilters(this.questionService.currentPage());
+      },
+      error: (err) => {
+        this.notificationService.error(
+          'Rejection Failed',
+          err?.error?.message || 'Could not reject question.'
+        );
+        this.pendingRejectId.set(null);
+      },
+    });
+  }
+
+  onRejectCancelled(): void {
+    this.pendingRejectId.set(null);
+    this.showRejectDialog.set(false);
+  }
+
+  onPublishQuestion(id: string): void {
+    this.questionService.publishQuestion(id).subscribe({
+      next: () => {
+        this.notificationService.success(
+          'Question Published',
+          'The question is now live in the assessment bank and eligible for paper assembly.'
+        );
+        this.applyFilters(this.questionService.currentPage());
+      },
+      error: (err) => {
+        const msg = err?.error?.message || 'Could not publish question.';
+        if (err?.status === 403) {
+          this.notificationService.error(
+            'Four-Eyes Principle Violation',
+            'You cannot publish a question that you reviewed and approved.'
+          );
+        } else {
+          this.notificationService.error('Publication Failed', msg);
+        }
+      },
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // Bulk selection state (Issue #323)
+  // -------------------------------------------------------------------------
+  readonly selectedQuestionIds = signal<Set<string>>(new Set<string>());
+
+  readonly isAllSelected = computed<boolean>(() => {
+    const list = this.questionService.questions();
+    const sel = this.selectedQuestionIds();
+    return list.length > 0 && list.every((q) => sel.has(q.id));
+  });
+
+  toggleSelectQuestion(id: string): void {
+    this.selectedQuestionIds.update((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }
+
+  toggleSelectAll(): void {
+    const list = this.questionService.questions();
+    if (this.isAllSelected()) {
+      this.selectedQuestionIds.update((prev) => {
+        const next = new Set(prev);
+        list.forEach((q) => next.delete(q.id));
+        return next;
+      });
+    } else {
+      this.selectedQuestionIds.update((prev) => {
+        const next = new Set(prev);
+        list.forEach((q) => next.add(q.id));
+        return next;
+      });
+    }
+  }
+
+  clearSelection(): void {
+    this.selectedQuestionIds.set(new Set<string>());
+  }
+
+  async onBulkTransition(targetState: string): Promise<void> {
+    const ids = Array.from(this.selectedQuestionIds());
+    if (ids.length === 0) return;
+
+    const actionLabel =
+      targetState === "REVIEW"
+        ? "Submit for Review"
+        : targetState === "APPROVED"
+        ? "Approve"
+        : targetState === "PUBLISHED"
+        ? "Publish"
+        : `Transition to ${targetState}`;
+
+    const confirmed = await this.notificationService.confirm({
+      title: `Bulk ${actionLabel}?`,
+      message: `Are you sure you want to transition ${ids.length} selected item(s) to ${targetState}?`,
+      confirmText: actionLabel,
+      cancelText: "Cancel",
+      type: targetState === "PUBLISHED" ? "warning" : "info",
+    });
+
+    if (confirmed) {
+      this.questionService.bulkTransition({ questionIds: ids, targetState }).subscribe({
+        next: (res) => {
+          if (res.failureCount > 0) {
+            this.notificationService.warning(
+              "Bulk Transition Completed with Warnings",
+              `Successfully updated ${res.successCount} of ${res.totalRequested} items. ${res.failureCount} item(s) failed validation.`
+            );
+          } else {
+            this.notificationService.success(
+              "Bulk Transition Completed",
+              `Successfully updated all ${res.successCount} items to ${targetState}.`
+            );
+          }
+          this.clearSelection();
+          this.applyFilters(this.questionService.currentPage());
+        },
+        error: (err) => {
+          this.notificationService.error(
+            "Bulk Transition Failed",
+            err?.error?.message || "Error occurred during bulk state transition."
+          );
+        },
+      });
+    }
+  }
+
 }

@@ -1,4 +1,4 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { FormBuilder } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
@@ -86,6 +86,21 @@ describe('PracticeSetFormModalComponent', () => {
       options: [],
       tags: ['mechanics'],
     },
+    {
+      id: 'bq-quant-1',
+      code: 'Q-QA-01',
+      content: 'A train 240 m long passes a pole in 24 seconds. Find speed of train in km/hr.',
+      difficulty: 'MEDIUM',
+      status: 'APPROVED',
+      subject: 'Quantitative Aptitude / Mathematical Abilities',
+      topic: 'Speed, Time and Distance',
+      subtopic: 'Trains',
+      type: 'SINGLE_MCQ',
+      marks: 2,
+      negativeMarks: 0.5,
+      options: [],
+      tags: ['speed', 'trains'],
+    },
   ];
 
   beforeEach(async () => {
@@ -100,11 +115,20 @@ describe('PracticeSetFormModalComponent', () => {
     };
 
     questionBankServiceMock = {
-      loadQuestions: jest.fn().mockReturnValue(of({ content: mockBankQuestions, totalElements: 2, totalPages: 1 })),
+      loadQuestions: jest.fn().mockReturnValue(
+        of({ content: mockBankQuestions.slice(0, 2), totalElements: 2, totalPages: 1 })
+      ),
+      getQuestionsByIds: jest.fn().mockReturnValue(of([])),
     };
 
     subjectTopicServiceMock = {
-      getSubjects: jest.fn().mockReturnValue(of([{ id: 1, name: 'Mathematics' }, { id: 2, name: 'Physics' }])),
+      getSubjects: jest.fn().mockReturnValue(
+        of([
+          { id: 1, name: 'Mathematics' },
+          { id: 2, name: 'Physics' },
+          { id: 3, name: 'Quantitative Aptitude / Mathematical Abilities', code: 'QAMA' },
+        ])
+      ),
     };
 
     dialogRefMock = {
@@ -193,6 +217,73 @@ describe('PracticeSetFormModalComponent', () => {
     expect(component.attachedQuestionIds()).toEqual([]);
   });
 
+  it('should dynamically query database with selected subject filter and reset page', () => {
+    questionBankServiceMock.loadQuestions.mockClear();
+
+    component.onSubjectChange('Quantitative Aptitude / Mathematical Abilities');
+
+    expect(component.selectedSubject()).toBe('Quantitative Aptitude / Mathematical Abilities');
+    expect(component.bankPage()).toBe(0);
+    expect(questionBankServiceMock.loadQuestions).toHaveBeenCalledWith({
+      page: 0,
+      size: 20,
+      search: undefined,
+      subject: 'Quantitative Aptitude / Mathematical Abilities',
+      difficulty: undefined,
+    });
+  });
+
+  it('should dynamically query database with selected difficulty filter and reset page', () => {
+    questionBankServiceMock.loadQuestions.mockClear();
+
+    component.onDifficultyChange('HARD');
+
+    expect(component.selectedDifficulty()).toBe('HARD');
+    expect(component.bankPage()).toBe(0);
+    expect(questionBankServiceMock.loadQuestions).toHaveBeenCalledWith({
+      page: 0,
+      size: 20,
+      search: undefined,
+      subject: undefined,
+      difficulty: 'HARD',
+    });
+  });
+
+  it('should dynamically query database on debounced search query change', fakeAsync(() => {
+    questionBankServiceMock.loadQuestions.mockClear();
+
+    component.onSearchChange('trains');
+    expect(component.questionSearchQuery()).toBe('trains');
+    // Not called immediately before debounce
+    expect(questionBankServiceMock.loadQuestions).not.toHaveBeenCalled();
+
+    tick(300);
+
+    expect(questionBankServiceMock.loadQuestions).toHaveBeenCalledWith({
+      page: 0,
+      size: 20,
+      search: 'trains',
+      subject: undefined,
+      difficulty: undefined,
+    });
+  }));
+
+  it('should paginate question bank queries from database', () => {
+    component.bankTotalPages.set(5);
+    questionBankServiceMock.loadQuestions.mockClear();
+
+    component.onPageChange(2);
+
+    expect(component.bankPage()).toBe(2);
+    expect(questionBankServiceMock.loadQuestions).toHaveBeenCalledWith({
+      page: 2,
+      size: 20,
+      search: undefined,
+      subject: undefined,
+      difficulty: undefined,
+    });
+  });
+
   it('should submit create request with curated questions and source MANUAL', () => {
     component.onSourceTypeChange('MANUAL');
     component.form.patchValue({
@@ -223,6 +314,138 @@ describe('PracticeSetFormModalComponent', () => {
 
   it('should close dialog on cancel', () => {
     component.onCancel();
+    expect(dialogRefMock.close).toHaveBeenCalled();
+  });
+});
+
+describe('PracticeSetFormModalComponent in Edit Mode with Quantitative Aptitude', () => {
+  let component: PracticeSetFormModalComponent;
+  let fixture: ComponentFixture<PracticeSetFormModalComponent>;
+  let practiceSetServiceMock: any;
+  let paperServiceMock: any;
+  let questionBankServiceMock: any;
+  let subjectTopicServiceMock: any;
+  let dialogRefMock: any;
+
+  const existingPracticeSet = {
+    id: '22222222-2222-2222-2222-222222222222',
+    name: 'Quantitative Aptitude Speed Practice',
+    description: 'High-yield arithmetic, algebra, data interpretation, and speed math practice set.',
+    durationMinutes: 60,
+    subjectSlug: 'quantitative-aptitude',
+    source: 'MANUAL',
+    questionIds: ['bq-quant-1'],
+    totalQuestions: 1,
+    published: true,
+  };
+
+  const mockPreloadedQuestion: Question = {
+    id: 'bq-quant-1',
+    code: 'Q-QA-01',
+    content: 'A train 240 m long passes a pole in 24 seconds.',
+    difficulty: 'MEDIUM',
+    status: 'APPROVED',
+    subject: 'Quantitative Aptitude / Mathematical Abilities',
+    topic: 'Speed, Time and Distance',
+    subtopic: 'Trains',
+    type: 'SINGLE_MCQ',
+    marks: 2,
+    negativeMarks: 0.5,
+    options: [],
+    tags: ['speed'],
+  };
+
+  beforeEach(async () => {
+    practiceSetServiceMock = {
+      update: jest.fn().mockReturnValue(of({ ...existingPracticeSet })),
+    };
+
+    paperServiceMock = {
+      getPapers: jest.fn().mockReturnValue(of({ content: [], totalElements: 0 })),
+      getPaper: jest.fn().mockReturnValue(of({})),
+    };
+
+    questionBankServiceMock = {
+      loadQuestions: jest.fn().mockReturnValue(
+        of({ content: [mockPreloadedQuestion], totalElements: 1, totalPages: 1 })
+      ),
+      getQuestionsByIds: jest.fn().mockReturnValue(of([mockPreloadedQuestion])),
+    };
+
+    subjectTopicServiceMock = {
+      getSubjects: jest.fn().mockReturnValue(
+        of([
+          { id: 1, name: 'General Intelligence & Reasoning', code: 'GIR' },
+          { id: 2, name: 'Quantitative Aptitude / Mathematical Abilities', code: 'QAMA' },
+          { id: 3, name: 'General Awareness', code: 'GA' },
+        ])
+      ),
+    };
+
+    dialogRefMock = {
+      close: jest.fn(),
+    };
+
+    await TestBed.configureTestingModule({
+      imports: [PracticeSetFormModalComponent, NoopAnimationsModule],
+      providers: [
+        FormBuilder,
+        { provide: PracticeSetService, useValue: practiceSetServiceMock },
+        { provide: PaperService, useValue: paperServiceMock },
+        { provide: QuestionBankService, useValue: questionBankServiceMock },
+        { provide: SubjectTopicService, useValue: subjectTopicServiceMock },
+        { provide: MatDialogRef, useValue: dialogRefMock },
+        {
+          provide: MAT_DIALOG_DATA,
+          useValue: {
+            set: existingPracticeSet,
+            mode: 'edit',
+          },
+        },
+      ],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(PracticeSetFormModalComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  });
+
+  it('should auto-match subject and pre-filter questions from db for Quantitative Aptitude practice set', () => {
+    expect(component.sourceType()).toBe('MANUAL');
+    expect(component.selectedSubject()).toBe('Quantitative Aptitude / Mathematical Abilities');
+    expect(questionBankServiceMock.loadQuestions).toHaveBeenCalledWith({
+      page: 0,
+      size: 20,
+      search: undefined,
+      subject: 'Quantitative Aptitude / Mathematical Abilities',
+      difficulty: undefined,
+    });
+  });
+
+  it('should preload existing attached questions by IDs and display them in selected list', () => {
+    expect(questionBankServiceMock.getQuestionsByIds).toHaveBeenCalledWith(['bq-quant-1']);
+    expect(component.attachedQuestionIds()).toEqual(['bq-quant-1']);
+
+    const selected = component.selectedQuestionsList();
+    expect(selected.length).toBe(1);
+    expect(selected[0].code).toBe('Q-QA-01');
+    expect(selected[0].content).toContain('A train 240 m long');
+  });
+
+  it('should submit update request on save changes', () => {
+    component.onSubmit();
+
+    expect(practiceSetServiceMock.update).toHaveBeenCalledWith(
+      '22222222-2222-2222-2222-222222222222',
+      {
+        name: 'Quantitative Aptitude Speed Practice',
+        description: 'High-yield arithmetic, algebra, data interpretation, and speed math practice set.',
+        durationMinutes: 60,
+        totalQuestions: 1,
+        subjectSlug: 'quantitative-aptitude',
+        questionIds: ['bq-quant-1'],
+      }
+    );
     expect(dialogRefMock.close).toHaveBeenCalled();
   });
 });

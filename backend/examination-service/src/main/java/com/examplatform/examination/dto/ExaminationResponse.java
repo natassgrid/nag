@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -19,11 +19,13 @@
 
 package com.examplatform.examination.dto;
 
+import com.examplatform.examination.domain.Examination;
 import com.examplatform.examination.domain.Section;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.beans.BeanUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -59,4 +61,14 @@ public class ExaminationResponse {
     private List<Section> sections;
     private String status;
     private LocalDateTime createdAt;
+
+    public static ExaminationResponse from(Examination exam, List<Section> sections) {
+        if (exam == null) {
+            return null;
+        }
+        ExaminationResponse response = new ExaminationResponse();
+        BeanUtils.copyProperties(exam, response);
+        response.setSections(sections != null ? sections : List.of());
+        return response;
+    }
 }

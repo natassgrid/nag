@@ -1,7 +1,7 @@
 -- SPDX-License-Identifier: AGPL-3.0-only
 --
--- National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
--- Copyright (C) 2025 NAG Contributors
+-- NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+-- Copyright (C) 2026 NAG Contributors
 
 -- Add diagnostic and analytics fields to result table (SPEC-RS1)
 ALTER TABLE result_service.result

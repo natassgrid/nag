@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -28,7 +28,7 @@ import lombok.extern.slf4j.Slf4j;
  * PII fields using Vault Transit (AES-256-GCM).
  *
  * <p>Because JPA converters are instantiated by Hibernate (not Spring),
- * this class obtains the {@link com.examplatform.candidate.service.VaultCryptoService}
+ * this class obtains the {@link com.examplatform.shared.crypto.VaultCryptoService}
  * via the static {@link VaultCryptoServiceHolder}.
  *
  * <p>Apply on entity fields with:

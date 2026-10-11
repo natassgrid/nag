@@ -6,7 +6,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import {
@@ -57,6 +57,14 @@ export class QuestionsFeatureAuthoring implements OnInit {
   private readonly passageService = inject(PassageService);
   private readonly subjectTopicService = inject(SubjectTopicService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+
+  /** When non-null the form is in edit mode for this question ID. */
+  editingQuestionId = signal<string | null>(null);
+  /** The original lifecycle state of the question being edited (e.g. 'REVIEW', 'APPROVED'). */
+  editingQuestionOriginalState = signal<string | null>(null);
+  /** True while loading the question to edit. */
+  loadingQuestion = signal<boolean>(false);
 
   mode = signal<AuthoringMode>('STANDALONE');
   saving = signal<boolean>(false);
@@ -150,6 +158,87 @@ export class QuestionsFeatureAuthoring implements OnInit {
 
   ngOnInit(): void {
     this.loadTaxonomy();
+    // Detect edit query param: /questions/authoring?edit=<uuid>
+    const editId = this.route.snapshot.queryParamMap.get('edit');
+    if (editId) {
+      this.editingQuestionId.set(editId);
+      this.loadQuestionForEdit(editId);
+    }
+  }
+
+  /**
+   * Fetch an existing question by ID and populate all form fields so the
+   * author can edit and re-save via PUT instead of POST.
+   */
+  loadQuestionForEdit(id: string): void {
+    this.loadingQuestion.set(true);
+    this.feedback.set(null);
+    this.questionBank.getQuestionById(id).subscribe({
+      next: (q) => {
+        this.loadingQuestion.set(false);
+
+        // Questions in PUBLISHED state cannot be edited (they are immutable once published).
+        // Questions in DRAFT, REVIEW, APPROVED, or REJECTED state can be edited — upon save
+        // they will be reset to DRAFT state for re-review.
+        const state = (q.status || '').toUpperCase();
+        if (state === 'PUBLISHED') {
+          this.editingQuestionId.set(null);
+          this.feedback.set({
+            type: 'error',
+            message: `PUBLISHED questions cannot be edited. This question has already been published and is now immutable.`,
+          });
+          return;
+        }
+
+        // Store the original state so the UI can show a warning if the question
+        // was in REVIEW or APPROVED and will be reset to DRAFT on save.
+        this.editingQuestionOriginalState.set(state);
+
+        // Map the backend type back to the UI type token.
+        const uiType: QuestionType =
+          q.type === 'SINGLE_MCQ' ? 'MULTIPLE_CHOICE' :
+          q.type === 'MULTI_MCQ' ? 'MULTIPLE_SELECT' :
+          (q.type as QuestionType) || 'MULTIPLE_CHOICE';
+
+        this.type = uiType;
+        this.content = q.content || '';
+        this.explanation = q.explanation || '';
+        this.difficulty = (q.difficulty as DifficultyLevel) || 'MEDIUM';
+        this.cognitiveLevel = (q as any).cognitiveLevel || 'UNDERSTAND';
+        this.marks = q.marks ?? 4;
+        this.negativeMarks = q.negativeMarks ?? 1;
+
+        // Populate options — ensure at least 4 slots normalised with letter IDs.
+        if (q.options && q.options.length > 0) {
+          this.options = q.options.map((opt, idx) => ({
+            id: opt.id || String.fromCharCode(65 + idx),
+            text: opt.text || '',
+            isCorrect: opt.isCorrect,
+          }));
+        }
+
+        // Load taxonomy IDs so the dropdowns pre-select the right values.
+        // We set the IDs directly; the cascading loads are handled in
+        // loadTaxonomyForEdit() after the subjects/topics lists are ready.
+        if (q.subjectId) {
+          this.selectedSubjectId = Number(q.subjectId);
+        }
+        if (q.topicId) {
+          this.selectedTopicId = Number(q.topicId);
+        }
+        if (q.subtopicId) {
+          this.selectedSubtopicId = Number(q.subtopicId);
+        }
+      },
+      error: (err) => {
+        this.loadingQuestion.set(false);
+        this.editingQuestionId.set(null);
+        this.feedback.set({
+          type: 'error',
+          message: err?.error?.message || `Could not load question ${id} for editing.`,
+        });
+      },
+    });
   }
 
   loadTaxonomy(): void {
@@ -157,13 +246,40 @@ export class QuestionsFeatureAuthoring implements OnInit {
     this.subjectTopicService.getSubjects().subscribe({
       next: (subs) => {
         this.subjects.set(subs || []);
-        if (subs && subs.length > 0) {
+        const isEditMode = !!this.route.snapshot.queryParamMap.get('edit');
+        if (!isEditMode && subs && subs.length > 0) {
+          // Create mode: auto-select the first subject.
           this.selectedSubjectId = subs[0].id;
           this.onSubjectChange(subs[0].id);
+        } else if (isEditMode && this.selectedSubjectId) {
+          // Edit mode: load topics for the pre-selected subject so the
+          // dropdown chain is populated correctly.
+          this.loadTopicsForEdit(this.selectedSubjectId);
         }
         this.loadingTaxonomy.set(false);
       },
       error: () => this.loadingTaxonomy.set(false),
+    });
+  }
+
+  /** Load topics (and subtopics) for a subject in edit mode without resetting the IDs. */
+  private loadTopicsForEdit(subjectId: number): void {
+    this.subjectTopicService.getTopics(subjectId).subscribe({
+      next: (tops) => {
+        this.topics.set(tops || []);
+        if (this.selectedTopicId) {
+          this.loadSubtopicsForEdit(subjectId, this.selectedTopicId);
+        }
+      },
+    });
+  }
+
+  /** Load subtopics in edit mode without resetting the IDs. */
+  private loadSubtopicsForEdit(subjectId: number, topicId: number): void {
+    this.subjectTopicService.getSubtopics(subjectId, topicId).subscribe({
+      next: (subs) => {
+        this.subtopics.set(subs || []);
+      },
     });
   }
 
@@ -304,10 +420,34 @@ export class QuestionsFeatureAuthoring implements OnInit {
   }
 
   private saveStandaloneQuestion(): void {
+    if (!this.selectedSubjectId) {
+      this.feedback.set({
+        type: 'error',
+        message: 'Please select a Subject from the taxonomy hierarchy before saving.',
+      });
+      return;
+    }
+
     if (!this.content.trim()) {
       this.feedback.set({
         type: 'error',
         message: 'Question problem statement cannot be empty.',
+      });
+      return;
+    }
+
+    if (this.marks <= 0) {
+      this.feedback.set({
+        type: 'error',
+        message: 'Positive marks must be greater than 0.',
+      });
+      return;
+    }
+
+    if (this.negativeMarks < 0 || this.negativeMarks > this.marks) {
+      this.feedback.set({
+        type: 'error',
+        message: 'Negative marks must be between 0 and positive marks.',
       });
       return;
     }
@@ -326,15 +466,38 @@ export class QuestionsFeatureAuthoring implements OnInit {
       .filter((opt) => opt.isCorrect)
       .map((opt) => opt.id);
 
-    if (
-      (this.type === 'MULTIPLE_CHOICE' || this.type === 'MULTIPLE_SELECT' || this.type === 'SINGLE_MCQ' || this.type === 'MULTIPLE_MCQ') &&
-      correctLetters.length === 0
-    ) {
-      this.feedback.set({
-        type: 'error',
-        message: 'Please select at least one correct option before saving.',
-      });
-      return;
+    const isMcq = this.type === 'MULTIPLE_CHOICE' || this.type === 'SINGLE_MCQ';
+    const isMsq = this.type === 'MULTIPLE_SELECT' || this.type === 'MULTI_MCQ' || this.type === 'MULTIPLE_MCQ';
+
+    if (isMcq || isMsq) {
+      if (formattedOptions.length < 2) {
+        this.feedback.set({
+          type: 'error',
+          message: 'At least 2 options are required for multiple choice questions.',
+        });
+        return;
+      }
+      if (formattedOptions.some((opt) => !opt.text)) {
+        this.feedback.set({
+          type: 'error',
+          message: 'All options must have non-empty text or formulas.',
+        });
+        return;
+      }
+      if (isMcq && correctLetters.length !== 1) {
+        this.feedback.set({
+          type: 'error',
+          message: 'Single correct MCQ requires exactly one correct option selected.',
+        });
+        return;
+      }
+      if (isMsq && correctLetters.length === 0) {
+        this.feedback.set({
+          type: 'error',
+          message: 'Multi correct MSQ requires at least one correct option selected.',
+        });
+        return;
+      }
     }
 
     const backendQuestionType =
@@ -347,6 +510,7 @@ export class QuestionsFeatureAuthoring implements OnInit {
     const payload = {
       content: this.content.trim(),
       type: backendQuestionType,
+      questionType: backendQuestionType,
       difficulty: this.difficulty,
       cognitiveLevel: this.cognitiveLevel,
       subject: selectedSub?.name || 'General',
@@ -354,34 +518,56 @@ export class QuestionsFeatureAuthoring implements OnInit {
       subtopic: selectedSubtop?.name || '',
       subjectId: this.selectedSubjectId || 0,
       topicId: this.selectedTopicId || undefined,
-      
       marks: this.marks,
       negativeMarks: this.negativeMarks,
       options: formattedOptions,
       answerKey: correctLetters.join(','),
       explanation: this.explanation.trim() || undefined,
-      state: 'APPROVED',
+      state: 'DRAFT',
+      status: 'DRAFT',
     };
 
     this.saving.set(true);
     this.feedback.set(null);
 
-    this.questionBank.createQuestion(payload).subscribe({
-      next: (created) => {
-        this.saving.set(false);
-        this.feedback.set({
-          type: 'success',
-          message: `Question ${created.code || created.id} successfully created and committed to Question Bank!`,
-        });
-      },
-      error: (err) => {
-        this.saving.set(false);
-        this.feedback.set({
-          type: 'error',
-          message: err?.error?.message || 'Failed to persist question. Please verify all fields and retry.',
-        });
-      },
-    });
+    const editId = this.editingQuestionId();
+    if (editId) {
+      // ── EDIT MODE: PUT /api/v1/questions/:id ──
+      this.questionBank.updateQuestion(editId, payload).subscribe({
+        next: (updated) => {
+          this.saving.set(false);
+          this.feedback.set({
+            type: 'success',
+            message: `Question ${updated.code || updated.id} successfully updated in the Question Bank!`,
+          });
+        },
+        error: (err) => {
+          this.saving.set(false);
+          this.feedback.set({
+            type: 'error',
+            message: err?.error?.message || 'Failed to update question. Please verify all fields and retry.',
+          });
+        },
+      });
+    } else {
+      // ── CREATE MODE: POST /api/v1/questions ──
+      this.questionBank.createQuestion(payload).subscribe({
+        next: (created) => {
+          this.saving.set(false);
+          this.feedback.set({
+            type: 'success',
+            message: `Question ${created.code || created.id} successfully created and committed to Question Bank!`,
+          });
+        },
+        error: (err) => {
+          this.saving.set(false);
+          this.feedback.set({
+            type: 'error',
+            message: err?.error?.message || 'Failed to persist question. Please verify all fields and retry.',
+          });
+        },
+      });
+    }
   }
 
   private savePassage(): void {
@@ -446,6 +632,7 @@ export class QuestionsFeatureAuthoring implements OnInit {
         passageOrderIndex: idx + 1,
         content: sq.content.trim(),
         type: backendType,
+        questionType: backendType,
         difficulty: sq.difficulty,
         cognitiveLevel: sq.cognitiveLevel,
         marks: sq.marks,
@@ -457,6 +644,8 @@ export class QuestionsFeatureAuthoring implements OnInit {
         })),
         answerKey: correct,
         explanation: sq.explanation.trim() || undefined,
+        state: 'DRAFT',
+        status: 'DRAFT',
       };
     });
 
@@ -468,7 +657,8 @@ export class QuestionsFeatureAuthoring implements OnInit {
       subtopic: selectedSubtop?.name || undefined,
       subjectId: this.selectedSubjectId || 0,
       topicId: this.selectedTopicId || undefined,
-      
+      state: 'DRAFT',
+      status: 'DRAFT',
       subQuestions: formattedSubQuestions,
     };
 

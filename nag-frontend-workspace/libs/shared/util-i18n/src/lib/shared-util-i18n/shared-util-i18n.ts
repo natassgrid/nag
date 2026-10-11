@@ -48,7 +48,7 @@ export const DEFAULT_TRANSLATIONS: Record<SupportedLanguage, Record<string, stri
     'common.status': 'Status',
     'common.actions': 'Actions',
     'common.confirm': 'Confirm',
-    'exam.title': 'National Assessment Grid',
+    'exam.title': 'NextGen Assessment Grid',
     'exam.candidate_name': 'Candidate Name',
     'exam.roll_number': 'Roll Number',
     'exam.time_remaining': 'Time Remaining',

@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -20,6 +20,9 @@
 package com.examplatform.questionbank.service;
 
 import com.examplatform.questionbank.domain.Question;
+import com.examplatform.questionbank.dto.BulkTransitionItemResult;
+import com.examplatform.questionbank.dto.BulkTransitionRequest;
+import com.examplatform.questionbank.dto.BulkTransitionResponse;
 import com.examplatform.questionbank.dto.QuestionAnalytics;
 import com.examplatform.questionbank.dto.QuestionResponse;
 import com.examplatform.questionbank.dto.TransitionRequest;
@@ -36,7 +39,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -57,7 +62,12 @@ import java.util.UUID;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional
+@Transactional(noRollbackFor = {
+        InvalidTransitionException.class,
+        FourEyesPrincipleViolationException.class,
+        EntityNotFoundException.class,
+        IllegalArgumentException.class
+})
 public class QuestionLifecycleService {
 
     private static final String AUDIT_TOPIC = "exam.audit.events";
@@ -132,6 +142,88 @@ public class QuestionLifecycleService {
         return toResponse(saved);
     }
 
+    /**
+     * Executes bulk transitions on a collection of questions.
+     * Enforces the FSM and four-eyes principle on each item individually without failing the entire batch.
+     * Capped at 100 questions per batch.
+     *
+     * @param request  bulk transition request
+     * @param actorId  UUID of the actor performing the transition
+     * @param tenantId tenant identifier
+     * @return summary response containing individual results
+     */
+    public BulkTransitionResponse bulkTransition(BulkTransitionRequest request, UUID actorId, String tenantId) {
+        if (request.getQuestionIds() == null || request.getQuestionIds().isEmpty()) {
+            return BulkTransitionResponse.builder()
+                    .totalRequested(0)
+                    .successCount(0)
+                    .failureCount(0)
+                    .results(List.of())
+                    .build();
+        }
+
+        if (request.getQuestionIds().size() > 100) {
+            throw new IllegalArgumentException("Bulk transition batch cannot exceed 100 questions");
+        }
+
+        List<BulkTransitionItemResult> itemResults = new ArrayList<>();
+        int successCount = 0;
+        int failureCount = 0;
+
+        TransitionRequest itemReq = TransitionRequest.builder()
+                .targetState(request.getTargetState())
+                .comments(request.getReason())
+                .build();
+
+        for (UUID questionId : request.getQuestionIds()) {
+            try {
+                Question question = questionRepository.findById(questionId)
+                        .orElseThrow(() -> new EntityNotFoundException("Question not found: " + questionId));
+                String prevState = question.getState();
+
+                // If targetState is APPROVED, enforce four-eyes: approver cannot be the author
+                if ("APPROVED".equalsIgnoreCase(request.getTargetState())) {
+                    if (question.getAuthorId() != null && question.getAuthorId().equals(actorId)) {
+                        throw new FourEyesPrincipleViolationException("Author cannot approve their own question");
+                    }
+                }
+
+                QuestionResponse resp = transition(questionId, itemReq, actorId, tenantId);
+                successCount++;
+                itemResults.add(BulkTransitionItemResult.builder()
+                        .questionId(questionId)
+                        .success(true)
+                        .previousState(prevState)
+                        .newState(resp.getState())
+                        .build());
+            } catch (Exception e) {
+                log.warn("Failed to transition question {} to {} in bulk batch: {}",
+                        questionId, request.getTargetState(), e.getMessage());
+                failureCount++;
+
+                String prevState = null;
+                try {
+                    prevState = questionRepository.findById(questionId).map(Question::getState).orElse(null);
+                } catch (Exception ignored) {
+                }
+
+                itemResults.add(BulkTransitionItemResult.builder()
+                        .questionId(questionId)
+                        .success(false)
+                        .previousState(prevState)
+                        .errorMessage(e.getMessage())
+                        .build());
+            }
+        }
+
+        return BulkTransitionResponse.builder()
+                .totalRequested(request.getQuestionIds().size())
+                .successCount(successCount)
+                .failureCount(failureCount)
+                .results(itemResults)
+                .build();
+    }
+
     private void publishAuditEvent(UUID questionId, UUID actorId, String tenantId,
                                     String fromState, String toState) {
         try {
@@ -152,13 +244,15 @@ public class QuestionLifecycleService {
 
     /**
      * Approves a question in REVIEW state — transitions to APPROVED.
+     * Enforces the Four-Eyes Principle: the reviewer (approver) cannot be the question's author.
      *
      * @param questionId the question UUID
      * @param reviewerId UUID of the reviewer performing approval
      * @param tenantId   tenant identifier for access scoping
      * @return the updated question response
-     * @throws EntityNotFoundException    if the question is not found
-     * @throws InvalidTransitionException if the question is not in REVIEW state
+     * @throws EntityNotFoundException             if the question is not found
+     * @throws InvalidTransitionException          if the question is not in REVIEW state
+     * @throws FourEyesPrincipleViolationException if the reviewer is also the question author
      */
     public QuestionResponse approve(UUID questionId, UUID reviewerId, String tenantId) {
         Question question = questionRepository.findById(questionId)
@@ -166,6 +260,11 @@ public class QuestionLifecycleService {
 
         if (!"REVIEW".equals(question.getState())) {
             throw new InvalidTransitionException(question.getState(), "APPROVED");
+        }
+
+        // Four-eyes principle: reviewer cannot be the author
+        if (question.getAuthorId() != null && question.getAuthorId().equals(reviewerId)) {
+            throw new FourEyesPrincipleViolationException();
         }
 
         question.setReviewerId(reviewerId);
@@ -181,11 +280,48 @@ public class QuestionLifecycleService {
     }
 
     /**
+     * Publishes an APPROVED question — transitions to PUBLISHED.
+     * Enforces the Four-Eyes Principle: the publisher cannot be the reviewer who approved it.
+     *
+     * @param questionId  the question UUID
+     * @param publisherId UUID of the publisher
+     * @param tenantId    tenant identifier for access scoping
+     * @return the updated question response
+     * @throws EntityNotFoundException             if the question is not found
+     * @throws InvalidTransitionException          if the question is not in APPROVED state
+     * @throws FourEyesPrincipleViolationException if the publisher is also the reviewer
+     */
+    public QuestionResponse publish(UUID questionId, UUID publisherId, String tenantId) {
+        Question question = questionRepository.findById(questionId)
+                .orElseThrow(() -> new EntityNotFoundException("Question not found: " + questionId));
+
+        if (!"APPROVED".equals(question.getState())) {
+            throw new InvalidTransitionException(question.getState(), "PUBLISHED");
+        }
+
+        // Four-eyes principle: publisher cannot be the reviewer who approved it
+        if (question.getReviewerId() != null && question.getReviewerId().equals(publisherId)) {
+            throw new FourEyesPrincipleViolationException();
+        }
+
+        question.setState("PUBLISHED");
+        Question saved = questionRepository.save(question);
+
+        log.info("Question published: id={}, publisher={}, tenant={}", questionId, publisherId, tenantId);
+
+        publishAuditEvent(questionId, publisherId, tenantId, "APPROVED", "PUBLISHED");
+        reviewWorkflowService.processTransition(saved, "APPROVED", "PUBLISHED", publisherId, null, tenantId);
+
+        return toResponse(saved);
+    }
+
+    /**
      * Rejects a question in REVIEW state — transitions back to DRAFT for revision.
+     * Reviewer comments are persisted on the Question entity so authors can see them.
      *
      * @param questionId the question UUID
      * @param reviewerId UUID of the reviewer performing rejection
-     * @param comments   reviewer comments explaining the rejection
+     * @param comments   reviewer comments explaining the rejection (required)
      * @param tenantId   tenant identifier for access scoping
      * @return the updated question response
      * @throws EntityNotFoundException    if the question is not found
@@ -200,6 +336,7 @@ public class QuestionLifecycleService {
         }
 
         question.setReviewerId(reviewerId);
+        question.setReviewComments(comments);
         question.setState("DRAFT");
         Question saved = questionRepository.save(question);
 
@@ -229,31 +366,6 @@ public class QuestionLifecycleService {
     }
 
     private QuestionResponse toResponse(Question question) {
-        LocalDateTime createdAt = question.getCreatedAt() != null
-                ? LocalDateTime.ofInstant(question.getCreatedAt(), ZoneOffset.UTC)
-                : null;
-
-        return QuestionResponse.builder()
-                .id(question.getId())
-                .subjectId(question.getSubjectId())
-                .topicId(question.getTopicId())
-                .subtopicId(question.getSubtopicId())
-                .subject(question.getSubject())
-                .topic(question.getTopic())
-                .subtopic(question.getSubtopic())
-                .chapter(question.getChapter())
-                .difficulty(question.getDifficulty())
-                .cognitiveLevel(question.getCognitiveLevel())
-                .questionType(question.getQuestionType())
-                .content(question.getContent())
-                .answerKey(question.getAnswerKey())
-                .explanation(question.getExplanation())
-                .references(question.getReferences())
-                .state(question.getState())
-                .authorId(question.getAuthorId())
-                .createdAt(createdAt)
-                .options(question.getOptions())
-                .hasImages(question.isHasImages())
-                .build();
+        return QuestionResponse.fromEntity(question);
     }
 }

@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -114,24 +114,10 @@ public class AdminSecuritySettingsController {
     }
 
     private String resolveTenant(String paramTenant) {
-        if (paramTenant != null && !paramTenant.isBlank()) {
-            return paramTenant;
-        }
-        String contextTenant = TenantContext.get();
-        if (contextTenant != null && !contextTenant.isBlank()) {
-            return contextTenant;
-        }
-        return "default";
+        return AdminControllerHelper.resolveTenant(paramTenant);
     }
 
     private UUID extractActorId(Jwt jwt) {
-        if (jwt == null || jwt.getSubject() == null) {
-            return UUID.fromString("00000000-0000-0000-0000-000000000000");
-        }
-        try {
-            return UUID.fromString(jwt.getSubject());
-        } catch (IllegalArgumentException e) {
-            return UUID.nameUUIDFromBytes(jwt.getSubject().getBytes());
-        }
+        return AdminControllerHelper.extractActorId(jwt);
     }
 }

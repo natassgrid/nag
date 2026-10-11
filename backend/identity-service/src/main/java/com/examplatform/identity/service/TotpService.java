@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -49,7 +49,7 @@ public class TotpService {
     private static final int TIME_STEP_SECONDS = 30;
     private static final int CODE_DIGITS = 6;
     private static final int WINDOW_SIZE = 1; // +/- 1 step tolerance
-    private static final String ISSUER = "National Assessment Grid";
+    private static final String ISSUER = "NextGen Assessment Grid";
 
     private final SecureRandom secureRandom = new SecureRandom();
 

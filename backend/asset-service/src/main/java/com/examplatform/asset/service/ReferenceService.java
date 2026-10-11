@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -102,9 +102,8 @@ public class ReferenceService {
      */
     @Transactional(readOnly = true)
     public List<AssetReferenceResponse> getReferencesForAsset(UUID assetId) {
-        return referenceRepository.findByAssetId(assetId).stream()
-                .map(this::mapToResponse)
-                .toList();
+        List<AssetReference> refs = referenceRepository.findByAssetId(assetId);
+        return refs.stream().map(this::mapToResponse).toList();
     }
 
     /**
@@ -112,9 +111,8 @@ public class ReferenceService {
      */
     @Transactional(readOnly = true)
     public List<AssetReferenceResponse> getReferencesForEntity(ReferenceType type, UUID referenceId) {
-        return referenceRepository.findByReferenceTypeAndReferenceId(type, referenceId).stream()
-                .map(this::mapToResponse)
-                .toList();
+        List<AssetReference> refs = referenceRepository.findByReferenceTypeAndReferenceId(type, referenceId);
+        return refs.stream().map(this::mapToResponse).toList();
     }
 
     /**

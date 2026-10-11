@@ -22,7 +22,7 @@ test.describe('Public Verifier E2E Suite', () => {
 
   test('should render public credential verification homepage', async ({ page }) => {
     await page.goto('/');
-    await expect(page).toHaveTitle(/Public Verifier|National Assessment Grid|NAG/i);
+    await expect(page).toHaveTitle(/Public Verifier|NextGen Assessment Grid|NAG/i);
     await expect(page.locator('body')).toBeVisible();
   });
 

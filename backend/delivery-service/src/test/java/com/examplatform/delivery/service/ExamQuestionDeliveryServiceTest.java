@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -34,6 +34,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -67,34 +68,22 @@ class ExamQuestionDeliveryServiceTest {
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
-        service = new ExamQuestionDeliveryService(jdbcTemplate, redisTemplate, objectMapper, examSessionRepository);
+        QuestionDeliveryParser parser = new QuestionDeliveryParser(objectMapper);
+        QuestionDeliveryRepository repo = new QuestionDeliveryRepository(jdbcTemplate, objectMapper, parser);
+        OptionRandomizer randomizer = new OptionRandomizer();
+        TranslationEnricher enricher = new TranslationEnricher(jdbcTemplate, objectMapper);
+        service = new ExamQuestionDeliveryService(repo, parser, randomizer, enricher, redisTemplate, examSessionRepository);
     }
 
     @Nested
-    @DisplayName("JSON Question UUID Extraction Tests")
-    class JsonExtractionTests {
+    @DisplayName("Question ID Parsing Tests")
+    class QuestionIdParsingTests {
 
         @Test
-        @DisplayName("Extracts UUIDs from questionIds JSON array")
-        void extractFromQuestionIdsObject() {
-            String json = "{\"questionIds\": [\"" + Q1_ID + "\", \"" + Q2_ID + "\"]}";
-            List<UUID> uids = service.extractQuestionUuidsFromJson(json);
-            assertThat(uids).containsExactly(Q1_ID, Q2_ID);
-        }
-
-        @Test
-        @DisplayName("Extracts UUIDs from raw string array")
-        void extractFromRawArray() {
+        @DisplayName("Extracts UUIDs from valid JSON array string")
+        void extractFromJsonArray() {
             String json = "[\"" + Q1_ID + "\", \"" + Q2_ID + "\"]";
-            List<UUID> uids = service.extractQuestionUuidsFromJson(json);
-            assertThat(uids).containsExactly(Q1_ID, Q2_ID);
-        }
-
-        @Test
-        @DisplayName("Extracts UUIDs from questions object array with id field")
-        void extractFromQuestionsObjectArray() {
-            String json = "{\"questions\": [{\"id\": \"" + Q1_ID + "\"}, {\"questionId\": \"" + Q2_ID + "\"}]}";
-            List<UUID> uids = service.extractQuestionUuidsFromJson(json);
+            List<UUID> uids = service.extractQuestionUuidsFromJsonOrString(json);
             assertThat(uids).containsExactly(Q1_ID, Q2_ID);
         }
 
@@ -229,6 +218,49 @@ class ExamQuestionDeliveryServiceTest {
 
             List<QuestionDeliveryDto> result = service.getQuestionsForPaper(SESSION_ID, "default");
             assertThat(result).hasSize(2);
+            assertThat(result.get(0).getId()).isEqualTo(Q1_ID.toString());
+        }
+
+        @Test
+        @DisplayName("Falls back to subject-based lookup when practice set question_ids is empty array")
+        @SuppressWarnings("unchecked")
+        void fallsBackToSubjectWhenPracticeSetQuestionIdsEmpty() {
+            when(jdbcTemplate.query(
+                    argThat(sql -> sql != null && sql.contains("paper_generator.paper")),
+                    any(RowMapper.class),
+                    eq(PAPER_ID),
+                    eq("default")
+            )).thenReturn(List.of());
+
+            when(jdbcTemplate.query(
+                    argThat(sql -> sql != null && sql.contains("practice_service.practice_set") && sql.contains("question_ids")),
+                    any(RowMapper.class),
+                    eq(PAPER_ID),
+                    eq("default")
+            )).thenReturn(List.of("[]"));
+
+            when(jdbcTemplate.query(
+                    argThat(sql -> sql != null && sql.contains("practice_service.practice_set") && sql.contains("subject_slug")),
+                    any(RowMapper.class),
+                    eq(PAPER_ID),
+                    eq("default")
+            )).thenReturn(List.of(Map.of("subject_slug", "quantitative-aptitude", "total_questions", 30)));
+
+            when(jdbcTemplate.query(
+                    argThat(sql -> sql != null && sql.contains("question_service.question") && sql.contains("LIMIT ?")),
+                    any(RowMapper.class),
+                    any(), any(), any(), any(), eq(30)
+            )).thenReturn(List.of(Q1_ID));
+
+            QuestionDeliveryDto q1 = QuestionDeliveryDto.builder().id(Q1_ID.toString()).text("Q1").build();
+            when(jdbcTemplate.query(
+                    argThat(sql -> sql != null && sql.contains("question_service.question") && sql.contains("IN (?)")),
+                    any(RowMapper.class),
+                    eq(Q1_ID)
+            )).thenReturn(List.of(q1));
+
+            List<QuestionDeliveryDto> result = service.getQuestionsForPaper(PAPER_ID, "default");
+            assertThat(result).hasSize(1);
             assertThat(result.get(0).getId()).isEqualTo(Q1_ID.toString());
         }
     }

@@ -1,4 +1,4 @@
-# Kubernetes Deployment & Manifests — National Assessment Grid
+# Kubernetes Deployment & Manifests — NextGen Assessment Grid
 
 ## 1. Overview
 

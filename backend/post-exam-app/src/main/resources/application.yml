@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-only
-# National Assessment Grid (NAG) - Macro-Service: Post-Exam (Evaluation, Result, Analytics)
+# NextGen Assessment Grid (NAG) - Macro-Service: Post-Exam (Evaluation, Result, Analytics)
 
 spring:
   main:

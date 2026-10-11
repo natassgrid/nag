@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -123,7 +123,7 @@ public class QuestionSearchService {
                 || containsIgnoreCase(q.getContent(), queryToken)
                 || containsIgnoreCase(q.getExplanation(), queryToken)
                 || containsIgnoreCase(q.getState(), queryToken)
-                || containsIgnoreCase(q.getReferences(), queryToken);
+                || containsIgnoreCase(q.getSourceReferences(), queryToken);
     }
 
     private boolean containsIgnoreCase(String field, String query) {
@@ -150,7 +150,7 @@ public class QuestionSearchService {
                 .content(question.getContent())
                 .answerKey(question.getAnswerKey())
                 .explanation(question.getExplanation())
-                .references(question.getReferences())
+                .sourceReferences(question.getSourceReferences())
                 .state(question.getState())
                 .authorId(question.getAuthorId())
                 .createdAt(createdAt)

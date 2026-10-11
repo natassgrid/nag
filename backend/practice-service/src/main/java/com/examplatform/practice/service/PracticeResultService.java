@@ -12,6 +12,7 @@ import com.examplatform.practice.exception.PracticeSessionNotFoundException;
 import com.examplatform.practice.repository.PracticeResponseRepository;
 import com.examplatform.practice.repository.PracticeSessionRepository;
 import com.examplatform.practice.repository.PracticeSetRepository;
+import com.examplatform.practice.util.PracticeQuestionUtils;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,11 @@ public class PracticeResultService {
 
     @Transactional(readOnly = true)
     public PracticeResultDto getResult(UUID sessionId, UUID candidateId) {
+        return getResult(sessionId, candidateId, null);
+    }
+
+    @Transactional(readOnly = true)
+    public PracticeResultDto getResult(UUID sessionId, UUID candidateId, String requestedLang) {
         PracticeSession session = practiceSessionRepository.findByIdAndCandidateId(sessionId, candidateId)
                 .orElseThrow(() -> new PracticeSessionNotFoundException(sessionId));
 
@@ -41,29 +47,25 @@ public class PracticeResultService {
             throw new IllegalStateException("Session is not yet submitted");
         }
 
+        String targetLang = (requestedLang != null && !requestedLang.isBlank())
+                ? requestedLang.trim().toLowerCase()
+                : (session.getPreferredLanguage() != null && !session.getPreferredLanguage().isBlank()
+                        ? session.getPreferredLanguage().trim().toLowerCase()
+                        : "en");
+
         PracticeSet practiceSet = practiceSetRepository.findById(session.getPracticeSetId()).orElse(null);
         String practiceSetName = practiceSet != null ? practiceSet.getName() : "Practice Assessment";
 
         List<PracticeResponse> responses = practiceResponseRepository.findByPracticeSessionId(sessionId);
-        Map<UUID, PracticeResponse> latestByQuestion = new LinkedHashMap<>();
-        for (PracticeResponse r : responses) {
-            latestByQuestion.merge(r.getQuestionId(), r,
-                    (e, i) -> i.getRevisionSequence() > e.getRevisionSequence() ? i : e);
-        }
+        Map<UUID, PracticeResponse> latestByQuestion = PracticeQuestionUtils.getLatestResponsesByQuestion(responses);
 
-        List<UUID> orderedQuestionIds = new ArrayList<>();
-        if (practiceSet != null && practiceSet.getQuestionIds() != null && !practiceSet.getQuestionIds().isBlank()) {
-            orderedQuestionIds.addAll(extractQuestionIds(practiceSet.getQuestionIds()));
-        }
-        for (UUID qId : latestByQuestion.keySet()) {
-            if (!orderedQuestionIds.contains(qId)) {
-                orderedQuestionIds.add(qId);
-            }
-        }
+        String rawQuestionIds = practiceSet != null ? practiceSet.getQuestionIds() : null;
+        List<UUID> orderedQuestionIds = PracticeQuestionUtils.resolveOrderedQuestionIds(rawQuestionIds, latestByQuestion, objectMapper);
 
         Map<UUID, AnswerKeyDto> answerKeyMap = questionBankClient.getAnswerKeys(orderedQuestionIds);
 
         List<QuestionResultDto> qResults = new ArrayList<>();
+        int flaggedCount = 0;
         for (UUID qId : orderedQuestionIds) {
             PracticeResponse r = latestByQuestion.get(qId);
             AnswerKeyDto ak = answerKeyMap.get(qId);
@@ -75,13 +77,15 @@ public class PracticeResultService {
             boolean markedForReview = false;
 
             if (r != null) {
-                candidateAns = r.getSelectedOptionIds() != null && !r.getSelectedOptionIds().isBlank()
-                        ? r.getSelectedOptionIds()
+                candidateAns = r.getSelectedOptionIds() != null && !r.getSelectedOptionIds().isBlank() ? r.getSelectedOptionIds()
                         : r.getEnteredValue();
                 isCorrect = r.isCorrect();
                 marks = r.getMarksAwarded();
                 timeSpent = r.getTimeSpentMs();
                 markedForReview = r.isMarkedForReview();
+                if (markedForReview) {
+                    flaggedCount++;
+                }
             }
 
             String correctAns = ak != null ? ak.answerKey() : null;
@@ -90,6 +94,22 @@ public class PracticeResultService {
             String explanation = ak != null ? ak.explanation() : null;
             String topic = ak != null ? ak.topicName() : null;
             String subject = ak != null ? ak.subject() : null;
+            String questionType = ak != null ? ak.questionType() : null;
+
+            Map<String, Map<String, Object>> translations = ak != null ? ak.translations() : null;
+            Map<String, Object> primaryTranslation = null;
+            boolean fallbackToEnglish = false;
+
+            if ("en".equalsIgnoreCase(targetLang)) {
+                primaryTranslation = null;
+                fallbackToEnglish = false;
+            } else if (translations != null && translations.containsKey(targetLang)) {
+                primaryTranslation = translations.get(targetLang);
+                fallbackToEnglish = false;
+            } else {
+                primaryTranslation = null;
+                fallbackToEnglish = true;
+            }
 
             qResults.add(new QuestionResultDto(
                     qId,
@@ -103,7 +123,12 @@ public class PracticeResultService {
                     optionsJson,
                     explanation,
                     topic,
-                    subject
+                    subject,
+                    questionType,
+                    targetLang,
+                    fallbackToEnglish,
+                    primaryTranslation,
+                    translations
             ));
         }
 
@@ -124,35 +149,10 @@ public class PracticeResultService {
                 session.getTimingBreakdown(),
                 qResults,
                 practiceSetName,
-                session.getMode()
+                session.getMode(),
+                flaggedCount
         );
     }
 
-    private List<UUID> extractQuestionIds(String raw) {
-        if (raw == null || raw.isBlank()) {
-            return Collections.emptyList();
-        }
-        List<UUID> list = new ArrayList<>();
-        raw = raw.trim();
-        if (raw.startsWith("[") || raw.startsWith("{")) {
-            try {
-                JsonNode root = objectMapper.readTree(raw);
-                if (root.isArray()) {
-                    for (JsonNode n : root) {
-                        try {
-                            list.add(UUID.fromString(n.asText()));
-                        } catch (Exception ignored) {}
-                    }
-                }
-            } catch (Exception ignored) {}
-        } else {
-            for (String part : raw.split(",")) {
-                String clean = part.trim().replace("\"", "").replace("'", "");
-                try {
-                    list.add(UUID.fromString(clean));
-                } catch (Exception ignored) {}
-            }
-        }
-        return list;
-    }
+
 }

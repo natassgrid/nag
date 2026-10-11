@@ -48,7 +48,7 @@ describe('Candidate RegisterComponent', () => {
     expect(mockAuthFlowService.registerCandidate).not.toHaveBeenCalled();
   });
 
-  it('should call registerCandidate and navigate to OTP verification on success', () => {
+  it('should call registerCandidate without identity document fields and navigate to OTP verification on success', () => {
     component.fullName = 'Priya Patel';
     component.email = 'priya@example.com';
     component.mobile = '9876543210';
@@ -57,7 +57,15 @@ describe('Candidate RegisterComponent', () => {
 
     component.handleRegister();
 
-    expect(mockAuthFlowService.registerCandidate).toHaveBeenCalled();
-    expect(mockAuthFlowService.navigateToVerifyOtp).toHaveBeenCalled();
+    expect(mockAuthFlowService.registerCandidate).toHaveBeenCalledWith({
+      fullName: 'Priya Patel',
+      email: 'priya@example.com',
+      mobile: '9876543210',
+      password: 'Password@123',
+    });
+    expect(mockAuthFlowService.navigateToVerifyOtp).toHaveBeenCalledWith({
+      email: 'priya@example.com',
+      mobile: '9876543210',
+    });
   });
 });

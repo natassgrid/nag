@@ -1,0 +1,32 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowBucketListingForBackups",
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket",
+        "s3:GetBucketLocation"
+      ],
+      "Resource": "arn:aws:s3:::YOUR_BACKUP_BUCKET_NAME",
+      "Condition": {
+        "StringLike": {
+          "s3:prefix": [
+            "backups/postgres/*",
+            "backups/postgres"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "AllowBackupObjectOperations",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:AbortMultipartUpload"
+      ],
+      "Resource": "arn:aws:s3:::YOUR_BACKUP_BUCKET_NAME/backups/postgres/*"
+    }
+  ]
+}

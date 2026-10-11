@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -53,7 +53,7 @@ public class SubjectTopicService {
 
     @Transactional(readOnly = true)
     public List<Subject> listSubjects(String tenantId) {
-        return subjectRepository.findByTenantId(tenantId);
+        return subjectRepository.findByTenantIdOrderByNameAsc(tenantId);
     }
 
     @Transactional
@@ -80,7 +80,7 @@ public class SubjectTopicService {
 
     @Transactional(readOnly = true)
     public List<Topic> listTopics(Long subjectId, String tenantId) {
-        return topicRepository.findBySubjectIdAndTenantId(subjectId, tenantId);
+        return topicRepository.findBySubjectIdAndTenantIdOrderByNameAsc(subjectId, tenantId);
     }
 
     @Transactional
@@ -107,7 +107,7 @@ public class SubjectTopicService {
 
     @Transactional(readOnly = true)
     public List<Subtopic> listSubtopics(Long topicId, String tenantId) {
-        return subtopicRepository.findByTopicIdAndTenantId(topicId, tenantId);
+        return subtopicRepository.findByTopicIdAndTenantIdOrderByNameAsc(topicId, tenantId);
     }
 
     @Transactional
@@ -136,6 +136,45 @@ public class SubjectTopicService {
      * Resolved hierarchy ids for a given set of subject/topic/subtopic names.
      */
     public record HierarchyIds(Long subjectId, Long topicId, Long subtopicId) {}
+
+    /**
+     * Resolves subject/topic/subtopic <b>ids</b> to validated ids for a tenant.
+     * Unlike {@link #resolveOrCreateByName}, this method never creates new nodes.
+     * Throws {@link IllegalArgumentException} (→ 400) if any id is not found or
+     * does not belong to the expected parent.
+     *
+     * @param subjectId  required subject id
+     * @param topicId    required topic id (must belong to subjectId)
+     * @param subtopicId optional subtopic id (when non-null, must belong to topicId)
+     * @param tenantId   tenant scope
+     */
+    @Transactional(readOnly = true)
+    public HierarchyIds resolveByIds(Long subjectId, Long topicId, Long subtopicId, String tenantId) {
+        if (subjectId == null) {
+            throw new IllegalArgumentException("subjectId is required");
+        }
+        if (topicId == null) {
+            throw new IllegalArgumentException("topicId is required");
+        }
+
+        Subject subject = subjectRepository.findByIdAndTenantId(subjectId, tenantId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Subject not found: id=" + subjectId + " tenant=" + tenantId));
+
+        Topic topic = topicRepository.findByIdAndSubjectIdAndTenantId(topicId, subject.getId(), tenantId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Topic not found: id=" + topicId + " for subjectId=" + subjectId + " tenant=" + tenantId));
+
+        Long resolvedSubtopicId = null;
+        if (subtopicId != null) {
+            Subtopic subtopic = subtopicRepository.findByIdAndTopicIdAndTenantId(subtopicId, topic.getId(), tenantId)
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "Subtopic not found: id=" + subtopicId + " for topicId=" + topicId + " tenant=" + tenantId));
+            resolvedSubtopicId = subtopic.getId();
+        }
+
+        return new HierarchyIds(subject.getId(), topic.getId(), resolvedSubtopicId);
+    }
 
     /**
      * Resolves subject/topic/subtopic names to their numeric ids for a tenant,
@@ -183,13 +222,13 @@ public class SubjectTopicService {
      */
     @Transactional(readOnly = true)
     public List<SubjectHierarchyResponse> getHierarchy(String tenantId) {
-        List<Subject> subjects = subjectRepository.findByTenantId(tenantId);
+        List<Subject> subjects = subjectRepository.findByTenantIdOrderByNameAsc(tenantId);
 
         return subjects.stream().map(subject -> {
-            List<Topic> topics = topicRepository.findBySubjectIdAndTenantId(subject.getId(), tenantId);
+            List<Topic> topics = topicRepository.findBySubjectIdAndTenantIdOrderByNameAsc(subject.getId(), tenantId);
 
             List<SubjectHierarchyResponse.TopicNode> topicNodes = topics.stream().map(topic -> {
-                List<Subtopic> subtopics = subtopicRepository.findByTopicIdAndTenantId(topic.getId(), tenantId);
+                List<Subtopic> subtopics = subtopicRepository.findByTopicIdAndTenantIdOrderByNameAsc(topic.getId(), tenantId);
 
                 List<SubjectHierarchyResponse.SubtopicNode> subtopicNodes = subtopics.stream()
                         .map(st -> SubjectHierarchyResponse.SubtopicNode.builder()

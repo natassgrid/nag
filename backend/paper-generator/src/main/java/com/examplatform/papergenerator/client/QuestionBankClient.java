@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -81,4 +81,13 @@ public interface QuestionBankClient {
      * @return batch translation job status
      */
     BatchTranslationJobResponseDto getBatchTranslationStatus(UUID jobId, String tenantId);
+
+    /**
+     * Retrieves all batch translation jobs for a specific paper.
+     *
+     * @param paperId  paper UUID
+     * @param tenantId tenant identifier
+     * @return list of batch translation jobs
+     */
+    List<BatchTranslationJobResponseDto> listBatchJobsByPaper(UUID paperId, String tenantId);
 }

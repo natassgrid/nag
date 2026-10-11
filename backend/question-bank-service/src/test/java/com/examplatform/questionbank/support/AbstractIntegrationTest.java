@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -124,7 +124,12 @@ public abstract class AbstractIntegrationTest {
                         "SELECT table_name FROM information_schema.tables " +
                                 "WHERE table_schema = 'question_service' " +
                                 "AND table_type = 'BASE TABLE' " +
-                                "AND table_name NOT IN ('flyway_schema_history')",
+                                "AND table_name NOT IN (" +
+                                "  'flyway_schema_history'," +
+                                "  'subject'," +
+                                "  'topic'," +
+                                "  'subtopic'" +
+                                ")",
                         String.class
                 );
 

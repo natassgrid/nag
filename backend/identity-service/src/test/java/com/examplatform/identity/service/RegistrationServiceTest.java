@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -18,6 +18,8 @@
  */
 
 package com.examplatform.identity.service;
+
+import com.examplatform.shared.crypto.HashingService;
 
 import com.examplatform.identity.config.AppSecurityProperties;
 import com.examplatform.identity.domain.UserAccount;
@@ -131,6 +133,60 @@ class RegistrationServiceTest {
             assertThat(extra.get("mobile")).isEqualTo("9876543210");
             assertThat(extra.get("identityDocType")).isEqualTo("AADHAAR");
             assertThat(extra.get("identityDocNumber")).isEqualTo("123456789012");
+        }
+
+        @Test
+        @DisplayName("saves user account with preferredLanguage when provided")
+        void withPreferredLanguage() {
+            RegistrationRequest req = RegistrationRequest.builder()
+                    .email("test-lang@example.com")
+                    .mobile("9876543210")
+                    .identityDocType(IdentityDocType.AADHAAR)
+                    .identityDocNumber("123456789012")
+                    .password("Password123!")
+                    .fullName("Test User")
+                    .preferredLanguage("hi")
+                    .build();
+
+            when(hashingService.sha256(anyString())).thenReturn("hashedvalue");
+            when(hashingService.hmac(anyString(), anyString())).thenReturn("hmacvalue");
+            when(userAccountRepository.existsByEmailHashAndTenantId(any(), any())).thenReturn(false);
+            when(userAccountRepository.existsByIdentityDocHashAndTenantId(any(), any())).thenReturn(false);
+
+            ArgumentCaptor<UserAccount> captor = ArgumentCaptor.forClass(UserAccount.class);
+            UserAccount saved = UserAccount.builder().build();
+            ReflectionTestUtils.setField(saved, "id", UUID.randomUUID());
+            when(userAccountRepository.save(captor.capture())).thenReturn(saved);
+
+            registrationService.register(req, "default");
+
+            assertThat(captor.getValue().getPreferredLanguage()).isEqualTo("hi");
+        }
+
+        @Test
+        @DisplayName("registers successfully without identity doc type and number")
+        void withoutIdentityDoc() {
+            RegistrationRequest req = RegistrationRequest.builder()
+                    .email("test-nodoc@example.com")
+                    .mobile("9876543210")
+                    .password("Password123!")
+                    .fullName("No Doc User")
+                    .build();
+
+            when(hashingService.sha256(anyString())).thenReturn("hashedvalue");
+            when(userAccountRepository.existsByEmailHashAndTenantId(any(), any())).thenReturn(false);
+
+            ArgumentCaptor<UserAccount> captor = ArgumentCaptor.forClass(UserAccount.class);
+            UserAccount saved = UserAccount.builder().build();
+            ReflectionTestUtils.setField(saved, "id", UUID.randomUUID());
+            when(userAccountRepository.save(captor.capture())).thenReturn(saved);
+
+            RegistrationResponse response = registrationService.register(req, "default");
+
+            assertThat(response).isNotNull();
+            assertThat(captor.getValue().getIdentityDocType()).isNull();
+            assertThat(captor.getValue().getIdentityDocHash()).isNull();
+            assertThat(captor.getValue().getIdentityDocHmac()).isNull();
         }
 
         @Test

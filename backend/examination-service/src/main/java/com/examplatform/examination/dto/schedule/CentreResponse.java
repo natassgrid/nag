@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -55,4 +55,15 @@ public class CentreResponse {
     private boolean active;
     private Instant createdAt;
     private Instant updatedAt;
+
+    public static CentreResponse from(com.examplatform.examination.domain.ExaminationCentre c, String stateName, String cityName) {
+        if (c == null) {
+            return null;
+        }
+        CentreResponse response = new CentreResponse();
+        org.springframework.beans.BeanUtils.copyProperties(c, response);
+        response.setStateName(stateName);
+        response.setCityName(cityName);
+        return response;
+    }
 }

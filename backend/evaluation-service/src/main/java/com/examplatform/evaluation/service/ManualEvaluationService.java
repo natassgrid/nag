@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -92,6 +92,36 @@ public class ManualEvaluationService {
         log.info("Score recorded for evaluation {} by evaluator {}: {}",
                 evaluationId, evaluatorId, score);
         return saved;
+    }
+
+    /**
+     * Retrieves evaluations for a candidate with optional session filtering.
+     */
+    @Transactional(readOnly = true)
+    public List<Evaluation> getEvaluations(UUID candidateId, UUID sessionId, String tenantId) {
+        if (sessionId != null) {
+            return evaluationRepository.findBySessionIdAndTenantId(sessionId, tenantId);
+        }
+        return evaluationRepository.findByCandidateIdAndTenantId(candidateId, tenantId);
+    }
+
+    /**
+     * Retrieves queue metrics for evaluations for operational dashboards and service-to-service RPC.
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> getEvaluationQueueMetrics(String tenantId) {
+        long pending = evaluationRepository.countByStatusAndTenantId(Evaluation.EvaluationStatus.PENDING, tenantId);
+        long inProgress = evaluationRepository.countByStatusAndTenantId(Evaluation.EvaluationStatus.AUTO_EVALUATED, tenantId);
+        long completed = evaluationRepository.countByStatusAndTenantId(Evaluation.EvaluationStatus.FINALIZED, tenantId)
+                + evaluationRepository.countByStatusAndTenantId(Evaluation.EvaluationStatus.MANUAL_EVALUATED, tenantId);
+        long flagged = evaluationRepository.countByStatusAndTenantId(Evaluation.EvaluationStatus.ARBITRATION, tenantId);
+
+        return Map.of(
+                "pending", pending,
+                "inProgress", inProgress,
+                "completed", completed,
+                "flagged", flagged
+        );
     }
 
     /**

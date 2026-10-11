@@ -1,12 +1,21 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
- * by the Free Software Foundation, version 3 of the License.\n *\n * This program is distributed in the hope that it will be useful,\n * but WITHOUT ANY WARRANTY; without even the implied warranty of\n * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the\n * GNU Affero General Public License for more details.\n *\n * You should have received a copy of the GNU Affero General Public License\n * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
+ * by the Free Software Foundation, version 3 of the License.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 package com.examplatform.questionbank.translation.service;
 
@@ -17,6 +26,8 @@ import com.examplatform.questionbank.translation.dto.BatchTranslationRequest;
 import com.examplatform.questionbank.translation.repository.BatchTranslationJobRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,13 +46,38 @@ public class BatchTranslationService {
     private final BatchTranslationJobRepository jobRepository;
     private final AsyncBatchTranslationWorker asyncWorker;
 
-    public BatchTranslationJobResponse startBatchJob(BatchTranslationRequest request, UUID initiatedBy, String tenantId) {
+    public synchronized BatchTranslationJobResponse startBatchJob(BatchTranslationRequest request, UUID initiatedBy, String tenantId) {
         String targetLang = (request.getTargetLanguage() != null && !request.getTargetLanguage().isBlank())
                 ? request.getTargetLanguage().toLowerCase()
                 : "hi";
 
         if (!TranslationWorkflowService.SUPPORTED_LANGUAGES.contains(targetLang)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported target language code: " + targetLang);
+        }
+
+        // Idempotency check: if a batch translation for this paper and language is already active or completed without overwrite
+        if (request.getPaperId() != null) {
+            List<BatchTranslationJob> existingPaperJobs =
+                    jobRepository.findByPaperIdAndTenantIdOrderByCreatedAtDesc(request.getPaperId(), tenantId);
+
+            for (BatchTranslationJob existingJob : existingPaperJobs) {
+                if (targetLang.equalsIgnoreCase(existingJob.getTargetLanguage())) {
+                    // Active job (PENDING or IN_PROGRESS): return existing job without spawning a duplicate
+                    if (existingJob.getStatus() == BatchTranslationJobStatus.PENDING
+                            || existingJob.getStatus() == BatchTranslationJobStatus.IN_PROGRESS) {
+                        log.info("Batch translation job for paperId={} and targetLanguage={} is already active (jobId={}, status={}). Returning existing job (idempotent).",
+                                request.getPaperId(), targetLang, existingJob.getId(), existingJob.getStatus());
+                        return toResponse(existingJob);
+                    }
+                    // Completed job without overwrite: return existing completed job
+                    if (existingJob.getStatus() == BatchTranslationJobStatus.COMPLETED
+                            && !Boolean.TRUE.equals(request.getOverwriteExisting())) {
+                        log.info("Batch translation job for paperId={} and targetLanguage={} is already completed (jobId={}). Returning existing job (idempotent).",
+                                request.getPaperId(), targetLang, existingJob.getId());
+                        return toResponse(existingJob);
+                    }
+                }
+            }
         }
 
         String normalizedSubject = normalizeSubject(request.getSubject());
@@ -92,6 +128,12 @@ public class BatchTranslationService {
     }
 
     @Transactional(readOnly = true)
+    public Page<BatchTranslationJobResponse> listJobs(String tenantId, Pageable pageable) {
+        return jobRepository.findByTenantId(tenantId, pageable)
+                .map(this::toResponse);
+    }
+
+    @Transactional(readOnly = true)
     public List<BatchTranslationJobResponse> listJobs(String tenantId) {
         return jobRepository.findByTenantIdOrderByCreatedAtDesc(tenantId)
                 .stream()
@@ -118,6 +160,25 @@ public class BatchTranslationService {
             job = jobRepository.save(job);
             log.info("Batch translation job {} cancelled by user", jobId);
         }
+
+        return toResponse(job);
+    }
+
+    public BatchTranslationJobResponse resumeJob(UUID jobId, String tenantId) {
+        BatchTranslationJob job = jobRepository.findByIdAndTenantId(jobId, tenantId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Batch translation job not found: " + jobId));
+
+        if (job.getStatus() == BatchTranslationJobStatus.COMPLETED) {
+            log.info("Batch translation job {} is already COMPLETED. No resume needed.", jobId);
+            return toResponse(job);
+        }
+
+        job.setStatus(BatchTranslationJobStatus.PENDING);
+        job.setErrorMessage(null);
+        job = jobRepository.save(job);
+
+        log.info("Resuming batch translation job {} for tenant {}", jobId, tenantId);
+        asyncWorker.processBatchTranslationJob(job.getId(), tenantId);
 
         return toResponse(job);
     }

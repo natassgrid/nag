@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -28,9 +28,12 @@ import com.examplatform.candidate.exception.ProfileNotFoundException;
 import com.examplatform.candidate.repository.CandidateEducationRepository;
 import com.examplatform.candidate.repository.CandidateProfileRepository;
 import com.examplatform.shared.audit.AuditEventType;
+import com.examplatform.shared.crypto.HashingService;
+import com.examplatform.shared.crypto.VaultCryptoService;
+import com.examplatform.shared.event.UserAuditEvent;
 import com.examplatform.shared.messaging.EventPublisher;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -42,6 +45,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 /**
  * Service handling candidate profile CRUD operations with per-candidate DEK,
@@ -51,7 +55,6 @@ import java.util.UUID;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 @Transactional
 public class CandidateProfileService {
 
@@ -64,13 +67,27 @@ public class CandidateProfileService {
     private final HashingService hashingService;
     private final VaultCryptoService vaultCryptoService;
     private final EventPublisher eventPublisher;
+    private final ObjectProvider<JdbcTemplate> jdbcTemplateProvider;
 
-    @Autowired(required = false)
-    private JdbcTemplate jdbcTemplate;
+    public CandidateProfileService(
+            CandidateProfileRepository candidateProfileRepository,
+            CandidateEducationRepository candidateEducationRepository,
+            HashingService hashingService,
+            VaultCryptoService vaultCryptoService,
+            EventPublisher eventPublisher,
+            @Autowired(required = false) ObjectProvider<JdbcTemplate> jdbcTemplateProvider) {
+        this.candidateProfileRepository = candidateProfileRepository;
+        this.candidateEducationRepository = candidateEducationRepository;
+        this.hashingService = hashingService;
+        this.vaultCryptoService = vaultCryptoService;
+        this.eventPublisher = eventPublisher;
+        this.jdbcTemplateProvider = jdbcTemplateProvider;
+    }
 
     /**
-     * Creates a new candidate profile with per-candidate DEK reference,
-     * mobile hash for uniqueness, and identity doc hash + HMAC for duplicate detection.
+     * Creates a new candidate profile or updates an existing one (upsert).
+     * Computes SHA-256 hashes and HMACs for uniqueness and duplicate detection.
+     * Generates a DEK reference via Vault.
      */
     public CandidateProfileResponse create(CreateCandidateProfileRequest request, String tenantId) {
         // 1. Generate per-candidate DEK key name
@@ -104,21 +121,7 @@ public class CandidateProfileService {
                 .consentRecorded(false)
                 .build());
 
-        profile.setFullName(request.getFullName());
-        profile.setDateOfBirth(request.getDateOfBirth());
-        profile.setGender(request.getGender());
-        profile.setNationality(request.getNationality());
-        profile.setCategory(request.getCategory());
-        profile.setMobile(request.getMobile());
-        profile.setEmail(request.getEmail());
-        profile.setAddress(request.getAddress());
-        profile.setCountry(request.getCountry());
-        profile.setState(request.getState());
-        profile.setDistrict(request.getDistrict());
-        profile.setCity(request.getCity());
-        profile.setPinCode(request.getPinCode());
-        profile.setReservationCategory(request.getReservationCategory());
-        profile.setIdentityDocNumber(request.getIdentityDocNumber());
+        profile.applyDetails(request);
         profile.setMobileHash(mobileHash);
         profile.setIdentityDocHash(docHash);
         profile.setIdentityDocHmac(docHmac);
@@ -143,20 +146,11 @@ public class CandidateProfileService {
                 .findByUserIdAndTenantId(userId, tenantId)
                 .orElseGet(() -> {
                     log.info("No profile found for userId={}. Auto-initializing default profile in tenant={}", userId, tenantId);
-                    String dekKeyName = DEK_PREFIX + userId;
-                    CandidateProfile newProfile = CandidateProfile.builder()
-                            .userId(userId)
-                            .encryptionKeyId(dekKeyName)
-                            .mobileHash("PENDING-" + userId)
-                            .identityDocHash("PENDING-" + userId)
-                            .identityDocHmac("PENDING-" + userId)
-                            .consentRecorded(false)
-                            .build();
-                    newProfile.setTenantId(tenantId);
-                    return candidateProfileRepository.save(newProfile);
+                    return candidateProfileRepository.save(initDefaultProfile(userId, tenantId));
                 });
 
         // Backfill email / username from identity_service.user_account if email is missing
+        JdbcTemplate jdbcTemplate = jdbcTemplateProvider != null ? jdbcTemplateProvider.getIfAvailable() : null;
         if (jdbcTemplate != null && (profile.getEmail() == null || profile.getEmail().isBlank())) {
             try {
                 String username = jdbcTemplate.queryForObject(
@@ -191,34 +185,11 @@ public class CandidateProfileService {
                 .findByUserIdAndTenantId(userId, tenantId)
                 .orElseGet(() -> {
                     log.info("Auto-initializing candidate profile during update for userId={} in tenant={}", userId, tenantId);
-                    String dekKeyName = DEK_PREFIX + userId;
-                    CandidateProfile newProfile = CandidateProfile.builder()
-                            .userId(userId)
-                            .encryptionKeyId(dekKeyName)
-                            .mobileHash("PENDING-" + userId)
-                            .identityDocHash("PENDING-" + userId)
-                            .identityDocHmac("PENDING-" + userId)
-                            .consentRecorded(false)
-                            .build();
-                    newProfile.setTenantId(tenantId);
-                    return newProfile;
+                    return initDefaultProfile(userId, tenantId);
                 });
 
-        if (request.getFullName() != null) {
-            profile.setFullName(request.getFullName().trim());
-        }
-        if (request.getDateOfBirth() != null) {
-            profile.setDateOfBirth(request.getDateOfBirth().trim());
-        }
-        if (request.getGender() != null) {
-            profile.setGender(request.getGender().trim());
-        }
-        if (request.getNationality() != null) {
-            profile.setNationality(request.getNationality().trim());
-        }
-        if (request.getCategory() != null) {
-            profile.setCategory(request.getCategory().trim());
-        }
+        applyTextUpdates(profile, request);
+
         if (request.getMobile() != null && !request.getMobile().isBlank()) {
             // Recompute mobileHash and check uniqueness against OTHER candidates
             String mobileHash = hashingService.sha256(request.getMobile().trim());
@@ -233,30 +204,6 @@ public class CandidateProfileService {
             profile.setMobileHash("PENDING-" + userId);
         }
 
-        if (request.getEmail() != null) {
-            profile.setEmail(request.getEmail().trim());
-        }
-        if (request.getAddress() != null) {
-            profile.setAddress(request.getAddress().trim());
-        }
-        if (request.getCountry() != null) {
-            profile.setCountry(request.getCountry().trim());
-        }
-        if (request.getState() != null) {
-            profile.setState(request.getState().trim());
-        }
-        if (request.getDistrict() != null) {
-            profile.setDistrict(request.getDistrict().trim());
-        }
-        if (request.getCity() != null) {
-            profile.setCity(request.getCity().trim());
-        }
-        if (request.getPinCode() != null) {
-            profile.setPinCode(request.getPinCode().trim());
-        }
-        if (request.getReservationCategory() != null) {
-            profile.setReservationCategory(request.getReservationCategory().trim());
-        }
         if (request.getIdentityDocNumber() != null && !request.getIdentityDocNumber().isBlank()) {
             // Recompute docHash + docHmac
             String normalizedDoc = request.getIdentityDocNumber().trim().toUpperCase();
@@ -270,15 +217,9 @@ public class CandidateProfileService {
             profile.setIdentityDocHmac("PENDING-" + userId);
         }
 
-        if (request.getPhotoAssetId() != null) {
-            profile.setPhotoAssetId(request.getPhotoAssetId());
-        }
-        if (request.getSignatureAssetId() != null) {
-            profile.setSignatureAssetId(request.getSignatureAssetId());
-        }
-        if (request.getIdProofAssetId() != null) {
-            profile.setIdProofAssetId(request.getIdProofAssetId());
-        }
+        Optional.ofNullable(request.getPhotoAssetId()).ifPresent(profile::setPhotoAssetId);
+        Optional.ofNullable(request.getSignatureAssetId()).ifPresent(profile::setSignatureAssetId);
+        Optional.ofNullable(request.getIdProofAssetId()).ifPresent(profile::setIdProofAssetId);
 
         CandidateProfile saved = candidateProfileRepository.save(profile);
         log.info("Updated candidate profile for userId={} in tenant={}", userId, tenantId);
@@ -351,16 +292,50 @@ public class CandidateProfileService {
         log.info("Consent recorded for userId={} at {}", userId, profile.getConsentTimestamp());
     }
 
-    // ── Private helpers ──────────────────────────────────────────────────────
+    /**
+     * Operational candidate metrics for dashboards and inter-service queries.
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> getCandidateMetrics(String tenantId) {
+        long total;
+        if (tenantId == null || "default".equalsIgnoreCase(tenantId) || tenantId.isBlank()) {
+            total = candidateProfileRepository.count();
+        } else {
+            total = candidateProfileRepository.countByTenantId(tenantId);
+        }
+        return Map.of(
+                "totalRegisteredCandidates", total,
+                "activeCandidates", total
+        );
+    }
+
+    // ── Private helpers ────────────────────────────────────────────────────────
+
+    private void applyTextUpdates(CandidateProfile profile, UpdateCandidateProfileRequest request) {
+        setTrimmedIfPresent(profile::setFullName, request.getFullName());
+        setTrimmedIfPresent(profile::setDateOfBirth, request.getDateOfBirth());
+        setTrimmedIfPresent(profile::setGender, request.getGender());
+        setTrimmedIfPresent(profile::setNationality, request.getNationality());
+        setTrimmedIfPresent(profile::setCategory, request.getCategory());
+        setTrimmedIfPresent(profile::setEmail, request.getEmail());
+        setTrimmedIfPresent(profile::setAddress, request.getAddress());
+        setTrimmedIfPresent(profile::setCountry, request.getCountry());
+        setTrimmedIfPresent(profile::setState, request.getState());
+        setTrimmedIfPresent(profile::setDistrict, request.getDistrict());
+        setTrimmedIfPresent(profile::setCity, request.getCity());
+        setTrimmedIfPresent(profile::setPinCode, request.getPinCode());
+        setTrimmedIfPresent(profile::setReservationCategory, request.getReservationCategory());
+    }
+
+    private static void setTrimmedIfPresent(Consumer<String> setter, String value) {
+        if (value != null) {
+            setter.accept(value.trim());
+        }
+    }
 
     private void publishAuditEvent(AuditEventType type, String actorId, String tenantId) {
         try {
-            Map<String, Object> event = new HashMap<>();
-            event.put("eventType", type.name());
-            event.put("actorId", actorId);
-            event.put("tenantId", tenantId);
-            event.put("occurredAt", Instant.now().toString());
-
+            UserAuditEvent event = UserAuditEvent.of(type.name(), actorId, tenantId);
             eventPublisher.publish(AUDIT_TOPIC, actorId, event);
             log.debug("Audit event published [type={}, actor={}]", type, actorId);
         } catch (Exception e) {
@@ -369,28 +344,20 @@ public class CandidateProfileService {
     }
 
     private CandidateProfileResponse toResponse(CandidateProfile profile) {
-        return CandidateProfileResponse.builder()
-                .userId(profile.getUserId())
-                .fullName(profile.getFullName())
-                .dateOfBirth(profile.getDateOfBirth())
-                .gender(profile.getGender())
-                .nationality(profile.getNationality())
-                .category(profile.getCategory())
-                .mobile(profile.getMobile())
-                .email(profile.getEmail())
-                .address(profile.getAddress())
-                .country(profile.getCountry())
-                .state(profile.getState())
-                .district(profile.getDistrict())
-                .city(profile.getCity())
-                .pinCode(profile.getPinCode())
-                .reservationCategory(profile.getReservationCategory())
-                .digiLockerVerified(profile.getDigiLockerVerified())
-                .faceVerificationStatus(profile.getFaceVerificationStatus())
-                .consentRecorded(profile.isConsentRecorded())
-                .photoAssetId(profile.getPhotoAssetId())
-                .signatureAssetId(profile.getSignatureAssetId())
-                .idProofAssetId(profile.getIdProofAssetId())
+        return CandidateProfileResponse.fromEntity(profile);
+    }
+
+    private CandidateProfile initDefaultProfile(UUID userId, String tenantId) {
+        String dekKeyName = DEK_PREFIX + userId;
+        CandidateProfile newProfile = CandidateProfile.builder()
+                .userId(userId)
+                .encryptionKeyId(dekKeyName)
+                .mobileHash("PENDING-" + userId)
+                .identityDocHash("PENDING-" + userId)
+                .identityDocHmac("PENDING-" + userId)
+                .consentRecorded(false)
                 .build();
+        newProfile.setTenantId(tenantId);
+        return newProfile;
     }
 }

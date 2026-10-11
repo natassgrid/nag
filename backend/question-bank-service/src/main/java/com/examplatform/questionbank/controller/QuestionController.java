@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -21,6 +21,8 @@ package com.examplatform.questionbank.controller;
 
 import com.examplatform.questionbank.domain.QuestionVersion;
 import com.examplatform.questionbank.dto.BlueprintMatchRequest;
+import com.examplatform.questionbank.dto.BulkTransitionRequest;
+import com.examplatform.questionbank.dto.BulkTransitionResponse;
 import com.examplatform.questionbank.dto.CreateQuestionRequest;
 import com.examplatform.questionbank.dto.QuestionAnalytics;
 import com.examplatform.questionbank.dto.QuestionResponse;
@@ -41,6 +43,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -91,7 +94,7 @@ public class QuestionController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
-        UUID authorId = UUID.fromString(jwt.getSubject());
+        UUID authorId = getActorId(jwt);
 
         log.info("Creating question: author={}, tenant={}, subjectId={}, topicId={}",
                 authorId, tenantId, request.getSubjectId(), request.getTopicId());
@@ -158,8 +161,7 @@ public class QuestionController {
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'TRANSLATOR', 'EXAM_CONTROLLER', 'ADMIN')")
     public ResponseEntity<ApiResponse<QuestionResponse>> getQuestion(@PathVariable UUID id) {
-        QuestionResponse response = questionService.getQuestion(id);
-        return ResponseEntity.ok(ApiResponse.success(response, "Question retrieved successfully"));
+        return ResponseEntity.ok(ApiResponse.success(questionService.getQuestion(id), "Question retrieved successfully"));
     }
 
     /**
@@ -178,7 +180,7 @@ public class QuestionController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
-        UUID authorId = UUID.fromString(jwt.getSubject());
+        UUID authorId = getActorId(jwt);
         log.info("Submitting question for review: id={}, author={}, tenant={}", id, authorId, tenantId);
 
         QuestionResponse response = questionService.submitForReview(id, authorId, tenantId);
@@ -203,12 +205,36 @@ public class QuestionController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
-        UUID actorId = UUID.fromString(jwt.getSubject());
+        UUID actorId = getActorId(jwt);
         log.info("Transitioning question: id={}, targetState={}, actor={}, tenant={}",
                 id, request.getTargetState(), actorId, tenantId);
 
         QuestionResponse response = questionLifecycleService.transition(id, request, actorId, tenantId);
         return ResponseEntity.ok(ApiResponse.success(response, "Question transitioned successfully"));
+    }
+
+    /**
+     * Bulk transition questions to a target state.
+     * Enforces FSM and 4-eyes principle per question, processing up to 100 items per batch.
+     *
+     * @param request  bulk transition request payload
+     * @param jwt      the authenticated JWT principal
+     * @param tenantId tenant identifier from the X-Tenant-Id header
+     * @return 200 OK with the bulk transition results
+     */
+    @PostMapping("/bulk-transition")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'ADMIN', 'SUPER_ADMIN')")
+    public ResponseEntity<ApiResponse<BulkTransitionResponse>> bulkTransition(
+            @Valid @RequestBody BulkTransitionRequest request,
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+
+        UUID actorId = getActorId(jwt);
+        log.info("Bulk transitioning {} questions to {} by actor={}, tenant={}",
+                request.getQuestionIds().size(), request.getTargetState(), actorId, tenantId);
+
+        BulkTransitionResponse response = questionLifecycleService.bulkTransition(request, actorId, tenantId);
+        return ResponseEntity.ok(ApiResponse.success(response, "Bulk transition completed"));
     }
 
     /**
@@ -230,11 +256,37 @@ public class QuestionController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
-        UUID reviewerId = UUID.fromString(jwt.getSubject());
+        UUID reviewerId = getActorId(jwt);
         log.info("Approving question: id={}, reviewer={}, tenant={}", id, reviewerId, tenantId);
 
         QuestionResponse response = questionLifecycleService.approve(id, reviewerId, tenantId);
         return ResponseEntity.ok(ApiResponse.success(response, "Question approved successfully"));
+    }
+
+    /**
+     * Publish an APPROVED question — transitions to PUBLISHED state.
+     * Enforces the Four-Eyes Principle: publisher cannot be the reviewer who approved it.
+     * Requires APPROVER or ADMIN role.
+     *
+     * Validates: Requirements 5.4, 5.5
+     *
+     * @param id       the question UUID
+     * @param jwt      the authenticated JWT principal
+     * @param tenantId tenant identifier from the X-Tenant-Id header
+     * @return 200 OK with the published question response
+     */
+    @PutMapping("/{id}/publish")
+    @PreAuthorize("hasAnyRole('APPROVER', 'ADMIN', 'SUPER_ADMIN')")
+    public ResponseEntity<ApiResponse<QuestionResponse>> publish(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestHeader("X-Tenant-Id") String tenantId) {
+
+        UUID publisherId = getActorId(jwt);
+        log.info("Publishing question: id={}, publisher={}, tenant={}", id, publisherId, tenantId);
+
+        QuestionResponse response = questionLifecycleService.publish(id, publisherId, tenantId);
+        return ResponseEntity.ok(ApiResponse.success(response, "Question published successfully"));
     }
 
     /**
@@ -250,21 +302,21 @@ public class QuestionController {
      * @return 200 OK with the rejected question response (in DRAFT state)
      */
     @PutMapping("/{id}/reject")
-    @PreAuthorize("hasAnyRole('REVIEWER', 'APPROVER')")
+    @PreAuthorize("hasAnyRole('REVIEWER', 'APPROVER', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<QuestionResponse>> reject(
             @PathVariable UUID id,
             @RequestBody java.util.Map<String, String> payload,
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
-        UUID reviewerId = UUID.fromString(jwt.getSubject());
+        UUID reviewerId = getActorId(jwt);
         String comments = payload.get("comments");
         if (comments == null || comments.isBlank()) {
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error("Comments are required when rejecting a question"));
         }
 
-        log.info("Rejecting question: id={}, reviewer={}, tenant={}", id, reviewerId, tenantId);
+        log.info("Rejecting question: id={}, reviewer={}, tenant={}, comments={}", id, reviewerId, tenantId, comments);
 
         QuestionResponse response = questionLifecycleService.reject(id, reviewerId, comments, tenantId);
         return ResponseEntity.ok(ApiResponse.success(response, "Question rejected successfully"));
@@ -291,11 +343,36 @@ public class QuestionController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
-        UUID authorId = UUID.fromString(jwt.getSubject());
+        UUID authorId = getActorId(jwt);
         log.info("Updating question: id={}, author={}, tenant={}", id, authorId, tenantId);
 
         QuestionResponse response = questionUpdateService.updateQuestion(id, request, authorId, tenantId);
         return ResponseEntity.ok(ApiResponse.success(response, "Question updated successfully"));
+    }
+
+    /**
+     * Delete an existing question.
+     * Removes the question and cascades cleanup to associated versions and translations.
+     * Questions that are in PUBLISHED state or actively referenced by examinations cannot be deleted.
+     * Accessible to QUESTION_AUTHOR, SUBJECT_MATTER_EXPERT, ADMIN, or SUPER_ADMIN role.
+     *
+     * @param id       the question UUID
+     * @param jwt      the authenticated JWT principal
+     * @param tenantId tenant identifier from the X-Tenant-Id header (optional)
+     * @return 200 OK with deletion confirmation
+     */
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'SUBJECT_MATTER_EXPERT', 'ADMIN', 'SUPER_ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> deleteQuestion(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestHeader(value = "X-Tenant-Id", required = false) String tenantId) {
+
+        UUID actorId = (jwt != null && jwt.getSubject() != null) ? getActorId(jwt) : null;
+        log.info("Deleting question: id={}, actor={}, tenant={}", id, actorId, tenantId);
+
+        questionService.deleteQuestion(id, actorId, tenantId);
+        return ResponseEntity.ok(ApiResponse.success(null, "Question deleted successfully"));
     }
 
     /**
@@ -308,7 +385,7 @@ public class QuestionController {
      * @return 200 OK with the list of question versions
      */
     @GetMapping("/{id}/versions")
-    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER')")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<List<QuestionVersion>>> getVersions(@PathVariable UUID id) {
         List<QuestionVersion> versions = questionVersioningService.getVersions(id);
         return ResponseEntity.ok(ApiResponse.success(versions, "Version history retrieved successfully"));
@@ -363,15 +440,17 @@ public class QuestionController {
     }
 
     /**
-     * Find approved questions matching blueprint criteria for Paper Generator.
-     * Requires EXAM_CONTROLLER or ADMIN role.
+     * Find published questions matching blueprint criteria for Paper Generator.
+     * Only PUBLISHED questions (final approver sign-off complete) are returned.
+     * Supports both /match-blueprint and /blueprint-match for inter-service clients.
+     * Accessible to EXAM_CONTROLLER, ADMIN, SUPER_ADMIN, or unauthenticated internal calls.
      *
      * @param request  blueprint matching criteria
      * @param tenantId tenant identifier from the X-Tenant-Id header
      * @return 200 OK with matching approved questions
      */
-    @PostMapping("/match-blueprint")
-    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER', 'ADMIN')")
+    @PostMapping({"/match-blueprint", "/blueprint-match"})
+    @PreAuthorize("permitAll() or hasAnyRole('EXAM_CONTROLLER', 'ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<List<QuestionResponse>>> matchBlueprint(
             @Valid @RequestBody BlueprintMatchRequest request,
             @RequestHeader(value = "X-Tenant-Id", required = false) String tenantId) {
@@ -387,20 +466,25 @@ public class QuestionController {
     }
 
     /**
-     * Find questions by a list of UUIDs for Paper Generator review.
-     * Requires EXAM_CONTROLLER or ADMIN role.
+     * Find questions by a list of UUIDs for Paper Generator review and delivery.
+     * Supports both /by-ids and /batch-find for inter-service clients.
+     * Accessible to EXAM_CONTROLLER, ADMIN, SUPER_ADMIN, or unauthenticated internal calls.
      *
      * @param ids      list of question UUIDs
      * @param tenantId tenant identifier from the X-Tenant-Id header
      * @return 200 OK with questions
      */
-    @PostMapping("/by-ids")
-    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER', 'ADMIN')")
+    @PostMapping({"/by-ids", "/batch-find"})
+    @PreAuthorize("permitAll() or hasAnyRole('EXAM_CONTROLLER', 'ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<List<QuestionResponse>>> getQuestionsByIds(
             @RequestBody List<UUID> ids,
             @RequestHeader(value = "X-Tenant-Id", required = false) String tenantId) {
 
         List<QuestionResponse> questions = questionService.findQuestionsByIds(ids, tenantId);
         return ResponseEntity.ok(ApiResponse.success(questions, "Questions retrieved successfully"));
+    }
+
+    private UUID getActorId(Jwt jwt) {
+        return UUID.fromString(jwt.getSubject());
     }
 }

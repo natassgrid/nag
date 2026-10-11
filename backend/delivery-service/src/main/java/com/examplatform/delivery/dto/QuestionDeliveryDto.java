@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -61,6 +61,19 @@ public class QuestionDeliveryDto {
 
     /** 0-based position of this sub-question within the passage group */
     private Integer passageOrderIndex;
+
+    /** Candidate's requested primary examination language (e.g. "hi", "ta", "en") */
+    private String primaryLanguage;
+
+    /**
+     * True if question translation in primaryLanguage was missing or unapproved,
+     * signaling to the delivery runtime to gracefully fall back to original English.
+     */
+    @Builder.Default
+    private Boolean fallbackToEnglish = false;
+
+    /** The resolved translation for the candidate's primaryLanguage, if available */
+    private TranslatedQuestionDeliveryDto primaryTranslation;
 
     @Builder.Default
     private Map<String, TranslatedQuestionDeliveryDto> translations = new HashMap<>();

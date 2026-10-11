@@ -52,6 +52,7 @@ export interface CandidateProfile {
   city?: string;
   pinCode: string;
   preferredRegionalLanguage?: string;
+  preferredLanguage?: string;
   kycStatus: ProfileKycStatus;
   photoUrl?: string;
   photoAssetId?: string;

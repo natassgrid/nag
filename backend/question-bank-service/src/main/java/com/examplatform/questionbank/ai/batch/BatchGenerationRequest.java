@@ -47,6 +47,20 @@ public class BatchGenerationRequest {
     @AllArgsConstructor
     public static class BatchItem {
 
+        /**
+         * Numeric FK to the subject. When provided, the backend looks up by id
+         * instead of calling {@code resolveOrCreateByName}, preventing taxonomy pollution.
+         */
+        private Long subjectId;
+
+        /**
+         * Numeric FK to the topic (must belong to {@link #subjectId} when both are supplied).
+         */
+        private Long topicId;
+
+        /** Optional numeric FK to the subtopic. */
+        private Long subtopicId;
+
         @NotBlank(message = "Subject is required")
         private String subject;
 

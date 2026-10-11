@@ -1,7 +1,7 @@
 # Candidate Journey Specification: Self-Registration, Multi-step Exam Application, Hall Ticket Generation & CBT Delivery
 
 ## 1. Overview & Objective
-This specification defines the end-to-end architecture and implementation details for candidate self-service within the **National Assessment Grid (NAG)**. It encompasses:
+This specification defines the end-to-end architecture and implementation details for candidate self-service within the **NextGen Assessment Grid (NAG)**. It encompasses:
 1. **Candidate Onboarding & Self-Registration**: Identity provisioning, OTP verification, DPDP consent, profile management with masked PII and HMAC deduplication.
 2. **Exam Discovery & Multi-Step Application**: Browsing published government exams, selecting 3 examination centre preferences across India, shift preference, accommodation needs (PwD/Scribe), and instant confirmation.
 3. **Admit Card / Hall Ticket Issuance**: Automated generation of tamper-evident admit cards containing unique hall ticket numbers (`HT-YYYY-XXXXXX`), assigned centre/venue details, shift schedule, gate timings, candidate metadata, and verification QR code.
@@ -84,7 +84,7 @@ ALTER TABLE examination_service.exam_application
 
 ### 4.2 Hall Ticket / Admit Card Viewer (`AdmitCardModal.tsx`)
 - Standardized national format with:
-  - Official Government Header ("National Assessment Grid - Admit Card / Hall Ticket")
+  - Official Government Header ("NextGen Assessment Grid - Admit Card / Hall Ticket")
   - Candidate Photograph & Signature placeholder
   - Candidate Name, Roll / Hall Ticket Number, Application ID
   - Exam Details: Name, Code, Exam Date, Shift, Reporting Time, Gate Closing Time, Duration

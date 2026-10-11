@@ -6,8 +6,10 @@
         IndicTrans2 Multilingual Translation
       </h3>
     </div>
-    @if (isTranslating()) {
-      <span class="text-[11px] text-indigo-600 font-bold animate-pulse">Processing...</span>
+    @if (isTranslating() || activeTranslationJob()?.status === 'PENDING' || activeTranslationJob()?.status === 'IN_PROGRESS') {
+      <span class="text-[11px] text-indigo-600 font-bold animate-pulse">
+        {{ activeTranslationJob()?.status === 'PENDING' ? 'Queued / Processing...' : 'Translating...' }}
+      </span>
     }
   </div>
 
@@ -32,8 +34,8 @@
       mat-flat-button
       color="primary"
       (click)="onStart()"
-      [disabled]="isTranslating()"
-      class="!rounded-xl !text-xs !bg-indigo-600 hover:!bg-indigo-700 !text-white !py-2"
+      [disabled]="isTranslating() || activeTranslationJob()?.status === 'PENDING' || activeTranslationJob()?.status === 'IN_PROGRESS'"
+      class="!rounded-xl !text-xs !bg-indigo-600 hover:!bg-indigo-700 !text-white !py-2 disabled:!opacity-50"
     >
       <span class="flex items-center gap-1">
         <mat-icon class="!text-sm">auto_awesome</mat-icon>
@@ -45,7 +47,11 @@
   @if (activeTranslationJob()) {
     <div class="pt-3 border-t border-indigo-100 space-y-2">
       <div class="flex items-center justify-between text-xs">
-        <span class="text-indigo-900 font-semibold">
+        <span class="font-semibold" [ngClass]="{
+          'text-emerald-700': activeTranslationJob()?.status === 'COMPLETED',
+          'text-rose-600': activeTranslationJob()?.status === 'FAILED',
+          'text-indigo-900': activeTranslationJob()?.status !== 'COMPLETED' && activeTranslationJob()?.status !== 'FAILED'
+        }">
           Job {{ activeTranslationJob()?.jobId }}: {{ activeTranslationJob()?.status }}
         </span>
         <span class="font-mono text-indigo-700">
@@ -53,7 +59,7 @@
         </span>
       </div>
       <mat-progress-bar
-        mode="determinate"
+        [mode]="activeTranslationJob()?.status === 'PENDING' ? 'indeterminate' : 'determinate'"
         [value]="activeTranslationJob()?.progressPercentage || 0"
       ></mat-progress-bar>
     </div>

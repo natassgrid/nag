@@ -6,3 +6,4 @@ export * from './lib/search-input.component';
 export * from './lib/math-renderer.component';
 export * from './lib/qr-code.component';
 export * from './lib/notification';
+export * from './lib/sort.util';

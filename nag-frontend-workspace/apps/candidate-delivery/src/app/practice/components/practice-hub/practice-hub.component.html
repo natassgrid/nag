@@ -82,7 +82,9 @@
     <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
       <!-- Search Input -->
       <div class="relative flex-1 max-w-md">
-        <mat-icon class="absolute left-3 top-1/2 -translate-y-1/2 !text-lg text-slate-400">search</mat-icon>
+        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+          <mat-icon class="!w-4 !h-4 !text-base !leading-none flex items-center justify-center shrink-0">search</mat-icon>
+        </div>
         <input
           type="text"
           [ngModel]="searchQuery()"
@@ -94,9 +96,9 @@
           <button
             type="button"
             (click)="searchQuery.set('')"
-            class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+            class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer flex items-center justify-center shrink-0"
           >
-            <mat-icon class="!text-sm">close</mat-icon>
+            <mat-icon class="!w-4 !h-4 !text-sm !leading-none flex items-center justify-center shrink-0">close</mat-icon>
           </button>
         }
       </div>

@@ -16,6 +16,7 @@ export type QuestionStatus =
   | 'REVIEW'
   | 'IN_REVIEW'
   | 'APPROVED'
+  | 'PUBLISHED'
   | 'REJECTED';
 
 export interface QuestionOption {
@@ -39,6 +40,10 @@ export interface Question {
   subjectId?: string | number;
   topicId?: string | number;
   subtopicId?: string | number;
+  /** UUID of the question author — used for four-eyes enforcement in the UI */
+  authorId?: string;
+  /** Reviewer feedback comments set when a question is rejected back to DRAFT */
+  reviewComments?: string;
   marks: number;
   negativeMarks: number;
   options: QuestionOption[];
@@ -47,6 +52,10 @@ export interface Question {
   tags?: string[];
   passageId?: string;
   passageOrderIndex?: number;
+  /** Translation status for the specifically requested targetLang in query, if any */
+  translationStatus?: string;
+  /** Lightweight map of language code -> translation status (e.g. "hi" -> "APPROVED", "ta" -> "DRAFT") */
+  translationStatusMap?: Record<string, string>;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -64,6 +73,8 @@ export interface QuestionFilter {
   type?: string;
   sort?: string;
   order?: 'asc' | 'desc';
+  targetLang?: string;
+  translationStatus?: string;
   page: number;
   size: number;
 }
@@ -82,4 +93,25 @@ export interface PagedQuestionsResponse {
   totalPages: number;
   number: number;
   size: number;
+}
+
+export interface BulkTransitionRequest {
+  questionIds: string[];
+  targetState: string;
+  reason?: string;
+}
+
+export interface BulkTransitionItemResult {
+  questionId: string;
+  success: boolean;
+  previousState?: string;
+  newState?: string;
+  errorMessage?: string;
+}
+
+export interface BulkTransitionResponse {
+  totalRequested: number;
+  successCount: number;
+  failureCount: number;
+  results: BulkTransitionItemResult[];
 }

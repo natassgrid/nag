@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -32,18 +32,13 @@ import java.util.UUID;
 @Repository
 public interface EvaluationRepository extends JpaRepository<Evaluation, UUID> {
 
-    /**
-     * Retrieves all evaluations for a given session within a tenant.
-     */
     List<Evaluation> findBySessionIdAndTenantId(UUID sessionId, String tenantId);
 
-    /**
-     * Retrieves all evaluations for a given candidate within a tenant.
-     */
     List<Evaluation> findByCandidateIdAndTenantId(UUID candidateId, String tenantId);
 
-    /**
-     * Retrieves evaluations by status within a tenant.
-     */
     List<Evaluation> findByStatusAndTenantId(Evaluation.EvaluationStatus status, String tenantId);
+
+    long countByTenantId(String tenantId);
+
+    long countByStatusAndTenantId(Evaluation.EvaluationStatus status, String tenantId);
 }

@@ -56,18 +56,76 @@
             </div>
           </div>
 
-          <!-- Cryptographic Package Seal -->
-          @if (paperDetail()?.encryptionKeyId || paperDetail()?.encryptedPackageRef) {
-            <div class="p-4 bg-emerald-50 rounded-xl border border-emerald-200 space-y-1.5">
-              <div class="flex items-center gap-2 text-emerald-800 text-xs font-bold">
-                <mat-icon class="!text-base">lock</mat-icon>
-                <span>Encrypted Payload Anchored</span>
+                    <!-- Authenticated Cryptographic Seal & Ledger Proof (Issue #233) -->
+          <div class="p-5 bg-slate-900 text-slate-100 rounded-2xl border border-indigo-500/40 shadow-lg space-y-3.5">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                  <mat-icon class="!text-base">verified_user</mat-icon>
+                </div>
+                <div>
+                  <h4 class="text-xs font-bold text-white tracking-wide">Paper Cryptographic Seal</h4>
+                  <p class="text-[10px] text-slate-400">Hedera Consensus Service Anchored</p>
+                </div>
               </div>
-              <div class="text-[11px] font-mono text-emerald-950 break-all">
-                Key ID: {{ paperDetail()?.encryptionKeyId }}
+              <span class="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-500/40">
+                L1 SECURED
+              </span>
+            </div>
+
+            <div class="space-y-2 text-xs">
+              <!-- Merkle Root Hash -->
+              <div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800">
+                <div class="flex items-center justify-between text-[10px] uppercase font-bold text-slate-400 mb-1">
+                  <span>Merkle Root Hash</span>
+                  <button
+                    type="button"
+                    (click)="copyHash(getMerkleRoot(paperDetail()!))"
+                    class="text-indigo-400 hover:text-indigo-300 flex items-center gap-1 cursor-pointer"
+                  >
+                    <mat-icon class="!text-xs">content_copy</mat-icon>
+                    <span>Copy</span>
+                  </button>
+                </div>
+                <div class="font-mono text-emerald-400 text-[11px] break-all select-all">
+                  {{ getMerkleRoot(paperDetail()!) }}
+                </div>
+              </div>
+
+              <!-- Ledger Tx & Consensus Timestamp -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                <div class="bg-slate-950/80 p-2.5 rounded-xl border border-slate-800">
+                  <span class="text-[10px] text-slate-400 block font-bold uppercase">Consensus Time</span>
+                  <span class="font-mono text-slate-200">{{ getConsensusTimestamp(paperDetail()!) }}</span>
+                </div>
+                <div class="bg-slate-950/80 p-2.5 rounded-xl border border-slate-800">
+                  <span class="text-[10px] text-slate-400 block font-bold uppercase">Ledger Network</span>
+                  <span class="font-mono text-indigo-300">Hedera Consensus Testnet</span>
+                </div>
               </div>
             </div>
-          }
+
+            <!-- Verification Action Links -->
+            <div class="pt-2 border-t border-slate-800 flex items-center justify-between gap-3 text-xs">
+              <a
+                [href]="getPublicVerifierUrl(paperDetail()!)"
+                target="_blank"
+                class="flex-1 py-2 px-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-center font-semibold flex items-center justify-center gap-1.5 transition no-underline shadow-xs cursor-pointer"
+              >
+                <mat-icon class="!text-sm">verified</mat-icon>
+                <span>Verify on Public Verifier</span>
+              </a>
+
+              <a
+                [href]="getLedgerExplorerUrl(paperDetail()!)"
+                target="_blank"
+                class="flex-1 py-2 px-3 bg-slate-800 hover:bg-slate-700 text-indigo-300 hover:text-white rounded-xl text-center font-semibold flex items-center justify-center gap-1.5 transition border border-slate-700 no-underline cursor-pointer"
+              >
+                <mat-icon class="!text-sm">open_in_new</mat-icon>
+                <span>Ledger Explorer</span>
+              </a>
+            </div>
+          </div>
 
           <!-- Indic AI Translation Subpanel Component -->
           <nag-paper-translation-subpanel

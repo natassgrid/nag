@@ -5,7 +5,7 @@
 # =============================================================================
 
 # --- Stage 1: Build with Gradle (uses project's Gradle wrapper & cached dependencies) ---
-FROM eclipse-temurin:21-jdk AS builder
+FROM eclipse-temurin:25-jdk AS builder
 
 ARG SERVICE_NAME=monolith-app
 ENV SERVICE_NAME=${SERVICE_NAME}
@@ -18,12 +18,12 @@ COPY gradle/ gradle/
 COPY build.gradle settings.gradle ./
 
 # Copy local Gradle distribution from local repo to avoid network download during build
-COPY backend/gradle/gradle-8.14.5-bin.zip /tmp/gradle-8.14.5-bin.zip
+COPY backend/gradle/gradle-9.8.0-bin.zip /tmp/gradle-9.8.0-bin.zip
 
 # Fix Windows CRLF line endings, make executable, and point wrapper at local zip
 RUN sed -i 's/\r$//' gradlew && \
     chmod +x gradlew && \
-    sed -i 's|distributionUrl=.*|distributionUrl=file\:/tmp/gradle-8.14.5-bin.zip|' gradle/wrapper/gradle-wrapper.properties && \
+    sed -i 's|distributionUrl=.*|distributionUrl=file\:/tmp/gradle-9.8.0-bin.zip|' gradle/wrapper/gradle-wrapper.properties && \
     sh ./gradlew --version
 
 # Copy all backend source (needed for multi-module resolution)
@@ -37,7 +37,7 @@ RUN --mount=type=cache,target=/root/.gradle/caches \
     sh ./gradlew :backend:${SERVICE_NAME}:bootJar -x test --no-daemon
 
 # --- Stage 2: Runtime ---
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:25-jre-alpine
 
 ARG SERVICE_NAME=monolith-app
 ENV SERVICE_NAME=${SERVICE_NAME}

@@ -1,0 +1,13 @@
+# Default owner for everything
+*                         @sheelprabhakar
+
+# Security-sensitive areas require explicit owner review
+/.github/                 @sheelprabhakar
+/.gitleaks.toml           @sheelprabhakar
+/.semgrepignore           @sheelprabhakar
+/docs/security/           @sheelprabhakar
+/infrastructure/          @sheelprabhakar
+/backend/Dockerfile*      @sheelprabhakar
+/nag-frontend-workspace/Dockerfile @sheelprabhakar
+/backend/identity-service/ @sheelprabhakar
+/backend/shared-lib/      @sheelprabhakar

@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -22,8 +22,17 @@ package com.examplatform.papergenerator.client;
 import com.examplatform.papergenerator.dto.BatchTranslationJobResponseDto;
 import com.examplatform.papergenerator.dto.PaperTranslateRequest;
 import com.examplatform.papergenerator.dto.QuestionSummary;
+import com.examplatform.questionbank.grpc.BatchFindQuestionsGrpcRequest;
+import com.examplatform.questionbank.grpc.BatchFindQuestionsGrpcResponse;
+import com.examplatform.questionbank.grpc.BlueprintMatchGrpcRequest;
+import com.examplatform.questionbank.grpc.BlueprintMatchGrpcResponse;
+import com.examplatform.questionbank.grpc.QuestionBankGrpcServiceGrpc;
+import com.examplatform.questionbank.grpc.QuestionSummaryGrpc;
+import com.examplatform.shared.auth.ClientAuthTokenResolver;
 import com.examplatform.shared.auth.ServiceAccountTokenProvider;
+import com.examplatform.shared.grpc.GrpcChannelFactory;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import io.grpc.ManagedChannel;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -46,6 +55,8 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -55,12 +66,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 /**
- * REST-first implementation of QuestionBankClient querying question-bank-service.
- * Selects approved questions matching blueprint criteria (subject, topic, difficulty, cognitive level).
- * Gracefully falls back to direct database query if the remote service is unavailable.
- * Supports token propagation and fallback service tokens across Monolith, Macro, and Micro architectures.
+ * Multi-tiered implementation of QuestionBankClient querying question-bank-service.
+ * Tier 1: Fast gRPC RPC call (when enabled).
+ * Tier 2: REST API call with token propagation.
+ * Tier 3: Direct database query fallback when remote service is unavailable.
  *
  * Validates: Requirements 8.1, 8.3
  */
@@ -73,24 +85,46 @@ public class QuestionBankClientImpl implements QuestionBankClient {
     private final String questionBankServiceUrl;
     private final ServiceAccountTokenProvider tokenProvider;
     private final String jwtSecret;
+    private final boolean grpcEnabled;
+    private final String grpcHost;
+    private final int grpcPort;
+    private final long grpcTimeoutMs;
 
     public QuestionBankClientImpl(
             JdbcTemplate jdbcTemplate,
             String questionBankServiceUrl) {
-        this(jdbcTemplate, null, questionBankServiceUrl, "dev-jwt-secret-key-for-local-testing-minimum-32-chars");
+        this(jdbcTemplate, null, null, questionBankServiceUrl, "dev-jwt-secret-key-for-local-testing-minimum-32-chars", false, "localhost", 9083, 5000);
+    }
+
+    public QuestionBankClientImpl(
+            JdbcTemplate jdbcTemplate,
+            String questionBankServiceUrl,
+            boolean grpcEnabled,
+            String grpcHost,
+            int grpcPort) {
+        this(jdbcTemplate, null, null, questionBankServiceUrl, "dev-jwt-secret-key-for-local-testing-minimum-32-chars", grpcEnabled, grpcHost, grpcPort, 5000);
     }
 
     @Autowired
     public QuestionBankClientImpl(
             @Autowired(required = false) JdbcTemplate jdbcTemplate,
             @Autowired(required = false) ServiceAccountTokenProvider tokenProvider,
+            @Autowired(required = false) RestClient.Builder restClientBuilder,
             @Value("${app.question-bank.service-url:http://localhost:8083}") String questionBankServiceUrl,
-            @Value("${app.jwt.secret:dev-jwt-secret-key-for-local-testing-minimum-32-chars}") String jwtSecret) {
+            @Value("${app.jwt.secret:dev-jwt-secret-key-for-local-testing-minimum-32-chars}") String jwtSecret,
+            @Value("${app.question-bank.grpc-enabled:true}") boolean grpcEnabled,
+            @Value("${grpc.client.questionbank.host:localhost}") String grpcHost,
+            @Value("${grpc.client.questionbank.port:9083}") int grpcPort,
+            @Value("${grpc.client.questionbank.timeout-ms:5000}") long grpcTimeoutMs) {
         this.jdbcTemplate = jdbcTemplate;
         this.tokenProvider = tokenProvider;
         this.questionBankServiceUrl = questionBankServiceUrl;
         this.jwtSecret = jwtSecret;
-        this.restClient = RestClient.create();
+        this.grpcEnabled = grpcEnabled;
+        this.grpcHost = grpcHost;
+        this.grpcPort = grpcPort;
+        this.grpcTimeoutMs = grpcTimeoutMs;
+        this.restClient = (restClientBuilder != null ? restClientBuilder : RestClient.builder()).build();
     }
 
     @Override
@@ -102,10 +136,39 @@ public class QuestionBankClientImpl implements QuestionBankClient {
         String cleanDifficulty = (difficulty != null && !difficulty.isBlank()) ? difficulty.trim() : null;
         String cleanCognitiveLevel = (cognitiveLevel != null && !cognitiveLevel.isBlank()) ? cognitiveLevel.trim() : null;
 
-        log.debug("Finding questions via REST: subject='{}', topic='{}', difficulty='{}', cognitiveLevel='{}', tenant='{}'",
+        log.debug("Finding questions: subject='{}', topic='{}', difficulty='{}', cognitiveLevel='{}', tenant='{}'",
                 cleanSubject, cleanTopic, cleanDifficulty, cleanCognitiveLevel, effectiveTenant);
 
-        // 1. Try REST call to question-bank-service
+        // 1. Try gRPC first if enabled
+        if (grpcEnabled) {
+            try {
+                ManagedChannel channel = GrpcChannelFactory.getChannel(grpcHost, grpcPort);
+                QuestionBankGrpcServiceGrpc.QuestionBankGrpcServiceBlockingStub stub =
+                        QuestionBankGrpcServiceGrpc.newBlockingStub(channel)
+                                .withDeadlineAfter(grpcTimeoutMs, TimeUnit.MILLISECONDS);
+
+                BlueprintMatchGrpcRequest grpcRequest = BlueprintMatchGrpcRequest.newBuilder()
+                        .setSubject(cleanSubject)
+                        .setTopic(cleanTopic)
+                        .setDifficulty(cleanDifficulty != null ? cleanDifficulty : "")
+                        .setCognitiveLevel(cleanCognitiveLevel != null ? cleanCognitiveLevel : "")
+                        .setTenantId(effectiveTenant)
+                        .build();
+
+                BlueprintMatchGrpcResponse grpcResponse = stub.matchBlueprint(grpcRequest);
+                if (grpcResponse != null) {
+                    log.info("Retrieved {} questions from question-bank-service via gRPC", grpcResponse.getQuestionsCount());
+                    return grpcResponse.getQuestionsList().stream()
+                            .map(this::toSummaryFromGrpc)
+                            .toList();
+                }
+            } catch (Exception e) {
+                log.debug("gRPC call to question-bank-service failed ({}:{}), attempting REST fallback: {}",
+                        grpcHost, grpcPort, e.getMessage());
+            }
+        }
+
+        // 2. Try REST call to question-bank-service
         try {
             String url = questionBankServiceUrl + "/api/v1/questions/blueprint-match";
             Map<String, String> requestBody = new HashMap<>();
@@ -114,29 +177,16 @@ public class QuestionBankClientImpl implements QuestionBankClient {
             if (cleanDifficulty != null) requestBody.put("difficulty", cleanDifficulty);
             if (cleanCognitiveLevel != null) requestBody.put("cognitiveLevel", cleanCognitiveLevel);
 
-            RestClient.RequestBodySpec spec = restClient.post()
-                    .uri(url)
-                    .header("X-Tenant-Id", effectiveTenant)
-                    .contentType(MediaType.APPLICATION_JSON);
-            attachAuthHeader(spec);
-
-            ApiResponseDto<List<QuestionResponseDto>> apiResponse = spec
-                    .body(requestBody)
-                    .retrieve()
-                    .body(new ParameterizedTypeReference<ApiResponseDto<List<QuestionResponseDto>>>() {});
-
-            if (apiResponse != null && apiResponse.getData() != null && !apiResponse.getData().isEmpty()) {
-                log.info("Retrieved {} questions from question-bank-service via REST", apiResponse.getData().size());
-                return apiResponse.getData().stream()
-                        .map(this::toSummary)
-                        .toList();
+            List<QuestionSummary> questions = fetchQuestionsViaRest(url, effectiveTenant, requestBody);
+            if (questions != null) {
+                return questions;
             }
         } catch (Exception e) {
             log.warn("REST call to question-bank-service failed ({}), falling back to direct DB query: {}",
                     questionBankServiceUrl, e.getMessage());
         }
 
-        // 2. Fallback to direct JDBC query if available
+        // 3. Fallback to direct JDBC query if available
         if (jdbcTemplate == null) {
             return Collections.emptyList();
         }
@@ -149,31 +199,14 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                 WHERE tenant_id = ?
                   AND UPPER(TRIM(subject)) = UPPER(?)
                   AND UPPER(TRIM(topic)) = UPPER(?)
-                  AND state = 'APPROVED'
+                  AND state = 'PUBLISHED'
                   AND (? IS NULL OR UPPER(TRIM(difficulty)) = UPPER(?))
                   AND (? IS NULL OR UPPER(TRIM(cognitive_level)) = UPPER(?))
                 ORDER BY RANDOM()
                 """;
 
-            List<QuestionSummary> questions = jdbcTemplate.query(sql, (rs, rowNum) -> {
-                Timestamp ts = rs.getTimestamp("last_used_at");
-                Instant lastUsedAt = ts != null ? ts.toInstant() : null;
-                UUID passageId = rs.getObject("passage_id", UUID.class);
-                Integer passageOrderIndex = (Integer) rs.getObject("passage_order_index");
-                return QuestionSummary.builder()
-                        .questionId(rs.getObject("id", UUID.class))
-                        .subject(rs.getString("subject"))
-                        .topic(rs.getString("topic"))
-                        .difficulty(rs.getString("difficulty"))
-                        .cognitiveLevel(rs.getString("cognitive_level"))
-                        .usageCount(rs.getInt("usage_count"))
-                        .lastUsedAt(lastUsedAt)
-                        .reusePolicy("1_YEAR")
-                        .content(rs.getString("content"))
-                        .passageId(passageId)
-                        .passageOrderIndex(passageOrderIndex)
-                        .build();
-            }, effectiveTenant, cleanSubject, cleanTopic, cleanDifficulty, cleanDifficulty, cleanCognitiveLevel, cleanCognitiveLevel);
+            List<QuestionSummary> questions = jdbcTemplate.query(sql, QuestionBankClientImpl::mapQuestionSummary,
+                    effectiveTenant, cleanSubject, cleanTopic, cleanDifficulty, cleanDifficulty, cleanCognitiveLevel, cleanCognitiveLevel);
 
             if (!questions.isEmpty()) {
                 log.info("Found {} questions via DB fallback for subject='{}', topic='{}', difficulty='{}', cognitiveLevel='{}'",
@@ -191,30 +224,13 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                     WHERE tenant_id = ?
                       AND UPPER(TRIM(subject)) = UPPER(?)
                       AND UPPER(TRIM(topic)) = UPPER(?)
-                      AND state = 'APPROVED'
+                      AND state = 'PUBLISHED'
                       AND (? IS NULL OR UPPER(TRIM(difficulty)) = UPPER(?))
                     ORDER BY RANDOM()
                     """;
 
-                List<QuestionSummary> fallbackQuestions = jdbcTemplate.query(fallbackSql, (rs, rowNum) -> {
-                    Timestamp ts = rs.getTimestamp("last_used_at");
-                    Instant lastUsedAt = ts != null ? ts.toInstant() : null;
-                    UUID passageId = rs.getObject("passage_id", UUID.class);
-                    Integer passageOrderIndex = (Integer) rs.getObject("passage_order_index");
-                    return QuestionSummary.builder()
-                            .questionId(rs.getObject("id", UUID.class))
-                            .subject(rs.getString("subject"))
-                            .topic(rs.getString("topic"))
-                            .difficulty(rs.getString("difficulty"))
-                            .cognitiveLevel(rs.getString("cognitive_level"))
-                            .usageCount(rs.getInt("usage_count"))
-                            .lastUsedAt(lastUsedAt)
-                            .reusePolicy("1_YEAR")
-                            .content(rs.getString("content"))
-                            .passageId(passageId)
-                            .passageOrderIndex(passageOrderIndex)
-                            .build();
-                }, effectiveTenant, cleanSubject, cleanTopic, cleanDifficulty, cleanDifficulty);
+                List<QuestionSummary> fallbackQuestions = jdbcTemplate.query(fallbackSql, QuestionBankClientImpl::mapQuestionSummary,
+                        effectiveTenant, cleanSubject, cleanTopic, cleanDifficulty, cleanDifficulty);
 
                 return fallbackQuestions;
             }
@@ -234,32 +250,60 @@ public class QuestionBankClientImpl implements QuestionBankClient {
         }
         String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
 
-        // 1. Try REST call to question-bank-service
+        // 1. Try gRPC first if enabled
+        if (grpcEnabled) {
+            try {
+                ManagedChannel channel = GrpcChannelFactory.getChannel(grpcHost, grpcPort);
+                QuestionBankGrpcServiceGrpc.QuestionBankGrpcServiceBlockingStub stub =
+                        QuestionBankGrpcServiceGrpc.newBlockingStub(channel)
+                                .withDeadlineAfter(grpcTimeoutMs, TimeUnit.MILLISECONDS);
+
+                BatchFindQuestionsGrpcRequest.Builder reqBuilder = BatchFindQuestionsGrpcRequest.newBuilder()
+                        .setTenantId(effectiveTenant);
+                for (UUID id : questionIds) {
+                    reqBuilder.addQuestionIds(id.toString());
+                }
+
+                BatchFindQuestionsGrpcResponse grpcResponse = stub.batchFindQuestions(reqBuilder.build());
+                if (grpcResponse != null) {
+                    Map<UUID, QuestionSummary> map = new HashMap<>();
+                    for (QuestionSummaryGrpc q : grpcResponse.getQuestionsList()) {
+                        try {
+                            UUID qId = UUID.fromString(q.getId());
+                            map.put(qId, toSummaryFromGrpc(q));
+                        } catch (IllegalArgumentException ignored) {}
+                    }
+                    List<QuestionSummary> ordered = new ArrayList<>();
+                    for (UUID qId : questionIds) {
+                        QuestionSummary qs = map.get(qId);
+                        if (qs != null) {
+                            ordered.add(qs);
+                        } else {
+                            ordered.add(QuestionSummary.builder().questionId(qId).build());
+                        }
+                    }
+                    log.info("Retrieved {} questions by IDs via gRPC from question-bank-service", ordered.size());
+                    return ordered;
+                }
+            } catch (Exception e) {
+                log.debug("gRPC batchFindQuestions failed ({}:{}), attempting REST fallback: {}",
+                        grpcHost, grpcPort, e.getMessage());
+            }
+        }
+
+        // 2. Try REST call to question-bank-service
         try {
             String url = questionBankServiceUrl + "/api/v1/questions/batch-find";
-            RestClient.RequestBodySpec spec = restClient.post()
-                    .uri(url)
-                    .header("X-Tenant-Id", effectiveTenant)
-                    .contentType(MediaType.APPLICATION_JSON);
-            attachAuthHeader(spec);
-
-            ApiResponseDto<List<QuestionResponseDto>> apiResponse = spec
-                    .body(questionIds)
-                    .retrieve()
-                    .body(new ParameterizedTypeReference<ApiResponseDto<List<QuestionResponseDto>>>() {});
-
-            if (apiResponse != null && apiResponse.getData() != null && !apiResponse.getData().isEmpty()) {
-                log.info("Retrieved {} questions by IDs from question-bank-service via REST", apiResponse.getData().size());
-                return apiResponse.getData().stream()
-                        .map(this::toSummary)
-                        .toList();
+            List<QuestionSummary> questions = fetchQuestionsViaRest(url, effectiveTenant, questionIds);
+            if (questions != null) {
+                return questions;
             }
         } catch (Exception e) {
             log.warn("REST call for batch-find failed ({}), falling back to direct DB query: {}",
                     questionBankServiceUrl, e.getMessage());
         }
 
-        // 2. Fallback to JDBC query
+        // 3. Fallback to JDBC query
         if (jdbcTemplate == null) {
             return Collections.emptyList();
         }
@@ -279,24 +323,12 @@ public class QuestionBankClientImpl implements QuestionBankClient {
 
             Map<UUID, QuestionSummary> map = new HashMap<>();
             jdbcTemplate.query(sql, rs -> {
-                UUID id = rs.getObject("id", UUID.class);
-                Timestamp ts = rs.getTimestamp("last_used_at");
-                Instant lastUsedAt = ts != null ? ts.toInstant() : null;
-                UUID passageId = rs.getObject("passage_id", UUID.class);
-                Integer passageOrderIndex = (Integer) rs.getObject("passage_order_index");
-                QuestionSummary qs = QuestionSummary.builder()
-                        .questionId(id)
-                        .subject(rs.getString("subject"))
-                        .topic(rs.getString("topic"))
-                        .difficulty(rs.getString("difficulty"))
-                        .cognitiveLevel(rs.getString("cognitive_level"))
-                        .usageCount(rs.getInt("usage_count"))
-                        .lastUsedAt(lastUsedAt)
-                        .content(rs.getString("content"))
-                        .passageId(passageId)
-                        .passageOrderIndex(passageOrderIndex)
-                        .build();
-                map.put(id, qs);
+                try {
+                    QuestionSummary summary = mapQuestionSummary(rs, 0);
+                    map.put(summary.getQuestionId(), summary);
+                } catch (SQLException e) {
+                    throw new RuntimeException(e);
+                }
             }, params.toArray());
 
             List<QuestionSummary> ordered = new ArrayList<>();
@@ -361,7 +393,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
     @Override
     public BatchTranslationJobResponseDto getBatchTranslationStatus(UUID jobId, String tenantId) {
         String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
-        String url = questionBankServiceUrl + "/api/v1/translations/batch/" + jobId + "/status";
+        String url = questionBankServiceUrl + "/api/v1/translations/batch/" + jobId;
 
         try {
             RestClient.RequestHeadersSpec<?> spec = restClient.get()
@@ -378,93 +410,77 @@ public class QuestionBankClientImpl implements QuestionBankClient {
         }
     }
 
-    private void attachAuthHeader(RestClient.RequestBodySpec spec) {
-        String token = resolveAuthToken();
-        if (token != null) {
-            spec.header(HttpHeaders.AUTHORIZATION, token);
+    @Override
+    public List<BatchTranslationJobResponseDto> listBatchJobsByPaper(UUID paperId, String tenantId) {
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String url = questionBankServiceUrl + "/api/v1/translations/batch/paper/" + paperId;
+
+        try {
+            RestClient.RequestHeadersSpec<?> spec = restClient.get()
+                    .uri(url)
+                    .header("X-Tenant-Id", effectiveTenant);
+            attachAuthHeader(spec);
+
+            List<BatchTranslationJobResponseDto> res = spec
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<List<BatchTranslationJobResponseDto>>() {});
+            return res != null ? res : Collections.emptyList();
+        } catch (Exception e) {
+            log.warn("Failed to get batch translation jobs for paperId={} from {}: {}", paperId, url, e.getMessage());
+            return Collections.emptyList();
         }
     }
 
-    private void attachAuthHeader(RestClient.RequestHeadersSpec<?> spec) {
-        String token = resolveAuthToken();
-        if (token != null) {
-            spec.header(HttpHeaders.AUTHORIZATION, token);
-        }
+    private static final List<String> CLIENT_ROLES = List.of(
+            "SUPER_ADMIN", "EXAM_CONTROLLER", "QUESTION_AUTHOR", "REVIEWER");
+
+    private static QuestionSummary mapQuestionSummary(ResultSet rs, int rowNum) throws SQLException {
+        Timestamp ts = rs.getTimestamp("last_used_at");
+        Instant lastUsedAt = ts != null ? ts.toInstant() : null;
+        UUID passageId = rs.getObject("passage_id", UUID.class);
+        Integer passageOrderIndex = (Integer) rs.getObject("passage_order_index");
+        return QuestionSummary.builder()
+                .questionId(rs.getObject("id", UUID.class))
+                .subject(rs.getString("subject"))
+                .topic(rs.getString("topic"))
+                .difficulty(rs.getString("difficulty"))
+                .cognitiveLevel(rs.getString("cognitive_level"))
+                .usageCount(rs.getInt("usage_count"))
+                .lastUsedAt(lastUsedAt)
+                .reusePolicy("1_YEAR")
+                .content(rs.getString("content"))
+                .passageId(passageId)
+                .passageOrderIndex(passageOrderIndex)
+                .build();
     }
 
-    private String resolveAuthToken() {
-        // 1. Propagate token from inbound request if present
-        RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
-        if (requestAttributes instanceof ServletRequestAttributes servletAttrs) {
-            String authHeader = servletAttrs.getRequest().getHeader(HttpHeaders.AUTHORIZATION);
-            if (authHeader != null && !authHeader.isBlank()) {
-                return authHeader;
-            }
-        }
+    private List<QuestionSummary> fetchQuestionsViaRest(String url, String effectiveTenant, Object requestBody) {
+        RestClient.RequestBodySpec spec = restClient.post()
+                .uri(url)
+                .header("X-Tenant-Id", effectiveTenant)
+                .contentType(MediaType.APPLICATION_JSON);
+        attachAuthHeader(spec);
 
-        // 2. Check SecurityContextHolder
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth instanceof JwtAuthenticationToken jwtAuth) {
-            return "Bearer " + jwtAuth.getToken().getTokenValue();
-        } else if (auth != null && auth.getCredentials() instanceof String cred && !cred.isBlank()) {
-            return cred.startsWith("Bearer ") ? cred : "Bearer " + cred;
-        }
+        ApiResponseDto<List<QuestionResponseDto>> apiResponse = spec
+                .body(requestBody)
+                .retrieve()
+                .body(new ParameterizedTypeReference<ApiResponseDto<List<QuestionResponseDto>>>() {});
 
-        // 3. Check ServiceAccountTokenProvider (OAuth2 client credentials)
-        if (tokenProvider != null) {
-            try {
-                String token = tokenProvider.getServiceToken("paper-generator");
-                if (token != null && !token.isBlank()) {
-                    return "Bearer " + token;
-                }
-            } catch (Exception ignored) {
-            }
+        if (apiResponse != null && apiResponse.getData() != null) {
+            log.info("Retrieved {} questions from question-bank-service via REST", apiResponse.getData().size());
+            return apiResponse.getData().stream()
+                    .map(this::toSummary)
+                    .toList();
         }
-
-        // 4. Generate signed dev JWT fallback for internal daemon/service calls
-        if (jwtSecret != null && !jwtSecret.isBlank()) {
-            return "Bearer " + generateDevToken();
-        }
-
         return null;
     }
 
-    private String generateDevToken() {
-        long now = System.currentTimeMillis() / 1000;
-        long exp = now + 3600;
-        String header = base64Url("{\"alg\":\"HS256\",\"typ\":\"JWT\"}");
-        String payload = base64Url("{" +
-                "\"sub\":\"paper-generator\"," +
-                "\"preferred_username\":\"paper-generator\"," +
-                "\"name\":\"paper-generator\"," +
-                "\"iss\":\"exam-platform-dev\"," +
-                "\"aud\":\"exam-backend\"," +
-                "\"iat\":" + now + "," +
-                "\"exp\":" + exp + "," +
-                "\"realm_access\":{\"roles\":[\"SUPER_ADMIN\",\"EXAM_CONTROLLER\",\"QUESTION_AUTHOR\",\"REVIEWER\"]}" +
-                "}");
-        String signingInput = header + "." + payload;
-        String signature = hmacSha256(signingInput);
-        return signingInput + "." + signature;
+    private void attachAuthHeader(RestClient.RequestBodySpec spec) {
+        ClientAuthTokenResolver.attachAuthHeader(spec, "paper-generator", tokenProvider, jwtSecret, CLIENT_ROLES);
     }
 
-    private String base64Url(String input) {
-        return Base64.getUrlEncoder().withoutPadding()
-                .encodeToString(input.getBytes(StandardCharsets.UTF_8));
-    }
-
-    private String hmacSha256(String data) {
-        try {
-            Mac mac = Mac.getInstance("HmacSHA256");
-            SecretKeySpec secretKey = new SecretKeySpec(
-                    jwtSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
-            mac.init(secretKey);
-            byte[] hash = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
-            return Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
-        } catch (Exception e) {
-            log.error("Failed to generate service JWT signature: {}", e.getMessage());
-            return "";
-        }
+    private void attachAuthHeader(RestClient.RequestHeadersSpec<?> spec) {
+        ClientAuthTokenResolver.attachAuthHeader(spec, "paper-generator", tokenProvider, jwtSecret, CLIENT_ROLES);
     }
 
     private QuestionSummary toSummary(QuestionResponseDto dto) {
@@ -482,14 +498,38 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                 .build();
     }
 
+    private QuestionSummary toSummaryFromGrpc(QuestionSummaryGrpc grpc) {
+        UUID passageId = null;
+        if (grpc.getPassageId() != null && !grpc.getPassageId().isBlank()) {
+            try {
+                passageId = UUID.fromString(grpc.getPassageId());
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+        return QuestionSummary.builder()
+                .questionId(UUID.fromString(grpc.getId()))
+                .subject(grpc.getSubject())
+                .topic(grpc.getTopic())
+                .difficulty(grpc.getDifficulty())
+                .cognitiveLevel(grpc.getCognitiveLevel())
+                .usageCount(grpc.getUsageCount())
+                .reusePolicy("1_YEAR")
+                .content(grpc.getContent())
+                .passageId(passageId)
+                .passageOrderIndex(grpc.getPassageOrderIndex())
+                .build();
+    }
+
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class ApiResponseDto<T> {
-        private boolean success;
+        private String status;
+        private Boolean success;
         private T data;
         private String message;
+        private Object timestamp;
     }
 
     @Data

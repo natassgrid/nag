@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -21,6 +21,8 @@ package com.examplatform.asset.metadata;
 
 import com.examplatform.asset.domain.enums.AssetType;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.tika.io.TikaInputStream;
+import org.apache.tika.metadata.HttpHeaders;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.XMPDM;
 import org.apache.tika.parser.AutoDetectParser;
@@ -47,19 +49,13 @@ public class VideoMetadataExtractor implements MetadataExtractor {
         MediaMetadata.MediaMetadataBuilder builder = MediaMetadata.builder();
 
         try {
-            Metadata metadata = new Metadata();
-            metadata.set(Metadata.CONTENT_TYPE, contentType);
-
-            AutoDetectParser parser = new AutoDetectParser();
-            BodyContentHandler handler = new BodyContentHandler(-1);
-            parser.parse(content, handler, metadata, new ParseContext());
-
+            Metadata metadata = TikaMetadataUtils.parseMetadata(content, contentType);
             // Duration
-            builder.durationSeconds(parseDuration(metadata));
+            builder.durationSeconds(TikaMetadataUtils.parseDuration(metadata));
 
             // Resolution
-            builder.width(parseInteger(metadata.get("tiff:ImageWidth")));
-            builder.height(parseInteger(metadata.get("tiff:ImageLength")));
+            builder.width(TikaMetadataUtils.parseInteger(metadata.get("tiff:ImageWidth")));
+            builder.height(TikaMetadataUtils.parseInteger(metadata.get("tiff:ImageLength")));
 
             // Codec
             String codec = metadata.get(XMPDM.VIDEO_COMPRESSOR);
@@ -73,53 +69,15 @@ public class VideoMetadataExtractor implements MetadataExtractor {
             if (frameRate == null) {
                 frameRate = metadata.get("xmpDM:videoFrameRate");
             }
-            builder.frameRate(parseDouble(frameRate));
+            builder.frameRate(TikaMetadataUtils.parseDouble(frameRate));
 
             // Bitrate
-            builder.bitrate(parseInteger(metadata.get("bitrate")));
+            builder.bitrate(TikaMetadataUtils.parseInteger(metadata.get("bitrate")));
 
         } catch (Exception e) {
             log.warn("Failed to extract video metadata: {}", e.getMessage());
         }
 
         return builder.build();
-    }
-
-    private Double parseDuration(Metadata metadata) {
-        String duration = metadata.get(XMPDM.DURATION);
-        if (duration == null) {
-            duration = metadata.get("xmpDM:duration");
-        }
-        if (duration != null) {
-            try {
-                double val = Double.parseDouble(duration.replaceAll("[^0-9.]", ""));
-                return val > 100000 ? val / 1000.0 : val;
-            } catch (NumberFormatException e) {
-                // ignore
-            }
-        }
-        return null;
-    }
-
-    private Integer parseInteger(String value) {
-        if (value == null || value.isBlank()) return null;
-        try {
-            String cleaned = value.replaceAll("[^0-9.]", "");
-            if (cleaned.isEmpty()) return null;
-            return (int) Double.parseDouble(cleaned);
-        } catch (NumberFormatException e) {
-            return null;
-        }
-    }
-
-    private Double parseDouble(String value) {
-        if (value == null || value.isBlank()) return null;
-        try {
-            String cleaned = value.replaceAll("[^0-9.]", "");
-            if (cleaned.isEmpty()) return null;
-            return Double.parseDouble(cleaned);
-        } catch (NumberFormatException e) {
-            return null;
-        }
     }
 }

@@ -3,11 +3,13 @@
 # Docs: https://docs.litellm.ai/docs/proxy/configs
 #
 # Model Strategy:
-#   - EASY difficulty  → Amazon Nova Micro (fast, cost-efficient)
-#   - MEDIUM difficulty → Amazon Nova Lite (balanced)
-#   - HARD difficulty   → Amazon Nova Lite (balanced)
+#   - EASY difficulty    → Amazon Nova Micro (or local fallback: qwen2.5:1.5b / llama3.2:1b)
+#   - MEDIUM difficulty  → Amazon Nova Lite  (or local fallback: qwen2.5:1.5b)
+#   - HARD difficulty    → Amazon Nova Lite  (or local fallback: qwen2-math:1.5b / qwen2.5:1.5b)
+#   - Embeddings         → all-minilm via Ollama
 #
-# All models are routed via AWS Bedrock using service account credentials.
+# Bedrock models use AWS service account credentials if configured in environment,
+# with Ollama models providing zero-cost local inference during local dev and testing.
 
 model_list:
   # ─── Embedding Model (local via Ollama) ────────────────────────────────────
@@ -16,7 +18,40 @@ model_list:
       model: ollama/all-minilm
       api_base: http://ollama:11434
 
-  # ─── AWS Bedrock Models (question generation) ──────────────────────────────
+  # ─── Local Ollama Models (offline & local development) ─────────────────────
+  # Pulled automatically via docker-compose ollama-pull service
+  - model_name: qwen2.5:1.5b
+    litellm_params:
+      model: ollama/qwen2.5:1.5b
+      api_base: http://ollama:11434
+
+  - model_name: qwen2-math:1.5b
+    litellm_params:
+      model: ollama/qwen2-math:1.5b
+      api_base: http://ollama:11434
+
+  - model_name: llama3.2:1b
+    litellm_params:
+      model: ollama/llama3.2:1b
+      api_base: http://ollama:11434
+
+  # ─── Local Model Convenience Aliases ───────────────────────────────────────
+  - model_name: local-easy
+    litellm_params:
+      model: ollama/llama3.2:1b
+      api_base: http://ollama:11434
+
+  - model_name: local-medium
+    litellm_params:
+      model: ollama/qwen2.5:1.5b
+      api_base: http://ollama:11434
+
+  - model_name: local-math
+    litellm_params:
+      model: ollama/qwen2-math:1.5b
+      api_base: http://ollama:11434
+
+  # ─── AWS Bedrock Models (question generation in cloud/staging) ─────────────
   # Uses service account credentials (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY)
   # passed via environment variables to the LiteLLM container.
 
@@ -35,6 +70,12 @@ model_list:
       aws_access_key_id: os.environ/AWS_ACCESS_KEY_ID
       aws_secret_access_key: os.environ/AWS_SECRET_ACCESS_KEY
       aws_region_name: os.environ/AWS_REGION_NAME
+
+router_settings:
+  model_group_alias:
+    "easy": "nova-micro"
+    "medium": "nova-lite"
+    "hard": "nova-lite"
 
 general_settings:
   master_key: sk-litellm-dev-key

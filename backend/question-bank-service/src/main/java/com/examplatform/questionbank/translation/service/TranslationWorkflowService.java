@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -87,15 +87,15 @@ public class TranslationWorkflowService {
      * Request a new translation for a question in the specified language.
      * Creates a {@link Translation} entity in {@code DRAFT} status with the
      * structured payload (content + options + explanation).
+     * If a translation record already exists for this (questionId, languageCode, tenantId),
+     * it updates the existing record with the new payload.
      *
      * @param request  the translation request DTO from the translator
      * @param tenantId examination authority identifier
-     * @return the created Translation entity
+     * @return the created or updated Translation entity
      * @throws IllegalArgumentException if the language code is unsupported, the
      *                                  source question is not found, or the supplied
      *                                  option IDs do not match the source question
-     * @throws IllegalStateException    if a translation already exists for this
-     *                                  question / language / tenant combination
      */
     public Translation requestTranslation(TranslationRequest request, String tenantId) {
         validateLanguageCode(request.getLanguageCode());
@@ -104,11 +104,30 @@ public class TranslationWorkflowService {
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Source question not found: " + request.getQuestionId()));
 
-        ensureNoDuplicateTranslation(request.getQuestionId(), request.getLanguageCode(), tenantId);
         validateOptionIds(request, question);
 
         TranslatedQuestionPayload payload = buildPayload(request, question);
         String serialized = payloadService.serialize(payload);
+
+        List<Translation> existing = translationRepository
+                .findByQuestionIdAndLanguageCodeAndTenantId(request.getQuestionId(), request.getLanguageCode(), tenantId);
+
+        if (!existing.isEmpty()) {
+            Translation translation = existing.get(0);
+            translation.setTranslatedPayload(serialized);
+            translation.setPayloadEncrypted(payloadService.isEncryptionEnabled());
+            translation.setSourceVersion(question.getVersion() != null ? question.getVersion() : 0L);
+            if (request.getTranslatorId() != null) {
+                translation.setTranslatorId(request.getTranslatorId());
+            }
+            log.info("Translation updated on requestTranslation: id={}, questionId={}, lang={}, tenant={}",
+                    translation.getId(), request.getQuestionId(), request.getLanguageCode(), tenantId);
+            return translationRepository.save(translation);
+        }
+
+        UUID translatorId = request.getTranslatorId() != null
+                ? request.getTranslatorId()
+                : UUID.fromString("00000000-0000-0000-0000-000000000001");
 
         Translation translation = Translation.builder()
                 .questionId(request.getQuestionId())
@@ -117,12 +136,12 @@ public class TranslationWorkflowService {
                 .payloadEncrypted(payloadService.isEncryptionEnabled())
                 .sourceVersion(question.getVersion() != null ? question.getVersion() : 0L)
                 .status(Translation.TranslationStatus.DRAFT)
-                .translatorId(request.getTranslatorId())
+                .translatorId(translatorId)
                 .build();
         translation.setTenantId(tenantId);
 
         log.info("Translation requested: questionId={}, lang={}, translatorId={}, tenant={}",
-                request.getQuestionId(), request.getLanguageCode(), request.getTranslatorId(), tenantId);
+                request.getQuestionId(), request.getLanguageCode(), translatorId, tenantId);
 
         return translationRepository.save(translation);
     }
@@ -160,6 +179,9 @@ public class TranslationWorkflowService {
         translation.setTranslatedPayload(payloadService.serialize(payload));
         translation.setPayloadEncrypted(payloadService.isEncryptionEnabled());
         translation.setSourceVersion(question.getVersion() != null ? question.getVersion() : 0L);
+        if (request.getTranslatorId() != null) {
+            translation.setTranslatorId(request.getTranslatorId());
+        }
         // Clear previous review comments on resubmission
         translation.setReviewComments(null);
         translation.setReviewerId(null);
@@ -188,58 +210,31 @@ public class TranslationWorkflowService {
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Source question not found: " + questionId));
 
-        Map<String, QuestionOption> sourceOptionMap = (question.getOptions() != null)
-                ? question.getOptions().stream().collect(Collectors.toMap(QuestionOption::getId, o -> o, (a, b) -> a))
-                : Collections.emptyMap();
+        List<TranslatedQuestionPayload.TranslatedOption> payloadOptions =
+                resolvePayloadOptions(options, question);
 
-        List<TranslatedQuestionPayload.TranslatedOption> payloadOptions;
-        if (options != null && !options.isEmpty()) {
-            payloadOptions = options.stream().map(dto -> {
-                QuestionOption src = sourceOptionMap.get(dto.id());
-                String imgUrl = (dto.imageUrl() != null && !dto.imageUrl().isBlank())
-                        ? dto.imageUrl()
-                        : (src != null ? src.getImageUrl() : null);
-                String altText = (dto.imageAltText() != null && !dto.imageAltText().isBlank())
-                        ? dto.imageAltText()
-                        : (src != null ? src.getImageAltText() : null);
-                return new TranslatedQuestionPayload.TranslatedOption(dto.id(), dto.text(), imgUrl, altText);
-            }).toList();
-        } else if (question.getOptions() != null && !question.getOptions().isEmpty()) {
-            payloadOptions = question.getOptions().stream().map(src ->
-                    new TranslatedQuestionPayload.TranslatedOption(
-                            src.getId(),
-                            src.getText(),
-                            src.getImageUrl(),
-                            src.getImageAltText()
-                    )
-            ).toList();
-        } else {
-            payloadOptions = Collections.emptyList();
-        }
+        TranslatedQuestionPayload payload = new TranslatedQuestionPayload(
+                content != null ? content : "",
+                payloadOptions,
+                explanation
+        );
 
-        TranslatedQuestionPayload payload = new TranslatedQuestionPayload(content, payloadOptions, explanation);
         String serialized = payloadService.serialize(payload);
 
-        List<Translation> existingList = translationRepository
+        List<Translation> existing = translationRepository
                 .findByQuestionIdAndLanguageCodeAndTenantId(questionId, languageCode, tenantId);
 
-        Translation.TranslationStatus resolvedStatus = (targetStatus != null) ? targetStatus : Translation.TranslationStatus.PUBLISHED;
+        Translation.TranslationStatus resolvedStatus = targetStatus != null ? targetStatus : Translation.TranslationStatus.PUBLISHED;
 
         Translation translation;
-        if (!existingList.isEmpty()) {
-            translation = existingList.get(0);
+        if (!existing.isEmpty()) {
+            translation = existing.get(0);
             translation.setTranslatedPayload(serialized);
             translation.setPayloadEncrypted(payloadService.isEncryptionEnabled());
             translation.setSourceVersion(question.getVersion() != null ? question.getVersion() : 0L);
             translation.setStatus(resolvedStatus);
-            if (translatorOrSystemId != null) {
-                translation.setTranslatorId(translatorOrSystemId);
-            }
             if (reviewComments != null) {
                 translation.setReviewComments(reviewComments);
-            }
-            if (resolvedStatus == Translation.TranslationStatus.APPROVED || resolvedStatus == Translation.TranslationStatus.PUBLISHED) {
-                translation.setReviewerId(translatorOrSystemId);
             }
         } else {
             translation = Translation.builder()
@@ -250,7 +245,6 @@ public class TranslationWorkflowService {
                     .sourceVersion(question.getVersion() != null ? question.getVersion() : 0L)
                     .status(resolvedStatus)
                     .translatorId(translatorOrSystemId != null ? translatorOrSystemId : UUID.fromString("00000000-0000-0000-0000-000000000001"))
-                    .reviewerId((resolvedStatus == Translation.TranslationStatus.APPROVED || resolvedStatus == Translation.TranslationStatus.PUBLISHED) ? translatorOrSystemId : null)
                     .reviewComments(reviewComments)
                     .build();
             translation.setTenantId(tenantId);
@@ -270,16 +264,6 @@ public class TranslationWorkflowService {
         if (!SUPPORTED_LANGUAGES.contains(code)) {
             throw new IllegalArgumentException(
                     "Unsupported language code: " + code + ". Supported: " + SUPPORTED_LANGUAGES);
-        }
-    }
-
-    private void ensureNoDuplicateTranslation(UUID questionId, String languageCode, String tenantId) {
-        List<Translation> existing = translationRepository
-                .findByQuestionIdAndLanguageCodeAndTenantId(questionId, languageCode, tenantId);
-        if (!existing.isEmpty()) {
-            throw new IllegalStateException(
-                    "Translation already exists for question " + questionId
-                            + " in language " + languageCode);
         }
     }
 
@@ -306,26 +290,35 @@ public class TranslationWorkflowService {
     }
 
     private TranslatedQuestionPayload buildPayload(TranslationRequest request, Question question) {
+        List<TranslatedQuestionPayload.TranslatedOption> options =
+                resolvePayloadOptions(request.getTranslatedOptions(), question);
+
+        return new TranslatedQuestionPayload(
+                request.getTranslatedContent(),
+                options,
+                request.getTranslatedExplanation()
+        );
+    }
+
+    private List<TranslatedQuestionPayload.TranslatedOption> resolvePayloadOptions(
+            List<TranslatedOptionDto> options, Question question) {
         Map<String, QuestionOption> sourceOptionMap = (question != null && question.getOptions() != null)
                 ? question.getOptions().stream().collect(Collectors.toMap(QuestionOption::getId, o -> o, (a, b) -> a))
                 : Collections.emptyMap();
 
-        List<TranslatedQuestionPayload.TranslatedOption> options;
-        if (request.getTranslatedOptions() != null && !request.getTranslatedOptions().isEmpty()) {
-            options = request.getTranslatedOptions().stream()
-                    .map(dto -> {
-                        QuestionOption src = sourceOptionMap.get(dto.id());
-                        String imgUrl = (dto.imageUrl() != null && !dto.imageUrl().isBlank())
-                                ? dto.imageUrl()
-                                : (src != null ? src.getImageUrl() : null);
-                        String altText = (dto.imageAltText() != null && !dto.imageAltText().isBlank())
-                                ? dto.imageAltText()
-                                : (src != null ? src.getImageAltText() : null);
-                        return new TranslatedQuestionPayload.TranslatedOption(dto.id(), dto.text(), imgUrl, altText);
-                    })
-                    .toList();
+        if (options != null && !options.isEmpty()) {
+            return options.stream().map(dto -> {
+                QuestionOption src = sourceOptionMap.get(dto.id());
+                String imgUrl = (dto.imageUrl() != null && !dto.imageUrl().isBlank())
+                        ? dto.imageUrl()
+                        : (src != null ? src.getImageUrl() : null);
+                String altText = (dto.imageAltText() != null && !dto.imageAltText().isBlank())
+                        ? dto.imageAltText()
+                        : (src != null ? src.getImageAltText() : null);
+                return new TranslatedQuestionPayload.TranslatedOption(dto.id(), dto.text(), imgUrl, altText);
+            }).toList();
         } else if (question != null && question.getOptions() != null && !question.getOptions().isEmpty()) {
-            options = question.getOptions().stream().map(src ->
+            return question.getOptions().stream().map(src ->
                     new TranslatedQuestionPayload.TranslatedOption(
                             src.getId(),
                             src.getText(),
@@ -334,13 +327,7 @@ public class TranslationWorkflowService {
                     )
             ).toList();
         } else {
-            options = Collections.emptyList();
+            return Collections.emptyList();
         }
-
-        return new TranslatedQuestionPayload(
-                request.getTranslatedContent(),
-                options,
-                request.getTranslatedExplanation()
-        );
     }
 }

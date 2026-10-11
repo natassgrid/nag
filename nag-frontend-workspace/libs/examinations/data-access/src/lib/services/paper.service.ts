@@ -132,28 +132,21 @@ export class PaperService {
       .pipe(map((res) => ((res as any)?.data ?? res) as PaperTranslateResponse));
   }
 
-  getTranslationStatus(paperId: string): Observable<PaperTranslateResponse> {
+  getTranslationStatus(paperId: string, jobId?: string): Observable<PaperTranslateResponse> {
     if (!paperId || paperId === 'undefined' || paperId === 'null') {
       return throwError(() => new Error('Invalid paperId provided to getTranslationStatus'));
     }
+    const url = jobId
+      ? `${this.baseUrl}/${paperId}/translate/${jobId}`
+      : `${this.baseUrl}/${paperId}/translation-status`;
     return this.http
-      .get<ApiResponse<PaperTranslateResponse> | PaperTranslateResponse>(
-        `${this.baseUrl}/${paperId}/translation-status`
-      )
+      .get<ApiResponse<PaperTranslateResponse> | PaperTranslateResponse>(url)
       .pipe(map((res) => ((res as any)?.data ?? res) as PaperTranslateResponse));
   }
 
-  getTranslationJob(jobId: string): Observable<PaperTranslateResponse> {
-    if (!jobId || jobId === 'undefined' || jobId === 'null') {
-      return throwError(() => new Error('Invalid jobId provided to getTranslationJob'));
-    }
-    return this.http
-      .get<ApiResponse<PaperTranslateResponse> | PaperTranslateResponse>(
-        `${this.baseUrl}/translations/${jobId}`
-      )
-      .pipe(map((res) => ((res as any)?.data ?? res) as PaperTranslateResponse));
+  getTranslationJob(paperId: string, jobId: string): Observable<PaperTranslateResponse> {
+    return this.getTranslationStatus(paperId, jobId);
   }
-
   // --- Blueprint Templates ---
 
   createTemplate(req: BlueprintTemplateRequest): Observable<BlueprintTemplateResponse> {

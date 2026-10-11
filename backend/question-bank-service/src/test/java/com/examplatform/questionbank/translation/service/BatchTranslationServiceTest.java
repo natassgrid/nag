@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -24,6 +24,11 @@ import com.examplatform.questionbank.translation.domain.BatchTranslationJobStatu
 import com.examplatform.questionbank.translation.dto.BatchTranslationJobResponse;
 import com.examplatform.questionbank.translation.dto.BatchTranslationRequest;
 import com.examplatform.questionbank.translation.repository.BatchTranslationJobRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -41,6 +46,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -158,6 +164,97 @@ class BatchTranslationServiceTest {
     }
 
     @Test
+    @DisplayName("Should list paginated batch translation jobs for tenant")
+    void shouldListPaginatedJobsForTenant() {
+        BatchTranslationJob job = BatchTranslationJob.builder()
+                .status(BatchTranslationJobStatus.COMPLETED)
+                .totalQuestions(20)
+                .processedQuestions(20)
+                .successfulQuestions(20)
+                .build();
+        ReflectionTestUtils.setField(job, "id", jobId);
+        job.setTenantId(tenantId);
+
+        Pageable pageable = PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "updatedAt", "createdAt"));
+        when(jobRepository.findByTenantId(tenantId, pageable)).thenReturn(new PageImpl<>(List.of(job), pageable, 1));
+
+        Page<BatchTranslationJobResponse> responses = batchTranslationService.listJobs(tenantId, pageable);
+
+        assertThat(responses.getTotalElements()).isEqualTo(1);
+        assertThat(responses.getContent()).hasSize(1);
+        assertThat(responses.getContent().get(0).getId()).isEqualTo(jobId);
+    }
+
+    @Test
+    @DisplayName("Should return existing active job when duplicate batch request is submitted for same paper and language")
+    void shouldReturnExistingActiveJobForDuplicatePaperAndLanguage() {
+        UUID paperId = UUID.randomUUID();
+        BatchTranslationRequest request = BatchTranslationRequest.builder()
+                .paperId(paperId)
+                .sourceLanguage("en")
+                .targetLanguage("hi")
+                .build();
+
+        BatchTranslationJob existingActiveJob = BatchTranslationJob.builder()
+                .paperId(paperId)
+                .status(BatchTranslationJobStatus.IN_PROGRESS)
+                .sourceLanguage("en")
+                .targetLanguage("hi")
+                .totalQuestions(50)
+                .processedQuestions(10)
+                .build();
+        ReflectionTestUtils.setField(existingActiveJob, "id", jobId);
+        existingActiveJob.setTenantId(tenantId);
+
+        when(jobRepository.findByPaperIdAndTenantIdOrderByCreatedAtDesc(paperId, tenantId))
+                .thenReturn(List.of(existingActiveJob));
+
+        BatchTranslationJobResponse response = batchTranslationService.startBatchJob(request, userId, tenantId);
+
+        assertThat(response).isNotNull();
+        assertThat(response.getId()).isEqualTo(jobId);
+        assertThat(response.getStatus()).isEqualTo(BatchTranslationJobStatus.IN_PROGRESS);
+
+        verify(jobRepository, never()).save(any(BatchTranslationJob.class));
+        verify(asyncWorker, never()).processBatchTranslationJob(any(), any());
+    }
+
+    @Test
+    @DisplayName("Should return existing completed job when overwriteExisting is false")
+    void shouldReturnCompletedJobWhenNotOverwriting() {
+        UUID paperId = UUID.randomUUID();
+        BatchTranslationRequest request = BatchTranslationRequest.builder()
+                .paperId(paperId)
+                .sourceLanguage("en")
+                .targetLanguage("hi")
+                .overwriteExisting(false)
+                .build();
+
+        BatchTranslationJob existingCompletedJob = BatchTranslationJob.builder()
+                .paperId(paperId)
+                .status(BatchTranslationJobStatus.COMPLETED)
+                .sourceLanguage("en")
+                .targetLanguage("hi")
+                .totalQuestions(50)
+                .processedQuestions(50)
+                .build();
+        ReflectionTestUtils.setField(existingCompletedJob, "id", jobId);
+        existingCompletedJob.setTenantId(tenantId);
+
+        when(jobRepository.findByPaperIdAndTenantIdOrderByCreatedAtDesc(paperId, tenantId))
+                .thenReturn(List.of(existingCompletedJob));
+
+        BatchTranslationJobResponse response = batchTranslationService.startBatchJob(request, userId, tenantId);
+
+        assertThat(response).isNotNull();
+        assertThat(response.getId()).isEqualTo(jobId);
+        assertThat(response.getStatus()).isEqualTo(BatchTranslationJobStatus.COMPLETED);
+
+        verify(jobRepository, never()).save(any(BatchTranslationJob.class));
+        verify(asyncWorker, never()).processBatchTranslationJob(any(), any());
+    }
+
+    @Test
     @DisplayName("Should cancel running batch job")
     void shouldCancelRunningJob() {
         BatchTranslationJob job = BatchTranslationJob.builder()
@@ -173,5 +270,46 @@ class BatchTranslationServiceTest {
 
         assertThat(response.getStatus()).isEqualTo(BatchTranslationJobStatus.CANCELLED);
         assertThat(response.getCompletedAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("Should resume interrupted batch job and trigger async worker")
+    void shouldResumeInterruptedJobSuccessfully() {
+        BatchTranslationJob job = BatchTranslationJob.builder()
+                .status(BatchTranslationJobStatus.IN_PROGRESS)
+                .sourceLanguage("en")
+                .targetLanguage("hi")
+                .build();
+        ReflectionTestUtils.setField(job, "id", jobId);
+        job.setTenantId(tenantId);
+
+        when(jobRepository.findByIdAndTenantId(jobId, tenantId)).thenReturn(Optional.of(job));
+        when(jobRepository.save(any(BatchTranslationJob.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        BatchTranslationJobResponse response = batchTranslationService.resumeJob(jobId, tenantId);
+
+        assertThat(response.getStatus()).isEqualTo(BatchTranslationJobStatus.PENDING);
+        verify(jobRepository).save(any(BatchTranslationJob.class));
+        verify(asyncWorker).processBatchTranslationJob(jobId, tenantId);
+    }
+
+    @Test
+    @DisplayName("Should not trigger worker when resuming already completed job")
+    void shouldNotTriggerWorkerWhenResumingCompletedJob() {
+        BatchTranslationJob job = BatchTranslationJob.builder()
+                .status(BatchTranslationJobStatus.COMPLETED)
+                .sourceLanguage("en")
+                .targetLanguage("hi")
+                .build();
+        ReflectionTestUtils.setField(job, "id", jobId);
+        job.setTenantId(tenantId);
+
+        when(jobRepository.findByIdAndTenantId(jobId, tenantId)).thenReturn(Optional.of(job));
+
+        BatchTranslationJobResponse response = batchTranslationService.resumeJob(jobId, tenantId);
+
+        assertThat(response.getStatus()).isEqualTo(BatchTranslationJobStatus.COMPLETED);
+        verify(jobRepository, never()).save(any(BatchTranslationJob.class));
+        verify(asyncWorker, never()).processBatchTranslationJob(any(), any());
     }
 }

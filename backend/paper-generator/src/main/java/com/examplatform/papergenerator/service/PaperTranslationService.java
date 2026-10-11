@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -25,7 +25,6 @@ import com.examplatform.papergenerator.dto.BatchTranslationJobResponseDto;
 import com.examplatform.papergenerator.dto.PaperTranslateRequest;
 import com.examplatform.papergenerator.dto.PaperTranslateResponse;
 import com.examplatform.papergenerator.repository.PaperRepository;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -33,7 +32,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -91,24 +89,23 @@ public class PaperTranslationService {
         return mapToPaperTranslateResponse(paperId, jobResponse, jobResponse != null ? jobResponse.getTotalQuestions() : 0);
     }
 
-    public List<UUID> extractQuestionIds(Paper paper) {
-        List<UUID> questionIds = new ArrayList<>();
-        if (paper.getPaperDefinitionJson() != null && !paper.getPaperDefinitionJson().isBlank()) {
-            try {
-                JsonNode root = objectMapper.readTree(paper.getPaperDefinitionJson());
-                JsonNode qIdsNode = root.get("questionIds");
-                if (qIdsNode != null && qIdsNode.isArray()) {
-                    for (JsonNode qNode : qIdsNode) {
-                        try {
-                            questionIds.add(UUID.fromString(qNode.asText()));
-                        } catch (IllegalArgumentException ignored) {}
-                    }
-                }
-            } catch (Exception e) {
-                log.warn("Failed to parse paperDefinitionJson for paper {}: {}", paper.getId(), e.getMessage());
-            }
+    public PaperTranslateResponse getLatestTranslationStatus(UUID paperId, String tenantId) {
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        List<BatchTranslationJobResponseDto> jobs = questionBankClient.listBatchJobsByPaper(paperId, effectiveTenant);
+        if (jobs != null && !jobs.isEmpty()) {
+            BatchTranslationJobResponseDto latest = jobs.get(0);
+            return mapToPaperTranslateResponse(paperId, latest, latest.getTotalQuestions());
         }
-        return questionIds;
+        return PaperTranslateResponse.builder()
+                .paperId(paperId)
+                .status("IDLE")
+                .totalQuestions(0)
+                .message("No batch translation jobs found for paper " + paperId)
+                .build();
+    }
+
+    public List<UUID> extractQuestionIds(Paper paper) {
+        return PaperAssemblyService.extractQuestionIds(paper, objectMapper);
     }
 
     private PaperTranslateResponse mapToPaperTranslateResponse(UUID paperId, BatchTranslationJobResponseDto dto, int fallbackTotal) {

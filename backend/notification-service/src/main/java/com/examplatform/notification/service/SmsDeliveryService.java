@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -20,9 +20,7 @@
 package com.examplatform.notification.service;
 
 import com.examplatform.notification.domain.Notification;
-import com.examplatform.notification.domain.Notification.NotificationStatus;
 import com.examplatform.notification.repository.NotificationRepository;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
@@ -31,12 +29,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -58,33 +54,28 @@ public class SmsDeliveryService {
     @Setter
     private ObjectMapper objectMapper = new ObjectMapper();
 
-    @Value("${notification.sms.endpoint:http://localhost:3000/msg91/api/v5/otp}")
+    @Value("${notification.sms.endpoint:http://localhost:3000/sms/send}")
     private String smsEndpoint;
 
-    @Value("${notification.sms.auth-key:mock-sms-auth-key}")
+    @Value("${notification.sms.authkey:mock-sms-authkey}")
     private String authKey;
 
-    @Value("${notification.sms.sender-id:NAGGov}")
+    @Value("${notification.sms.sender:EXMPLT}")
     private String senderId;
 
     private static final int MAX_RETRIES = 3;
 
-    /**
-     * DLT Template mapping for standard Indian regulatory requirement compliance.
-     */
-    public static final Map<String, String> DLT_TEMPLATES = Map.of(
-            "ACCOUNT_LOCKED", "1107161829384910291",
-            "SESSION_SUBMITTED", "1107161829384910292",
+    // DLT Template ID mapping by notification purpose (Telecom Regulatory Authority of India compliant)
+    private static final Map<String, String> DLT_TEMPLATES = Map.of(
+            "OTP", "1107161829384910291",
+            "EXAM_SCHEDULED", "1107161829384910292",
             "RESULT_PUBLISHED", "1107161829384910293",
-            "EVALUATION_COMPLETE", "1107161829384910294",
-            "QUESTION_REVIEW", "1107161829384910295",
-            "PASSWORD_RESET", "1107161829384910296",
+            "PASSWORD_RESET", "1107161829384910294",
             "DEFAULT", "1107161829384910290"
     );
 
     /**
-     * Attempts SMS delivery with up to 3 retries.
-     * On final failure, marks status as UNDELIVERED.
+     * Attempt SMS notification delivery with up to 3 retries.
      */
     @Async
     public void deliver(Notification notification) {
@@ -93,69 +84,35 @@ public class SmsDeliveryService {
 
         if (phone == null || phone.isBlank()) {
             log.warn("Cannot deliver SMS for notification {}: missing recipient phone", notificationId);
-            Notification current = findCurrent(notificationId, notification);
-            current.setStatus(NotificationStatus.UNDELIVERED);
-            notificationRepository.save(current);
+            NotificationDeliveryHelper.recordFailure(notificationRepository, notificationId, notification, 0);
             return;
         }
 
         String dltTemplateId = resolveDltTemplateId(notification.getTemplateId(), notification.getSubject());
         notification.setTemplateId(dltTemplateId);
 
-        for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-            try {
-                HttpHeaders headers = new HttpHeaders();
-                headers.setContentType(MediaType.APPLICATION_JSON);
-                headers.set("authkey", authKey);
+        NotificationDeliveryHelper.executeHttpDeliveryWithRetry(
+                notificationRepository,
+                notification,
+                "SMS",
+                MAX_RETRIES,
+                () -> {
+                    HttpHeaders headers = new HttpHeaders();
+                    headers.setContentType(MediaType.APPLICATION_JSON);
+                    headers.set("authkey", authKey);
 
-                Map<String, Object> payload = new HashMap<>();
-                payload.put("mobile", phone);
-                payload.put("template_id", dltTemplateId);
-                payload.put("sender", senderId);
-                payload.put("message", notification.getBody());
-                payload.put("otp", "000000"); // Static mock fallback for verification
+                    Map<String, Object> payload = new HashMap<>();
+                    payload.put("mobile", phone);
+                    payload.put("template_id", dltTemplateId);
+                    payload.put("sender", senderId);
+                    payload.put("message", notification.getBody());
+                    payload.put("otp", "000000"); // Static mock fallback for verification
 
-                HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(payload, headers);
-                ResponseEntity<String> response = restTemplate.postForEntity(smsEndpoint, requestEntity, String.class);
-
-                if (response.getStatusCode().is2xxSuccessful()) {
-                    String externalId = extractMessageId(response.getBody());
-                    Notification current = findCurrent(notificationId, notification);
-                    current.setStatus(NotificationStatus.SENT);
-                    current.setSentAt(Instant.now());
-                    current.setRetryCount(attempt);
-                    current.setExternalMessageId(externalId);
-                    current.setTemplateId(dltTemplateId);
-                    notificationRepository.save(current);
-                    log.info("SMS delivered successfully for notification {} on attempt {}, externalId={}",
-                            notificationId, attempt, externalId);
-                    return;
-                } else {
-                    throw new RuntimeException("SMS Gateway returned HTTP " + response.getStatusCode());
-                }
-
-            } catch (Exception e) {
-                notification.setRetryCount(attempt);
-                log.warn("SMS delivery failed for notification {} on attempt {}/{}: {}",
-                        notificationId, attempt, MAX_RETRIES, e.getMessage());
-
-                if (attempt == MAX_RETRIES) {
-                    Notification current = findCurrent(notificationId, notification);
-                    current.setStatus(NotificationStatus.UNDELIVERED);
-                    current.setRetryCount(MAX_RETRIES);
-                    notificationRepository.save(current);
-                    log.error("ALERT: SMS permanently UNDELIVERED after {} attempts for notification {}",
-                            MAX_RETRIES, notificationId);
-                }
-            }
-        }
-    }
-
-    private Notification findCurrent(UUID notificationId, Notification fallback) {
-        if (notificationId != null) {
-            return notificationRepository.findById(notificationId).orElse(fallback);
-        }
-        return fallback;
+                    return restTemplate.postForEntity(smsEndpoint, new HttpEntity<>(payload, headers), String.class);
+                },
+                body -> NotificationDeliveryHelper.extractMessageId(objectMapper, body, "SMS"),
+                dltTemplateId
+        );
     }
 
     private String resolveDltTemplateId(String customTemplateId, String subject) {
@@ -170,25 +127,5 @@ public class SmsDeliveryService {
             }
         }
         return DLT_TEMPLATES.getOrDefault("DEFAULT", "1107161829384910290");
-    }
-
-    private String extractMessageId(String responseBody) {
-        if (responseBody == null || responseBody.isBlank()) {
-            return "SMS-" + Instant.now().toEpochMilli();
-        }
-        try {
-            JsonNode root = objectMapper.readTree(responseBody);
-            if (root.has("request_id")) {
-                return root.get("request_id").asText();
-            }
-            if (root.has("messageId")) {
-                return root.get("messageId").asText();
-            }
-            if (root.has("id")) {
-                return root.get("id").asText();
-            }
-        } catch (Exception ignored) {
-        }
-        return "SMS-" + Instant.now().toEpochMilli();
     }
 }

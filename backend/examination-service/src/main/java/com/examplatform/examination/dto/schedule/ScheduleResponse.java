@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -19,10 +19,12 @@
 
 package com.examplatform.examination.dto.schedule;
 
+import com.examplatform.examination.domain.ExaminationSchedule;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.beans.BeanUtils;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -55,4 +57,13 @@ public class ScheduleResponse {
     private Instant approvedAt;
     private Instant createdAt;
     private Instant updatedAt;
+
+    public static ScheduleResponse from(ExaminationSchedule s) {
+        if (s == null) {
+            return null;
+        }
+        ScheduleResponse response = new ScheduleResponse();
+        BeanUtils.copyProperties(s, response);
+        return response;
+    }
 }

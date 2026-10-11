@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -27,6 +27,9 @@ import com.examplatform.candidate.exception.DuplicateProfileException;
 import com.examplatform.candidate.exception.ProfileNotFoundException;
 import com.examplatform.candidate.repository.CandidateEducationRepository;
 import com.examplatform.candidate.repository.CandidateProfileRepository;
+import com.examplatform.shared.crypto.HashingService;
+import com.examplatform.shared.crypto.VaultCryptoService;
+import com.examplatform.shared.event.UserAuditEvent;
 import com.examplatform.shared.messaging.EventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -36,8 +39,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Collections;
 import java.util.List;
@@ -74,6 +77,9 @@ class CandidateProfileServiceTest {
     @Mock
     private JdbcTemplate jdbcTemplate;
 
+    @Mock
+    private ObjectProvider<JdbcTemplate> jdbcTemplateProvider;
+
     private CandidateProfileService candidateProfileService;
 
     private static final String TENANT_ID = "default";
@@ -91,9 +97,9 @@ class CandidateProfileServiceTest {
                 candidateEducationRepository,
                 hashingService,
                 vaultCryptoService,
-                eventPublisher
+                eventPublisher,
+                jdbcTemplateProvider
         );
-        ReflectionTestUtils.setField(candidateProfileService, "jdbcTemplate", jdbcTemplate);
     }
 
     private CreateCandidateProfileRequest validCreateRequest() {
@@ -200,11 +206,18 @@ class CandidateProfileServiceTest {
             ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
             verify(eventPublisher).publish(eq("exam.audit.events"), eq(USER_ID.toString()), eventCaptor.capture());
 
-            Map<String, Object> event = (Map<String, Object>) eventCaptor.getValue();
-            assertThat(event.get("eventType")).isEqualTo("CANDIDATE_PROFILE_CREATED");
-            assertThat(event.get("actorId")).isEqualTo(USER_ID.toString());
-            assertThat(event.get("tenantId")).isEqualTo(TENANT_ID);
-            assertThat(event.get("occurredAt")).isNotNull();
+            Object eventObj = eventCaptor.getValue();
+            if (eventObj instanceof UserAuditEvent auditEvent) {
+                assertThat(auditEvent.eventType()).isEqualTo("CANDIDATE_PROFILE_CREATED");
+                assertThat(auditEvent.actorId()).isEqualTo(USER_ID.toString());
+                assertThat(auditEvent.tenantId()).isEqualTo(TENANT_ID);
+                assertThat(auditEvent.occurredAt()).isNotNull();
+            } else if (eventObj instanceof Map<?, ?> event) {
+                assertThat(event.get("eventType")).isEqualTo("CANDIDATE_PROFILE_CREATED");
+                assertThat(event.get("actorId")).isEqualTo(USER_ID.toString());
+                assertThat(event.get("tenantId")).isEqualTo(TENANT_ID);
+                assertThat(event.get("occurredAt")).isNotNull();
+            }
         }
 
         @Test
@@ -326,6 +339,7 @@ class CandidateProfileServiceTest {
 
             when(candidateProfileRepository.findByUserIdAndTenantId(USER_ID, TENANT_ID))
                     .thenReturn(Optional.of(profileWithoutEmail));
+            when(jdbcTemplateProvider.getIfAvailable()).thenReturn(jdbcTemplate);
             when(jdbcTemplate.queryForObject(anyString(), eq(String.class), eq(USER_ID)))
                     .thenReturn("sheel.prabhakar@gmail.com");
             when(candidateProfileRepository.save(any(CandidateProfile.class)))

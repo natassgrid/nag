@@ -1,5 +1,11 @@
 export type QuestionDifficultyFilter = 'ALL' | 'EASY' | 'MEDIUM' | 'HARD';
-export type QuestionStatusFilter = 'ALL' | 'APPROVED' | 'REVIEW' | 'DRAFT' | 'REJECTED';
+export type QuestionStatusFilter =
+  | 'ALL'
+  | 'PUBLISHED'
+  | 'APPROVED'
+  | 'REVIEW'
+  | 'DRAFT'
+  | 'REJECTED';
 
 export interface QuestionBankFilterCriteria {
   searchQuery: string;

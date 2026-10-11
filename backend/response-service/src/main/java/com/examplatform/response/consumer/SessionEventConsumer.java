@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -80,29 +80,7 @@ public class SessionEventConsumer {
     )
     public void handleRabbitSessionEvent(Object message) {
         log.info("Received RabbitMQ session event: {}", message);
-        try {
-            if (message instanceof Message amqpMsg) {
-                String s = new String(amqpMsg.getBody(), StandardCharsets.UTF_8);
-                JsonNode node = objectMapper.readTree(s);
-                processJsonNode(node);
-            } else if (message instanceof byte[] bytes) {
-                String s = new String(bytes, StandardCharsets.UTF_8);
-                JsonNode node = objectMapper.readTree(s);
-                processJsonNode(node);
-            } else if (message instanceof Map<?, ?> map) {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> eventMap = (Map<String, Object>) map;
-                processEventMap(eventMap);
-            } else if (message instanceof String s) {
-                JsonNode node = objectMapper.readTree(s);
-                processJsonNode(node);
-            } else {
-                JsonNode node = objectMapper.valueToTree(message);
-                processJsonNode(node);
-            }
-        } catch (Exception e) {
-            log.error("Failed to process RabbitMQ session event: {}", e.getMessage(), e);
-        }
+        dispatchSessionEventMessage(message, "RabbitMQ");
     }
 
     /**
@@ -114,8 +92,11 @@ public class SessionEventConsumer {
             return;
         }
         log.info("Received Spring in-memory session event: key={}", event.key());
+        dispatchSessionEventMessage(event.payload(), "Spring in-memory");
+    }
+
+    private void dispatchSessionEventMessage(Object payload, String source) {
         try {
-            Object payload = event.payload();
             if (payload instanceof Message amqpMsg) {
                 String s = new String(amqpMsg.getBody(), StandardCharsets.UTF_8);
                 JsonNode node = objectMapper.readTree(s);
@@ -136,7 +117,7 @@ public class SessionEventConsumer {
                 processJsonNode(node);
             }
         } catch (Exception e) {
-            log.error("Failed to process Spring in-memory session event: {}", e.getMessage(), e);
+            log.error("Failed to process {} session event: {}", source, e.getMessage(), e);
         }
     }
 

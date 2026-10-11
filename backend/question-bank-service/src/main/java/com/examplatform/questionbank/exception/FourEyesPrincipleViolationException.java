@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -25,7 +25,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 
 /**
  * Thrown when the four-eyes principle is violated — the reviewer
- * cannot also be the approver (the actor who transitions to PUBLISHED).
+ * cannot also be the approver (the actor who transitions to PUBLISHED),
+ * or author cannot approve their own question.
  *
  * Validates: Requirements 5.5
  */
@@ -35,5 +36,9 @@ public class FourEyesPrincipleViolationException extends RuntimeException {
 
     public FourEyesPrincipleViolationException() {
         super("Four-eyes principle violation: reviewer cannot also approve publication");
+    }
+
+    public FourEyesPrincipleViolationException(String message) {
+        super(message);
     }
 }

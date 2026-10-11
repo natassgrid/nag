@@ -37,7 +37,9 @@
   <!-- Filter & Search Controls -->
   <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
     <div class="relative w-full sm:max-w-md">
-      <mat-icon class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 !text-sm leading-none">search</mat-icon>
+      <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+        <mat-icon class="!w-4 !h-4 !text-base !leading-none flex items-center justify-center shrink-0">search</mat-icon>
+      </div>
       <input
         type="text"
         [ngModel]="searchQuery()"

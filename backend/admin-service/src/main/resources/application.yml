@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 #
-# National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
-# Copyright (C) 2025 NAG Contributors
+# NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+# Copyright (C) 2026 NAG Contributors
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published
@@ -72,6 +72,41 @@ server:
   servlet:
     context-path: /
   shutdown: graceful
+
+services:
+  question-bank:
+    url: ${QUESTION_BANK_SERVICE_URL:http://localhost:8083}
+  examination:
+    url: ${EXAMINATION_SERVICE_URL:http://localhost:8085}
+  evaluation:
+    url: ${EVALUATION_SERVICE_URL:http://localhost:8089}
+  audit:
+    url: ${AUDIT_SERVICE_URL:http://localhost:8091}
+  candidate:
+    url: ${CANDIDATE_SERVICE_URL:http://localhost:8082}
+
+grpc:
+  client:
+    questionbank:
+      host: ${GRPC_QUESTION_BANK_HOST:localhost}
+      port: ${GRPC_QUESTION_BANK_PORT:9083}
+      timeout-ms: 3000
+    examination:
+      host: ${GRPC_EXAMINATION_HOST:localhost}
+      port: ${GRPC_EXAMINATION_PORT:9085}
+      timeout-ms: 3000
+    evaluation:
+      host: ${GRPC_EVALUATION_HOST:localhost}
+      port: ${GRPC_EVALUATION_PORT:9086}
+      timeout-ms: 3000
+    audit:
+      host: ${GRPC_AUDIT_HOST:localhost}
+      port: ${GRPC_AUDIT_PORT:9084}
+      timeout-ms: 3000
+    candidate:
+      host: ${GRPC_CANDIDATE_HOST:localhost}
+      port: ${GRPC_CANDIDATE_PORT:9082}
+      timeout-ms: 3000
 
 management:
   endpoints:

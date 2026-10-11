@@ -9,9 +9,9 @@ describe('PracticeResultSummaryComponent', () => {
   const mockResult: PracticeResult = {
     sessionId: 'session-123',
     correctCount: 15,
-    incorrectCount: 5,
-    skippedCount: 0,
-    obtainedMarks: 25,
+    incorrectCount: 3,
+    skippedCount: 2,
+    obtainedMarks: 27,
     totalMarks: 40,
     accuracyPercent: 75.0,
     topicWiseBreakdown: {
@@ -20,6 +20,7 @@ describe('PracticeResultSummaryComponent', () => {
     },
     difficultyBreakdown: null,
     timingBreakdown: null,
+    flaggedCount: 4,
     questionResults: [],
     practiceSetName: 'Math Practice',
     mode: 'TIMED',
@@ -38,9 +39,17 @@ describe('PracticeResultSummaryComponent', () => {
 
   it('should render score metrics correctly', () => {
     expect(component).toBeTruthy();
-    expect(component.result().obtainedMarks).toBe(25);
+    expect(component.result().obtainedMarks).toBe(27);
     expect(component.result().accuracyPercent).toBe(75.0);
     expect(component.topicStats().length).toBe(2);
     expect(component.topicStats()[0].percentage).toBe(80);
+  });
+
+  it('should compute status breakdown percentages and flagged questions', () => {
+    expect(component.totalQuestionsCount()).toBe(20); // 15 + 3 + 2
+    expect(component.correctPct()).toBe(75); // 15 / 20 = 75%
+    expect(component.incorrectPct()).toBe(15); // 3 / 20 = 15%
+    expect(component.skippedPct()).toBe(10); // 2 / 20 = 10%
+    expect(component.flaggedCount()).toBe(4);
   });
 });

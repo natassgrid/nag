@@ -6,8 +6,8 @@ export interface CandidateRegistrationForm {
   fullName: string;
   email: string;
   mobile: string;
-  identityDocType: 'AADHAAR' | 'PAN' | 'PASSPORT' | 'VOTER_ID' | 'DL' | string;
-  identityDocNumber: string;
+  identityDocType?: 'AADHAAR' | 'PAN' | 'PASSPORT' | 'VOTER_ID' | 'DL' | string;
+  identityDocNumber?: string;
   password: string;
   confirmPassword: string;
 }
@@ -16,8 +16,9 @@ export interface CandidateRegistrationPayload {
   fullName: string;
   email: string;
   mobile: string;
-  identityDocType: string;
-  identityDocNumber: string;
+  identityDocType?: string;
+  identityDocNumber?: string;
+  preferredLanguage?: string;
   password: string;
 }
 

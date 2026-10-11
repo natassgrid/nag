@@ -2,6 +2,8 @@ import {
   Component,
   input,
   output,
+  signal,
+  computed,
   ChangeDetectionStrategy,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -15,6 +17,7 @@ import {
 import { StandaloneTaxonomyScoringComponent } from '../standalone-taxonomy-scoring/standalone-taxonomy-scoring.component';
 import { StandaloneOptionsEditorComponent } from '../standalone-options-editor/standalone-options-editor.component';
 import { StandaloneLivePreviewComponent } from '../standalone-live-preview/standalone-live-preview.component';
+import { FormulaSymbolPaletteComponent } from '../formula-symbol-palette/formula-symbol-palette.component';
 
 @Component({
   selector: 'nag-standalone-question-form',
@@ -26,6 +29,7 @@ import { StandaloneLivePreviewComponent } from '../standalone-live-preview/stand
     StandaloneTaxonomyScoringComponent,
     StandaloneOptionsEditorComponent,
     StandaloneLivePreviewComponent,
+    FormulaSymbolPaletteComponent,
   ],
   templateUrl: './standalone-question-form.component.html',
   styleUrl: './standalone-question-form.component.scss',
@@ -49,4 +53,31 @@ export class StandaloneQuestionFormComponent {
   readonly contentChange = output<string>();
   readonly explanationChange = output<string>();
   readonly optionsChange = output<QuestionOption[]>();
+
+  readonly showFormulaPalette = signal<boolean>(false);
+  readonly showExplanationPalette = signal<boolean>(false);
+
+  readonly contentInvalid = computed(() => {
+    return !this.content() || !this.content().trim();
+  });
+
+  toggleFormulaPalette(): void {
+    this.showFormulaPalette.update((v) => !v);
+  }
+
+  toggleExplanationPalette(): void {
+    this.showExplanationPalette.update((v) => !v);
+  }
+
+  insertSymbolIntoContent(symbol: string): void {
+    const cur = this.content();
+    const updated = cur ? `${cur} ${symbol}` : symbol;
+    this.contentChange.emit(updated);
+  }
+
+  insertSymbolIntoExplanation(symbol: string): void {
+    const cur = this.explanation();
+    const updated = cur ? `${cur} ${symbol}` : symbol;
+    this.explanationChange.emit(updated);
+  }
 }

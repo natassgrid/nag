@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -20,6 +20,8 @@
 package com.examplatform.shared.api;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import lombok.Getter;
+import lombok.ToString;
 
 import java.time.Instant;
 
@@ -37,6 +39,8 @@ import java.time.Instant;
  *
  * @param <T> the type of the response payload
  */
+@Getter
+@ToString
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public final class ApiResponse<T> {
 
@@ -100,30 +104,5 @@ public final class ApiResponse<T> {
      */
     public static <T> ApiResponse<T> error(String message) {
         return new ApiResponse<>("error", message, null);
-    }
-
-    // -----------------------------------------------------------------------
-    // Accessors
-    // -----------------------------------------------------------------------
-
-    public String getStatus() {
-        return status;
-    }
-
-    public String getMessage() {
-        return message;
-    }
-
-    public T getData() {
-        return data;
-    }
-
-    public Instant getTimestamp() {
-        return timestamp;
-    }
-
-    @Override
-    public String toString() {
-        return "ApiResponse{status='" + status + "', message='" + message + "', timestamp=" + timestamp + '}';
     }
 }

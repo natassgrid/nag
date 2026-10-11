@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -21,7 +21,6 @@ package com.examplatform.result.controller;
 
 import com.examplatform.result.domain.Result;
 import com.examplatform.result.dto.ExamReviewResponse;
-import com.examplatform.result.repository.ResultRepository;
 import com.examplatform.result.service.ExamReviewService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -45,8 +44,7 @@ import java.util.UUID;
 
 /**
  * REST controller for post-exam question review and QR scorecard verification.
- * Returns candidate's question-by-question performance with real upstream solutions and peer benchmarks.
- *
+ * Returns candidate's question-by-question performance with real upstream solutions and peer benchmarks.\n *
  * Validates: SPEC-UI3, Issue #110
  */
 @Slf4j
@@ -56,7 +54,6 @@ import java.util.UUID;
 public class ReviewController {
 
     private final ExamReviewService examReviewService;
-    private final ResultRepository resultRepository;
 
     /**
      * Returns the full post-exam review for a candidate in an exam.
@@ -105,7 +102,7 @@ public class ReviewController {
         }
 
         String trimmedCode = code.trim();
-        Optional<Result> resultOpt = resultRepository.findByQrVerificationCode(trimmedCode);
+        Optional<Result> resultOpt = examReviewService.findByQrVerificationCode(trimmedCode);
 
         if (resultOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
@@ -149,20 +146,7 @@ public class ReviewController {
     }
 
     private void validateReviewAccess(UUID candidateId, Authentication auth) {
-        if (auth == null) {
-            return;
-        }
-
-        boolean isElevated = auth.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN")
-                        || a.getAuthority().equals("ROLE_SUPER_ADMIN")
-                        || a.getAuthority().equals("ROLE_EXAM_CONTROLLER"));
-
-        if (!isElevated && auth.getPrincipal() instanceof Jwt jwt) {
-            String userId = jwt.getSubject();
-            if (userId != null && !userId.equals(candidateId.toString())) {
-                throw new AccessDeniedException("Candidates can only access their own exam reviews");
-            }
-        }
+        ResultAccessSecurityHelper.validateCandidateAccess(
+                candidateId, auth, "Candidates can only access their own exam reviews");
     }
 }

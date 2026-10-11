@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -18,6 +18,8 @@
  */
 
 package com.examplatform.identity.service;
+
+import com.examplatform.shared.crypto.HashingService;
 
 import com.examplatform.identity.domain.UserAccount;
 import com.examplatform.identity.domain.UserRoleAssignment;

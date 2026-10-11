@@ -20,6 +20,14 @@ export interface PracticeSession {
   startedAt: string;
   totalQuestions: number;
   durationMinutes: number;
+  preferredLanguage?: string;
+}
+
+export interface QuestionTranslation {
+  languageCode: string;
+  content: string;
+  options?: Array<{ id: string; text: string }>;
+  explanation?: string;
 }
 
 export interface QuestionResult {
@@ -35,6 +43,11 @@ export interface QuestionResult {
   explanation?: string | null;
   topic?: string | null;
   subject?: string | null;
+  questionType?: string | null;
+  primaryLanguage?: string | null;
+  fallbackToEnglish?: boolean;
+  primaryTranslation?: QuestionTranslation | null;
+  translations?: Record<string, QuestionTranslation> | null;
 }
 
 export interface PracticeResult {
@@ -51,6 +64,7 @@ export interface PracticeResult {
   questionResults: QuestionResult[];
   practiceSetName?: string | null;
   mode?: string | null;
+  flaggedCount?: number;
 }
 
 export interface PracticeHistoryItem {
@@ -69,6 +83,7 @@ export interface PracticeHistoryItem {
 export interface StartSessionRequest {
   practiceSetId: string;
   mode: PracticeSessionMode;
+  preferredLanguage?: string;
 }
 
 export interface SaveResponseRequest {

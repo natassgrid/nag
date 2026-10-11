@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -21,6 +21,8 @@ package com.examplatform.asset.metadata;
 
 import com.examplatform.asset.domain.enums.AssetType;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.tika.io.TikaInputStream;
+import org.apache.tika.metadata.HttpHeaders;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TIFF;
 import org.apache.tika.parser.AutoDetectParser;
@@ -48,11 +50,13 @@ public class ImageMetadataExtractor implements MetadataExtractor {
 
         try {
             Metadata metadata = new Metadata();
-            metadata.set(Metadata.CONTENT_TYPE, contentType);
+            metadata.set(HttpHeaders.CONTENT_TYPE, contentType);
 
             AutoDetectParser parser = new AutoDetectParser();
             BodyContentHandler handler = new BodyContentHandler(-1);
-            parser.parse(content, handler, metadata, new ParseContext());
+            try (TikaInputStream tis = TikaInputStream.get(content)) {
+                parser.parse(tis, handler, metadata, new ParseContext());
+            }
 
             builder.width(parseInteger(metadata.get(TIFF.IMAGE_WIDTH)));
             builder.height(parseInteger(metadata.get(TIFF.IMAGE_LENGTH)));

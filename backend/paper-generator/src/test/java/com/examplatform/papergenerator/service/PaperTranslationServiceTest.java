@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -186,5 +186,44 @@ class PaperTranslationServiceTest {
         assertThat(response.getStatus()).isEqualTo("IN_PROGRESS");
         assertThat(response.getProgressPercentage()).isEqualTo(40.0);
         assertThat(response.getSuccessfulQuestions()).isEqualTo(4);
+    }
+
+    @Test
+    @DisplayName("Should retrieve latest paper translation status successfully when jobs exist")
+    void shouldGetLatestTranslationStatusWhenJobsExist() {
+        UUID jobId = UUID.randomUUID();
+        BatchTranslationJobResponseDto jobDto = BatchTranslationJobResponseDto.builder()
+                .id(jobId)
+                .paperId(paperId)
+                .status("COMPLETED")
+                .sourceLanguage("en")
+                .targetLanguage("hi")
+                .totalQuestions(15)
+                .processedQuestions(15)
+                .successfulQuestions(15)
+                .progressPercentage(100.0)
+                .build();
+
+        when(questionBankClient.listBatchJobsByPaper(paperId, tenantId)).thenReturn(List.of(jobDto));
+
+        PaperTranslateResponse response = translationService.getLatestTranslationStatus(paperId, tenantId);
+
+        assertThat(response.getJobId()).isEqualTo(jobId);
+        assertThat(response.getStatus()).isEqualTo("COMPLETED");
+        assertThat(response.getProgressPercentage()).isEqualTo(100.0);
+        assertThat(response.getTotalQuestions()).isEqualTo(15);
+    }
+
+    @Test
+    @DisplayName("Should return IDLE status when no batch translation jobs exist for paper")
+    void shouldReturnIdleStatusWhenNoJobsExist() {
+        when(questionBankClient.listBatchJobsByPaper(paperId, tenantId)).thenReturn(List.of());
+
+        PaperTranslateResponse response = translationService.getLatestTranslationStatus(paperId, tenantId);
+
+        assertThat(response.getJobId()).isNull();
+        assertThat(response.getStatus()).isEqualTo("IDLE");
+        assertThat(response.getTotalQuestions()).isEqualTo(0);
+        assertThat(response.getMessage()).contains("No batch translation jobs found");
     }
 }

@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -45,23 +46,13 @@ public class QuestionBankGrpcServiceImpl extends QuestionBankGrpcServiceGrpc.Que
 
         try {
             List<Question> questions = questionRepository.findByTenantId(request.getTenantId());
-            Map<UUID, Passage> passageMap = fetchPassagesForQuestions(questions);
-
-            PaperQuestionsGrpcResponse.Builder builder = PaperQuestionsGrpcResponse.newBuilder();
-
-            for (Question q : questions) {
-                Passage p = q.getPassageId() != null ? passageMap.get(q.getPassageId()) : null;
-                builder.addQuestions(toGrpcQuestion(q, p));
-            }
-
-            responseObserver.onNext(builder.build());
+            PaperQuestionsGrpcResponse response = PaperQuestionsGrpcResponse.newBuilder()
+                    .addAllQuestions(toGrpcQuestions(questions))
+                    .build();
+            responseObserver.onNext(response);
             responseObserver.onCompleted();
         } catch (Exception e) {
-            log.error("Error processing getQuestionsForPaper gRPC request", e);
-            responseObserver.onError(io.grpc.Status.INTERNAL
-                    .withDescription("Failed to retrieve paper questions: " + e.getMessage())
-                    .withCause(e)
-                    .asRuntimeException());
+            handleGrpcError("retrieve paper questions", e, responseObserver);
         }
     }
 
@@ -83,23 +74,73 @@ public class QuestionBankGrpcServiceImpl extends QuestionBankGrpcServiceGrpc.Que
                     ? questionRepository.findQuestionsByIdsIn(uuids, request.getTenantId())
                     : List.of();
 
-            Map<UUID, Passage> passageMap = fetchPassagesForQuestions(questions);
-
-            BatchFindQuestionsGrpcResponse.Builder builder = BatchFindQuestionsGrpcResponse.newBuilder();
-            for (Question q : questions) {
-                Passage p = q.getPassageId() != null ? passageMap.get(q.getPassageId()) : null;
-                builder.addQuestions(toGrpcQuestion(q, p));
-            }
-
-            responseObserver.onNext(builder.build());
+            BatchFindQuestionsGrpcResponse response = BatchFindQuestionsGrpcResponse.newBuilder()
+                    .addAllQuestions(toGrpcQuestions(questions))
+                    .build();
+            responseObserver.onNext(response);
             responseObserver.onCompleted();
         } catch (Exception e) {
-            log.error("Error processing batchFindQuestions gRPC request", e);
-            responseObserver.onError(io.grpc.Status.INTERNAL
-                    .withDescription("Failed to batch find questions: " + e.getMessage())
-                    .withCause(e)
-                    .asRuntimeException());
+            handleGrpcError("batch find questions", e, responseObserver);
         }
+    }
+
+    @Override
+    public void matchBlueprint(BlueprintMatchGrpcRequest request,
+                               StreamObserver<BlueprintMatchGrpcResponse> responseObserver) {
+        log.info("gRPC matchBlueprint: subject={}, topic={}, difficulty={}, cognitiveLevel={}, tenant={}",
+                request.getSubject(), request.getTopic(), request.getDifficulty(),
+                request.getCognitiveLevel(), request.getTenantId());
+
+        try {
+            String subject = request.getSubject().isBlank() ? null : request.getSubject().trim();
+            String topic = request.getTopic().isBlank() ? null : request.getTopic().trim();
+            String difficulty = request.getDifficulty().isBlank() ? null : request.getDifficulty().trim();
+            String cognitiveLevel = request.getCognitiveLevel().isBlank() ? null : request.getCognitiveLevel().trim();
+            String tenantId = request.getTenantId().isBlank() ? "default" : request.getTenantId().trim();
+
+            List<Question> questions = questionRepository.findBlueprintQuestions(
+                    subject != null ? subject : "",
+                    topic != null ? topic : "",
+                    difficulty,
+                    cognitiveLevel,
+                    tenantId
+            );
+
+            if (questions.isEmpty()) {
+                questions = questionRepository.findBlueprintQuestionsFallback(
+                        subject != null ? subject : "",
+                        topic != null ? topic : "",
+                        difficulty,
+                        tenantId
+                );
+            }
+
+            BlueprintMatchGrpcResponse response = BlueprintMatchGrpcResponse.newBuilder()
+                    .addAllQuestions(toGrpcQuestions(questions))
+                    .build();
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+        } catch (Exception e) {
+            handleGrpcError("match blueprint", e, responseObserver);
+        }
+    }
+
+    private List<QuestionSummaryGrpc> toGrpcQuestions(List<Question> questions) {
+        Map<UUID, Passage> passageMap = fetchPassagesForQuestions(questions);
+        List<QuestionSummaryGrpc> list = new ArrayList<>(questions.size());
+        for (Question q : questions) {
+            Passage p = q.getPassageId() != null ? passageMap.get(q.getPassageId()) : null;
+            list.add(toGrpcQuestion(q, p));
+        }
+        return list;
+    }
+
+    private void handleGrpcError(String action, Exception e, StreamObserver<?> responseObserver) {
+        log.error("Error processing " + action + " gRPC request", e);
+        responseObserver.onError(io.grpc.Status.INTERNAL
+                .withDescription("Failed to " + action + ": " + e.getMessage())
+                .withCause(e)
+                .asRuntimeException());
     }
 
     private Map<UUID, Passage> fetchPassagesForQuestions(List<Question> questions) {
@@ -118,18 +159,23 @@ public class QuestionBankGrpcServiceImpl extends QuestionBankGrpcServiceGrpc.Que
     }
 
     private QuestionSummaryGrpc toGrpcQuestion(Question q, Passage passage) {
-        QuestionSummaryGrpc.Builder b = QuestionSummaryGrpc.newBuilder();
+        QuestionSummaryGrpc.Builder b = QuestionSummaryGrpc.newBuilder()
+                .setMarks(1.0)
+                .setNegativeMarks(0.0)
+                .setUsageCount(q.getUsageCount());
+
         if (q.getId() != null) b.setId(q.getId().toString());
-        if (q.getContent() != null) b.setContent(q.getContent());
-        if (q.getQuestionType() != null) b.setQuestionType(q.getQuestionType());
-        if (q.getDifficulty() != null) b.setDifficulty(q.getDifficulty());
-        if (q.getCognitiveLevel() != null) b.setCognitiveLevel(q.getCognitiveLevel());
-        b.setMarks(1.0);
-        b.setNegativeMarks(0.0);
         if (q.getTopicId() != null) b.setTopicId(q.getTopicId().toString());
         if (q.getSubjectId() != null) b.setSubjectId(q.getSubjectId().toString());
-        if (q.getAnswerKey() != null) b.setAnswerKey(q.getAnswerKey());
-        if (q.getExplanation() != null) b.setExplanation(q.getExplanation());
+
+        applyIfPresent(q.getContent(), b::setContent);
+        applyIfPresent(q.getQuestionType(), b::setQuestionType);
+        applyIfPresent(q.getDifficulty(), b::setDifficulty);
+        applyIfPresent(q.getCognitiveLevel(), b::setCognitiveLevel);
+        applyIfPresent(q.getAnswerKey(), b::setAnswerKey);
+        applyIfPresent(q.getExplanation(), b::setExplanation);
+        applyIfPresent(q.getSubject(), b::setSubject);
+        applyIfPresent(q.getTopic(), b::setTopic);
 
         if (q.getPassageId() != null) {
             b.setPassageId(q.getPassageId().toString());
@@ -149,5 +195,11 @@ public class QuestionBankGrpcServiceImpl extends QuestionBankGrpcServiceGrpc.Que
             }
         }
         return b.build();
+    }
+
+    private static void applyIfPresent(String val, Consumer<String> setter) {
+        if (val != null) {
+            setter.accept(val);
+        }
     }
 }

@@ -112,3 +112,11 @@ export interface BatchTranslationJobResponse {
   createdAt?: string;
   updatedAt?: string;
 }
+
+export interface PagedBatchJobsResponse {
+  content: BatchTranslationJobResponse[];
+  totalElements: number;
+  totalPages?: number;
+  number?: number;
+  size?: number;
+}

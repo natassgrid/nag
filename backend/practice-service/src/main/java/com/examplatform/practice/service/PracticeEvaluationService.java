@@ -4,9 +4,13 @@ package com.examplatform.practice.service;
 import com.examplatform.practice.client.QuestionBankClient;
 import com.examplatform.practice.domain.PracticeResponse;
 import com.examplatform.practice.domain.PracticeSession;
+import com.examplatform.practice.domain.PracticeSet;
 import com.examplatform.practice.dto.AnswerKeyDto;
 import com.examplatform.practice.repository.PracticeResponseRepository;
 import com.examplatform.practice.repository.PracticeSessionRepository;
+import com.examplatform.practice.repository.PracticeSetRepository;
+import com.examplatform.practice.util.PracticeQuestionUtils;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -26,6 +30,7 @@ public class PracticeEvaluationService {
 
     private final PracticeResponseRepository practiceResponseRepository;
     private final PracticeSessionRepository practiceSessionRepository;
+    private final PracticeSetRepository practiceSetRepository;
     private final QuestionBankClient questionBankClient;
     private final ObjectMapper objectMapper;
 
@@ -34,23 +39,38 @@ public class PracticeEvaluationService {
         PracticeSession session = practiceSessionRepository.findById(sessionId)
                 .orElseThrow(() -> new com.examplatform.practice.exception.PracticeSessionNotFoundException(sessionId));
 
+        PracticeSet practiceSet = session.getPracticeSetId() != null
+                ? practiceSetRepository.findById(session.getPracticeSetId()).orElse(null)
+                : null;
+
         List<PracticeResponse> responses = practiceResponseRepository.findByPracticeSessionId(sessionId);
 
-        List<UUID> questionIds = responses.stream()
-                .map(PracticeResponse::getQuestionId)
-                .distinct()
-                .toList();
+        // Keep only latest response per question using revision sequence
+        Map<UUID, PracticeResponse> latestResponses = PracticeQuestionUtils.getLatestResponsesByQuestion(responses);
 
-        Map<UUID, AnswerKeyDto> answerKeys = questionBankClient.getAnswerKeys(questionIds);
+        String rawQuestionIds = practiceSet != null ? practiceSet.getQuestionIds() : null;
+        List<UUID> allQuestionIds = PracticeQuestionUtils.resolveOrderedQuestionIds(rawQuestionIds, latestResponses, objectMapper);
 
-        Map<UUID, PracticeResponse> latestResponses = new LinkedHashMap<>();
-        for (PracticeResponse r : responses) {
-            latestResponses.merge(r.getQuestionId(), r,
-                    (existing, incoming) -> incoming.getRevisionSequence() > existing.getRevisionSequence() ? incoming : existing);
+        List<UUID> queryIds = !allQuestionIds.isEmpty() ? allQuestionIds : new ArrayList<>(latestResponses.keySet());
+        Map<UUID, AnswerKeyDto> answerKeys = !queryIds.isEmpty()
+                ? questionBankClient.getAnswerKeys(queryIds)
+                : Collections.emptyMap();
+
+        int totalQuestions = session.getTotalQuestions() > 0 ? session.getTotalQuestions() : allQuestionIds.size();
+        if (totalQuestions == 0) {
+            totalQuestions = latestResponses.size();
         }
+        session.setTotalQuestions(totalQuestions);
+
+        int calculatedTotalMarks = 0;
+        for (UUID qId : allQuestionIds) {
+            AnswerKeyDto ak = answerKeys.get(qId);
+            int m = (ak != null && ak.marks() > 0) ? ak.marks() : DEFAULT_CORRECT_MARKS;
+            calculatedTotalMarks += m;
+        }
+        int totalMarks = calculatedTotalMarks > 0 ? calculatedTotalMarks : (totalQuestions * DEFAULT_CORRECT_MARKS);
 
         int correct = 0, incorrect = 0, skipped = 0, obtained = 0;
-        int totalMarks = (session.getTotalQuestions() > 0 ? session.getTotalQuestions() : questionIds.size()) * DEFAULT_CORRECT_MARKS;
         Map<String, Map<String, Integer>> topicBreakdown = new HashMap<>();
         Map<String, Integer[]> diffBreakdown = new HashMap<>();
         Map<String, Long> timingBreakdown = new HashMap<>();
@@ -107,7 +127,7 @@ public class PracticeEvaluationService {
             practiceResponseRepository.save(resp);
         }
 
-        int noResponseCount = session.getTotalQuestions() - latestResponses.size();
+        int noResponseCount = totalQuestions - latestResponses.size();
         skipped += Math.max(0, noResponseCount);
 
         String topicJson = serialize(topicBreakdown);
@@ -128,32 +148,91 @@ public class PracticeEvaluationService {
                 sessionId, correct, incorrect, skipped, obtained, totalMarks);
     }
 
-    private boolean evaluateAnswer(PracticeResponse resp, AnswerKeyDto ak) {
+    boolean evaluateAnswer(PracticeResponse resp, AnswerKeyDto ak) {
         String answerKey = ak.answerKey();
         if (answerKey == null || answerKey.isBlank()) return false;
-        String normalizedKey = answerKey.trim();
+        String qType = ak.questionType() != null ? ak.questionType().toUpperCase().trim() : "";
 
-        if (resp.getEnteredValue() != null && !resp.getEnteredValue().isBlank()) {
-            return normalizedKey.equalsIgnoreCase(resp.getEnteredValue().trim());
+        // 1. Numerical evaluation
+        if ("NUMERICAL".equals(qType) || "NUMERIC".equals(qType)) {
+            String entered = resp.getEnteredValue();
+            if (entered == null || entered.isBlank()) return false;
+            return evaluateNumerical(answerKey, entered);
         }
 
-        if (resp.getSelectedOptionIds() != null && !resp.getSelectedOptionIds().isBlank()) {
-            String selected = resp.getSelectedOptionIds().trim();
-            if (selected.equalsIgnoreCase(normalizedKey)) {
+        // If enteredValue is set, evaluate numerical or direct string match
+        if (resp.getEnteredValue() != null && !resp.getEnteredValue().isBlank()) {
+            String entered = resp.getEnteredValue().trim();
+            if (evaluateNumerical(answerKey, entered)) {
                 return true;
             }
-            // Strip JSON array brackets if present
-            if (selected.startsWith("[") && selected.endsWith("]")) {
-                String stripped = selected.substring(1, selected.length() - 1).replace("\"", "").replace("'", "").trim();
-                for (String part : stripped.split(",")) {
-                    if (part.trim().equalsIgnoreCase(normalizedKey)) {
-                        return true;
-                    }
+            return answerKey.trim().equalsIgnoreCase(entered);
+        }
+
+        // 2. MCQ option evaluation
+        if (resp.getSelectedOptionIds() != null && !resp.getSelectedOptionIds().isBlank()) {
+            Set<String> selectedSet = parseOptionIds(resp.getSelectedOptionIds());
+            Set<String> correctSet = parseOptionIds(answerKey);
+
+            if (selectedSet.isEmpty() || correctSet.isEmpty()) {
+                return false;
+            }
+
+            if ("MULTI_MCQ".equals(qType) || correctSet.size() > 1) {
+                // Multi-select MCQ: candidate's selected set must exactly match correct set
+                return selectedSet.equals(correctSet);
+            } else {
+                // Single-select MCQ: candidate must have chosen exactly 1 option and it must match
+                if (selectedSet.size() != 1) {
+                    return false;
                 }
+                return selectedSet.equals(correctSet);
             }
         }
+
         return false;
     }
+
+    private boolean evaluateNumerical(String expected, String actual) {
+        try {
+            double expVal = Double.parseDouble(expected.trim());
+            double actVal = Double.parseDouble(actual.trim());
+            return Math.abs(expVal - actVal) < 1e-6;
+        } catch (NumberFormatException e) {
+            return expected.trim().equalsIgnoreCase(actual.trim());
+        }
+    }
+
+    private Set<String> parseOptionIds(String raw) {
+        if (raw == null || raw.isBlank()) return Collections.emptySet();
+        String trimmed = raw.trim();
+        Set<String> result = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+            try {
+                JsonNode node = objectMapper.readTree(trimmed);
+                if (node.isArray()) {
+                    for (JsonNode item : node) {
+                        String val = item.asText().trim();
+                        if (!val.isEmpty()) {
+                            result.add(val);
+                        }
+                    }
+                    return result;
+                }
+            } catch (Exception ignored) {}
+            // Fallback stripping brackets
+            trimmed = trimmed.substring(1, trimmed.length() - 1);
+        }
+        for (String part : trimmed.split(",")) {
+            String clean = part.replace("\"", "").replace("'", "").trim();
+            if (!clean.isEmpty()) {
+                result.add(clean);
+            }
+        }
+        return result;
+    }
+
+
 
     private String serialize(Object obj) {
         try {
