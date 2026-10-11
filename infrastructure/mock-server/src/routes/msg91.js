@@ -1,7 +1,7 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
  * Copyright (C) 2025 NAG Contributors
  */
 
@@ -55,7 +55,7 @@ router.all(['/api/v5/otp', '/otp'], (req, res) => {
     sender: sender.toString(),
     templateId: templateId?.toString() || 'DEFAULT_OTP_TEMPLATE',
     otpCode: otp.toString(),
-    message: `Your National Assessment Grid (NAG) verification code is ${otp}. Valid for 10 minutes.`,
+    message: `Your NextGen Assessment Grid (NAG) verification code is ${otp}. Valid for 10 minutes.`,
     sentAt: new Date().toISOString(),
     status: 'DELIVERED',
     authKeyProvided: !!authKey

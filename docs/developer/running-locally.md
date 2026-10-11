@@ -1,4 +1,4 @@
-# Running Locally — National Assessment Grid
+# Running Locally — NextGen Assessment Grid
 
 ## 1. Quick Start Options
 

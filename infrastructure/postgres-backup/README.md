@@ -1,6 +1,6 @@
 # PostgreSQL Automated Backup & Disaster Recovery (DR) Pipeline
 
-This directory consolidates all scripts, configurations, policies, and orchestration units for the **National Assessment Grid (NAG)** PostgreSQL automated backup and disaster recovery pipeline.
+This directory consolidates all scripts, configurations, policies, and orchestration units for the **NextGen Assessment Grid (NAG)** PostgreSQL automated backup and disaster recovery pipeline.
 
 ## 📁 Directory Contents
 

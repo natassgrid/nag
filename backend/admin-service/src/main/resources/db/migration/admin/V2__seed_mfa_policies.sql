@@ -1,6 +1,6 @@
 -- SPDX-License-Identifier: AGPL-3.0-only
 --
--- National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+-- NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
 -- Copyright (C) 2025 NAG Contributors
 
 INSERT INTO admin_service.system_config (id, tenant_id, param_name, param_value, updated_by, updated_at_config, created_at, updated_at, version)

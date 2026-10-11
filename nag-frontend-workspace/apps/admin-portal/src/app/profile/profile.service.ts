@@ -123,7 +123,7 @@ export class ProfileService {
             '8812-7720-3391',
             '9940-2218-5531',
           ],
-          issuer: data.issuer || 'National Assessment Grid (NAG)',
+          issuer: data.issuer || 'NextGen Assessment Grid (NAG)',
           username,
         };
       })

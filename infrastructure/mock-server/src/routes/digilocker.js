@@ -1,7 +1,7 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
  * Copyright (C) 2025 NAG Contributors
  */
 
@@ -141,7 +141,7 @@ router.get(['/oauth/authorize', '/public/oauth2/1/authorize'], (req, res) => {
   <div class="card">
     <div class="logo-badge">🏛️ DigiLocker DPI Gateway</div>
     <h2>Consent for Profile & Document Verification</h2>
-    <p>National Assessment Grid (NAG) is requesting verified identity and document access for examination enrollment.</p>
+    <p>NextGen Assessment Grid (NAG) is requesting verified identity and document access for examination enrollment.</p>
 
     <div class="consent-box">
       <strong>Permissions requested:</strong>

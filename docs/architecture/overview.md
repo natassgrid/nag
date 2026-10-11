@@ -1,8 +1,8 @@
-# Architecture Overview — National Assessment Grid (NAG)
+# Architecture Overview — NextGen Assessment Grid (NAG)
 
 ## 1. System Vision & Purpose
 
-The **National Assessment Grid (NAG)** is an open-source, enterprise-grade Open Digital Public Infrastructure (DPI) Platform designed to manage end-to-end competitive examinations, question bank authoring, automated cryptographic paper generation, nationwide exam delivery, evaluation, and analytics.
+The **NextGen Assessment Grid (NAG)** is an open-source, enterprise-grade Open Digital Public Infrastructure (DPI) Platform designed to manage end-to-end competitive examinations, question bank authoring, automated cryptographic paper generation, nationwide exam delivery, evaluation, and analytics.
 
 ### Core Objectives
 - **Security & Leak Prevention**: Zero-trust cryptography, time-locked paper decryption keys (Shamir Secret Sharing), and watermarked delivery.

@@ -1,4 +1,4 @@
-# Docker Containerization & Compose Topologies — National Assessment Grid
+# Docker Containerization & Compose Topologies — NextGen Assessment Grid
 
 ## 1. Multi-Stage Docker Strategy
 

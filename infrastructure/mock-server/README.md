@@ -2,7 +2,7 @@
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
-A lightweight, zero-dependency external gateway simulator for **DigiLocker**, **Aadhaar e-KYC & UIDAI 2.5 Auth**, and **MSG91 SMS Gateway** built for the **National Assessment Grid (NAG)** Open Digital Public Infrastructure (DPI) Platform.
+A lightweight, zero-dependency external gateway simulator for **DigiLocker**, **Aadhaar e-KYC & UIDAI 2.5 Auth**, and **MSG91 SMS Gateway** built for the **NextGen Assessment Grid (NAG)** Open Digital Public Infrastructure (DPI) Platform.
 
 ---
 

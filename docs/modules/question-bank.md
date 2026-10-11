@@ -2,7 +2,7 @@
 
 ## 1. Overview & Purpose
 
-The **Question Bank Service** is a core bounded context within the National Assessment Grid (NAG). It provides end-to-end question item authoring, hierarchical taxonomy classification, multi-stage peer review and approval workflows, envelope encryption, automated duplicate detection via pgvector embeddings, and an **AI-Assisted Question Generation Engine** orchestrated by [`SpringAiGenerationService`](file:///F:/code/IdeaProjects/nag/backend/question-bank-service/src/main/java/com/examplatform/questionbank/ai/generation/SpringAiGenerationService.java).
+The **Question Bank Service** is a core bounded context within the NextGen Assessment Grid (NAG). It provides end-to-end question item authoring, hierarchical taxonomy classification, multi-stage peer review and approval workflows, envelope encryption, automated duplicate detection via pgvector embeddings, and an **AI-Assisted Question Generation Engine** orchestrated by [`SpringAiGenerationService`](file:///F:/code/IdeaProjects/nag/backend/question-bank-service/src/main/java/com/examplatform/questionbank/ai/generation/SpringAiGenerationService.java).
 
 The service supports diverse question types:
 - Single-Choice Objective Questions (`SINGLE_MCQ`)

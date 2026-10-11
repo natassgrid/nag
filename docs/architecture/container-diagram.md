@@ -1,4 +1,4 @@
-# C4 Model Level 2: Container Diagram — National Assessment Grid
+# C4 Model Level 2: Container Diagram — NextGen Assessment Grid
 
 ## 1. Overview
 

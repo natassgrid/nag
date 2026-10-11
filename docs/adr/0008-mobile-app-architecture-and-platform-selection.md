@@ -10,7 +10,7 @@
 
 ## 1. Context & Business Requirements
 
-The **National Assessment Grid (NAG)** is designed as India's open, high-consequence Digital Public Infrastructure (DPI) for conducting massive-scale examinations (e.g., NTA, UPSC, SSC, state service commissions). While the current candidate portal is a responsive web application (`candidate-frontend` in React 19 + Tailwind), a native mobile application is required to satisfy key public sector and field deployment demands:
+The **NextGen Assessment Grid (NAG)** is designed as India's open, high-consequence Digital Public Infrastructure (DPI) for conducting massive-scale examinations (e.g., NTA, UPSC, SSC, state service commissions). While the current candidate portal is a responsive web application (`candidate-frontend` in React 19 + Tailwind), a native mobile application is required to satisfy key public sector and field deployment demands:
 
 1. **Digital Public Infrastructure (DPI) & Candidate Accessibility**:
    - Millions of students access exam notifications, application submissions, and admit cards exclusively through mobile devices.

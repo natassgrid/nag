@@ -1,5 +1,5 @@
 [Unit]
-Description=National Assessment Grid (NAG) PostgreSQL Daily Backup Pipeline
+Description=NextGen Assessment Grid (NAG) PostgreSQL Daily Backup Pipeline
 Documentation=https://github.com/natassgrid/nag
 After=network-online.target docker.service
 Wants=network-online.target

@@ -1,4 +1,4 @@
-# Developer Setup Guide — National Assessment Grid
+# Developer Setup Guide — NextGen Assessment Grid
 
 ## 1. Prerequisites
 

@@ -1,6 +1,6 @@
 # AI Question Generation Prompt & Knowledge Specification (LaTeX Math Standard)
 
-This document provides the standardized **System Prompt**, **User Prompt template**, **JSON Schema**, **LaTeX `$$...$$` syntax rules**, and **Markdown newline formatting guidelines** for generating high-quality examination questions for the National Assessment Grid (NAG).
+This document provides the standardized **System Prompt**, **User Prompt template**, **JSON Schema**, **LaTeX `$$...$$` syntax rules**, and **Markdown newline formatting guidelines** for generating high-quality examination questions for the NextGen Assessment Grid (NAG).
 
 ---
 

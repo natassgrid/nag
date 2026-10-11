@@ -2,7 +2,7 @@
 
 ## 📌 Overview
 
-This document specifies the operational design, configuration, and execution procedures for the **National Assessment Grid (NAG)** PostgreSQL automated backup and disaster recovery (DR) restoration pipeline.
+This document specifies the operational design, configuration, and execution procedures for the **NextGen Assessment Grid (NAG)** PostgreSQL automated backup and disaster recovery (DR) restoration pipeline.
 
 All backup scripts, policies, Docker Compose runners, and systemd units are organized in [`infrastructure/postgres-backup/`](file:///F:/code/IdeaProjects/nag/infrastructure/postgres-backup).
 

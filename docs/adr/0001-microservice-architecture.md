@@ -8,7 +8,7 @@
 
 ## 1. Context
 
-The National Assessment Grid (NAG) is designed to support national-level competitive examinations across millions of concurrent candidates, multi-tenant state educational boards, and independent modules (Question Authoring, Paper Generation, Exam Scheduling, Delivery, Evaluation, Audit).
+The NextGen Assessment Grid (NAG) is designed to support national-level competitive examinations across millions of concurrent candidates, multi-tenant state educational boards, and independent modules (Question Authoring, Paper Generation, Exam Scheduling, Delivery, Evaluation, Audit).
 
 A monolithic architecture presents several operational challenges for this domain:
 - **Scaling Bottlenecks**: Exam Delivery requires massive horizontal throughput during peak shift start windows, whereas Question Authoring and Evaluation experience steady, low-concurrency usage.

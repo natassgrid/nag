@@ -1,7 +1,7 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
  * Copyright (C) 2025 NAG Contributors
  */
 
@@ -355,7 +355,7 @@ router.get("/ledger/tx/:txHash", (req, res) => {
       <body>
         <div class="card">
           <h1>Hedera Hashscan Explorer <span class="badge">SUCCESS</span></h1>
-          <p style="color: #94a3b8; font-size: 0.875rem;">Consensus Verification Record for National Assessment Grid Seal</p>
+          <p style="color: #94a3b8; font-size: 0.875rem;">Consensus Verification Record for NextGen Assessment Grid Seal</p>
           <div class="row"><span class="label">Transaction ID:</span><span class="val">${receipt.transactionId}</span></div>
           <div class="row"><span class="label">Consensus Timestamp:</span><span class="val">${receipt.consensusTimestamp}</span></div>
           <div class="row"><span class="label">Transaction Hash:</span><span class="val">${receipt.transactionHash}</span></div>

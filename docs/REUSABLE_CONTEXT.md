@@ -1,4 +1,4 @@
-# National Assessment Grid (NAG) - Reusable Architecture & Codebase Context
+# NextGen Assessment Grid (NAG) - Reusable Architecture & Codebase Context
 
 > **Open Digital Public Infrastructure (DPI) Platform for High-Stakes Assessments, Examinations, Certifications & Recruitment.**
 
@@ -6,7 +6,7 @@
 
 ## 1. Executive System Overview & Tri-Mode Topology
 
-The National Assessment Grid (NAG) is an open-source, cloud-native Digital Public Infrastructure (DPI) platform engineered from a unified codebase supporting **Tri-Mode Architecture**:
+The NextGen Assessment Grid (NAG) is an open-source, cloud-native Digital Public Infrastructure (DPI) platform engineered from a unified codebase supporting **Tri-Mode Architecture**:
 
 ```mermaid
 graph TD

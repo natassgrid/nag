@@ -1,7 +1,7 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
  * Copyright (C) 2025 NAG Contributors
  */
 
@@ -260,7 +260,7 @@ class IdentityMockApiServerIntegrationTest {
             String jsonPayload = """
                     {
                         "to": "recovery.candidate@natassgrid.gov.in",
-                        "subject": "National Assessment Grid - Email Verification OTP",
+                        "subject": "NextGen Assessment Grid - Email Verification OTP",
                         "text": "Your NAG account verification code is 789456. This code is valid for 10 minutes.",
                         "otp": "789456"
                     }

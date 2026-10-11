@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-only
-# National Assessment Grid (NAG) - Single JVM Monolith Application
+# NextGen Assessment Grid (NAG) - Single JVM Monolith Application
 # Combines all 14 domain services, embedded audit, and in-memory event bus.
 
 spring:

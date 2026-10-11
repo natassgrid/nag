@@ -1,4 +1,4 @@
-# Sequence Diagrams — National Assessment Grid
+# Sequence Diagrams — NextGen Assessment Grid
 
 ## 1. Overview
 
