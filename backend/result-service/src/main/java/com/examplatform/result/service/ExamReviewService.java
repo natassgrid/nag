@@ -29,6 +29,7 @@ import com.examplatform.result.dto.QuestionDetailDto;
 import com.examplatform.result.dto.ReviewOptionDto;
 import com.examplatform.result.dto.ReviewQuestionDto;
 import com.examplatform.result.repository.ResultRepository;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -141,8 +142,10 @@ public class ExamReviewService {
             String content = qDetail != null && qDetail.getContent() != null ? qDetail.getContent() : "Question content";
             String subject = qDetail != null && qDetail.getSubject() != null ? qDetail.getSubject() : "General";
             String topic = qDetail != null && qDetail.getTopic() != null ? qDetail.getTopic() : "General";
-            String difficulty = qDetail != null && qDetail.getDifficulty() != null ? qDetail.getDifficulty() : "MEDIUM";
-            String bloomsLevel = qDetail != null && qDetail.getCognitiveLevel() != null ? qDetail.getCognitiveLevel() : "APPLY";
+            String difficulty = qDetail != null && qDetail.getDifficulty() != null ? qDetail.getDifficulty() :
+                QuestionTaxonomyConstants.Difficulty.MEDIUM;
+            String bloomsLevel = qDetail != null && qDetail.getCognitiveLevel() != null ? qDetail.getCognitiveLevel() :
+                QuestionTaxonomyConstants.CognitiveLevel.APPLY;
             List<ReviewOptionDto> options = qDetail != null && qDetail.getOptions() != null
                     ? qDetail.getOptions()
                     : Collections.emptyList();

@@ -3,6 +3,7 @@
  */
 package com.examplatform.questionbank.ai.generation;
 
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -12,6 +13,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestPropertySource;
 
+import static com.examplatform.questionbank.ai.generation.ModelRouter.AMAZON_NOVA_LITE_V_1_0;
+import static com.examplatform.questionbank.ai.generation.ModelRouter.AMAZON_NOVA_MICRO_V_1_0;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(classes = ModelRouter.class)
@@ -20,28 +23,28 @@ import static org.assertj.core.api.Assertions.assertThat;
         "app.ai.models.medium=nova-lite",
         "app.ai.models.hard=nova-lite"
 })
-@DisplayName("ModelRouter â€” difficulty-based model routing")
+@DisplayName("ModelRouter — difficulty-based model routing")
 class ModelRouterTest {
 
     @Autowired
     private ModelRouter modelRouter;
 
     @ParameterizedTest
-    @ValueSource(strings = {"EASY", "easy", "Easy"})
+    @ValueSource(strings = {QuestionTaxonomyConstants.Difficulty.EASY, "easy", "Easy"})
     @DisplayName("selectModel() routes EASY difficulty to nova-micro")
     void selectModel_easy_returnsNovaMicro(String difficulty) {
         assertThat(modelRouter.selectModel(difficulty)).isEqualTo("nova-micro");
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"MEDIUM", "medium", "Medium"})
+    @ValueSource(strings = {QuestionTaxonomyConstants.Difficulty.MEDIUM, "medium", "Medium"})
     @DisplayName("selectModel() routes MEDIUM difficulty to nova-lite")
     void selectModel_medium_returnsNovaLite(String difficulty) {
         assertThat(modelRouter.selectModel(difficulty)).isEqualTo("nova-lite");
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"HARD", "hard", "Hard"})
+    @ValueSource(strings = {QuestionTaxonomyConstants.Difficulty.HARD, "hard", "Hard"})
     @DisplayName("selectModel() routes HARD difficulty to nova-lite")
     void selectModel_hard_returnsNovaLite(String difficulty) {
         assertThat(modelRouter.selectModel(difficulty)).isEqualTo("nova-lite");
@@ -70,9 +73,9 @@ class ModelRouterTest {
     @Test
     @DisplayName("selectBatchModelId() returns correct Bedrock model IDs by difficulty")
     void selectBatchModelId_returnCorrectIds() {
-        assertThat(modelRouter.selectBatchModelId("EASY")).isEqualTo("amazon.nova-micro-v1:0");
-        assertThat(modelRouter.selectBatchModelId("MEDIUM")).isEqualTo("amazon.nova-lite-v1:0");
-        assertThat(modelRouter.selectBatchModelId("HARD")).isEqualTo("amazon.nova-lite-v1:0");
-        assertThat(modelRouter.selectBatchModelId(null)).isEqualTo("amazon.nova-lite-v1:0");
+        assertThat(modelRouter.selectBatchModelId(QuestionTaxonomyConstants.Difficulty.EASY)).isEqualTo(AMAZON_NOVA_MICRO_V_1_0);
+        assertThat(modelRouter.selectBatchModelId(QuestionTaxonomyConstants.Difficulty.MEDIUM)).isEqualTo(AMAZON_NOVA_LITE_V_1_0);
+        assertThat(modelRouter.selectBatchModelId(QuestionTaxonomyConstants.Difficulty.HARD)).isEqualTo(AMAZON_NOVA_LITE_V_1_0);
+        assertThat(modelRouter.selectBatchModelId(null)).isEqualTo(AMAZON_NOVA_LITE_V_1_0);
     }
 }

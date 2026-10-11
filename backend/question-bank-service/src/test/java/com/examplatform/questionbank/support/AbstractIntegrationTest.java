@@ -18,13 +18,16 @@
 
 package com.examplatform.questionbank.support;
 
+import static org.mockito.Mockito.mock;
+
 import com.examplatform.shared.tenant.TenantContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.Duration;
+import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestInstance.Lifecycle;
-import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -45,9 +48,6 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.DockerImageName;
-
-import java.time.Duration;
-import java.util.List;
 
 /**
  * Production-grade base class for question-bank-service MockMvc integration tests using Testcontainers.
@@ -153,13 +153,13 @@ public abstract class AbstractIntegrationTest {
         @Bean
         @Primary
         public VaultTemplate mockVaultTemplate() {
-            return Mockito.mock(VaultTemplate.class);
+            return mock(VaultTemplate.class);
         }
 
         @Bean
         @Primary
         public JwtDecoder mockJwtDecoder() {
-            return Mockito.mock(JwtDecoder.class);
+            return mock(JwtDecoder.class);
         }
     }
 }

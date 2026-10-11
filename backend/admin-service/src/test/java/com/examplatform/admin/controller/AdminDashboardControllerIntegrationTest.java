@@ -20,6 +20,7 @@
 package com.examplatform.admin.controller;
 
 import com.examplatform.admin.support.AbstractIntegrationTest;
+import com.examplatform.shared.constants.SharedConstants;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -61,7 +62,7 @@ class AdminDashboardControllerIntegrationTest extends AbstractIntegrationTest {
             mockMvc.perform(get("/api/v1/admin/dashboard/summary")
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EXAM_CONTROLLER"))
                                     .jwt(j -> j.subject("22222222-2222-2222-2222-222222222222").claim("tenant_id", "nta-exam")))
-                            .param("tenantId", "nta-exam")
+                            .param(SharedConstants.TENANT_ID, "nta-exam")
                             .accept(MediaType.APPLICATION_JSON))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.tenantId").value("nta-exam"))

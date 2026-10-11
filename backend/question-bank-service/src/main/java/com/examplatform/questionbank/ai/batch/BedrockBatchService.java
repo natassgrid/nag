@@ -11,10 +11,23 @@ import com.examplatform.questionbank.repository.QuestionRepository;
 import com.examplatform.questionbank.service.SimilarityDetectionService;
 import com.examplatform.questionbank.service.SubjectTopicService;
 import com.examplatform.questionbank.util.EmbeddingUtils;
+import com.examplatform.shared.constants.QuestionStateConstants;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.examplatform.shared.constants.QuestionTypeConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityNotFoundException;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,43 +36,25 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.bedrock.BedrockClient;
-import software.amazon.awssdk.services.bedrock.model.CreateModelInvocationJobRequest;
 import software.amazon.awssdk.services.bedrock.model.CreateModelInvocationJobResponse;
-import software.amazon.awssdk.services.bedrock.model.GetModelInvocationJobRequest;
 import software.amazon.awssdk.services.bedrock.model.GetModelInvocationJobResponse;
-import software.amazon.awssdk.services.bedrock.model.ModelInvocationJobInputDataConfig;
-import software.amazon.awssdk.services.bedrock.model.ModelInvocationJobOutputDataConfig;
-import software.amazon.awssdk.services.bedrock.model.ModelInvocationJobS3InputDataConfig;
-import software.amazon.awssdk.services.bedrock.model.ModelInvocationJobS3OutputDataConfig;
-import software.amazon.awssdk.services.bedrock.model.ModelInvocationJobStatus;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.GetObjectRequest;
-import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Object;
-
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
 
 /**
  * Service for async batch question generation using AWS Bedrock Batch Inference.
  *
  * <p>Multiple generation items (each with subject/topic/difficulty/type/count) are combined
  * into a single JSONL file, uploaded to S3, and processed as one Bedrock batch job.
- * This minimizes cost by avoiding per-job overhead charges.
+ * This minimizes cost by avoiding per-job overhead charges.</p>
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class BedrockBatchService {
 
-    private static final Set<String> MCQ_TYPES = Set.of("SINGLE_MCQ", "MULTI_MCQ");
+    private static final Set<String> MCQ_TYPES = Set.of(QuestionTypeConstants.SINGLE_MCQ,
+        QuestionTypeConstants.MULTI_MCQ);
 
     private final BatchGenerationJobRepository jobRepository;
     private final QuestionRepository questionRepository;
@@ -85,17 +80,15 @@ public class BedrockBatchService {
 
     /**
      * Submits a batch job containing multiple generation items.
-     * All items are packed into one JSONL → one S3 upload → one Bedrock job.
+     * All items are packed into one JSONL -> one S3 upload -> one Bedrock job.
      */
     @Transactional
     public BatchJobResponse submitBatchJob(BatchGenerationRequest request, UUID authorId, String tenantId) {
         List<BatchGenerationRequest.BatchItem> itemsList = request.getItems();
         int totalRequested = itemsList.stream().mapToInt(BatchGenerationRequest.BatchItem::getCount).sum();
 
-        // Use the first item's difficulty for model selection (batch jobs use one model)
         String modelId = modelRouter.selectBatchModelId(itemsList.get(0).getDifficulty());
 
-        // Serialize items to JSON for storage
         String itemsJson;
         try {
             itemsJson = objectMapper.writeValueAsString(itemsList);
@@ -115,37 +108,22 @@ public class BedrockBatchService {
         BatchGenerationJob saved = jobRepository.save(job);
 
         try {
-            // Build JSONL: one record per item
             String jsonlContent = buildJsonlInput(itemsList);
 
-            // Upload to S3
             String s3Key = s3InputPrefix + saved.getId() + "/input.jsonl";
             s3Client.putObject(
-                    PutObjectRequest.builder()
-                            .bucket(s3Bucket)
-                            .key(s3Key)
-                            .contentType("application/jsonl")
-                            .build(),
+                    b -> b.bucket(s3Bucket).key(s3Key).contentType("application/jsonl"),
                     RequestBody.fromString(jsonlContent, StandardCharsets.UTF_8));
 
-            // Create single Bedrock batch inference job
             String s3InputUri = "s3://" + s3Bucket + "/" + s3InputPrefix + saved.getId() + "/";
             String s3OutputUri = "s3://" + s3Bucket + "/" + s3OutputPrefix + saved.getId() + "/";
 
             CreateModelInvocationJobResponse bedrockResponse = bedrockClient.createModelInvocationJob(
-                    CreateModelInvocationJobRequest.builder()
-                            .jobName("exam-batch-" + saved.getId().toString().substring(0, 8))
+                    b -> b.jobName("exam-batch-" + saved.getId().toString().substring(0, 8))
                             .modelId(modelId)
                             .roleArn(bedrockRoleArn)
-                            .inputDataConfig(ModelInvocationJobInputDataConfig.builder()
-                                    .s3InputDataConfig(ModelInvocationJobS3InputDataConfig.builder()
-                                            .s3Uri(s3InputUri).build())
-                                    .build())
-                            .outputDataConfig(ModelInvocationJobOutputDataConfig.builder()
-                                    .s3OutputDataConfig(ModelInvocationJobS3OutputDataConfig.builder()
-                                            .s3Uri(s3OutputUri).build())
-                                    .build())
-                            .build());
+                            .inputDataConfig(in -> in.s3InputDataConfig(s3In -> s3In.s3Uri(s3InputUri)))
+                            .outputDataConfig(out -> out.s3OutputDataConfig(s3Out -> s3Out.s3Uri(s3OutputUri))));
 
             saved.setStatus(BatchJobStatus.PROCESSING);
             saved.setStartedAt(Instant.now());
@@ -178,18 +156,18 @@ public class BedrockBatchService {
             BatchGenerationRequest.BatchItem item = items.get(i);
             String recordId = "REC-" + String.format("%04d", i);
 
-            String systemPrompt = buildSystemPrompt(item);
+            String systemPrompt = buildSystemPrompt();
             String userPrompt = buildUserPrompt(item);
             String modelInput = buildModelInput(systemPrompt, userPrompt);
 
             try {
                 JsonNode inputNode = objectMapper.readTree(modelInput);
-                var record = objectMapper.createObjectNode();
-                record.put("recordId", recordId);
-                record.set("modelInput", inputNode);
-                jsonl.append(objectMapper.writeValueAsString(record)).append("\n");
-            } catch (Exception e) {
-                log.error("Failed to build JSONL record {}: {}", recordId, e.getMessage());
+                var recordNode = objectMapper.createObjectNode();
+                recordNode.put("recordId", recordId);
+                recordNode.set("modelInput", inputNode);
+                jsonl.append(objectMapper.writeValueAsString(recordNode)).append("\n");
+            } catch (Exception _) {
+                log.error("Failed to build JSONL record {}", recordId);
             }
         }
 
@@ -212,7 +190,7 @@ public class BedrockBatchService {
                 """.formatted(jsonEscape(userPrompt), jsonEscape(systemPrompt));
     }
 
-    private String buildSystemPrompt(BatchGenerationRequest.BatchItem item) {
+    private String buildSystemPrompt() {
         return "You are an expert examination question generator for Indian competitive examinations. "
                 + "Generate high-quality questions in structured JSON format. "
                 + "Formatting & Syntax Rules: "
@@ -250,12 +228,10 @@ public class BedrockBatchService {
     private String jsonEscape(String value) {
         try {
             return objectMapper.writeValueAsString(value);
-        } catch (Exception e) {
+        } catch (Exception _) {
             return "\"" + value.replace("\"", "\\\"").replace("\n", "\\n") + "\"";
         }
     }
-
-    // ─── Polling & Result Processing ─────────────────────────────────────────────
 
     @Scheduled(fixedDelay = 30000)
     @Transactional
@@ -264,8 +240,8 @@ public class BedrockBatchService {
         for (BatchGenerationJob job : jobs) {
             try {
                 pollJob(job);
-            } catch (Exception e) {
-                log.error("Error polling batch job {}: {}", job.getId(), e.getMessage());
+            } catch (Exception _) {
+                log.error("Error polling batch job {}", job.getId());
             }
         }
     }
@@ -280,7 +256,7 @@ public class BedrockBatchService {
         }
 
         GetModelInvocationJobResponse resp = bedrockClient.getModelInvocationJob(
-                GetModelInvocationJobRequest.builder().jobIdentifier(job.getBedrockJobArn()).build());
+                b -> b.jobIdentifier(job.getBedrockJobArn()));
 
         switch (resp.status()) {
             case COMPLETED -> processCompletedJob(job);
@@ -294,6 +270,13 @@ public class BedrockBatchService {
         }
     }
 
+    private static class JobProcessingStats {
+        final List<UUID> generatedIds = new ArrayList<>();
+        int totalGenerated = 0;
+        int totalFailed = 0;
+        int totalDuplicates = 0;
+    }
+
     /**
      * Downloads output JSONL, parses each record's model output, validates questions,
      * and persists them. Each output record's recordId maps back to the original item
@@ -302,121 +285,166 @@ public class BedrockBatchService {
     private void processCompletedJob(BatchGenerationJob job) {
         log.info("Processing completed batch job: id={}", job.getId());
 
-        // Deserialize items for metadata
-        List<BatchGenerationRequest.BatchItem> items;
-        try {
-            items = objectMapper.readValue(job.getItems(),
-                    new TypeReference<List<BatchGenerationRequest.BatchItem>>() {});
-        } catch (Exception e) {
-            log.error("Failed to deserialize job items: {}", e.getMessage());
-            job.setStatus(BatchJobStatus.FAILED);
-            job.setErrorMessage("Failed to deserialize items");
-            job.setCompletedAt(Instant.now());
-            jobRepository.save(job);
+        Optional<List<BatchGenerationRequest.BatchItem>> itemsOpt = deserializeItems(job);
+        if (itemsOpt.isEmpty()) {
+            markJobFailed(job, "Failed to deserialize items");
             return;
         }
 
-        List<UUID> generatedIds = new ArrayList<>();
-        int totalGenerated = 0, totalFailed = 0, totalDuplicates = 0;
+        List<BatchGenerationRequest.BatchItem> items = itemsOpt.get();
+        JobProcessingStats stats = new JobProcessingStats();
 
         try {
-            String outputPrefix = s3OutputPrefix + job.getId() + "/";
-            var listResp = s3Client.listObjectsV2(ListObjectsV2Request.builder()
-                    .bucket(s3Bucket).prefix(outputPrefix).build());
-
-            for (S3Object s3Obj : listResp.contents()) {
-                if (!s3Obj.key().endsWith(".jsonl")) continue;
-
-                var getResp = s3Client.getObject(GetObjectRequest.builder()
-                        .bucket(s3Bucket).key(s3Obj.key()).build());
-
-                try (BufferedReader reader = new BufferedReader(
-                        new InputStreamReader(getResp, StandardCharsets.UTF_8))) {
-                    String line;
-                    while ((line = reader.readLine()) != null) {
-                        if (line.isBlank()) continue;
-                        try {
-                            JsonNode record = objectMapper.readTree(line);
-                            String recordId = record.path("recordId").asText("");
-                            JsonNode modelOutput = record.get("modelOutput");
-
-                            if (modelOutput == null || modelOutput.isNull()) {
-                                totalFailed++;
-                                continue;
-                            }
-
-                            // Map recordId back to item for metadata
-                            int itemIndex = parseRecordIndex(recordId);
-                            BatchGenerationRequest.BatchItem item = (itemIndex >= 0 && itemIndex < items.size())
-                                    ? items.get(itemIndex) : null;
-
-                            List<RawQuestion> questions = parseModelOutput(modelOutput);
-
-                            for (RawQuestion raw : questions) {
-                                String qType = item != null ? item.getQuestionType() : "SINGLE_MCQ";
-                                if (!isValid(raw, qType)) { totalFailed++; continue; }
-
-                                if (job.isAvoidDuplicates() && item != null) {
-                                    if (isDuplicate(raw.content, item.getSubject(), job.getTenantId())) {
-                                        totalDuplicates++;
-                                        continue;
-                                    }
-                                }
-
-                                UUID savedId = persistQuestion(raw, item, job);
-                                if (savedId != null) {
-                                    generatedIds.add(savedId);
-                                    totalGenerated++;
-                                } else {
-                                    totalFailed++;
-                                }
-                            }
-                        } catch (Exception e) {
-                            log.warn("Failed to parse output record: {}", e.getMessage());
-                            totalFailed++;
-                        }
-                    }
-                }
-            }
-
-            job.setTotalGenerated(totalGenerated);
-            job.setTotalFailed(totalFailed);
-            job.setTotalDuplicates(totalDuplicates);
-            job.setGeneratedQuestionIds(serializeIds(generatedIds));
-            job.setStatus(totalGenerated > 0
-                    ? (totalFailed > 0 ? BatchJobStatus.PARTIALLY_COMPLETED : BatchJobStatus.COMPLETED)
-                    : BatchJobStatus.FAILED);
-            job.setCompletedAt(Instant.now());
-            if (totalGenerated == 0) job.setErrorMessage("All records failed validation or duplicate detection");
-            jobRepository.save(job);
-
-            log.info("Batch job done: id={}, generated={}, failed={}, duplicates={}",
-                    job.getId(), totalGenerated, totalFailed, totalDuplicates);
+            processS3OutputFiles(job, items, stats);
+            finalizeCompletedJob(job, stats);
         } catch (Exception e) {
             log.error("Failed processing batch job {}: {}", job.getId(), e.getMessage(), e);
-            job.setStatus(BatchJobStatus.FAILED);
-            job.setErrorMessage("Processing failed: " + e.getMessage());
-            job.setCompletedAt(Instant.now());
-            jobRepository.save(job);
+            markJobFailed(job, "Processing failed: " + e.getMessage());
         }
     }
 
+    private Optional<List<BatchGenerationRequest.BatchItem>> deserializeItems(BatchGenerationJob job) {
+        try {
+            return Optional.of(objectMapper.readValue(job.getItems(),
+                    new TypeReference<List<BatchGenerationRequest.BatchItem>>() {}));
+        } catch (Exception _) {
+            log.error("Failed to deserialize job items for job {}", job.getId());
+            return Optional.empty();
+        }
+    }
+
+    private void processS3OutputFiles(
+            BatchGenerationJob job,
+            List<BatchGenerationRequest.BatchItem> items,
+            JobProcessingStats stats) {
+        String outputPrefix = s3OutputPrefix + job.getId() + "/";
+        var listResp = s3Client.listObjectsV2(b -> b.bucket(s3Bucket).prefix(outputPrefix));
+
+        for (S3Object s3Obj : listResp.contents()) {
+            if (s3Obj.key().endsWith(".jsonl")) {
+                processJsonlFile(s3Obj.key(), job, items, stats);
+            }
+        }
+    }
+
+    private void processJsonlFile(
+            String s3Key,
+            BatchGenerationJob job,
+            List<BatchGenerationRequest.BatchItem> items,
+            JobProcessingStats stats) {
+        var getResp = s3Client.getObject(b -> b.bucket(s3Bucket).key(s3Key));
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(getResp, StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (!line.isBlank()) {
+                    processOutputLine(line, job, items, stats);
+                }
+            }
+        } catch (Exception _) {
+            log.error("Failed to read S3 output file {}", s3Key);
+        }
+    }
+
+    private void processOutputLine(
+            String line,
+            BatchGenerationJob job,
+            List<BatchGenerationRequest.BatchItem> items,
+            JobProcessingStats stats) {
+        try {
+            JsonNode recordNode = objectMapper.readTree(line);
+            String recordId = recordNode.path("recordId").asText("");
+            JsonNode modelOutput = recordNode.get("modelOutput");
+
+            if (modelOutput == null || modelOutput.isNull()) {
+                stats.totalFailed++;
+                return;
+            }
+
+            int itemIndex = parseRecordIndex(recordId);
+            BatchGenerationRequest.BatchItem item = (itemIndex >= 0 && itemIndex < items.size())
+                    ? items.get(itemIndex) : null;
+
+            List<RawQuestion> questions = parseModelOutput(modelOutput);
+            for (RawQuestion raw : questions) {
+                processRawQuestion(raw, item, job, stats);
+            }
+        } catch (Exception _) {
+            log.warn("Failed to parse output record");
+            stats.totalFailed++;
+        }
+    }
+
+    private void processRawQuestion(
+            RawQuestion raw,
+            BatchGenerationRequest.BatchItem item,
+            BatchGenerationJob job,
+            JobProcessingStats stats) {
+        String qType = item != null ? item.getQuestionType() : QuestionTypeConstants.SINGLE_MCQ;
+        if (!isValid(raw, qType)) {
+            stats.totalFailed++;
+            return;
+        }
+
+        if (job.isAvoidDuplicates() && item != null && isDuplicate(raw.content, item.getSubject(), job.getTenantId())) {
+            stats.totalDuplicates++;
+            return;
+        }
+
+        UUID savedId = persistQuestion(raw, item, job);
+        if (savedId != null) {
+            stats.generatedIds.add(savedId);
+            stats.totalGenerated++;
+        } else {
+            stats.totalFailed++;
+        }
+    }
+
+    private void finalizeCompletedJob(BatchGenerationJob job, JobProcessingStats stats) {
+        job.setTotalGenerated(stats.totalGenerated);
+        job.setTotalFailed(stats.totalFailed);
+        job.setTotalDuplicates(stats.totalDuplicates);
+        job.setGeneratedQuestionIds(serializeIds(stats.generatedIds));
+        job.setStatus(resolveBatchJobStatus(stats.totalGenerated, stats.totalFailed));
+        job.setCompletedAt(Instant.now());
+        if (stats.totalGenerated == 0) {
+            job.setErrorMessage("All records failed validation or duplicate detection");
+        }
+        jobRepository.save(job);
+
+        log.info("Batch job done: id={}, generated={}, failed={}, duplicates={}",
+                job.getId(), stats.totalGenerated, stats.totalFailed, stats.totalDuplicates);
+    }
+
+    private void markJobFailed(BatchGenerationJob job, String errorMessage) {
+        job.setStatus(BatchJobStatus.FAILED);
+        job.setErrorMessage(errorMessage);
+        job.setCompletedAt(Instant.now());
+        jobRepository.save(job);
+    }
+
+    private BatchJobStatus resolveBatchJobStatus(int totalGenerated, int totalFailed) {
+        if (totalGenerated <= 0) {
+            return BatchJobStatus.FAILED;
+        }
+        return totalFailed > 0 ? BatchJobStatus.PARTIALLY_COMPLETED : BatchJobStatus.COMPLETED;
+    }
+
     private int parseRecordIndex(String recordId) {
-        // Format: "REC-0003" → 3
         try {
             return Integer.parseInt(recordId.replace("REC-", ""));
-        } catch (Exception e) {
+        } catch (Exception _) {
             return -1;
         }
     }
 
     private UUID persistQuestion(RawQuestion raw, BatchGenerationRequest.BatchItem item, BatchGenerationJob job) {
         try {
-            String subjectName = item != null ? item.getSubject() : "Unknown";
-            String topicName = item != null ? item.getTopic() : "Unknown";
+            String subjectName = item != null ? item.getSubject() : SharedConstants.UNKNOWN;
+            String topicName = item != null ? item.getTopic() : SharedConstants.UNKNOWN;
             String subtopicName = item != null ? item.getSubtopic() : null;
             SubjectTopicService.HierarchyIds ids = subjectTopicService.resolveOrCreateByName(
                     subjectName, topicName, subtopicName, job.getTenantId());
+
             Question question = Question.builder()
                     .subjectId(ids.subjectId())
                     .topicId(ids.topicId())
@@ -424,58 +452,97 @@ public class BedrockBatchService {
                     .subject(subjectName)
                     .topic(topicName)
                     .subtopic(subtopicName)
-                    .difficulty(raw.difficulty != null ? raw.difficulty : (item != null ? item.getDifficulty() : "MEDIUM"))
-                    .cognitiveLevel(raw.cognitiveLevel != null ? raw.cognitiveLevel : (item != null ? item.getCognitiveLevel() : "APPLY"))
-                    .questionType(raw.questionType != null ? raw.questionType : (item != null ? item.getQuestionType() : "SINGLE_MCQ"))
+                    .difficulty(resolveDifficulty(raw.difficulty, item))
+                    .cognitiveLevel(resolveCognitiveLevel(raw.cognitiveLevel, item))
+                    .questionType(resolveQuestionType(raw.questionType, item))
                     .content(raw.content)
                     .answerKey(raw.answerKey)
                     .explanation(raw.explanation)
                     .options(raw.options)
                     .sourceReferences("AI-generated (Bedrock batch) via " + job.getModelUsed())
-                    .state("DRAFT")
+                    .state(QuestionStateConstants.DRAFT)
                     .authorId(job.getInitiatedBy())
                     .build();
             question.setTenantId(job.getTenantId());
 
             Question saved = questionRepository.save(question);
-
-            try {
-                float[] embedding = embeddingService.embed(raw.content);
-                if (embedding != null && embedding.length > 0) {
-                    questionRepository.updateEmbedding(saved.getId(), EmbeddingUtils.embeddingToString(embedding));
-                }
-            } catch (Exception e) {
-                log.warn("Embedding failed for batch question {}: {}", saved.getId(), e.getMessage());
-            }
+            generateAndSaveEmbedding(saved.getId(), raw.content);
 
             return saved.getId();
-        } catch (Exception e) {
-            log.error("Failed to persist batch question: {}", e.getMessage());
+        } catch (Exception _) {
+            log.error("Failed to persist batch question");
             return null;
         }
     }
 
+    private void generateAndSaveEmbedding(UUID questionId, String content) {
+        try {
+            float[] embedding = embeddingService.embed(content);
+            if (embedding != null && embedding.length > 0) {
+                questionRepository.updateEmbedding(questionId, EmbeddingUtils.embeddingToString(embedding));
+            }
+        } catch (Exception _) {
+            log.warn("Embedding failed for batch question {}", questionId);
+        }
+    }
+
+    private String resolveDifficulty(String rawDifficulty, BatchGenerationRequest.BatchItem item) {
+        if (rawDifficulty != null) {
+            return rawDifficulty;
+        }
+        return (item != null && item.getDifficulty() != null)
+                ? item.getDifficulty()
+                : QuestionTaxonomyConstants.Difficulty.MEDIUM;
+    }
+
+    private String resolveCognitiveLevel(String rawCognitiveLevel, BatchGenerationRequest.BatchItem item) {
+        if (rawCognitiveLevel != null) {
+            return rawCognitiveLevel;
+        }
+        return (item != null && item.getCognitiveLevel() != null)
+                ? item.getCognitiveLevel()
+                : QuestionTaxonomyConstants.CognitiveLevel.APPLY;
+    }
+
+    private String resolveQuestionType(String rawQuestionType, BatchGenerationRequest.BatchItem item) {
+        if (rawQuestionType != null) {
+            return rawQuestionType;
+        }
+        return (item != null && item.getQuestionType() != null)
+                ? item.getQuestionType()
+                : QuestionTypeConstants.SINGLE_MCQ;
+    }
+
     private List<RawQuestion> parseModelOutput(JsonNode modelOutput) {
         try {
-            // Converse API: {"output":{"message":{"content":[{"text":"..."}]}}}
-            JsonNode output = modelOutput.path("output").path("message").path("content");
+            JsonNode output = modelOutput.path("output").path(SharedConstants.MESSAGE).path("content");
             if (output.isArray() && !output.isEmpty()) {
-                StringBuilder text = new StringBuilder();
-                for (JsonNode block : output) { if (block.has("text")) text.append(block.get("text").asText()); }
-                return parseJsonArray(text.toString());
+                return parseJsonArray(extractTextFromBlocks(output));
             }
-            // Fallback: {"content":[{"text":"..."}]}
+
             JsonNode content = modelOutput.get("content");
             if (content != null && content.isArray()) {
-                StringBuilder text = new StringBuilder();
-                for (JsonNode block : content) { if (block.has("text")) text.append(block.get("text").asText()); }
-                return parseJsonArray(text.toString());
+                return parseJsonArray(extractTextFromBlocks(content));
             }
-            return parseJsonArray(modelOutput.has("text") ? modelOutput.get("text").asText() : modelOutput.toString());
-        } catch (Exception e) {
-            log.warn("Failed to parse model output: {}", e.getMessage());
+
+            String fallbackText = modelOutput.has("text")
+                    ? modelOutput.get("text").asText()
+                    : modelOutput.toString();
+            return parseJsonArray(fallbackText);
+        } catch (Exception _) {
+            log.warn("Failed to parse model output");
             return List.of();
         }
+    }
+
+    private String extractTextFromBlocks(JsonNode arrayNode) {
+        StringBuilder text = new StringBuilder();
+        for (JsonNode block : arrayNode) {
+            if (block.has("text")) {
+                text.append(block.get("text").asText());
+            }
+        }
+        return text.toString();
     }
 
     private List<RawQuestion> parseJsonArray(String text) {
@@ -490,7 +557,7 @@ public class BedrockBatchService {
         try {
             if (cleaned.startsWith("[")) return objectMapper.readValue(cleaned, new TypeReference<>() {});
             if (cleaned.startsWith("{")) return List.of(objectMapper.readValue(cleaned, RawQuestion.class));
-        } catch (Exception e) { log.warn("JSON parse failed: {}", e.getMessage()); }
+        } catch (Exception _) { log.warn("JSON parse failed"); }
         return List.of();
     }
 
@@ -501,8 +568,8 @@ public class BedrockBatchService {
         if (MCQ_TYPES.contains(type)) {
             if (raw.options == null || raw.options.size() != 4) return false;
             long correct = raw.options.stream().filter(QuestionOption::isCorrect).count();
-            if ("SINGLE_MCQ".equals(type) && correct != 1) return false;
-            return !"MULTI_MCQ".equals(type) || correct >= 2;
+            if (QuestionTypeConstants.SINGLE_MCQ.equals(type) && correct != 1) return false;
+            return !QuestionTypeConstants.MULTI_MCQ.equals(type) || correct >= 2;
         }
         return true;
     }
@@ -511,13 +578,13 @@ public class BedrockBatchService {
         try {
             similarityDetectionService.enforceNoDuplicate(content, subject, tenantId);
             return false;
-        } catch (com.examplatform.questionbank.exception.SimilarQuestionException e) {
+        } catch (com.examplatform.questionbank.exception.SimilarQuestionException _) {
             return true;
-        } catch (Exception e) { return false; }
+        } catch (Exception _) { return false; }
     }
 
     private String serializeIds(List<UUID> ids) {
-        try { return objectMapper.writeValueAsString(ids); } catch (Exception e) { return "[]"; }
+        try { return objectMapper.writeValueAsString(ids); } catch (Exception _) { return "[]"; }
     }
 
     @Transactional
@@ -527,8 +594,11 @@ public class BedrockBatchService {
         if (!job.getTenantId().equals(tenantId)) throw new IllegalArgumentException("Job does not belong to this tenant");
         if (job.getStatus() == BatchJobStatus.PENDING || job.getStatus() == BatchJobStatus.PROCESSING) {
             if (job.getBedrockJobArn() != null) {
-                try { bedrockClient.stopModelInvocationJob(b -> b.jobIdentifier(job.getBedrockJobArn())); }
-                catch (Exception e) { log.warn("Failed to stop Bedrock job: {}", e.getMessage()); }
+                try {
+                    bedrockClient.stopModelInvocationJob(b -> b.jobIdentifier(job.getBedrockJobArn()));
+                } catch (Exception _) {
+                    log.warn("Failed to stop Bedrock job");
+                }
             }
             job.setStatus(BatchJobStatus.CANCELLED);
             job.setCompletedAt(Instant.now());

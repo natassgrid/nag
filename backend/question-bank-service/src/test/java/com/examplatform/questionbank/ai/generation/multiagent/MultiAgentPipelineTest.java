@@ -15,6 +15,9 @@
  */
 package com.examplatform.questionbank.ai.generation.multiagent;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.when;
+
 import com.examplatform.questionbank.ai.generation.ClarifyRequirementsRequest;
 import com.examplatform.questionbank.ai.generation.ClarifyRequirementsResponse;
 import com.examplatform.questionbank.ai.generation.QuestionGenerationRequest;
@@ -24,18 +27,16 @@ import com.examplatform.questionbank.ai.similarity.SimilarityCheckResult;
 import com.examplatform.questionbank.dto.QuestionOption;
 import com.examplatform.questionbank.repository.SimilarityResult;
 import com.examplatform.questionbank.service.SimilarityDetectionService;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.examplatform.shared.constants.QuestionTypeConstants;
+import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.util.List;
-import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("Multi-Agent Specialized Agents Tests")
@@ -94,9 +95,9 @@ class MultiAgentPipelineTest {
         QuestionGenerationRequest request = QuestionGenerationRequest.builder()
                 .subject("Chemistry")
                 .topic("Electrochemistry")
-                .difficulty("HARD")
-                .cognitiveLevel("ANALYZE")
-                .questionType("SINGLE_MCQ")
+                .difficulty(QuestionTaxonomyConstants.Difficulty.HARD)
+                .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.ANALYZE)
+                .questionType(QuestionTypeConstants.SINGLE_MCQ)
                 .targetExam("JEE_ADV")
                 .build();
 
@@ -180,7 +181,7 @@ class MultiAgentPipelineTest {
         );
 
         CriticReviewResult result = psychometricCriticAgent.reviewQuestion(
-                "Solve \\(x=2\\)", "D", "Short", badOptions, "SINGLE_MCQ");
+                "Solve \\(x=2\\)", "D", "Short", badOptions, QuestionTypeConstants.SINGLE_MCQ);
 
         assertThat(result.isApproved()).isFalse();
         assertThat(result.getIssues()).anyMatch(i -> i.contains("throwaway"));
@@ -200,7 +201,7 @@ class MultiAgentPipelineTest {
                 .options(options)
                 .answerKey("B")
                 .explanation("Too short")
-                .questionType("SINGLE_MCQ")
+                .questionType(QuestionTypeConstants.SINGLE_MCQ)
                 .build();
 
         CriticReviewResult criticResult = CriticReviewResult.builder()

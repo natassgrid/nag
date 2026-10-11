@@ -19,6 +19,9 @@
 
 package com.examplatform.delivery.consumer;
 
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
+
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.event.ProctoringEvents;
 import com.examplatform.shared.messaging.EventPublisher;
 import com.examplatform.shared.messaging.GenericDomainEvent;
@@ -55,7 +58,6 @@ import java.util.Random;
 public class ProctoringAnalysisConsumer {
 
     public static final String PROCTORING_TOPIC = "exam.proctoring.alerts";
-    private static final String AUDIT_TOPIC = "exam.audit.events";
     private static final String[] DETECTION_TYPES = {
             "no-face-detected",
             "multiple-faces-detected",
@@ -144,7 +146,7 @@ public class ProctoringAnalysisConsumer {
         String sessionId = (String) event.get("sessionId");
         String candidateId = (String) event.get("candidateId");
         String snapshotRef = (String) event.get("snapshotRef");
-        String tenantId = (String) event.get("tenantId");
+        String tenantId = (String) event.get(SharedConstants.TENANT_ID);
         int imageSize = event.get("imageSize") instanceof Number n ? n.intValue() : 0;
 
         processEvent(new ProctoringEvents.SnapshotCaptured(
@@ -187,7 +189,7 @@ public class ProctoringAnalysisConsumer {
                     "ai-proctoring-analysis", confidence
             );
 
-            eventPublisher.publish(AUDIT_TOPIC, sessionId, auditEvent);
+            eventPublisher.publish(AUDIT_EVENTS_TOPIC, sessionId, auditEvent);
             log.warn("AI proctoring alert: type={}, session={}, candidate={}",
                     detectionType, sessionId, candidateId);
         } catch (Exception e) {

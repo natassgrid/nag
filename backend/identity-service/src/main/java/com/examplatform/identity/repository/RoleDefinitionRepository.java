@@ -20,6 +20,7 @@
 package com.examplatform.identity.repository;
 
 import com.examplatform.identity.domain.RoleDefinition;
+import com.examplatform.shared.constants.SharedConstants;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -39,7 +40,7 @@ public interface RoleDefinitionRepository extends JpaRepository<RoleDefinition, 
            "OR LOWER(r.code) LIKE LOWER(CONCAT('%', :search, '%')) " +
            "OR LOWER(r.description) LIKE LOWER(CONCAT('%', :search, '%')))")
     Page<RoleDefinition> findByTenantIdAndSearch(
-            @Param("tenantId") String tenantId,
+            @Param(SharedConstants.TENANT_ID) String tenantId,
             @Param("search") String search,
             Pageable pageable);
 

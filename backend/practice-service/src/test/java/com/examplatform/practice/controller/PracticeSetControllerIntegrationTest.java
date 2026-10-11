@@ -25,6 +25,7 @@ import com.examplatform.practice.repository.PracticeResponseRepository;
 import com.examplatform.practice.repository.PracticeSessionRepository;
 import com.examplatform.practice.repository.PracticeSetRepository;
 import com.examplatform.practice.support.AbstractIntegrationTest;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -189,8 +190,10 @@ class PracticeSetControllerIntegrationTest extends AbstractIntegrationTest {
                     .andExpect(status().isNoContent());
 
             // 3. Mock QuestionBank Answer Keys for evaluation
-            AnswerKeyDto ak1 = new AnswerKeyDto(question1, "opt-A", "MCQ", "t-1", "Mechanics", "EASY", 4);
-            AnswerKeyDto ak2 = new AnswerKeyDto(question2, "opt-B", "MCQ", "t-2", "Optics", "MEDIUM", 4);
+            AnswerKeyDto ak1 = new AnswerKeyDto(question1, "opt-A", "MCQ", "t-1", "Mechanics",
+                QuestionTaxonomyConstants.Difficulty.EASY, 4);
+            AnswerKeyDto ak2 = new AnswerKeyDto(question2, "opt-B", "MCQ", "t-2", "Optics",
+                QuestionTaxonomyConstants.Difficulty.MEDIUM, 4);
             when(questionBankClient.getAnswerKeys(any())).thenReturn(Map.of(question1, ak1, question2, ak2));
 
             // 4. Submit Session

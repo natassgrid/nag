@@ -21,6 +21,7 @@ package com.examplatform.notification.service;
 
 import com.examplatform.notification.domain.Notification;
 import com.examplatform.notification.repository.NotificationRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
@@ -105,7 +106,7 @@ public class SmsDeliveryService {
                     payload.put("mobile", phone);
                     payload.put("template_id", dltTemplateId);
                     payload.put("sender", senderId);
-                    payload.put("message", notification.getBody());
+                    payload.put(SharedConstants.MESSAGE, notification.getBody());
                     payload.put("otp", "000000"); // Static mock fallback for verification
 
                     return restTemplate.postForEntity(smsEndpoint, new HttpEntity<>(payload, headers), String.class);

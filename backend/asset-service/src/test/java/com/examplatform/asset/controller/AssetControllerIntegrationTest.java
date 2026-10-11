@@ -4,6 +4,7 @@ import com.examplatform.asset.domain.entity.MediaAsset;
 import com.examplatform.asset.domain.enums.AssetStatus;
 import com.examplatform.asset.domain.enums.AssetType;
 import com.examplatform.asset.repository.MediaAssetRepository;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
@@ -267,7 +268,7 @@ class AssetControllerIntegrationTest {
             mockMvc.perform(put("/api/v1/assets/{id}/archive", asset.getId())
                             .header("X-Tenant-Id", "tenant-integration"))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.data.status", is("ARCHIVED")));
+                    .andExpect(jsonPath("$.data.status", is(QuestionStateConstants.ARCHIVED)));
         }
     }
 

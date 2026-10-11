@@ -19,6 +19,9 @@
 
 package com.examplatform.questionbank.service;
 
+import com.examplatform.shared.constants.QuestionStateConstants;
+import com.examplatform.shared.constants.QuestionTypeConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -73,7 +76,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class QuestionService {
 
-    private static final String AUDIT_TOPIC = "audit-events";
+    private static final String AUDIT_EVENTS_TOPIC = "audit-events";
 
     private final QuestionRepository questionRepository;
     private final SubjectRepository subjectRepository;
@@ -225,7 +228,8 @@ public class QuestionService {
                 .hasImages(hasImages)
                 .passageId(request.getPassageId())
                 .passageOrderIndex(request.getPassageOrderIndex())
-                .state((request.getState() != null && !request.getState().isBlank()) ? request.getState() : "DRAFT")
+                .state((request.getState() != null && !request.getState().isBlank()) ? request.getState() :
+                    QuestionStateConstants.DRAFT)
                 .encryptionKeyId(dekKeyName)
                 .authorId(authorId)
                 .build();
@@ -278,7 +282,7 @@ public class QuestionService {
             UUID authorId,
             String tenantId) {
         if (request.getState() == null || request.getState().isBlank()) {
-            request.setState("DRAFT");
+            request.setState(QuestionStateConstants.DRAFT);
         }
         return createQuestion(request, authorId, tenantId);
     }
@@ -304,11 +308,11 @@ public class QuestionService {
     @Transactional(readOnly = true)
     public Map<String, Object> getQuestionBankMetrics(String tenantId) {
         long total = questionRepository.countByTenantId(tenantId);
-        long draft = questionRepository.countByStateAndTenantId("DRAFT", tenantId);
+        long draft = questionRepository.countByStateAndTenantId(QuestionStateConstants.DRAFT, tenantId);
         long submitted = questionRepository.countByStateAndTenantId("SUBMITTED", tenantId)
                 + questionRepository.countByStateAndTenantId("UNDER_REVIEW", tenantId);
-        long approved = questionRepository.countByStateAndTenantId("APPROVED", tenantId)
-                + questionRepository.countByStateAndTenantId("PUBLISHED", tenantId);
+        long approved = questionRepository.countByStateAndTenantId(QuestionStateConstants.APPROVED, tenantId)
+                + questionRepository.countByStateAndTenantId(QuestionStateConstants.PUBLISHED, tenantId);
         long rejected = questionRepository.countByStateAndTenantId("REJECTED", tenantId)
                 + questionRepository.countByStateAndTenantId("REVISION_REQUESTED", tenantId);
 
@@ -358,7 +362,7 @@ public class QuestionService {
                 Long parsedId = Long.parseLong(subject.trim());
                 spec = spec.and((root, query, cb) -> cb.equal(root.get("subjectId"), parsedId));
             } catch (NumberFormatException e) {
-                spec = spec.and(fieldEquals("subject", subject));
+                spec = spec.and(fieldEquals(SharedConstants.SUBJECT, subject));
             }
         }
 
@@ -434,7 +438,7 @@ public class QuestionService {
     private String resolveQuestionSortProperty(String sort) {
         if (sort == null || sort.isBlank()) return "updatedAt";
         return switch (sort.trim().toLowerCase()) {
-            case "subject", "subjectname" -> "subject";
+            case SharedConstants.SUBJECT, "subjectname" -> SharedConstants.SUBJECT;
             case "topic", "topicname" -> "topic";
             case "subtopic" -> "subtopic";
             case "chapter" -> "chapter";
@@ -450,7 +454,7 @@ public class QuestionService {
     }
 
     private org.springframework.data.jpa.domain.Specification<Question> tenantEquals(String tenantId) {
-        return (root, query, cb) -> cb.equal(root.get("tenantId"), tenantId);
+        return (root, query, cb) -> cb.equal(root.get(SharedConstants.TENANT_ID), tenantId);
     }
 
     private org.springframework.data.jpa.domain.Specification<Question> fieldEquals(String field, String value) {
@@ -498,7 +502,7 @@ public class QuestionService {
     }
 
     private static final List<String> SEARCHABLE_QUESTION_FIELDS = List.of(
-            "subject", "topic", "subtopic", "chapter", "difficulty",
+        SharedConstants.SUBJECT, "topic", "subtopic", "chapter", "difficulty",
             "cognitiveLevel", "questionType", "content", "explanation", "state", "sourceReferences"
     );
 
@@ -520,15 +524,15 @@ public class QuestionService {
         return (root, query, cb) -> {
             jakarta.persistence.criteria.Subquery<UUID> subquery = query.subquery(UUID.class);
             jakarta.persistence.criteria.Root<Translation> tRoot = subquery.from(Translation.class);
-            subquery.select(tRoot.get("questionId"));
+            subquery.select(tRoot.get(SharedConstants.QUESTION_ID));
 
             List<jakarta.persistence.criteria.Predicate> predicates = new java.util.ArrayList<>();
-            predicates.add(cb.equal(tRoot.get("questionId"), root.get("id")));
+            predicates.add(cb.equal(tRoot.get(SharedConstants.QUESTION_ID), root.get("id")));
 
             if (tenantId != null && !tenantId.isBlank()) {
                 predicates.add(cb.or(
-                        cb.equal(tRoot.get("tenantId"), tenantId),
-                        cb.equal(tRoot.get("tenantId"), "default")
+                        cb.equal(tRoot.get(SharedConstants.TENANT_ID), tenantId),
+                        cb.equal(tRoot.get(SharedConstants.TENANT_ID), "default")
                 ));
             }
 
@@ -548,17 +552,17 @@ public class QuestionService {
                     case "EXISTS":
                         // Existence check already covered by questionId + languageCode
                         break;
-                    case "APPROVED":
+                    case QuestionStateConstants.APPROVED:
                         predicates.add(cb.equal(tRoot.get("status"), Translation.TranslationStatus.APPROVED));
                         break;
-                    case "PUBLISHED":
+                    case QuestionStateConstants.PUBLISHED:
                         predicates.add(cb.equal(tRoot.get("status"), Translation.TranslationStatus.PUBLISHED));
                         break;
                     case "APPROVED_PUBLISHED":
                     case "APPROVED_OR_PUBLISHED":
                         predicates.add(tRoot.get("status").in(Translation.TranslationStatus.APPROVED, Translation.TranslationStatus.PUBLISHED));
                         break;
-                    case "DRAFT":
+                    case QuestionStateConstants.DRAFT:
                         predicates.add(cb.equal(tRoot.get("status"), Translation.TranslationStatus.DRAFT));
                         break;
                     case "IN_REVIEW":
@@ -619,17 +623,17 @@ public class QuestionService {
             throw new IllegalArgumentException("Only the question author can submit for review");
         }
 
-        if (!"DRAFT".equals(question.getState())) {
+        if (!QuestionStateConstants.DRAFT.equals(question.getState())) {
             throw new IllegalStateException("Question must be in DRAFT state to submit for review. Current state: " + question.getState());
         }
 
-        question.setState("REVIEW");
+        question.setState(QuestionStateConstants.REVIEW);
         Question saved = questionRepository.save(question);
 
         log.info("Question submitted for review: id={}, author={}, tenant={}", questionId, authorId, tenantId);
 
         publishAuditEvent("QUESTION_SUBMITTED_FOR_REVIEW", saved.getId(), authorId, tenantId,
-                Map.of("fromState", "DRAFT", "toState", "REVIEW"));
+                Map.of("fromState", QuestionStateConstants.DRAFT, "toState", QuestionStateConstants.REVIEW));
 
         return toResponse(saved);
     }
@@ -652,7 +656,7 @@ public class QuestionService {
             }
         }
 
-        if ("PUBLISHED".equalsIgnoreCase(question.getState()) || question.getUsageCount() > 0) {
+        if (QuestionStateConstants.PUBLISHED.equalsIgnoreCase(question.getState()) || question.getUsageCount() > 0) {
             throw new IllegalStateException("Cannot delete question in PUBLISHED state or with active exam usage. Transition to ARCHIVED instead.");
         }
 
@@ -729,7 +733,8 @@ public class QuestionService {
 
     private void publishAuditEvent(String eventType, UUID questionId, UUID actorId,
                                     String tenantId, Map<String, Object> extra) {
-        AuditEventHelper.publishAuditEvent(eventPublisher, log, AUDIT_TOPIC, eventType, "questionId", questionId, actorId, tenantId, extra);
+        AuditEventHelper.publishAuditEvent(eventPublisher, log, new AuditEventHelper.AuditEventParams(AUDIT_EVENTS_TOPIC, eventType,
+            SharedConstants.QUESTION_ID, questionId, actorId, tenantId, extra));
     }
 
     private static final com.fasterxml.jackson.databind.ObjectMapper MAPPER =
@@ -743,7 +748,8 @@ public class QuestionService {
         java.util.List<com.examplatform.questionbank.dto.QuestionOption> options = question.getOptions();
         if ((options == null || options.isEmpty())) {
             String questionType = question.getQuestionType();
-            if (questionType != null && (questionType.equals("SINGLE_MCQ") || questionType.equals("MULTI_MCQ"))
+            if (questionType != null && (questionType.equals(QuestionTypeConstants.SINGLE_MCQ) || questionType.equals(
+                QuestionTypeConstants.MULTI_MCQ))
                     && question.getAnswerKey() != null && question.getAnswerKey().startsWith("[")) {
                 try {
                     options = MAPPER.readValue(question.getAnswerKey(),
@@ -795,9 +801,9 @@ public class QuestionService {
             if (t.getReviewComments() != null && !t.getReviewComments().isBlank()) {
                 return "REJECTED";
             }
-            return "DRAFT";
+            return QuestionStateConstants.DRAFT;
         }
-        return t.getStatus() != null ? t.getStatus().name() : "DRAFT";
+        return t.getStatus() != null ? t.getStatus().name() : QuestionStateConstants.DRAFT;
     }
 
     public static boolean detectHasImages(String content, String explanation, List<com.examplatform.questionbank.dto.QuestionOption> options) {

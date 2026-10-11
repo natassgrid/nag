@@ -19,6 +19,8 @@
 
 package com.examplatform.identity.service;
 
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
+
 import com.examplatform.shared.audit.AuditEventType;
 import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
@@ -38,8 +40,6 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class AuditEventPublisher {
-
-    private static final String AUDIT_TOPIC = "exam.audit.events";
 
     private final EventPublisher eventPublisher;
 
@@ -73,7 +73,7 @@ public class AuditEventPublisher {
                 event.putAll(extra);
             }
 
-            eventPublisher.publish(AUDIT_TOPIC, actorId, event);
+            eventPublisher.publish(AUDIT_EVENTS_TOPIC, actorId, event);
             log.debug("Audit event published [type={}, actor={}]", type, actorId);
         } catch (Exception e) {
             log.error("Unexpected error publishing audit event [type={}]: {}", type, e.getMessage(), e);

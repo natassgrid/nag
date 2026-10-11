@@ -22,6 +22,8 @@ package com.examplatform.questionbank.service;
 import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.dto.ReviewerAssignment;
 import com.examplatform.shared.config.DynamicConfigService;
+import com.examplatform.shared.constants.QuestionStateConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -101,7 +103,7 @@ class ReviewWorkflowServiceTest {
                 .subject("Mathematics")
                 .topic("Algebra")
                 .authorId(authorId)
-                .state("REVIEW")
+                .state(QuestionStateConstants.REVIEW)
                 .build();
         testQuestion.setTenantId(tenantId);
         try {
@@ -126,7 +128,8 @@ class ReviewWorkflowServiceTest {
         when(reviewerAssignmentService.assignReviewers("Mathematics", authorId, tenantId, true))
                 .thenReturn(assignment);
 
-        reviewWorkflowService.processTransition(testQuestion, "DRAFT", "REVIEW", actorId, null, tenantId);
+        reviewWorkflowService.processTransition(testQuestion, QuestionStateConstants.DRAFT,
+            QuestionStateConstants.REVIEW, actorId, null, tenantId);
 
         // 1 lifecycle event + 2 reviewer notifications = 3 eventPublisher.publish calls
         verify(eventPublisher, times(3)).publish(topicCaptor.capture(), keyCaptor.capture(), valueCaptor.capture());
@@ -142,11 +145,11 @@ class ReviewWorkflowServiceTest {
         Map<String, Object> payload = (Map<String, Object>) values.get(0);
         assertThat(payload)
                 .containsEntry("eventType", "SUBMITTED_FOR_REVIEW")
-                .containsEntry("questionId", questionId)
-                .containsEntry("subject", "Mathematics")
-                .containsEntry("authorId", authorId)
+                .containsEntry(SharedConstants.QUESTION_ID, questionId)
+                .containsEntry(SharedConstants.SUBJECT, "Mathematics")
+                .containsEntry(SharedConstants.AUTHOR_ID, authorId)
                 .containsEntry("actorId", actorId)
-                .containsEntry("tenantId", tenantId)
+                .containsEntry(SharedConstants.TENANT_ID, tenantId)
                 .containsEntry("dualReviewRequired", true)
                 .containsEntry("assignedReviewer", reviewerId.toString())
                 .containsEntry("assignedReviewer2", secondaryReviewerId.toString())
@@ -163,7 +166,8 @@ class ReviewWorkflowServiceTest {
     @Test
     @DisplayName("Transition to APPROVED releases reviewer load, publishes REVIEWER_APPROVED event and sends notification")
     void transitionToApproved_publishesEventAndNotification() {
-        reviewWorkflowService.processTransition(testQuestion, "REVIEW", "APPROVED", actorId, null, tenantId);
+        reviewWorkflowService.processTransition(testQuestion, QuestionStateConstants.REVIEW,
+            QuestionStateConstants.APPROVED, actorId, null, tenantId);
 
         verify(reviewerAssignmentService).releaseReviewerLoad(actorId, tenantId);
         verify(eventPublisher, times(2)).publish(topicCaptor.capture(), keyCaptor.capture(), valueCaptor.capture());
@@ -180,9 +184,9 @@ class ReviewWorkflowServiceTest {
         Map<String, Object> lifecyclePayload = (Map<String, Object>) values.get(0);
         assertThat(lifecyclePayload)
                 .containsEntry("eventType", "REVIEWER_APPROVED")
-                .containsEntry("questionId", questionId)
-                .containsEntry("reviewerId", actorId)
-                .containsEntry("authorId", authorId);
+                .containsEntry(SharedConstants.QUESTION_ID, questionId)
+                .containsEntry(SharedConstants.REVIEWER_ID, actorId)
+                .containsEntry(SharedConstants.AUTHOR_ID, authorId);
 
         // Second call: notifications topic
         assertThat(topics.get(1)).isEqualTo("exam.notifications.outbound");
@@ -192,17 +196,17 @@ class ReviewWorkflowServiceTest {
         Map<String, Object> notifPayload = (Map<String, Object>) values.get(1);
         assertThat(notifPayload)
                 .containsEntry("type", "QUESTION_APPROVED_BY_REVIEWER")
-                .containsEntry("recipientId", authorId)
-                .containsEntry("questionId", questionId)
-                .containsEntry("reviewerId", actorId)
-                .containsEntry("subject", "Mathematics");
+                .containsEntry(SharedConstants.RECIPIENT_ID, authorId)
+                .containsEntry(SharedConstants.QUESTION_ID, questionId)
+                .containsEntry(SharedConstants.REVIEWER_ID, actorId)
+                .containsEntry(SharedConstants.SUBJECT, "Mathematics");
     }
 
     @Test
     @DisplayName("Transition to DRAFT releases reviewer load, publishes RETURNED_TO_DRAFT event with comments and notifies author")
     void transitionToDraft_publishesEventAndNotificationWithComments() {
         String comments = "Please provide more detailed explanation in the answer key.";
-        reviewWorkflowService.processTransition(testQuestion, "REVIEW", "DRAFT", actorId, comments, tenantId);
+        reviewWorkflowService.processTransition(testQuestion, QuestionStateConstants.REVIEW, QuestionStateConstants.DRAFT, actorId, comments, tenantId);
 
         verify(reviewerAssignmentService).releaseReviewerLoad(actorId, tenantId);
         verify(eventPublisher, times(2)).publish(topicCaptor.capture(), keyCaptor.capture(), valueCaptor.capture());
@@ -228,7 +232,8 @@ class ReviewWorkflowServiceTest {
     @Test
     @DisplayName("Transition to PUBLISHED publishes QUESTION_PUBLISHED event and notifies author")
     void transitionToPublished_publishesEventAndNotification() {
-        reviewWorkflowService.processTransition(testQuestion, "APPROVED", "PUBLISHED", actorId, null, tenantId);
+        reviewWorkflowService.processTransition(testQuestion, QuestionStateConstants.APPROVED,
+            QuestionStateConstants.PUBLISHED, actorId, null, tenantId);
 
         verify(eventPublisher, times(2)).publish(topicCaptor.capture(), keyCaptor.capture(), valueCaptor.capture());
 
@@ -241,13 +246,13 @@ class ReviewWorkflowServiceTest {
         assertThat(lifecyclePayload)
                 .containsEntry("eventType", "QUESTION_PUBLISHED")
                 .containsEntry("publisherId", actorId)
-                .containsEntry("authorId", authorId);
+                .containsEntry(SharedConstants.AUTHOR_ID, authorId);
 
         assertThat(topics.get(1)).isEqualTo("exam.notifications.outbound");
         @SuppressWarnings("unchecked")
         Map<String, Object> notifPayload = (Map<String, Object>) values.get(1);
         assertThat(notifPayload)
                 .containsEntry("type", "QUESTION_PUBLISHED")
-                .containsEntry("recipientId", authorId);
+                .containsEntry(SharedConstants.RECIPIENT_ID, authorId);
     }
 }

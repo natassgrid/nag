@@ -22,6 +22,7 @@ package com.examplatform.papergenerator.service;
 import com.examplatform.papergenerator.domain.Paper;
 import com.examplatform.papergenerator.dto.PaperDocument;
 import com.examplatform.papergenerator.dto.QuestionGroup;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -109,7 +110,7 @@ public class PaperSerializer {
                     .shiftId(document.getShiftId())
                     .paperDefinitionJson(objectMapper.writeValueAsString(defMap))
                     .difficultyScore(document.getDifficultyScore())
-                    .status("DRAFT")
+                    .status(QuestionStateConstants.DRAFT)
                     .build();
 
             return paper;

@@ -22,6 +22,10 @@ package com.examplatform.questionbank.service;
 import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.domain.QuestionVersion;
 import com.examplatform.questionbank.repository.QuestionVersionRepository;
+import com.examplatform.shared.constants.QuestionStateConstants;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.examplatform.shared.constants.QuestionTypeConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
@@ -70,12 +74,12 @@ class QuestionVersioningServiceTest {
                 .topic(topic)
                 .subtopic("Subtopic A")
                 .chapter("Chapter 1")
-                .difficulty("MEDIUM")
-                .cognitiveLevel("APPLY")
-                .questionType("SINGLE_MCQ")
+                .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
+                .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.APPLY)
+                .questionType(QuestionTypeConstants.SINGLE_MCQ)
                 .content(content)
                 .answerKey("{\"correct\": \"A\"}")
-                .state("DRAFT")
+                .state(QuestionStateConstants.DRAFT)
                 .authorId(AUTHOR_ID)
                 .build();
         // Use reflection to set id since setId is protected
@@ -114,9 +118,9 @@ class QuestionVersioningServiceTest {
             QuestionVersion saved = captor.getValue();
 
             JsonNode diff = objectMapper.readTree(saved.getDiffJson());
-            assertThat(diff.has("subject")).isTrue();
-            assertThat(diff.get("subject").get("old").asText()).isEqualTo("Mathematics");
-            assertThat(diff.get("subject").get("new").asText()).isEqualTo("Physics");
+            assertThat(diff.has(SharedConstants.SUBJECT)).isTrue();
+            assertThat(diff.get(SharedConstants.SUBJECT).get("old").asText()).isEqualTo("Mathematics");
+            assertThat(diff.get(SharedConstants.SUBJECT).get("new").asText()).isEqualTo("Physics");
             assertThat(diff.has("content")).isTrue();
             assertThat(diff.get("content").get("old").asText()).isEqualTo("<p>old content</p>");
             assertThat(diff.get("content").get("new").asText()).isEqualTo("<p>new content</p>");
@@ -187,15 +191,16 @@ class QuestionVersioningServiceTest {
             QuestionVersion saved = captor.getValue();
 
             JsonNode snapshot = objectMapper.readTree(saved.getSnapshotJson());
-            assertThat(snapshot.get("subject").asText()).isEqualTo("Physics");
+            assertThat(snapshot.get(SharedConstants.SUBJECT).asText()).isEqualTo("Physics");
             assertThat(snapshot.get("topic").asText()).isEqualTo("Mechanics");
             assertThat(snapshot.get("content").asText()).isEqualTo("<p>new content</p>");
-            assertThat(snapshot.get("questionType").asText()).isEqualTo("SINGLE_MCQ");
-            assertThat(snapshot.get("difficulty").asText()).isEqualTo("MEDIUM");
-            assertThat(snapshot.get("cognitiveLevel").asText()).isEqualTo("APPLY");
-            assertThat(snapshot.get("state").asText()).isEqualTo("DRAFT");
+            assertThat(snapshot.get("questionType").asText()).isEqualTo(QuestionTypeConstants.SINGLE_MCQ);
+            assertThat(snapshot.get("difficulty").asText()).isEqualTo(QuestionTaxonomyConstants.Difficulty.MEDIUM);
+            assertThat(snapshot.get("cognitiveLevel").asText()).isEqualTo(
+                QuestionTaxonomyConstants.CognitiveLevel.APPLY);
+            assertThat(snapshot.get("state").asText()).isEqualTo(QuestionStateConstants.DRAFT);
             assertThat(snapshot.get("id").asText()).isEqualTo(QUESTION_ID.toString());
-            assertThat(snapshot.get("authorId").asText()).isEqualTo(AUTHOR_ID.toString());
+            assertThat(snapshot.get(SharedConstants.AUTHOR_ID).asText()).isEqualTo(AUTHOR_ID.toString());
         }
 
         @Test

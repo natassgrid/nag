@@ -21,6 +21,7 @@ package com.examplatform.questionbank.service;
 
 import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.repository.QuestionRepository;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.DisplayName;
@@ -69,8 +70,8 @@ class ExposureTrackingServiceTest {
         Question question = Question.builder()
                 .subject("Mathematics")
                 .topic("Algebra")
-                .difficulty("MEDIUM")
-                .cognitiveLevel("APPLY")
+                .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
+                .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.APPLY)
                 .questionType("MCQ")
                 .authorId(UUID.randomUUID())
                 .usageCount(2)
@@ -103,8 +104,8 @@ class ExposureTrackingServiceTest {
         Question question = Question.builder()
                 .subject("Physics")
                 .topic("Mechanics")
-                .difficulty("HARD")
-                .cognitiveLevel("ANALYZE")
+                .difficulty(QuestionTaxonomyConstants.Difficulty.HARD)
+                .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.ANALYZE)
                 .questionType("MCQ")
                 .authorId(UUID.randomUUID())
                 .usageCount(1)

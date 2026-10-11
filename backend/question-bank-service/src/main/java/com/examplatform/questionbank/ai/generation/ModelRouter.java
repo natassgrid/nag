@@ -15,6 +15,7 @@
  */
 package com.examplatform.questionbank.ai.generation;
 
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -37,6 +38,9 @@ import org.springframework.stereotype.Component;
 @Component
 public class ModelRouter {
 
+    public static final String AMAZON_NOVA_MICRO_V_1_0 = "amazon.nova-micro-v1:0";
+    public static final String AMAZON_NOVA_LITE_V_1_0 = "amazon.nova-lite-v1:0";
+
     @Value("${app.ai.models.easy:nova-micro}")
     private String easyModel;
 
@@ -58,9 +62,9 @@ public class ModelRouter {
         }
 
         return switch (difficulty.toUpperCase().trim()) {
-            case "EASY" -> easyModel;
-            case "MEDIUM" -> mediumModel;
-            case "HARD" -> hardModel;
+            case QuestionTaxonomyConstants.Difficulty.EASY -> easyModel;
+            case QuestionTaxonomyConstants.Difficulty.MEDIUM -> mediumModel;
+            case QuestionTaxonomyConstants.Difficulty.HARD -> hardModel;
             default -> mediumModel;
         };
     }
@@ -73,13 +77,13 @@ public class ModelRouter {
      */
     public String selectBatchModelId(String difficulty) {
         if (difficulty == null || difficulty.isBlank()) {
-            return "amazon.nova-lite-v1:0";
+            return AMAZON_NOVA_LITE_V_1_0;
         }
 
         return switch (difficulty.toUpperCase().trim()) {
-            case "EASY" -> "amazon.nova-micro-v1:0";
-            case "MEDIUM", "HARD" -> "amazon.nova-lite-v1:0";
-            default -> "amazon.nova-lite-v1:0";
+            case QuestionTaxonomyConstants.Difficulty.EASY -> AMAZON_NOVA_MICRO_V_1_0;
+            case QuestionTaxonomyConstants.Difficulty.MEDIUM, QuestionTaxonomyConstants.Difficulty.HARD -> AMAZON_NOVA_LITE_V_1_0;
+            default -> AMAZON_NOVA_LITE_V_1_0;
         };
     }
 }

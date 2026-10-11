@@ -21,6 +21,7 @@ package com.examplatform.audit.service;
 
 import com.examplatform.audit.domain.AuditEvent;
 import com.examplatform.audit.repository.AuditEventRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -121,7 +122,7 @@ public class AuditQueryService {
     }
 
     private static Specification<AuditEvent> tenantEquals(String tenantId) {
-        return (root, query, cb) -> cb.equal(root.get("tenantId"), tenantId);
+        return (root, query, cb) -> cb.equal(root.get(SharedConstants.TENANT_ID), tenantId);
     }
 
     private static Specification<AuditEvent> actorIdEquals(UUID actorId) {

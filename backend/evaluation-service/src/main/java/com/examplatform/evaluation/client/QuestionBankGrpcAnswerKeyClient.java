@@ -28,6 +28,7 @@ import com.examplatform.questionbank.grpc.PaperQuestionsGrpcRequest;
 import com.examplatform.questionbank.grpc.PaperQuestionsGrpcResponse;
 import com.examplatform.questionbank.grpc.QuestionBankGrpcServiceGrpc;
 import com.examplatform.questionbank.grpc.QuestionSummaryGrpc;
+import com.examplatform.shared.constants.QuestionTypeConstants;
 import com.examplatform.shared.grpc.GrpcChannelFactory;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -148,7 +149,7 @@ public class QuestionBankGrpcAnswerKeyClient implements AnswerKeyClient {
             try {
                 UUID questionId = UUID.fromString(q.getId());
                 String questionType = (q.getQuestionType() != null && !q.getQuestionType().isBlank())
-                        ? q.getQuestionType() : "SINGLE_MCQ";
+                        ? q.getQuestionType() : QuestionTypeConstants.SINGLE_MCQ;
 
                 String correctAnswer = q.getAnswerKey();
                 if ((correctAnswer == null || correctAnswer.isBlank())

@@ -19,6 +19,7 @@
 
 package com.examplatform.questionbank.domain.enums;
 
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonCreator;
 
@@ -48,12 +49,12 @@ public enum CognitiveLevel {
         }
         String normalized = value.trim().toUpperCase();
         return switch (normalized) {
-            case "REMEMBER", "KNOWLEDGE", "REMEMBERING", "RECALL", "MEMORY" -> REMEMBER;
-            case "UNDERSTAND", "COMPREHENSION", "UNDERSTANDING", "CONCEPTUAL" -> UNDERSTAND;
-            case "APPLY", "APPLICATION", "APPLYING" -> APPLY;
-            case "ANALYZE", "ANALYSIS", "ANALYZING" -> ANALYZE;
-            case "EVALUATE", "EVALUATION", "EVALUATING" -> EVALUATE;
-            case "CREATE", "SYNTHESIS", "CREATING", "CREATION" -> CREATE;
+            case QuestionTaxonomyConstants.CognitiveLevel.REMEMBER, "KNOWLEDGE", "REMEMBERING", "RECALL", "MEMORY" -> REMEMBER;
+            case QuestionTaxonomyConstants.CognitiveLevel.UNDERSTAND, "COMPREHENSION", "UNDERSTANDING", "CONCEPTUAL" -> UNDERSTAND;
+            case QuestionTaxonomyConstants.CognitiveLevel.APPLY, "APPLICATION", "APPLYING" -> APPLY;
+            case QuestionTaxonomyConstants.CognitiveLevel.ANALYZE, "ANALYSIS", "ANALYZING" -> ANALYZE;
+            case QuestionTaxonomyConstants.CognitiveLevel.EVALUATE, "EVALUATION", "EVALUATING" -> EVALUATE;
+            case QuestionTaxonomyConstants.CognitiveLevel.CREATE, "SYNTHESIS", "CREATING", "CREATION" -> CREATE;
             default -> {
                 for (CognitiveLevel level : values()) {
                     if (level.name().equalsIgnoreCase(normalized)) {

@@ -19,6 +19,7 @@
 
 package com.examplatform.questionbank.domain;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.entity.NumericBaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -44,7 +45,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @EqualsAndHashCode(callSuper = true)
 @Entity
-@Table(name = "subject", schema = "question_service",
+@Table(name = SharedConstants.SUBJECT, schema = "question_service",
        uniqueConstraints = @UniqueConstraint(columnNames = {"name", "tenant_id"}))
 public class Subject extends NumericBaseEntity {
 

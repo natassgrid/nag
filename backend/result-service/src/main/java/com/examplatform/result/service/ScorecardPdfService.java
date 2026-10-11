@@ -22,6 +22,7 @@ package com.examplatform.result.service;
 import com.examplatform.result.domain.Result;
 import com.examplatform.result.repository.ResultRepository;
 import com.examplatform.result.storage.ScorecardStorageProvider;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityNotFoundException;
@@ -297,7 +298,7 @@ public class ScorecardPdfService {
                     sectionScoresJson, new TypeReference<>() {});
 
             for (Map<String, Object> section : sections) {
-                String sectionName = String.valueOf(section.getOrDefault("sectionName", "Unknown"));
+                String sectionName = String.valueOf(section.getOrDefault("sectionName", SharedConstants.UNKNOWN));
                 Object score = section.getOrDefault("score", "N/A");
                 Object maxScore = section.getOrDefault("maxScore", "N/A");
 
@@ -313,7 +314,7 @@ public class ScorecardPdfService {
                     @SuppressWarnings("unchecked")
                     List<Map<String, Object>> topics = (List<Map<String, Object>>) section.get("topics");
                     for (Map<String, Object> topic : topics) {
-                        String topicName = String.valueOf(topic.getOrDefault("topicName", "Unknown"));
+                        String topicName = String.valueOf(topic.getOrDefault("topicName", SharedConstants.UNKNOWN));
                         Object topicScore = topic.getOrDefault("score", "N/A");
 
                         contentStream.beginText();

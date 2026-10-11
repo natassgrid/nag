@@ -19,6 +19,9 @@
 
 package com.examplatform.shared.lifecycle;
 
+import java.util.Map;
+import java.util.Set;
+
 /**
  * Lifecycle states for a {@code Question} entity.
  *
@@ -63,5 +66,15 @@ public enum QuestionState {
      * Question has been retired from active use.
      * Cannot be selected for new papers; retained for historical reference.
      */
-    ARCHIVED
+    ARCHIVED;
+
+    /**
+     * Valid state transitions map for question and passage lifecycle FSM.
+     */
+    public static final Map<String, Set<String>> VALID_TRANSITIONS = Map.of(
+            "DRAFT", Set.of("REVIEW"),
+            "REVIEW", Set.of("APPROVED", "DRAFT"),
+            "APPROVED", Set.of("PUBLISHED"),
+            "PUBLISHED", Set.of("ARCHIVED")
+    );
 }

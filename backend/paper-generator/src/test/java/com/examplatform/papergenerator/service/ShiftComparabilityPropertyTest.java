@@ -22,6 +22,7 @@ package com.examplatform.papergenerator.service;
 import com.examplatform.papergenerator.domain.Paper;
 import com.examplatform.papergenerator.exception.ShiftComparabilityViolationException;
 import com.examplatform.papergenerator.repository.PaperRepository;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import net.jqwik.api.Arbitraries;
 import net.jqwik.api.Arbitrary;
 import net.jqwik.api.Combinators;
@@ -293,7 +294,7 @@ class ShiftComparabilityPropertyTest {
                 .examId(examId)
                 .shiftId(shiftId)
                 .difficultyScore(difficultyScore)
-                .status("DRAFT")
+                .status(QuestionStateConstants.DRAFT)
                 .build();
         try {
             var field = paper.getClass().getSuperclass().getDeclaredField("id");

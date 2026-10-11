@@ -19,6 +19,7 @@
 
 package com.examplatform.questionbank.service;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import org.slf4j.Logger;
 
@@ -34,22 +35,34 @@ public final class AuditEventHelper {
 
     private AuditEventHelper() {}
 
-    public static void publishAuditEvent(EventPublisher eventPublisher, Logger log, String topic,
-                                         String eventType, String entityKey, UUID entityId,
-                                         UUID actorId, String tenantId, Map<String, Object> extra) {
+    public record AuditEventParams(
+            String topic,
+            String eventType,
+            String entityKey,
+            UUID entityId,
+            UUID actorId,
+            String tenantId,
+            Map<String, Object> extra
+    ) {
+        public AuditEventParams(String topic, String eventType, String entityKey, UUID entityId, UUID actorId, String tenantId) {
+            this(topic, eventType, entityKey, entityId, actorId, tenantId, null);
+        }
+    }
+
+    public static void publishAuditEvent(EventPublisher eventPublisher, Logger log, AuditEventParams params) {
         try {
             Map<String, Object> event = new HashMap<>();
-            event.put("eventType", eventType);
-            event.put(entityKey, entityId.toString());
-            event.put("actorId", actorId.toString());
-            event.put("tenantId", tenantId);
+            event.put("eventType", params.eventType());
+            event.put(params.entityKey(), params.entityId().toString());
+            event.put("actorId", params.actorId().toString());
+            event.put(SharedConstants.TENANT_ID, params.tenantId());
             event.put("occurredAt", Instant.now().toString());
-            if (extra != null) {
-                event.putAll(extra);
+            if (params.extra() != null) {
+                event.putAll(params.extra());
             }
-            eventPublisher.publish(topic, entityId.toString(), event);
+            eventPublisher.publish(params.topic(), params.entityId().toString(), event);
         } catch (Exception e) {
-            log.error("Unexpected error publishing audit event [type={}]: {}", eventType, e.getMessage());
+            log.error("Unexpected error publishing audit event [type={}]: {}", params.eventType(), e.getMessage());
         }
     }
 }

@@ -8,6 +8,8 @@ import com.examplatform.practice.dto.AnswerKeyDto;
 import com.examplatform.practice.repository.PracticeResponseRepository;
 import com.examplatform.practice.repository.PracticeSessionRepository;
 import com.examplatform.practice.repository.PracticeSetRepository;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.examplatform.shared.constants.QuestionTypeConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -89,8 +91,10 @@ class PracticeEvaluationServiceTest {
         when(practiceSessionRepository.findById(sessionId)).thenReturn(Optional.of(practiceSession));
         when(practiceResponseRepository.findByPracticeSessionId(sessionId)).thenReturn(List.of(resp1, resp2));
 
-        AnswerKeyDto ak1 = new AnswerKeyDto(q1, "opt-A", "MCQ", "t-1", "Algebra", "EASY", 4);
-        AnswerKeyDto ak2 = new AnswerKeyDto(q2, "opt-C", "MCQ", "t-2", "Geometry", "HARD", 4);
+        AnswerKeyDto ak1 = new AnswerKeyDto(q1, "opt-A", "MCQ", "t-1", "Algebra",
+            QuestionTaxonomyConstants.Difficulty.EASY, 4);
+        AnswerKeyDto ak2 = new AnswerKeyDto(q2, "opt-C", "MCQ", "t-2", "Geometry",
+            QuestionTaxonomyConstants.Difficulty.HARD, 4);
 
         when(questionBankClient.getAnswerKeys(any())).thenReturn(Map.of(q1, ak1, q2, ak2));
 
@@ -111,7 +115,8 @@ class PracticeEvaluationServiceTest {
     @DisplayName("evaluateAnswer - evaluates MULTI_MCQ exact match and rejects partial/extra selections")
     void testEvaluateMultiMcq() {
         UUID qId = UUID.randomUUID();
-        AnswerKeyDto ak = new AnswerKeyDto(qId, "[\"opt-A\", \"opt-B\"]", "MULTI_MCQ", "t-1", "Topic", "MEDIUM", 4);
+        AnswerKeyDto ak = new AnswerKeyDto(qId, "[\"opt-A\", \"opt-B\"]", QuestionTypeConstants.MULTI_MCQ, "t-1", "Topic",
+            QuestionTaxonomyConstants.Difficulty.MEDIUM, 4);
 
         // Exact match in same order
         PracticeResponse respExact = PracticeResponse.builder().selectedOptionIds("[\"opt-A\", \"opt-B\"]").build();
@@ -134,7 +139,8 @@ class PracticeEvaluationServiceTest {
     @DisplayName("evaluateAnswer - rejects multiple selections for SINGLE_MCQ even if one matches")
     void testEvaluateSingleMcqMultipleSelectionRejected() {
         UUID qId = UUID.randomUUID();
-        AnswerKeyDto ak = new AnswerKeyDto(qId, "opt-A", "SINGLE_MCQ", "t-1", "Topic", "EASY", 2);
+        AnswerKeyDto ak = new AnswerKeyDto(qId, "opt-A", QuestionTypeConstants.SINGLE_MCQ, "t-1", "Topic",
+            QuestionTaxonomyConstants.Difficulty.EASY, 2);
 
         // Correct single selection
         PracticeResponse respSingle = PracticeResponse.builder().selectedOptionIds("[\"opt-A\"]").build();
@@ -149,7 +155,8 @@ class PracticeEvaluationServiceTest {
     @DisplayName("evaluateAnswer - evaluates NUMERICAL questions with floating point tolerance")
     void testEvaluateNumerical() {
         UUID qId = UUID.randomUUID();
-        AnswerKeyDto ak = new AnswerKeyDto(qId, "3.14159", "NUMERICAL", "t-1", "Math", "MEDIUM", 2);
+        AnswerKeyDto ak = new AnswerKeyDto(qId, "3.14159", QuestionTypeConstants.NUMERICAL, "t-1", "Math",
+            QuestionTaxonomyConstants.Difficulty.MEDIUM, 2);
 
         // Exact string
         PracticeResponse resp1 = PracticeResponse.builder().enteredValue("3.14159").build();
@@ -160,7 +167,8 @@ class PracticeEvaluationServiceTest {
         assertThat(practiceEvaluationService.evaluateAnswer(resp2, ak)).isTrue();
 
         // Integer vs decimal representation (e.g. key: 42, entered: 42.0)
-        AnswerKeyDto akInt = new AnswerKeyDto(qId, "42", "NUMERICAL", "t-1", "Math", "EASY", 2);
+        AnswerKeyDto akInt = new AnswerKeyDto(qId, "42", QuestionTypeConstants.NUMERICAL, "t-1", "Math",
+            QuestionTaxonomyConstants.Difficulty.EASY, 2);
         PracticeResponse respInt = PracticeResponse.builder().enteredValue("42.0").build();
         assertThat(practiceEvaluationService.evaluateAnswer(respInt, akInt)).isTrue();
 
@@ -197,7 +205,8 @@ class PracticeEvaluationServiceTest {
         when(practiceSessionRepository.findById(sessionId)).thenReturn(Optional.of(practiceSession));
         when(practiceResponseRepository.findByPracticeSessionId(sessionId)).thenReturn(List.of(rev1, rev2));
 
-        AnswerKeyDto ak1 = new AnswerKeyDto(q1, "opt-Right", "MCQ", "t-1", "Topic", "EASY", 2);
+        AnswerKeyDto ak1 = new AnswerKeyDto(q1, "opt-Right", "MCQ", "t-1", "Topic",
+            QuestionTaxonomyConstants.Difficulty.EASY, 2);
         when(questionBankClient.getAnswerKeys(any())).thenReturn(Map.of(q1, ak1));
 
         practiceEvaluationService.evaluateSession(sessionId);

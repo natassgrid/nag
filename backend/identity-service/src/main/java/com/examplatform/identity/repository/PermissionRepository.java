@@ -20,6 +20,7 @@
 package com.examplatform.identity.repository;
 
 import com.examplatform.identity.domain.Permission;
+import com.examplatform.shared.constants.SharedConstants;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -41,7 +42,7 @@ public interface PermissionRepository extends JpaRepository<Permission, UUID> {
            "OR LOWER(p.code) LIKE LOWER(CONCAT('%', :search, '%')) " +
            "OR LOWER(p.module) LIKE LOWER(CONCAT('%', :search, '%')))")
     Page<Permission> findByTenantIdAndSearch(
-            @Param("tenantId") String tenantId,
+            @Param(SharedConstants.TENANT_ID) String tenantId,
             @Param("search") String search,
             Pageable pageable);
 

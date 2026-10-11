@@ -43,7 +43,8 @@ import java.util.UUID;
 /**
  * Service to perform machine translation of questions and options using
  * the local IndicTrans2 AI model (supporting 22 Indian scheduled languages).
- * Preserves all LaTeX, KaTeX formulas, symbols, and chemical/physical expressions.\n */
+ * Preserves all LaTeX, KaTeX formulas, symbols, and chemical/physical expressions.
+ */
 @Slf4j
 @Service
 public class IndicTrans2Service {
@@ -136,7 +137,6 @@ public class IndicTrans2Service {
         return text;
     }
 
-    @SuppressWarnings("unchecked")
     public List<String> translateBatch(List<String> texts, String targetLang) {
         if (texts == null || texts.isEmpty()) {
             return Collections.emptyList();
@@ -152,39 +152,57 @@ public class IndicTrans2Service {
         }
 
         try {
-            Map<String, Object> reqBody = Map.of(
-                    "texts", maskedTexts,
-                    "target_lang", indicLang
-            );
-            Map<String, Object> resp = restClient.post()
-                    .uri("/translate/batch")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(reqBody)
-                    .retrieve()
-                    .body(Map.class);
-
-            if (resp != null && resp.containsKey("translations")) {
-                Object transObj = resp.get("translations");
-                if (transObj instanceof List) {
-                    List<String> rawList = (List<String>) transObj;
-                    List<String> unmaskedList = new ArrayList<>(rawList.size());
-                    for (int i = 0; i < rawList.size(); i++) {
-                        String raw = rawList.get(i);
-                        List<String> tokens = (i < maskResults.size()) ? maskResults.get(i).preservedTokens() : List.of();
-                        unmaskedList.add(LatexPreservationUtil.unmask(raw, tokens));
-                    }
-                    return unmaskedList;
-                }
+            List<String> unmaskedList = executeBatchRequest(maskedTexts, indicLang, maskResults);
+            if (unmaskedList != null) {
+                return unmaskedList;
             }
         } catch (Exception e) {
             log.warn("Batch translation endpoint failed, falling back to sequential: {}", e.getMessage());
-            List<String> fallbackResults = new ArrayList<>();
-            for (String t : texts) {
-                fallbackResults.add(translateSingleText(t, indicLang));
-            }
-            return fallbackResults;
+            return fallbackSequentialTranslation(texts, indicLang);
         }
         return texts;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> executeBatchRequest(
+            List<String> maskedTexts,
+            String indicLang,
+            List<LatexPreservationUtil.MaskResult> maskResults) {
+        Map<String, Object> reqBody = Map.of(
+                "texts", maskedTexts,
+                "target_lang", indicLang
+        );
+        Map<String, Object> resp = restClient.post()
+                .uri("/translate/batch")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(reqBody)
+                .retrieve()
+                .body(Map.class);
+
+        if (resp != null && resp.get("translations") instanceof List<?> rawList) {
+            return unmaskTranslations((List<String>) rawList, maskResults);
+        }
+        return null;
+    }
+
+    private List<String> unmaskTranslations(
+            List<String> rawList,
+            List<LatexPreservationUtil.MaskResult> maskResults) {
+        List<String> unmaskedList = new ArrayList<>(rawList.size());
+        for (int i = 0; i < rawList.size(); i++) {
+            String raw = rawList.get(i);
+            List<String> tokens = (i < maskResults.size()) ? maskResults.get(i).preservedTokens() : List.of();
+            unmaskedList.add(LatexPreservationUtil.unmask(raw, tokens));
+        }
+        return unmaskedList;
+    }
+
+    private List<String> fallbackSequentialTranslation(List<String> texts, String indicLang) {
+        List<String> fallbackResults = new ArrayList<>(texts.size());
+        for (String t : texts) {
+            fallbackResults.add(translateSingleText(t, indicLang));
+        }
+        return fallbackResults;
     }
 
     public AutoTranslateResponse autoTranslateQuestion(UUID questionId, String languageCode) {
@@ -195,59 +213,22 @@ public class IndicTrans2Service {
 
     public AutoTranslateResponse autoTranslateQuestionEntity(Question question, String languageCode) {
         String indicLang = mapToIndicLang(languageCode);
+        TranslationPayload payload = preparePayload(question);
 
-        List<String> textsToTranslate = new ArrayList<>();
-        textsToTranslate.add(question.getContent() != null ? question.getContent() : "");
-
-        List<Boolean> optionHasAlt = new ArrayList<>();
-        if (question.getOptions() != null) {
-            for (QuestionOption opt : question.getOptions()) {
-                textsToTranslate.add(opt.getText() != null ? opt.getText() : "");
-                boolean hasAlt = opt.getImageAltText() != null && !opt.getImageAltText().isBlank();
-                optionHasAlt.add(hasAlt);
-                if (hasAlt) {
-                    textsToTranslate.add(opt.getImageAltText());
-                }
-            }
-        }
-
-        boolean hasExplanation = question.getExplanation() != null && !question.getExplanation().isBlank();
-        if (hasExplanation) {
-            textsToTranslate.add(question.getExplanation());
-        }
-
-        List<String> translatedList = translateBatch(textsToTranslate, indicLang);
-
+        List<String> translatedList = translateBatch(payload.texts(), indicLang);
         String translatedContent = translatedList.isEmpty() ? question.getContent() : translatedList.get(0);
 
-        List<TranslatedOptionDto> translatedOptions = new ArrayList<>();
-        int currentIdx = 1;
-        if (question.getOptions() != null) {
-            for (int i = 0; i < question.getOptions().size(); i++) {
-                QuestionOption originalOpt = question.getOptions().get(i);
-                String transOptText = (currentIdx < translatedList.size()) ? translatedList.get(currentIdx) : originalOpt.getText();
-                currentIdx++;
-
-                String transAltText = originalOpt.getImageAltText();
-                if (Boolean.TRUE.equals(optionHasAlt.get(i))) {
-                    if (currentIdx < translatedList.size()) {
-                        transAltText = translatedList.get(currentIdx);
-                    }
-                    currentIdx++;
-                }
-
-                translatedOptions.add(new TranslatedOptionDto(
-                        originalOpt.getId(),
-                        transOptText,
-                        originalOpt.getImageUrl(),
-                        transAltText
-                ));
-            }
-        }
+        int[] cursor = new int[]{1};
+        List<TranslatedOptionDto> translatedOptions = reconstructOptions(
+                question.getOptions(),
+                payload.optionHasAlt(),
+                translatedList,
+                cursor
+        );
 
         String translatedExplanation = null;
-        if (hasExplanation && currentIdx < translatedList.size()) {
-            translatedExplanation = translatedList.get(currentIdx);
+        if (payload.hasExplanation() && cursor[0] < translatedList.size()) {
+            translatedExplanation = translatedList.get(cursor[0]);
         }
 
         return AutoTranslateResponse.builder()
@@ -258,4 +239,72 @@ public class IndicTrans2Service {
                 .translatedExplanation(translatedExplanation)
                 .build();
     }
+
+    private TranslationPayload preparePayload(Question question) {
+        List<String> texts = new ArrayList<>();
+        texts.add(question.getContent() != null ? question.getContent() : "");
+
+        List<Boolean> optionHasAlt = new ArrayList<>();
+        collectOptionTexts(question.getOptions(), texts, optionHasAlt);
+
+        boolean hasExplanation = question.getExplanation() != null && !question.getExplanation().isBlank();
+        if (hasExplanation) {
+            texts.add(question.getExplanation());
+        }
+
+        return new TranslationPayload(texts, optionHasAlt, hasExplanation);
+    }
+
+    private void collectOptionTexts(
+            List<QuestionOption> options,
+            List<String> texts,
+            List<Boolean> optionHasAlt) {
+        if (options == null) {
+            return;
+        }
+        for (QuestionOption opt : options) {
+            texts.add(opt.getText() != null ? opt.getText() : "");
+            boolean hasAlt = hasNonBlankAltText(opt);
+            optionHasAlt.add(hasAlt);
+            if (hasAlt) {
+                texts.add(opt.getImageAltText());
+            }
+        }
+    }
+
+    private static boolean hasNonBlankAltText(QuestionOption opt) {
+        return opt.getImageAltText() != null && !opt.getImageAltText().isBlank();
+    }
+
+    private List<TranslatedOptionDto> reconstructOptions(
+            List<QuestionOption> options,
+            List<Boolean> optionHasAlt,
+            List<String> translatedList,
+            int[] cursor) {
+        if (options == null) {
+            return Collections.emptyList();
+        }
+        List<TranslatedOptionDto> result = new ArrayList<>(options.size());
+        for (int i = 0; i < options.size(); i++) {
+            QuestionOption opt = options.get(i);
+            String transText = getNextText(translatedList, cursor, opt.getText());
+            String transAlt = opt.getImageAltText();
+            if (Boolean.TRUE.equals(optionHasAlt.get(i))) {
+                transAlt = getNextText(translatedList, cursor, transAlt);
+            }
+            result.add(new TranslatedOptionDto(opt.getId(), transText, opt.getImageUrl(), transAlt));
+        }
+        return result;
+    }
+
+    private String getNextText(List<String> translatedList, int[] cursor, String fallback) {
+        int idx = cursor[0]++;
+        return (idx < translatedList.size()) ? translatedList.get(idx) : fallback;
+    }
+
+    private record TranslationPayload(
+            List<String> texts,
+            List<Boolean> optionHasAlt,
+            boolean hasExplanation
+    ) {}
 }

@@ -11,6 +11,7 @@ import com.examplatform.questionbank.domain.Passage;
 import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.repository.PassageRepository;
 import com.examplatform.questionbank.repository.QuestionRepository;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.grpc.stub.StreamObserver;
 import org.junit.jupiter.api.BeforeEach;
@@ -62,7 +63,7 @@ class QuestionBankGrpcServiceImplTest {
         Question q = Question.builder()
                 .content("What is the capital of India?")
                 .questionType("MCQ")
-                .difficulty("EASY")
+                .difficulty(QuestionTaxonomyConstants.Difficulty.EASY)
                 .build();
         ReflectionTestUtils.setField(q, "id", qId);
 
@@ -132,22 +133,23 @@ class QuestionBankGrpcServiceImplTest {
         Question q = Question.builder()
                 .subject("Physics")
                 .topic("Thermodynamics")
-                .difficulty("MEDIUM")
-                .cognitiveLevel("APPLY")
+                .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
+                .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.APPLY)
                 .content("Calculate entropy change...")
                 .usageCount(3)
                 .build();
         ReflectionTestUtils.setField(q, "id", qId);
 
         when(questionRepository.findBlueprintQuestions(
-                eq("Physics"), eq("Thermodynamics"), eq("MEDIUM"), eq("APPLY"), eq("tenant-1")
+                eq("Physics"), eq("Thermodynamics"), eq(QuestionTaxonomyConstants.Difficulty.MEDIUM), eq(
+                QuestionTaxonomyConstants.CognitiveLevel.APPLY), eq("tenant-1")
         )).thenReturn(List.of(q));
 
         BlueprintMatchGrpcRequest request = BlueprintMatchGrpcRequest.newBuilder()
                 .setSubject("Physics")
                 .setTopic("Thermodynamics")
-                .setDifficulty("MEDIUM")
-                .setCognitiveLevel("APPLY")
+                .setDifficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
+                .setCognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.APPLY)
                 .setTenantId("tenant-1")
                 .build();
 
@@ -162,8 +164,9 @@ class QuestionBankGrpcServiceImplTest {
         assertThat(response.getQuestions(0).getId()).isEqualTo(qId.toString());
         assertThat(response.getQuestions(0).getSubject()).isEqualTo("Physics");
         assertThat(response.getQuestions(0).getTopic()).isEqualTo("Thermodynamics");
-        assertThat(response.getQuestions(0).getDifficulty()).isEqualTo("MEDIUM");
-        assertThat(response.getQuestions(0).getCognitiveLevel()).isEqualTo("APPLY");
+        assertThat(response.getQuestions(0).getDifficulty()).isEqualTo(QuestionTaxonomyConstants.Difficulty.MEDIUM);
+        assertThat(response.getQuestions(0).getCognitiveLevel()).isEqualTo(
+            QuestionTaxonomyConstants.CognitiveLevel.APPLY);
         assertThat(response.getQuestions(0).getUsageCount()).isEqualTo(3);
     }
 
@@ -174,24 +177,25 @@ class QuestionBankGrpcServiceImplTest {
         Question q = Question.builder()
                 .subject("Physics")
                 .topic("Thermodynamics")
-                .difficulty("MEDIUM")
+                .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
                 .content("Fallback question...")
                 .build();
         ReflectionTestUtils.setField(q, "id", qId);
 
         when(questionRepository.findBlueprintQuestions(
-                eq("Physics"), eq("Thermodynamics"), eq("MEDIUM"), eq("APPLY"), eq("tenant-1")
+                eq("Physics"), eq("Thermodynamics"), eq(QuestionTaxonomyConstants.Difficulty.MEDIUM), eq(
+                QuestionTaxonomyConstants.CognitiveLevel.APPLY), eq("tenant-1")
         )).thenReturn(List.of());
 
         when(questionRepository.findBlueprintQuestionsFallback(
-                eq("Physics"), eq("Thermodynamics"), eq("MEDIUM"), eq("tenant-1")
+                eq("Physics"), eq("Thermodynamics"), eq(QuestionTaxonomyConstants.Difficulty.MEDIUM), eq("tenant-1")
         )).thenReturn(List.of(q));
 
         BlueprintMatchGrpcRequest request = BlueprintMatchGrpcRequest.newBuilder()
                 .setSubject("Physics")
                 .setTopic("Thermodynamics")
-                .setDifficulty("MEDIUM")
-                .setCognitiveLevel("APPLY")
+                .setDifficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
+                .setCognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.APPLY)
                 .setTenantId("tenant-1")
                 .build();
 

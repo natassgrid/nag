@@ -23,6 +23,7 @@ import com.examplatform.result.dto.QuestionDetailDto;
 import com.examplatform.result.dto.ReviewOptionDto;
 import com.examplatform.shared.auth.ClientAuthTokenResolver;
 import com.examplatform.shared.auth.ServiceAccountTokenProvider;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -144,7 +145,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
 
                 QuestionDetailDto dto = QuestionDetailDto.builder()
                         .id(id)
-                        .subject(rs.getString("subject"))
+                        .subject(rs.getString(SharedConstants.SUBJECT))
                         .topic(rs.getString("topic"))
                         .difficulty(rs.getString("difficulty"))
                         .cognitiveLevel(rs.getString("cognitive_level"))

@@ -20,6 +20,7 @@
 package com.examplatform.questionbank.repository;
 
 import com.examplatform.questionbank.domain.Question;
+import com.examplatform.shared.constants.SharedConstants;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -106,8 +107,8 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
             """, nativeQuery = true)
     List<SimilarityResult> findTopSimilarQuestions(
             @Param("queryVec") String queryVec,
-            @Param("subject") String subject,
-            @Param("tenantId") String tenantId,
+            @Param(SharedConstants.SUBJECT) String subject,
+            @Param(SharedConstants.TENANT_ID) String tenantId,
             @Param("limit") int limit);
 
     /**
@@ -126,9 +127,9 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
             """, nativeQuery = true)
     List<SimilarityResult> findTopSimilarQuestionsByTopic(
             @Param("queryVec") String queryVec,
-            @Param("subject") String subject,
+            @Param(SharedConstants.SUBJECT) String subject,
             @Param("topic") String topic,
-            @Param("tenantId") String tenantId,
+            @Param(SharedConstants.TENANT_ID) String tenantId,
             @Param("limit") int limit);
 
     /**
@@ -145,7 +146,7 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
             """, nativeQuery = true)
     List<SimilarityResult> findTopSimilarQuestionsGlobal(
             @Param("queryVec") String queryVec,
-            @Param("tenantId") String tenantId,
+            @Param(SharedConstants.TENANT_ID) String tenantId,
             @Param("limit") int limit);
 
     /**
@@ -166,11 +167,11 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
             """, nativeQuery = true)
     List<SimilarityResult> findTopSimilarQuestionsFiltered(
             @Param("queryVec") String queryVec,
-            @Param("subject") String subject,
+            @Param(SharedConstants.SUBJECT) String subject,
             @Param("topic") String topic,
             @Param("difficulty") String difficulty,
             @Param("cognitiveLevel") String cognitiveLevel,
-            @Param("tenantId") String tenantId,
+            @Param(SharedConstants.TENANT_ID) String tenantId,
             @Param("limit") int limit);
 
     /**
@@ -182,7 +183,7 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
     @Query(value = "SELECT * FROM question_service.question WHERE tenant_id = :tenantId AND embedding IS NULL",
             countQuery = "SELECT count(*) FROM question_service.question WHERE tenant_id = :tenantId AND embedding IS NULL",
             nativeQuery = true)
-    Page<Question> findQuestionsWithNullEmbedding(@Param("tenantId") String tenantId, Pageable pageable);
+    Page<Question> findQuestionsWithNullEmbedding(@Param(SharedConstants.TENANT_ID) String tenantId, Pageable pageable);
 
     /**
      * Updates the embedding for a question using a native query with proper halfvec cast.
@@ -209,11 +210,11 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
             ORDER BY RANDOM()
             """, nativeQuery = true)
     List<Question> findBlueprintQuestions(
-            @Param("subject") String subject,
+            @Param(SharedConstants.SUBJECT) String subject,
             @Param("topic") String topic,
             @Param("difficulty") String difficulty,
             @Param("cognitiveLevel") String cognitiveLevel,
-            @Param("tenantId") String tenantId);
+            @Param(SharedConstants.TENANT_ID) String tenantId);
 
     /**
      * Fallback lookup for blueprint questions ignoring cognitive level if exact match has no rows.
@@ -229,10 +230,10 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
             ORDER BY RANDOM()
             """, nativeQuery = true)
     List<Question> findBlueprintQuestionsFallback(
-            @Param("subject") String subject,
+            @Param(SharedConstants.SUBJECT) String subject,
             @Param("topic") String topic,
             @Param("difficulty") String difficulty,
-            @Param("tenantId") String tenantId);
+            @Param(SharedConstants.TENANT_ID) String tenantId);
 
     /**
      * Batch lookup for questions by their UUIDs.
@@ -244,5 +245,5 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
             """, nativeQuery = true)
     List<Question> findQuestionsByIdsIn(
             @Param("ids") List<UUID> ids,
-            @Param("tenantId") String tenantId);
+            @Param(SharedConstants.TENANT_ID) String tenantId);
 }

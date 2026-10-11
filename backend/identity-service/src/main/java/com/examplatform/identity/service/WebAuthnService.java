@@ -27,6 +27,7 @@ import com.examplatform.identity.exception.AuthenticationException;
 import com.examplatform.identity.repository.UserAccountRepository;
 import com.examplatform.identity.repository.WebAuthnCredentialRepository;
 import com.examplatform.shared.audit.AuditEventType;
+import com.examplatform.shared.constants.SharedConstants;
 import com.webauthn4j.converter.util.ObjectConverter;
 import com.webauthn4j.data.attestation.authenticator.COSEKey;
 import com.webauthn4j.data.attestation.statement.COSEAlgorithmIdentifier;
@@ -114,7 +115,7 @@ public class WebAuthnService {
         // 7. Publish audit event
         auditEventPublisher.publish(AuditEventType.LOGIN,
                 String.valueOf(account.getId()), "identity:auth/webauthn",
-                ipAddress, null, Map.of("tenantId", tenantId, "method", "webauthn"));
+                ipAddress, null, Map.of(SharedConstants.TENANT_ID, tenantId, "method", "webauthn"));
 
         return tokens;
     }

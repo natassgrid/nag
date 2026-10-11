@@ -24,6 +24,7 @@ import com.examplatform.result.dto.CandidateScoreInput;
 import com.examplatform.result.repository.ResultRepository;
 import com.examplatform.result.service.QuestionAnalyticsService;
 import com.examplatform.result.service.ResultComputationService;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.AbstractEvaluationCompletedConsumer;
 import com.examplatform.shared.util.DataConversionUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -98,7 +99,7 @@ public class EvaluationCompletedConsumer extends AbstractEvaluationCompletedCons
         handleEvaluationCompleted(payload, event -> {
             UUID candidateId = UUID.fromString((String) event.get("candidateId"));
             UUID examId      = DataConversionUtils.parseUUID(event.get("examId"));
-            String tenantId  = (String) event.getOrDefault("tenantId", "default");
+            String tenantId  = (String) event.getOrDefault(SharedConstants.TENANT_ID, "default");
             double totalRawScore = DataConversionUtils.toDouble(event.get("totalRawScore"));
 
             // Idempotency: skip if result already exists

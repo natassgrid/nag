@@ -25,6 +25,7 @@ import com.examplatform.evaluation.dto.CandidateResponse;
 import com.examplatform.evaluation.dto.MarkingScheme;
 import com.examplatform.evaluation.repository.EvaluationRepository;
 import com.examplatform.shared.config.DynamicConfigService;
+import com.examplatform.shared.constants.QuestionTypeConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -90,7 +91,7 @@ class AutoEvaluationServiceTest {
             UUID questionId = UUID.randomUUID();
             AnswerKey key = AnswerKey.builder()
                     .questionId(questionId)
-                    .questionType("SINGLE_MCQ")
+                    .questionType(QuestionTypeConstants.SINGLE_MCQ)
                     .correctAnswer("[\"opt-2\"]")
                     .marksPerQuestion(4.0)
                     .negativeMarks(1.0)
@@ -116,7 +117,7 @@ class AutoEvaluationServiceTest {
             UUID questionId = UUID.randomUUID();
             AnswerKey key = AnswerKey.builder()
                     .questionId(questionId)
-                    .questionType("SINGLE_MCQ")
+                    .questionType(QuestionTypeConstants.SINGLE_MCQ)
                     .correctAnswer("[\"opt-2\"]")
                     .marksPerQuestion(4.0)
                     .negativeMarks(1.0)
@@ -141,7 +142,7 @@ class AutoEvaluationServiceTest {
             UUID questionId = UUID.randomUUID();
             AnswerKey key = AnswerKey.builder()
                     .questionId(questionId)
-                    .questionType("SINGLE_MCQ")
+                    .questionType(QuestionTypeConstants.SINGLE_MCQ)
                     .correctAnswer("[\"opt-2\"]")
                     .marksPerQuestion(4.0)
                     .negativeMarks(1.0)
@@ -169,7 +170,7 @@ class AutoEvaluationServiceTest {
             UUID questionId = UUID.randomUUID();
             AnswerKey key = AnswerKey.builder()
                     .questionId(questionId)
-                    .questionType("MULTI_MCQ")
+                    .questionType(QuestionTypeConstants.MULTI_MCQ)
                     .correctAnswer("[\"opt-1\", \"opt-3\"]")
                     .marksPerQuestion(4.0)
                     .negativeMarks(1.0)
@@ -194,7 +195,7 @@ class AutoEvaluationServiceTest {
             UUID questionId = UUID.randomUUID();
             AnswerKey key = AnswerKey.builder()
                     .questionId(questionId)
-                    .questionType("MULTI_MCQ")
+                    .questionType(QuestionTypeConstants.MULTI_MCQ)
                     .correctAnswer("[\"opt-1\", \"opt-2\", \"opt-3\", \"opt-4\"]")
                     .marksPerQuestion(4.0)
                     .negativeMarks(1.0)
@@ -220,7 +221,7 @@ class AutoEvaluationServiceTest {
             UUID questionId = UUID.randomUUID();
             AnswerKey key = AnswerKey.builder()
                     .questionId(questionId)
-                    .questionType("MULTI_MCQ")
+                    .questionType(QuestionTypeConstants.MULTI_MCQ)
                     .correctAnswer("[\"opt-1\", \"opt-2\"]")
                     .marksPerQuestion(4.0)
                     .negativeMarks(2.0)
@@ -244,7 +245,7 @@ class AutoEvaluationServiceTest {
             UUID questionId = UUID.randomUUID();
             AnswerKey key = AnswerKey.builder()
                     .questionId(questionId)
-                    .questionType("MULTI_MCQ")
+                    .questionType(QuestionTypeConstants.MULTI_MCQ)
                     .correctAnswer("[\"opt-1\", \"opt-2\"]")
                     .marksPerQuestion(4.0)
                     .negativeMarks(1.0)
@@ -273,7 +274,7 @@ class AutoEvaluationServiceTest {
             UUID questionId = UUID.randomUUID();
             AnswerKey key = AnswerKey.builder()
                     .questionId(questionId)
-                    .questionType("NUMERICAL")
+                    .questionType(QuestionTypeConstants.NUMERICAL)
                     .correctAnswer("3.14159")
                     .marksPerQuestion(4.0)
                     .negativeMarks(0.0)
@@ -297,7 +298,7 @@ class AutoEvaluationServiceTest {
             UUID questionId = UUID.randomUUID();
             AnswerKey key = AnswerKey.builder()
                     .questionId(questionId)
-                    .questionType("NUMERICAL")
+                    .questionType(QuestionTypeConstants.NUMERICAL)
                     .correctAnswer("10.0")
                     .marksPerQuestion(3.0)
                     .negativeMarks(0.0)
@@ -321,7 +322,7 @@ class AutoEvaluationServiceTest {
             UUID questionId = UUID.randomUUID();
             AnswerKey key = AnswerKey.builder()
                     .questionId(questionId)
-                    .questionType("NUMERICAL")
+                    .questionType(QuestionTypeConstants.NUMERICAL)
                     .correctAnswer("10.0")
                     .marksPerQuestion(3.0)
                     .negativeMarks(1.0)
@@ -350,7 +351,7 @@ class AutoEvaluationServiceTest {
             // Given
             AnswerKey answerKey = AnswerKey.builder()
                     .questionId(UUID.randomUUID())
-                    .questionType("SINGLE_MCQ")
+                    .questionType(QuestionTypeConstants.SINGLE_MCQ)
                     .correctAnswer("[\"opt-1\"]")
                     .marksPerQuestion(4.0)
                     .negativeMarks(1.0)
@@ -378,7 +379,7 @@ class AutoEvaluationServiceTest {
             // Given
             AnswerKey answerKey = AnswerKey.builder()
                     .questionId(UUID.randomUUID())
-                    .questionType("SINGLE_MCQ")
+                    .questionType(QuestionTypeConstants.SINGLE_MCQ)
                     .correctAnswer("[\"opt-1\"]")
                     .marksPerQuestion(4.0)
                     .negativeMarks(1.0)
@@ -406,7 +407,7 @@ class AutoEvaluationServiceTest {
             // Given
             AnswerKey answerKey = AnswerKey.builder()
                     .questionId(UUID.randomUUID())
-                    .questionType("SINGLE_MCQ")
+                    .questionType(QuestionTypeConstants.SINGLE_MCQ)
                     .correctAnswer("[\"opt-1\"]")
                     .marksPerQuestion(4.0)
                     .negativeMarks(1.0)

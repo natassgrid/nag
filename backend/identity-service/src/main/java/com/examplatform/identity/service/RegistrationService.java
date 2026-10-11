@@ -19,6 +19,7 @@
 
 package com.examplatform.identity.service;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.crypto.HashingService;
 
 import com.examplatform.identity.config.AppSecurityProperties;
@@ -195,7 +196,7 @@ public class RegistrationService {
     @Async
     public void publishRegistrationAuditEvent(String userId, String tenantId, String fullName, String email, String mobile, String docType, String docNumber) {
         Map<String, Object> extra = new HashMap<>();
-        extra.put("tenantId", tenantId);
+        extra.put(SharedConstants.TENANT_ID, tenantId);
         if (fullName != null) extra.put("fullName", fullName);
         if (email != null) extra.put("email", email);
         if (mobile != null) extra.put("mobile", mobile);

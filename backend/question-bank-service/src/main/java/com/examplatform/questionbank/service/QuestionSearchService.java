@@ -21,6 +21,7 @@ package com.examplatform.questionbank.service;
 import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.dto.QuestionResponse;
 import com.examplatform.questionbank.repository.QuestionRepository;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -69,7 +70,7 @@ public class QuestionSearchService {
         List<Question> allMatches = questionRepository
                 .findBySubjectAndStateAndTenantId(
                         subject != null ? subject : "%",
-                        "PUBLISHED",
+                    QuestionStateConstants.PUBLISHED,
                         tenantId);
 
         // Apply in-memory filtering for query and difficulty

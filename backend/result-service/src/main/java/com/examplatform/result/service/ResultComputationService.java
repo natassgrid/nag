@@ -18,9 +18,12 @@
 
 package com.examplatform.result.service;
 
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
+
 import com.examplatform.result.domain.Result;
 import com.examplatform.result.dto.CandidateScoreInput;
 import com.examplatform.result.repository.ResultRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityNotFoundException;
@@ -53,7 +56,6 @@ public class ResultComputationService {
 
     private static final double TARGET_MEAN = 50.0;
     private static final double TARGET_STD_DEV = 10.0;
-    private static final String AUDIT_TOPIC = "exam.audit.events";
 
     private final ResultRepository resultRepository;
     private final ObjectMapper objectMapper;
@@ -165,10 +167,10 @@ public class ResultComputationService {
                     "eventType", "RESULT_PUBLISHED",
                     "examId", examId.toString(),
                     "candidateCount", candidateCount,
-                    "tenantId", tenantId,
+                SharedConstants.TENANT_ID, tenantId,
                     "occurredAt", Instant.now().toString()
             );
-            eventPublisher.publish(AUDIT_TOPIC, examId.toString(), event);
+            eventPublisher.publish(AUDIT_EVENTS_TOPIC, examId.toString(), event);
         } catch (Exception e) {
             log.error("Unexpected error publishing RESULT_PUBLISHED audit event: {}", e.getMessage());
         }

@@ -27,6 +27,7 @@ import com.examplatform.questionbank.translation.domain.Translation;
 import com.examplatform.questionbank.translation.dto.AutoTranslateResponse;
 import com.examplatform.questionbank.translation.repository.BatchTranslationJobRepository;
 import com.examplatform.questionbank.translation.repository.TranslationRepository;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -94,7 +95,7 @@ class AsyncBatchTranslationWorkerTest {
                 .status(BatchTranslationJobStatus.PENDING)
                 .sourceLanguage("en")
                 .targetLanguage("hi")
-                .targetStatus("PUBLISHED")
+                .targetStatus(QuestionStateConstants.PUBLISHED)
                 .batchSize(10)
                 .throttleDelayMs(0)
                 .maxConcurrency(2)
@@ -147,7 +148,7 @@ class AsyncBatchTranslationWorkerTest {
                 .status(BatchTranslationJobStatus.PENDING)
                 .sourceLanguage("en")
                 .targetLanguage("hi")
-                .targetStatus("PUBLISHED")
+                .targetStatus(QuestionStateConstants.PUBLISHED)
                 .paperId(paperId)
                 .questionIds(List.of(questionId1, questionId2))
                 .batchSize(10)
@@ -201,7 +202,7 @@ class AsyncBatchTranslationWorkerTest {
                 .status(BatchTranslationJobStatus.PENDING)
                 .sourceLanguage("en")
                 .targetLanguage("hi")
-                .targetStatus("PUBLISHED")
+                .targetStatus(QuestionStateConstants.PUBLISHED)
                 .questionIds(List.of(questionId1))
                 .batchSize(10)
                 .throttleDelayMs(0)
@@ -237,7 +238,7 @@ class AsyncBatchTranslationWorkerTest {
                 .status(BatchTranslationJobStatus.PENDING)
                 .sourceLanguage("en")
                 .targetLanguage("hi")
-                .targetStatus("PUBLISHED")
+                .targetStatus(QuestionStateConstants.PUBLISHED)
                 .batchSize(10)
                 .throttleDelayMs(0)
                 .maxConcurrency(2)
@@ -303,7 +304,7 @@ class AsyncBatchTranslationWorkerTest {
                 .status(BatchTranslationJobStatus.PENDING)
                 .sourceLanguage("en")
                 .targetLanguage("hi")
-                .targetStatus("PUBLISHED")
+                .targetStatus(QuestionStateConstants.PUBLISHED)
                 .subjectFilter("Quantitative Aptitude")
                 .batchSize(10)
                 .throttleDelayMs(0)
@@ -341,7 +342,7 @@ class AsyncBatchTranslationWorkerTest {
                 .status(BatchTranslationJobStatus.PENDING)
                 .sourceLanguage("en")
                 .targetLanguage("hi")
-                .targetStatus("PUBLISHED")
+                .targetStatus(QuestionStateConstants.PUBLISHED)
                 .batchSize(10)
                 .throttleDelayMs(0)
                 .maxConcurrency(1)
@@ -379,7 +380,7 @@ class AsyncBatchTranslationWorkerTest {
                 .status(BatchTranslationJobStatus.IN_PROGRESS)
                 .sourceLanguage("en")
                 .targetLanguage("hi")
-                .targetStatus("PUBLISHED")
+                .targetStatus(QuestionStateConstants.PUBLISHED)
                 .questionIds(List.of(questionId1, questionId2))
                 .batchSize(10)
                 .throttleDelayMs(0)

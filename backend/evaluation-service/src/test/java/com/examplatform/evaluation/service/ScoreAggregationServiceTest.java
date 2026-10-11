@@ -21,6 +21,7 @@ package com.examplatform.evaluation.service;
 
 import com.examplatform.evaluation.domain.Evaluation;
 import com.examplatform.evaluation.repository.EvaluationRepository;
+import com.examplatform.shared.constants.MessagingConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -89,7 +90,7 @@ class ScoreAggregationServiceTest {
         ArgumentCaptor<String> topicCaptor = ArgumentCaptor.forClass(String.class);
         verify(eventPublisher, atLeastOnce()).publish(topicCaptor.capture(), anyString(), any());
         assertThat(topicCaptor.getAllValues())
-                .contains("exam.evaluation.completed");
+                .contains(MessagingConstants.EVALUATION_COMPLETED_TOPIC);
     }
 
     @Test

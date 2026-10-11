@@ -20,6 +20,7 @@
 package com.examplatform.questionbank.translation.repository;
 
 import com.examplatform.questionbank.translation.domain.Translation;
+import com.examplatform.shared.constants.SharedConstants;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -57,5 +58,5 @@ public interface TranslationRepository extends JpaRepository<Translation, UUID> 
     """)
     List<Translation> findByQuestionIdsAndTenantId(
             @Param("questionIds") List<UUID> questionIds,
-            @Param("tenantId") String tenantId);
+            @Param(SharedConstants.TENANT_ID) String tenantId);
 }

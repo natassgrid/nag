@@ -2,6 +2,7 @@
 package com.examplatform.practice.client;
 
 import com.examplatform.practice.dto.AnswerKeyDto;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -100,7 +101,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                 String questionType = rs.getString("question_type");
                 String topicId = rs.getString("topic_id");
                 String topicName = rs.getString("topic");
-                String subject = rs.getString("subject");
+                String subject = rs.getString(SharedConstants.SUBJECT);
                 String difficulty = rs.getString("difficulty");
                 String content = rs.getString("content");
                 String optionsJson = rs.getString("options");

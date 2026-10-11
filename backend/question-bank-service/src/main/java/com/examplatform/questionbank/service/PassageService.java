@@ -11,6 +11,8 @@
 
 package com.examplatform.questionbank.service;
 
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
+
 import com.examplatform.questionbank.ai.embedding.EmbeddingService;
 import com.examplatform.questionbank.domain.Passage;
 import com.examplatform.questionbank.domain.Question;
@@ -27,8 +29,19 @@ import com.examplatform.questionbank.repository.QuestionRepository;
 import com.examplatform.questionbank.repository.SubjectRepository;
 import com.examplatform.questionbank.repository.TopicRepository;
 import com.examplatform.questionbank.util.EmbeddingUtils;
+import com.examplatform.shared.constants.QuestionStateConstants;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import jakarta.persistence.EntityNotFoundException;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -40,16 +53,6 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
-import java.util.stream.Collectors;
-
 /**
  * Service managing Comprehension / Case Study passages and their associated sub-questions.
  */
@@ -59,8 +62,7 @@ import java.util.stream.Collectors;
 @Transactional
 public class PassageService {
 
-    private static final String AUDIT_TOPIC = "exam.audit.events";
-
+    public static final String PASSAGE_NOT_FOUND = "Passage not found: ";
     private final PassageRepository passageRepository;
     private final QuestionRepository questionRepository;
     private final SubjectRepository subjectRepository;
@@ -93,7 +95,8 @@ public class PassageService {
                 .subject(subject.getName())
                 .topic(topicName != null ? topicName : request.getTopic())
                 .hasImages(hasImages)
-                .state((request.getState() != null && !request.getState().isBlank()) ? request.getState() : "DRAFT")
+                .state((request.getState() != null && !request.getState().isBlank()) ? request.getState() :
+                    QuestionStateConstants.DRAFT)
                 .encryptionKeyId(dekKeyName)
                 .authorId(authorId)
                 .build();
@@ -123,7 +126,9 @@ public class PassageService {
                 if (qEmbedding != null && qEmbedding.length > 0) {
                     questionRepository.updateEmbedding(savedSubQ.getId(), EmbeddingUtils.embeddingToString(qEmbedding));
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception _) {
+                // Ignore
+            }
 
             createdQuestions.add(savedSubQ);
         }
@@ -143,7 +148,7 @@ public class PassageService {
     @Transactional(readOnly = true)
     public PassageResponse getPassage(UUID passageId, String tenantId) {
         Passage passage = passageRepository.findByIdAndTenantId(passageId, tenantId)
-                .orElseThrow(() -> new EntityNotFoundException("Passage not found: " + passageId));
+                .orElseThrow(() -> new EntityNotFoundException(PASSAGE_NOT_FOUND + passageId));
 
         List<Question> subQuestions = questionRepository.findByPassageIdOrderByPassageOrderIndexAsc(passageId);
         return toResponse(passage, subQuestions);
@@ -154,7 +159,7 @@ public class PassageService {
      */
     public PassageResponse updatePassage(UUID passageId, PassageRequest request, UUID authorId, String tenantId) {
         Passage passage = passageRepository.findByIdAndTenantId(passageId, tenantId)
-                .orElseThrow(() -> new EntityNotFoundException("Passage not found: " + passageId));
+                .orElseThrow(() -> new EntityNotFoundException(PASSAGE_NOT_FOUND + passageId));
 
         ResolvedPassageContext ctx = validateAndResolveContext(request, tenantId);
         Subject subject = ctx.subject();
@@ -223,7 +228,8 @@ public class PassageService {
 
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
 
-        Specification<Passage> spec = Specification.where((root, query, cb) -> cb.equal(root.get("tenantId"), tenantId));
+        Specification<Passage> spec = Specification.where((root, query, cb) -> cb.equal(root.get(
+            SharedConstants.TENANT_ID), tenantId));
 
         if (subjectId != null) {
             spec = spec.and((root, query, cb) -> cb.equal(root.get("subjectId"), subjectId));
@@ -236,7 +242,7 @@ public class PassageService {
             spec = spec.and((root, query, cb) -> cb.or(
                     cb.like(cb.lower(root.get("title")), pattern),
                     cb.like(cb.lower(root.get("content")), pattern),
-                    cb.like(cb.lower(root.get("subject")), pattern)
+                    cb.like(cb.lower(root.get(SharedConstants.SUBJECT)), pattern)
             ));
         }
 
@@ -255,9 +261,9 @@ public class PassageService {
      */
     public void deletePassage(UUID passageId, UUID authorId, String tenantId) {
         Passage passage = passageRepository.findByIdAndTenantId(passageId, tenantId)
-                .orElseThrow(() -> new EntityNotFoundException("Passage not found: " + passageId));
+                .orElseThrow(() -> new EntityNotFoundException(PASSAGE_NOT_FOUND + passageId));
 
-        if (!"DRAFT".equals(passage.getState())) {
+        if (!QuestionStateConstants.DRAFT.equals(passage.getState())) {
             throw new IllegalStateException("Only DRAFT passages can be deleted. Current state: " + passage.getState());
         }
 
@@ -308,8 +314,10 @@ public class PassageService {
                 .subject(subject.getName())
                 .topic(topicName != null ? topicName : passage.getTopic())
                 .chapter(subReq.getChapter())
-                .difficulty(subReq.getDifficulty() != null ? subReq.getDifficulty().name() : "MEDIUM")
-                .cognitiveLevel(subReq.getCognitiveLevel() != null ? subReq.getCognitiveLevel().name() : "UNDERSTAND")
+                .difficulty(subReq.getDifficulty() != null ? subReq.getDifficulty().name() :
+                    QuestionTaxonomyConstants.Difficulty.MEDIUM)
+                .cognitiveLevel(subReq.getCognitiveLevel() != null ? subReq.getCognitiveLevel().name() :
+                    QuestionTaxonomyConstants.CognitiveLevel.UNDERSTAND)
                 .questionType(subReq.getQuestionType() != null ? subReq.getQuestionType().name() : QuestionType.SINGLE_MCQ.name())
                 .content(subReq.getContent())
                 .answerKey(payload.answerKey())
@@ -420,6 +428,6 @@ public class PassageService {
 
     void publishAuditEvent(String eventType, UUID passageId, UUID actorId,
                            String tenantId, Map<String, Object> extra) {
-        AuditEventHelper.publishAuditEvent(eventPublisher, log, AUDIT_TOPIC, eventType, "passageId", passageId, actorId, tenantId, extra);
+        AuditEventHelper.publishAuditEvent(eventPublisher, log, new AuditEventHelper.AuditEventParams(AUDIT_EVENTS_TOPIC, eventType, "passageId", passageId, actorId, tenantId, extra));
     }
 }

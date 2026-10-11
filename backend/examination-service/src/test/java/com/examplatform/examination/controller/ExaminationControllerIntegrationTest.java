@@ -28,6 +28,7 @@ import com.examplatform.examination.exception.ExaminationNotFoundException;
 import com.examplatform.examination.exception.SectionMarksValidationException;
 import com.examplatform.examination.service.ExaminationService;
 import com.examplatform.examination.support.AbstractIntegrationTest;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -83,7 +84,7 @@ class ExaminationControllerIntegrationTest extends AbstractIntegrationTest {
                 .code("NET-2026")
                 .durationMinutes(180)
                 .totalMarks(300)
-                .status("DRAFT")
+                .status(QuestionStateConstants.DRAFT)
                 .build();
     }
 
@@ -289,7 +290,7 @@ class ExaminationControllerIntegrationTest extends AbstractIntegrationTest {
         void examControllerCanPublishExamination() throws Exception {
             ExaminationResponse publishedResponse = ExaminationResponse.builder()
                     .id(EXAM_ID)
-                    .status("PUBLISHED")
+                    .status(QuestionStateConstants.PUBLISHED)
                     .build();
 
             when(examinationService.publish(eq(EXAM_ID), eq(TENANT_ID))).thenReturn(publishedResponse);
@@ -299,7 +300,7 @@ class ExaminationControllerIntegrationTest extends AbstractIntegrationTest {
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EXAM_CONTROLLER"))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("success"))
-                    .andExpect(jsonPath("$.data.status").value("PUBLISHED"));
+                    .andExpect(jsonPath("$.data.status").value(QuestionStateConstants.PUBLISHED));
         }
 
         @Test

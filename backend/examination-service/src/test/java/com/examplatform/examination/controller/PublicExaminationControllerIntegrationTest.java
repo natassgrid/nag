@@ -18,6 +18,7 @@ import com.examplatform.examination.exception.ExaminationNotFoundException;
 import com.examplatform.examination.service.ExamApplicationService;
 import com.examplatform.examination.service.ExaminationService;
 import com.examplatform.examination.support.AbstractIntegrationTest;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -76,7 +77,7 @@ class PublicExaminationControllerIntegrationTest extends AbstractIntegrationTest
                 .reviewFlagEnabled(true)
                 .isPractice(false)
                 .sections(List.of())
-                .status("PUBLISHED")
+                .status(QuestionStateConstants.PUBLISHED)
                 .build();
     }
 
@@ -143,7 +144,7 @@ class PublicExaminationControllerIntegrationTest extends AbstractIntegrationTest
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("success"))
                     .andExpect(jsonPath("$.data.content[0].id").value(EXAM_ID.toString()))
-                    .andExpect(jsonPath("$.data.content[0].status").value("PUBLISHED"));
+                    .andExpect(jsonPath("$.data.content[0].status").value(QuestionStateConstants.PUBLISHED));
         }
 
         @Test

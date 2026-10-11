@@ -29,6 +29,7 @@ import com.examplatform.identity.exception.AccountNotFoundException;
 import com.examplatform.identity.exception.InvalidOtpException;
 import com.examplatform.identity.repository.UserAccountRepository;
 import com.examplatform.shared.audit.AuditEventType;
+import com.examplatform.shared.constants.SharedConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -122,7 +123,7 @@ public class CandidateVerificationService {
                     account.getId().toString(),
                     "identity:candidate-verified",
                     null, null,
-                    Map.of("tenantId", tenantId, "source", eventSource)
+                    Map.of(SharedConstants.TENANT_ID, tenantId, "source", eventSource)
             );
         }
     }

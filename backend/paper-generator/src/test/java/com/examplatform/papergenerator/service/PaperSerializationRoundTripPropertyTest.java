@@ -21,6 +21,7 @@ package com.examplatform.papergenerator.service;
 
 import com.examplatform.papergenerator.domain.Paper;
 import com.examplatform.papergenerator.dto.PaperDocument;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import net.jqwik.api.Arbitraries;
@@ -107,7 +108,7 @@ class PaperSerializationRoundTripPropertyTest {
                             .shiftId(sid)
                             .paperDefinitionJson(definitionJson)
                             .difficultyScore(ds)
-                            .status("DRAFT")
+                            .status(QuestionStateConstants.DRAFT)
                             .build();
                     setId(paper, UUID.randomUUID());
                     return paper;

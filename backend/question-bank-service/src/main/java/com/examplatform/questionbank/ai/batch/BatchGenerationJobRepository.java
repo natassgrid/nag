@@ -3,6 +3,7 @@
  */
 package com.examplatform.questionbank.ai.batch;
 
+import com.examplatform.shared.constants.SharedConstants;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -30,7 +31,7 @@ public interface BatchGenerationJobRepository extends JpaRepository<BatchGenerat
     @Query("SELECT j FROM BatchGenerationJob j WHERE j.status IN :statuses AND j.tenantId = :tenantId")
     List<BatchGenerationJob> findActiveJobs(
             @Param("statuses") List<BatchJobStatus> statuses,
-            @Param("tenantId") String tenantId);
+            @Param(SharedConstants.TENANT_ID) String tenantId);
 
     /** Find pending jobs globally (for the scheduler). */
     List<BatchGenerationJob> findByStatusOrderByCreatedAtAsc(BatchJobStatus status);

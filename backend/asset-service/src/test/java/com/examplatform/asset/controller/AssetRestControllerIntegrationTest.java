@@ -29,6 +29,7 @@ import com.examplatform.asset.dto.AssetUploadResponse;
 import com.examplatform.asset.service.AssetService;
 import com.examplatform.asset.service.ReferenceService;
 import com.examplatform.asset.support.AbstractIntegrationTest;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -292,7 +293,7 @@ class AssetRestControllerIntegrationTest extends AbstractIntegrationTest {
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
                                     .jwt(j -> j.subject(USER_ID.toString()).claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.data.status").value("ARCHIVED"));
+                    .andExpect(jsonPath("$.data.status").value(QuestionStateConstants.ARCHIVED));
         }
 
         @Test

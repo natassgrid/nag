@@ -19,6 +19,8 @@
 
 package com.examplatform.papergenerator.service;
 
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
+
 import com.examplatform.papergenerator.crypto.CanonicalPaperManifest;
 import com.examplatform.papergenerator.crypto.MerkleTree;
 import com.examplatform.papergenerator.domain.Paper;
@@ -26,6 +28,7 @@ import com.examplatform.papergenerator.ledger.LedgerAdapter;
 import com.examplatform.papergenerator.ledger.LedgerAttestationPayload;
 import com.examplatform.papergenerator.ledger.LedgerAttestationReceipt;
 import com.examplatform.papergenerator.repository.PaperRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -57,7 +60,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PaperAnchoringService {
 
-    private static final String AUDIT_TOPIC = "exam.audit.events";
 
     private final LedgerAdapter ledgerAdapter;
     private final PaperRepository paperRepository;
@@ -188,7 +190,7 @@ public class PaperAnchoringService {
             return Map.of(
                     "verified", false,
                     "paperRootHash", paperRootHash != null ? paperRootHash : "",
-                    "message", "Paper root hash not found in repository or public ledger attestation index"
+                SharedConstants.MESSAGE, "Paper root hash not found in repository or public ledger attestation index"
             );
         }
 
@@ -260,10 +262,10 @@ public class PaperAnchoringService {
                     "txHash", receipt.getTxHash(),
                     "consensusTimestamp", receipt.getConsensusTimestamp(),
                     "ledgerNetwork", receipt.getNetwork(),
-                    "tenantId", tenantId != null ? tenantId : "default",
+                SharedConstants.TENANT_ID, tenantId != null ? tenantId : "default",
                     "occurredAt", Instant.now().toString()
             );
-            eventPublisher.publish(AUDIT_TOPIC, paper.getId().toString(), event);
+            eventPublisher.publish(AUDIT_EVENTS_TOPIC, paper.getId().toString(), event);
         } catch (Exception e) {
             log.error("Failed to publish PAPER_LEDGER_ANCHORED audit event: {}", e.getMessage());
         }

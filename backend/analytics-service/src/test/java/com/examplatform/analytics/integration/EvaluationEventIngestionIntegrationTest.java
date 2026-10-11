@@ -26,6 +26,7 @@ import com.examplatform.analytics.repository.CandidateAnalyticsResultRepository;
 import com.examplatform.analytics.repository.ExamAnalyticsRepository;
 import com.examplatform.analytics.service.AnalyticsService;
 import com.examplatform.analytics.support.AbstractIntegrationTest;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.GenericDomainEvent;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -115,7 +116,7 @@ class EvaluationEventIngestionIntegrationTest extends AbstractIntegrationTest {
                 "sessionId", UUID.randomUUID().toString(),
                 "totalRawScore", totalRawScore,
                 "sectionScores", sectionScores,
-                "tenantId", "default",
+            SharedConstants.TENANT_ID, "default",
                 "evaluatedAt", Instant.now().toString()
         );
 

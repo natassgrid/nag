@@ -25,6 +25,7 @@ import com.examplatform.questionbank.domain.enums.CognitiveLevel;
 import com.examplatform.questionbank.domain.enums.DifficultyLevel;
 import com.examplatform.questionbank.domain.enums.QuestionType;
 import com.examplatform.questionbank.service.QuestionService;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -163,7 +164,7 @@ public class QuestionImportService {
                 .subjectId(asLong(rec.get("subjectId")))
                 .topicId(asLong(rec.get("topicId")))
                 .subtopicId(asLong(rec.get("subtopicId")))
-                .subject(asString(rec.get("subject")))
+                .subject(asString(rec.get(SharedConstants.SUBJECT)))
                 .topic(asString(rec.get("topic")))
                 .subtopic(asString(rec.get("subtopic")))
                 .chapter(asString(rec.get("chapter")))
@@ -188,7 +189,7 @@ public class QuestionImportService {
                 .subjectId(asLong(value(header, row, "subjectId")))
                 .topicId(asLong(value(header, row, "topicId")))
                 .subtopicId(asLong(value(header, row, "subtopicId")))
-                .subject(value(header, row, "subject"))
+                .subject(value(header, row, SharedConstants.SUBJECT))
                 .topic(value(header, row, "topic"))
                 .subtopic(value(header, row, "subtopic"))
                 .chapter(value(header, row, "chapter"))

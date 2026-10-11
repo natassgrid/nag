@@ -19,6 +19,8 @@
 
 package com.examplatform.examination.service;
 
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
+
 import com.examplatform.examination.domain.ExaminationCentre;
 import com.examplatform.examination.domain.ShiftSeatAllocation;
 import com.examplatform.examination.dto.schedule.CentreResponse;
@@ -31,6 +33,7 @@ import com.examplatform.examination.exception.ShiftNotFoundException;
 import com.examplatform.examination.repository.ExaminationCentreRepository;
 import com.examplatform.examination.repository.ExamShiftRepository;
 import com.examplatform.examination.repository.ShiftSeatAllocationRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -56,8 +59,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Transactional
 public class ExaminationCentreService {
-
-    private static final String AUDIT_TOPIC = "exam.audit.events";
 
     private final ExaminationCentreRepository centreRepository;
     private final ExamShiftRepository shiftRepository;
@@ -243,9 +244,9 @@ public class ExaminationCentreService {
             event.put("centreId", a.getCentreId().toString());
             event.put("availableSeats", a.getAvailableSeats());
             event.put("actorId", actorId != null ? actorId.toString() : null);
-            event.put("tenantId", tenantId);
+            event.put(SharedConstants.TENANT_ID, tenantId);
             event.put("occurredAt", Instant.now().toString());
-            eventPublisher.publish(AUDIT_TOPIC, a.getId().toString(), event);
+            eventPublisher.publish(AUDIT_EVENTS_TOPIC, a.getId().toString(), event);
         } catch (Exception e) {
             log.error("Unexpected error publishing seat allocation audit: {}", e.getMessage());
         }

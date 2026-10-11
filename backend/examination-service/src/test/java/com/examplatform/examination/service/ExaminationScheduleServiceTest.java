@@ -35,6 +35,7 @@ import com.examplatform.examination.exception.ShiftTimingViolationException;
 import com.examplatform.examination.repository.ExaminationRepository;
 import com.examplatform.examination.repository.ExaminationScheduleRepository;
 import com.examplatform.examination.repository.ExamShiftRepository;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -99,7 +100,7 @@ class ExaminationScheduleServiceTest {
 
             ScheduleResponse resp = service.createSchedule(EXAM_ID, req, ACTOR_ID, TENANT);
 
-            assertThat(resp.getStatus()).isEqualTo("DRAFT");
+            assertThat(resp.getStatus()).isEqualTo(QuestionStateConstants.DRAFT);
             assertThat(resp.getScheduleName()).isEqualTo("Phase 1");
             assertThat(resp.getScheduleVersion()).isEqualTo(1);
             assertThat(resp.getExaminationId()).isEqualTo(EXAM_ID);
@@ -144,7 +145,7 @@ class ExaminationScheduleServiceTest {
         @Test
         @DisplayName("DRAFT → SCHEDULER_REVIEW succeeds for EXAM_CONTROLLER")
         void draftToSchedulerReview() {
-            ExaminationSchedule schedule = stubSchedule(UUID.randomUUID(), EXAM_ID, "DRAFT", 1);
+            ExaminationSchedule schedule = stubSchedule(UUID.randomUUID(), EXAM_ID, QuestionStateConstants.DRAFT, 1);
             when(scheduleRepository.findById(schedule.getId())).thenReturn(Optional.of(schedule));
             when(scheduleRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
@@ -159,22 +160,22 @@ class ExaminationScheduleServiceTest {
         @Test
         @DisplayName("DRAFT → PUBLISHED is rejected (skips states)")
         void draftToPublishedRejected() {
-            ExaminationSchedule schedule = stubSchedule(UUID.randomUUID(), EXAM_ID, "DRAFT", 1);
+            ExaminationSchedule schedule = stubSchedule(UUID.randomUUID(), EXAM_ID, QuestionStateConstants.DRAFT, 1);
             when(scheduleRepository.findById(schedule.getId())).thenReturn(Optional.of(schedule));
 
             assertThatThrownBy(() -> service.transitionSchedule(
                     schedule.getId(),
-                    ScheduleTransitionRequest.builder().targetStatus("PUBLISHED").build(),
+                    ScheduleTransitionRequest.builder().targetStatus(QuestionStateConstants.PUBLISHED).build(),
                     ACTOR_ID, Set.of("SUPER_ADMIN"), TENANT))
                     .isInstanceOf(ScheduleWorkflowException.class)
-                    .hasMessageContaining("DRAFT")
-                    .hasMessageContaining("PUBLISHED");
+                    .hasMessageContaining(QuestionStateConstants.DRAFT)
+                    .hasMessageContaining(QuestionStateConstants.PUBLISHED);
         }
 
         @Test
         @DisplayName("PUBLISHED → CANCELLED succeeds for EXAM_CONTROLLER")
         void publishedToCancelled() {
-            ExaminationSchedule schedule = stubSchedule(UUID.randomUUID(), EXAM_ID, "PUBLISHED", 1);
+            ExaminationSchedule schedule = stubSchedule(UUID.randomUUID(), EXAM_ID, QuestionStateConstants.PUBLISHED, 1);
             when(scheduleRepository.findById(schedule.getId())).thenReturn(Optional.of(schedule));
             when(scheduleRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
@@ -191,13 +192,13 @@ class ExaminationScheduleServiceTest {
         void fullApprovalChain() {
             UUID sid = UUID.randomUUID();
             // Simulate progressive state changes by returning updated schedule each time
-            ExaminationSchedule s = stubSchedule(sid, EXAM_ID, "DRAFT", 1);
+            ExaminationSchedule s = stubSchedule(sid, EXAM_ID, QuestionStateConstants.DRAFT, 1);
             when(scheduleRepository.findById(sid)).thenReturn(Optional.of(s));
             when(scheduleRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
             String[] chain = {
                 "SCHEDULER_REVIEW", "CONTROLLER_APPROVED",
-                "SECURITY_REVIEW", "CHAIRMAN_APPROVED", "PUBLISHED"
+                "SECURITY_REVIEW", "CHAIRMAN_APPROVED", QuestionStateConstants.PUBLISHED
             };
             Set<String>[] roles = new Set[]{
                 Set.of("EXAM_CONTROLLER"), Set.of("EXAM_CONTROLLER"),
@@ -224,7 +225,7 @@ class ExaminationScheduleServiceTest {
         @DisplayName("creates new version row with incremented version and previousVersionId")
         void createsNewVersionRow() {
             UUID sid = UUID.randomUUID();
-            ExaminationSchedule published = stubSchedule(sid, EXAM_ID, "PUBLISHED", 2);
+            ExaminationSchedule published = stubSchedule(sid, EXAM_ID, QuestionStateConstants.PUBLISHED, 2);
             when(scheduleRepository.findById(sid)).thenReturn(Optional.of(published));
             when(scheduleRepository.existsConflictingExamDate(any(), any(), any())).thenReturn(false);
             when(scheduleRepository.existsConflictingReserveDate(any(), any(), any())).thenReturn(false);
@@ -244,7 +245,7 @@ class ExaminationScheduleServiceTest {
 
             assertThat(resp.getScheduleVersion()).isEqualTo(3);
             assertThat(resp.getPreviousVersionId()).isEqualTo(sid);
-            assertThat(resp.getStatus()).isEqualTo("DRAFT"); // amendment restarts workflow
+            assertThat(resp.getStatus()).isEqualTo(QuestionStateConstants.DRAFT); // amendment restarts workflow
             assertThat(resp.getChangeReason()).isEqualTo("Date rescheduled due to national holiday");
         }
 
@@ -253,7 +254,7 @@ class ExaminationScheduleServiceTest {
         void rejectsNonPublished() {
             UUID sid = UUID.randomUUID();
             when(scheduleRepository.findById(sid))
-                    .thenReturn(Optional.of(stubSchedule(sid, EXAM_ID, "DRAFT", 1)));
+                    .thenReturn(Optional.of(stubSchedule(sid, EXAM_ID, QuestionStateConstants.DRAFT, 1)));
 
             assertThatThrownBy(() -> service.amendSchedule(sid,
                     AmendScheduleRequest.builder()
@@ -263,7 +264,7 @@ class ExaminationScheduleServiceTest {
                             .build(),
                     ACTOR_ID, TENANT))
                     .isInstanceOf(ScheduleWorkflowException.class)
-                    .hasMessageContaining("PUBLISHED");
+                    .hasMessageContaining(QuestionStateConstants.PUBLISHED);
         }
     }
 
@@ -358,7 +359,7 @@ class ExaminationScheduleServiceTest {
                 .totalMarks(100)
                 .navigationPolicy("FLEXIBLE")
                 .calculatorPolicy("NONE")
-                .status("DRAFT")
+                .status(QuestionStateConstants.DRAFT)
                 .build();
         setId(e, id);
         e.setTenantId(tenantId);

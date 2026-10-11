@@ -20,6 +20,7 @@
 package com.examplatform.analytics.consumer;
 
 import com.examplatform.analytics.service.AnalyticsService;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.AbstractEvaluationCompletedConsumer;
 import com.examplatform.shared.util.DataConversionUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -92,7 +93,7 @@ public class EvaluationCompletedConsumer extends AbstractEvaluationCompletedCons
         }
 
         double totalRawScore = DataConversionUtils.toDouble(event.get("totalRawScore"));
-        String tenantId = (String) event.getOrDefault("tenantId", "default");
+        String tenantId = (String) event.getOrDefault(SharedConstants.TENANT_ID, "default");
 
         @SuppressWarnings("unchecked")
         Map<String, Object> sectionScores = (Map<String, Object>) event.getOrDefault("sectionScores", Map.of());

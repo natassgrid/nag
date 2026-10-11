@@ -25,6 +25,9 @@ import com.examplatform.questionbank.dto.TransitionRequest;
 import com.examplatform.questionbank.exception.FourEyesPrincipleViolationException;
 import com.examplatform.questionbank.exception.InvalidTransitionException;
 import com.examplatform.questionbank.repository.QuestionRepository;
+import com.examplatform.shared.constants.QuestionStateConstants;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.examplatform.shared.constants.QuestionTypeConstants;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -74,9 +77,9 @@ class QuestionLifecycleServiceTest {
         Question question = Question.builder()
                 .subject("Mathematics")
                 .topic("Algebra")
-                .difficulty("MEDIUM")
-                .cognitiveLevel("UNDERSTAND")
-                .questionType("SINGLE_MCQ")
+                .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
+                .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.UNDERSTAND)
+                .questionType(QuestionTypeConstants.SINGLE_MCQ)
                 .content("What is 2+2?")
                 .answerKey("4")
                 .state(state)
@@ -100,50 +103,50 @@ class QuestionLifecycleServiceTest {
         @Test
         @DisplayName("DRAFT → REVIEW succeeds")
         void draftToReviewSucceeds() {
-            Question question = buildQuestion("DRAFT");
+            Question question = buildQuestion(QuestionStateConstants.DRAFT);
             when(questionRepository.findById(QUESTION_ID)).thenReturn(Optional.of(question));
             when(questionRepository.save(any(Question.class))).thenAnswer(i -> i.getArgument(0));
 
             TransitionRequest request = TransitionRequest.builder()
-                    .targetState("REVIEW")
+                    .targetState(QuestionStateConstants.REVIEW)
                     .build();
 
             QuestionResponse response = questionLifecycleService.transition(QUESTION_ID, request, ACTOR_ID, TENANT_ID);
 
-            assertThat(response.getState()).isEqualTo("REVIEW");
+            assertThat(response.getState()).isEqualTo(QuestionStateConstants.REVIEW);
         }
 
         @Test
         @DisplayName("REVIEW → APPROVED succeeds and sets reviewerId")
         void reviewToApprovedSucceedsAndSetsReviewerId() {
-            Question question = buildQuestion("REVIEW");
+            Question question = buildQuestion(QuestionStateConstants.REVIEW);
             when(questionRepository.findById(QUESTION_ID)).thenReturn(Optional.of(question));
             when(questionRepository.save(any(Question.class))).thenAnswer(i -> i.getArgument(0));
 
             TransitionRequest request = TransitionRequest.builder()
-                    .targetState("APPROVED")
+                    .targetState(QuestionStateConstants.APPROVED)
                     .build();
 
             QuestionResponse response = questionLifecycleService.transition(QUESTION_ID, request, ACTOR_ID, TENANT_ID);
 
-            assertThat(response.getState()).isEqualTo("APPROVED");
+            assertThat(response.getState()).isEqualTo(QuestionStateConstants.APPROVED);
             assertThat(question.getReviewerId()).isEqualTo(ACTOR_ID);
         }
 
         @Test
         @DisplayName("REVIEW → DRAFT succeeds")
         void reviewToDraftSucceeds() {
-            Question question = buildQuestion("REVIEW");
+            Question question = buildQuestion(QuestionStateConstants.REVIEW);
             when(questionRepository.findById(QUESTION_ID)).thenReturn(Optional.of(question));
             when(questionRepository.save(any(Question.class))).thenAnswer(i -> i.getArgument(0));
 
             TransitionRequest request = TransitionRequest.builder()
-                    .targetState("DRAFT")
+                    .targetState(QuestionStateConstants.DRAFT)
                     .build();
 
             QuestionResponse response = questionLifecycleService.transition(QUESTION_ID, request, ACTOR_ID, TENANT_ID);
 
-            assertThat(response.getState()).isEqualTo("DRAFT");
+            assertThat(response.getState()).isEqualTo(QuestionStateConstants.DRAFT);
         }
 
         @Test
@@ -152,34 +155,34 @@ class QuestionLifecycleServiceTest {
             UUID reviewerId = UUID.randomUUID();
             UUID approverId = UUID.randomUUID();
 
-            Question question = buildQuestion("APPROVED");
+            Question question = buildQuestion(QuestionStateConstants.APPROVED);
             question.setReviewerId(reviewerId);
             when(questionRepository.findById(QUESTION_ID)).thenReturn(Optional.of(question));
             when(questionRepository.save(any(Question.class))).thenAnswer(i -> i.getArgument(0));
 
             TransitionRequest request = TransitionRequest.builder()
-                    .targetState("PUBLISHED")
+                    .targetState(QuestionStateConstants.PUBLISHED)
                     .build();
 
             QuestionResponse response = questionLifecycleService.transition(QUESTION_ID, request, approverId, TENANT_ID);
 
-            assertThat(response.getState()).isEqualTo("PUBLISHED");
+            assertThat(response.getState()).isEqualTo(QuestionStateConstants.PUBLISHED);
         }
 
         @Test
         @DisplayName("PUBLISHED → ARCHIVED succeeds")
         void publishedToArchivedSucceeds() {
-            Question question = buildQuestion("PUBLISHED");
+            Question question = buildQuestion(QuestionStateConstants.PUBLISHED);
             when(questionRepository.findById(QUESTION_ID)).thenReturn(Optional.of(question));
             when(questionRepository.save(any(Question.class))).thenAnswer(i -> i.getArgument(0));
 
             TransitionRequest request = TransitionRequest.builder()
-                    .targetState("ARCHIVED")
+                    .targetState(QuestionStateConstants.ARCHIVED)
                     .build();
 
             QuestionResponse response = questionLifecycleService.transition(QUESTION_ID, request, ACTOR_ID, TENANT_ID);
 
-            assertThat(response.getState()).isEqualTo("ARCHIVED");
+            assertThat(response.getState()).isEqualTo(QuestionStateConstants.ARCHIVED);
         }
     }
 
@@ -190,33 +193,33 @@ class QuestionLifecycleServiceTest {
         @Test
         @DisplayName("DRAFT → PUBLISHED throws InvalidTransitionException")
         void draftToPublishedThrows() {
-            Question question = buildQuestion("DRAFT");
+            Question question = buildQuestion(QuestionStateConstants.DRAFT);
             when(questionRepository.findById(QUESTION_ID)).thenReturn(Optional.of(question));
 
             TransitionRequest request = TransitionRequest.builder()
-                    .targetState("PUBLISHED")
+                    .targetState(QuestionStateConstants.PUBLISHED)
                     .build();
 
             assertThatThrownBy(() -> questionLifecycleService.transition(QUESTION_ID, request, ACTOR_ID, TENANT_ID))
                     .isInstanceOf(InvalidTransitionException.class)
-                    .hasMessageContaining("DRAFT")
-                    .hasMessageContaining("PUBLISHED");
+                    .hasMessageContaining(QuestionStateConstants.DRAFT)
+                    .hasMessageContaining(QuestionStateConstants.PUBLISHED);
         }
 
         @Test
         @DisplayName("ARCHIVED → DRAFT throws InvalidTransitionException")
         void archivedToDraftThrows() {
-            Question question = buildQuestion("ARCHIVED");
+            Question question = buildQuestion(QuestionStateConstants.ARCHIVED);
             when(questionRepository.findById(QUESTION_ID)).thenReturn(Optional.of(question));
 
             TransitionRequest request = TransitionRequest.builder()
-                    .targetState("DRAFT")
+                    .targetState(QuestionStateConstants.DRAFT)
                     .build();
 
             assertThatThrownBy(() -> questionLifecycleService.transition(QUESTION_ID, request, ACTOR_ID, TENANT_ID))
                     .isInstanceOf(InvalidTransitionException.class)
-                    .hasMessageContaining("ARCHIVED")
-                    .hasMessageContaining("DRAFT");
+                    .hasMessageContaining(QuestionStateConstants.ARCHIVED)
+                    .hasMessageContaining(QuestionStateConstants.DRAFT);
         }
     }
 
@@ -229,12 +232,12 @@ class QuestionLifecycleServiceTest {
         void approvedToPublishedFailsWhenActorIsReviewer() {
             UUID sameActorId = UUID.randomUUID();
 
-            Question question = buildQuestion("APPROVED");
+            Question question = buildQuestion(QuestionStateConstants.APPROVED);
             question.setReviewerId(sameActorId);
             when(questionRepository.findById(QUESTION_ID)).thenReturn(Optional.of(question));
 
             TransitionRequest request = TransitionRequest.builder()
-                    .targetState("PUBLISHED")
+                    .targetState(QuestionStateConstants.PUBLISHED)
                     .build();
 
             assertThatThrownBy(() -> questionLifecycleService.transition(QUESTION_ID, request, sameActorId, TENANT_ID))
@@ -253,7 +256,7 @@ class QuestionLifecycleServiceTest {
             when(questionRepository.findById(QUESTION_ID)).thenReturn(Optional.empty());
 
             TransitionRequest request = TransitionRequest.builder()
-                    .targetState("REVIEW")
+                    .targetState(QuestionStateConstants.REVIEW)
                     .build();
 
             assertThatThrownBy(() -> questionLifecycleService.transition(QUESTION_ID, request, ACTOR_ID, TENANT_ID))
@@ -265,9 +268,9 @@ class QuestionLifecycleServiceTest {
         Question question = Question.builder()
                 .subject("Mathematics")
                 .topic("Algebra")
-                .difficulty("MEDIUM")
-                .cognitiveLevel("UNDERSTAND")
-                .questionType("SINGLE_MCQ")
+                .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
+                .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.UNDERSTAND)
+                .questionType(QuestionTypeConstants.SINGLE_MCQ)
                 .content("What is 2+2?")
                 .answerKey("4")
                 .state(state)
@@ -292,8 +295,8 @@ class QuestionLifecycleServiceTest {
         void bulkTransitionAllSucceed() {
             UUID q1 = UUID.randomUUID();
             UUID q2 = UUID.randomUUID();
-            Question question1 = buildQuestionWithId(q1, "DRAFT");
-            Question question2 = buildQuestionWithId(q2, "DRAFT");
+            Question question1 = buildQuestionWithId(q1, QuestionStateConstants.DRAFT);
+            Question question2 = buildQuestionWithId(q2, QuestionStateConstants.DRAFT);
 
             when(questionRepository.findById(q1)).thenReturn(Optional.of(question1));
             when(questionRepository.findById(q2)).thenReturn(Optional.of(question2));
@@ -301,7 +304,7 @@ class QuestionLifecycleServiceTest {
 
             BulkTransitionRequest req = BulkTransitionRequest.builder()
                     .questionIds(List.of(q1, q2))
-                    .targetState("REVIEW")
+                    .targetState(QuestionStateConstants.REVIEW)
                     .build();
 
             BulkTransitionResponse resp = questionLifecycleService.bulkTransition(req, ACTOR_ID, TENANT_ID);
@@ -309,7 +312,7 @@ class QuestionLifecycleServiceTest {
             assertThat(resp.getTotalRequested()).isEqualTo(2);
             assertThat(resp.getSuccessCount()).isEqualTo(2);
             assertThat(resp.getFailureCount()).isEqualTo(0);
-            assertThat(resp.getResults()).allMatch(r -> r.isSuccess() && "REVIEW".equals(r.getNewState()));
+            assertThat(resp.getResults()).allMatch(r -> r.isSuccess() && QuestionStateConstants.REVIEW.equals(r.getNewState()));
         }
 
         @Test
@@ -319,8 +322,8 @@ class QuestionLifecycleServiceTest {
             UUID qInvalid = UUID.randomUUID();
             UUID qNotFound = UUID.randomUUID();
 
-            Question question1 = buildQuestionWithId(qValid, "DRAFT");
-            Question question2 = buildQuestionWithId(qInvalid, "ARCHIVED");
+            Question question1 = buildQuestionWithId(qValid, QuestionStateConstants.DRAFT);
+            Question question2 = buildQuestionWithId(qInvalid, QuestionStateConstants.ARCHIVED);
 
             when(questionRepository.findById(qValid)).thenReturn(Optional.of(question1));
             when(questionRepository.findById(qInvalid)).thenReturn(Optional.of(question2));
@@ -329,7 +332,7 @@ class QuestionLifecycleServiceTest {
 
             BulkTransitionRequest req = BulkTransitionRequest.builder()
                     .questionIds(List.of(qValid, qInvalid, qNotFound))
-                    .targetState("REVIEW")
+                    .targetState(QuestionStateConstants.REVIEW)
                     .build();
 
             BulkTransitionResponse resp = questionLifecycleService.bulkTransition(req, ACTOR_ID, TENANT_ID);
@@ -352,7 +355,7 @@ class QuestionLifecycleServiceTest {
 
             BulkTransitionRequest req = BulkTransitionRequest.builder()
                     .questionIds(many)
-                    .targetState("REVIEW")
+                    .targetState(QuestionStateConstants.REVIEW)
                     .build();
 
             assertThatThrownBy(() -> questionLifecycleService.bulkTransition(req, ACTOR_ID, TENANT_ID))

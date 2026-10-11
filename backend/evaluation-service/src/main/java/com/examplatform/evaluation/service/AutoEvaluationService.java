@@ -19,12 +19,16 @@
 
 package com.examplatform.evaluation.service;
 
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
+
 import com.examplatform.evaluation.domain.Evaluation;
 import com.examplatform.evaluation.dto.AnswerKey;
 import com.examplatform.evaluation.dto.CandidateResponse;
 import com.examplatform.evaluation.dto.MarkingScheme;
 import com.examplatform.evaluation.repository.EvaluationRepository;
 import com.examplatform.shared.config.DynamicConfigService;
+import com.examplatform.shared.constants.QuestionTypeConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -56,7 +60,6 @@ import java.util.stream.Collectors;
 @Transactional
 public class AutoEvaluationService {
 
-    private static final String AUDIT_TOPIC = "exam.audit.events";
 
     private final EvaluationRepository evaluationRepository;
     private final ObjectMapper objectMapper;
@@ -96,7 +99,7 @@ public class AutoEvaluationService {
             if (resp == null || !resp.isAttempted()) {
                 // Unattempted -> zero marks
                 score = BigDecimal.ZERO;
-            } else if ("MULTI_MCQ".equals(answerKey.getQuestionType())) {
+            } else if (QuestionTypeConstants.MULTI_MCQ.equals(answerKey.getQuestionType())) {
                 // Partial marking for Multi MCQ
                 double negativeMarks = answerKey.getNegativeMarks() > 0 ? answerKey.getNegativeMarks() : 2.0;
                 MarkingScheme scheme = answerKey.getMarkingScheme() != null
@@ -157,11 +160,11 @@ public class AutoEvaluationService {
                     "candidateId", anonymized ? ("ANON-" + UUID.nameUUIDFromBytes(candidateId.toString().getBytes())) : candidateId.toString(),
                     "evaluationCount", evaluationCount,
                     "evaluationType", "AUTO",
-                    "tenantId", tenantId,
+                SharedConstants.TENANT_ID, tenantId,
                     "anonymized", anonymized,
                     "occurredAt", Instant.now().toString()
             );
-            eventPublisher.publish(AUDIT_TOPIC, sessionId.toString(), event);
+            eventPublisher.publish(AUDIT_EVENTS_TOPIC, sessionId.toString(), event);
         } catch (Exception e) {
             log.error("Unexpected error publishing EVALUATION_CREATED audit event: {}", e.getMessage());
         }
@@ -172,9 +175,9 @@ public class AutoEvaluationService {
      */
     boolean evaluateAnswer(AnswerKey answerKey, CandidateResponse response) {
         return switch (answerKey.getQuestionType()) {
-            case "SINGLE_MCQ" -> evaluateSingleMcq(answerKey.getCorrectAnswer(), response.getSelectedOptionIds());
-            case "MULTI_MCQ" -> evaluateMultiMcq(answerKey.getCorrectAnswer(), response.getSelectedOptionIds());
-            case "NUMERICAL" -> evaluateNumerical(answerKey.getCorrectAnswer(), response.getEnteredValue());
+            case QuestionTypeConstants.SINGLE_MCQ -> evaluateSingleMcq(answerKey.getCorrectAnswer(), response.getSelectedOptionIds());
+            case QuestionTypeConstants.MULTI_MCQ -> evaluateMultiMcq(answerKey.getCorrectAnswer(), response.getSelectedOptionIds());
+            case QuestionTypeConstants.NUMERICAL -> evaluateNumerical(answerKey.getCorrectAnswer(), response.getEnteredValue());
             default -> false; // Descriptive, Coding, etc. require manual evaluation
         };
     }

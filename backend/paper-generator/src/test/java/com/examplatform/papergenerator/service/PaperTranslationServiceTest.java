@@ -25,6 +25,7 @@ import com.examplatform.papergenerator.dto.BatchTranslationJobResponseDto;
 import com.examplatform.papergenerator.dto.PaperTranslateRequest;
 import com.examplatform.papergenerator.dto.PaperTranslateResponse;
 import com.examplatform.papergenerator.repository.PaperRepository;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
@@ -82,7 +83,7 @@ class PaperTranslationServiceTest {
         String paperJson = String.format("{\"questionIds\": [\"%s\", \"%s\"]}", questionId1, questionId2);
         Paper paper = Paper.builder()
                 .name("Sample Paper")
-                .status("APPROVED")
+                .status(QuestionStateConstants.APPROVED)
                 .paperDefinitionJson(paperJson)
                 .build();
         ReflectionTestUtils.setField(paper, "id", paperId);
@@ -96,7 +97,7 @@ class PaperTranslationServiceTest {
                 .status("PENDING")
                 .sourceLanguage("en")
                 .targetLanguage("hi")
-                .targetStatus("PUBLISHED")
+                .targetStatus(QuestionStateConstants.PUBLISHED)
                 .overwriteExisting(true)
                 .totalQuestions(2)
                 .progressPercentage(0.0)
@@ -112,7 +113,7 @@ class PaperTranslationServiceTest {
 
         PaperTranslateRequest request = PaperTranslateRequest.builder()
                 .targetLanguage("hi")
-                .targetStatus("PUBLISHED")
+                .targetStatus(QuestionStateConstants.PUBLISHED)
                 .overwriteExisting(true)
                 .build();
 
@@ -149,7 +150,7 @@ class PaperTranslationServiceTest {
     void shouldThrowWhenPaperHasNoQuestions() {
         Paper paper = Paper.builder()
                 .name("Empty Paper")
-                .status("DRAFT")
+                .status(QuestionStateConstants.DRAFT)
                 .paperDefinitionJson("{\"questionIds\": []}")
                 .build();
         ReflectionTestUtils.setField(paper, "id", paperId);
@@ -171,7 +172,7 @@ class PaperTranslationServiceTest {
                 .status("IN_PROGRESS")
                 .sourceLanguage("en")
                 .targetLanguage("hi")
-                .targetStatus("PUBLISHED")
+                .targetStatus(QuestionStateConstants.PUBLISHED)
                 .totalQuestions(10)
                 .processedQuestions(4)
                 .successfulQuestions(4)

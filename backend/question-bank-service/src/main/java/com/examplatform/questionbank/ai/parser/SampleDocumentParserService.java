@@ -16,6 +16,8 @@
 package com.examplatform.questionbank.ai.parser;
 
 import com.examplatform.questionbank.dto.QuestionOption;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.examplatform.shared.constants.QuestionTypeConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.Loader;
@@ -148,9 +150,9 @@ public class SampleDocumentParserService {
                             .embeddedMedia(mediaRef)
                             .parsingTier("TIER_2_SCANNED_FALLBACK")
                             .hasDiagram(true)
-                            .questionType("SINGLE_MCQ")
-                            .difficulty("MEDIUM")
-                            .bloomLevel("APPLY")
+                            .questionType(QuestionTypeConstants.SINGLE_MCQ)
+                            .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
+                            .bloomLevel(QuestionTaxonomyConstants.CognitiveLevel.APPLY)
                             .build();
                     questions.add(nq);
                 }
@@ -176,9 +178,9 @@ public class SampleDocumentParserService {
                 .embeddedMedia(mediaRef)
                 .parsingTier("STANDALONE_IMAGE")
                 .hasDiagram(true)
-                .questionType("SINGLE_MCQ")
-                .difficulty("MEDIUM")
-                .bloomLevel("APPLY")
+                .questionType(QuestionTypeConstants.SINGLE_MCQ)
+                .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
+                .bloomLevel(QuestionTaxonomyConstants.CognitiveLevel.APPLY)
                 .build();
     }
 
@@ -258,7 +260,8 @@ public class SampleDocumentParserService {
         List<QuestionOption> options = extractOptions(normalizedText);
 
         // Infer question type
-        String questionType = options.size() >= 2 ? "SINGLE_MCQ" : "DESCRIPTIVE";
+        String questionType = options.size() >= 2 ? QuestionTypeConstants.SINGLE_MCQ :
+            QuestionTypeConstants.DESCRIPTIVE;
 
         // Separate stem from options
         String stem = cleanStemText(normalizedText, options);
@@ -271,8 +274,8 @@ public class SampleDocumentParserService {
                 .hasDiagram(mediaRef != null && !mediaRef.isBlank())
                 .parsingTier(tier)
                 .questionType(questionType)
-                .difficulty("MEDIUM")
-                .bloomLevel(hasMath || hasChemistry ? "ANALYZE" : "APPLY")
+                .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
+                .bloomLevel(hasMath || hasChemistry ? QuestionTaxonomyConstants.CognitiveLevel.ANALYZE : QuestionTaxonomyConstants.CognitiveLevel.APPLY)
                 .build();
     }
 

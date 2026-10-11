@@ -26,6 +26,7 @@ import com.examplatform.questionbank.grpc.BlueprintMatchGrpcRequest;
 import com.examplatform.questionbank.grpc.BlueprintMatchGrpcResponse;
 import com.examplatform.questionbank.grpc.QuestionBankGrpcServiceGrpc;
 import com.examplatform.questionbank.grpc.QuestionSummaryGrpc;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
@@ -112,7 +113,8 @@ class QuestionBankClientImplTest {
                 .andExpect(header("X-Tenant-Id", "tenant-1"))
                 .andRespond(withSuccess(jsonResponse, APPLICATION_JSON));
 
-        List<QuestionSummary> results = client.findAvailableQuestions("Mathematics", "Calculus", "MEDIUM", "APPLY", "tenant-1");
+        List<QuestionSummary> results = client.findAvailableQuestions("Mathematics", "Calculus",
+            QuestionTaxonomyConstants.Difficulty.MEDIUM, QuestionTaxonomyConstants.CognitiveLevel.APPLY, "tenant-1");
 
         assertThat(results).hasSize(1);
         assertThat(results.get(0).getQuestionId()).isEqualTo(qId);
@@ -138,7 +140,8 @@ class QuestionBankClientImplTest {
                 .andExpect(method(POST))
                 .andRespond(withSuccess(jsonResponse, APPLICATION_JSON));
 
-        List<QuestionSummary> results = client.findAvailableQuestions("Computer Knowledge", "Computer Basics", "EASY", "REMEMBER", "tenant-1");
+        List<QuestionSummary> results = client.findAvailableQuestions("Computer Knowledge", "Computer Basics",
+            QuestionTaxonomyConstants.Difficulty.EASY, QuestionTaxonomyConstants.CognitiveLevel.REMEMBER, "tenant-1");
 
         assertThat(results).isEmpty();
         mockServer.verify();
@@ -157,13 +160,14 @@ class QuestionBankClientImplTest {
                 .questionId(qId)
                 .subject("Physics")
                 .topic("Mechanics")
-                .difficulty("HARD")
+                .difficulty(QuestionTaxonomyConstants.Difficulty.HARD)
                 .build();
 
         when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(List.of(dbSummary));
 
-        List<QuestionSummary> results = client.findAvailableQuestions("Physics", "Mechanics", "HARD", null, "tenant-1");
+        List<QuestionSummary> results = client.findAvailableQuestions("Physics", "Mechanics",
+            QuestionTaxonomyConstants.Difficulty.HARD, null, "tenant-1");
 
         assertThat(results).hasSize(1);
         assertThat(results.get(0).getQuestionId()).isEqualTo(qId);
@@ -187,8 +191,8 @@ class QuestionBankClientImplTest {
                                         .setId(qId.toString())
                                         .setSubject("Chemistry")
                                         .setTopic("Organic")
-                                        .setDifficulty("EASY")
-                                        .setCognitiveLevel("REMEMBER")
+                                        .setDifficulty(QuestionTaxonomyConstants.Difficulty.EASY)
+                                        .setCognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.REMEMBER)
                                         .setContent("Structure of Benzene?")
                                         .build())
                                 .build();
@@ -207,7 +211,8 @@ class QuestionBankClientImplTest {
                 jdbcTemplate, "http://localhost:8083", true, "localhost", grpcPort);
 
         List<QuestionSummary> results = grpcClient.findAvailableQuestions(
-                "Chemistry", "Organic", "EASY", "REMEMBER", "tenant-1");
+                "Chemistry", "Organic", QuestionTaxonomyConstants.Difficulty.EASY,
+            QuestionTaxonomyConstants.CognitiveLevel.REMEMBER, "tenant-1");
 
         assertThat(results).hasSize(1);
         assertThat(results.get(0).getQuestionId()).isEqualTo(qId);
@@ -240,7 +245,8 @@ class QuestionBankClientImplTest {
                 jdbcTemplate, "http://localhost:8083", true, "localhost", grpcPort);
 
         List<QuestionSummary> results = grpcClient.findAvailableQuestions(
-                "Computer Knowledge", "Computer Basics", "EASY", "REMEMBER", "tenant-1");
+                "Computer Knowledge", "Computer Basics", QuestionTaxonomyConstants.Difficulty.EASY,
+            QuestionTaxonomyConstants.CognitiveLevel.REMEMBER, "tenant-1");
 
         assertThat(results).isEmpty();
     }
@@ -260,7 +266,7 @@ class QuestionBankClientImplTest {
                                         .setId(qId.toString())
                                         .setSubject("History")
                                         .setTopic("Modern India")
-                                        .setDifficulty("MEDIUM")
+                                        .setDifficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
                                         .setContent("Year of Independence?")
                                         .build())
                                 .build();
@@ -387,7 +393,7 @@ class QuestionBankClientImplTest {
                 .andRespond(withSuccess(jsonResponse, APPLICATION_JSON));
 
         List<QuestionSummary> results = fallbackClient.findAvailableQuestions(
-                "Geography", "Rivers", "EASY", null, "tenant-1");
+                "Geography", "Rivers", QuestionTaxonomyConstants.Difficulty.EASY, null, "tenant-1");
 
         assertThat(results).hasSize(1);
         assertThat(results.get(0).getQuestionId()).isEqualTo(qId);

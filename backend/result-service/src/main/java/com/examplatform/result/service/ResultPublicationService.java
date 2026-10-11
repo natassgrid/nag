@@ -23,6 +23,7 @@ import com.examplatform.result.client.DigiLockerClient;
 import com.examplatform.result.domain.Result;
 import com.examplatform.result.dto.DigiLockerPushResponse;
 import com.examplatform.result.repository.ResultRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -147,8 +148,8 @@ public class ResultPublicationService {
                     "eventType", "RESULT_PUBLISHED_NOTIFICATION",
                     "candidateId", candidateId.toString(),
                     "examId", examId.toString(),
-                    "tenantId", tenantId,
-                    "message", "Your examination result is now available.",
+                SharedConstants.TENANT_ID, tenantId,
+                SharedConstants.MESSAGE, "Your examination result is now available.",
                     "occurredAt", Instant.now().toString()
             );
             eventPublisher.publish(NOTIFICATION_TOPIC, candidateId.toString(), event);

@@ -26,6 +26,7 @@ import com.examplatform.notification.domain.Notification.NotificationType;
 import com.examplatform.notification.domain.NotificationPreference;
 import com.examplatform.notification.dto.NotificationSendRequest;
 import com.examplatform.notification.repository.NotificationRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -76,7 +77,7 @@ public class NotificationProcessingService {
             String recipientPhone = event.path("recipientPhone").asText(null);
             String fcmToken = event.path("fcmToken").asText(null);
             String channelStr = event.path("channel").asText(null);
-            String tenantId = event.path("tenantId").asText("default");
+            String tenantId = event.path(SharedConstants.TENANT_ID).asText("default");
             String referenceId = event.path("referenceId").asText("");
             String actionLink = event.path("actionLink").asText("");
             String templateId = event.path("templateId").asText(null);

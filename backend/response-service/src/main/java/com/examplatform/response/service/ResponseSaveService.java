@@ -19,11 +19,14 @@
 
 package com.examplatform.response.service;
 
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
+
 import com.examplatform.response.config.MetricsConfig;
 import com.examplatform.response.domain.Response;
 import com.examplatform.response.dto.SaveResponseRequest;
 import com.examplatform.response.dto.SaveResponseResponse;
 import com.examplatform.response.repository.ResponseRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import com.examplatform.shared.messaging.EventPublisher;
@@ -49,7 +52,6 @@ import java.util.UUID;
 public class ResponseSaveService {
 
     private static final String TOPIC_RESPONSE_SAVED = "exam.response.saved";
-    private static final String AUDIT_TOPIC = "exam.audit.events";
     private static final String AUDIT_THROTTLE_PREFIX = "audit:response:";
     private static final Duration AUDIT_THROTTLE_TTL = Duration.ofSeconds(60);
 
@@ -110,12 +112,12 @@ public class ResponseSaveService {
         Map<String, Object> savedEvent = Map.of(
                 "responseId", saved.getId(),
                 "sessionId", sessionId,
-                "questionId", request.getQuestionId(),
+            SharedConstants.QUESTION_ID, request.getQuestionId(),
                 "candidateId", candidateId,
                 "revisionSequence", newRevision,
                 "saveSource", request.getSaveSource(),
                 "savedAt", Instant.now().toString(),
-                "tenantId", tenantId
+            SharedConstants.TENANT_ID, tenantId
         );
 
         eventPublisher.publish(TOPIC_RESPONSE_SAVED, sessionId.toString(), savedEvent);
@@ -155,11 +157,11 @@ public class ResponseSaveService {
                         "eventType", "RESPONSE_SAVED",
                         "sessionId", sessionId.toString(),
                         "candidateId", candidateId.toString(),
-                        "questionId", questionId.toString(),
-                        "tenantId", tenantId,
+                    SharedConstants.QUESTION_ID, questionId.toString(),
+                    SharedConstants.TENANT_ID, tenantId,
                         "occurredAt", Instant.now().toString()
                 );
-                eventPublisher.publish(AUDIT_TOPIC, candidateId.toString(), auditEvent);
+                eventPublisher.publish(AUDIT_EVENTS_TOPIC, candidateId.toString(), auditEvent);
             }
         } catch (Exception e) {
             // Never block main save operation for audit failures

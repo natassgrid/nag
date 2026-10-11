@@ -15,10 +15,12 @@
  */
 package com.examplatform.questionbank.ai.generation;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.examplatform.shared.constants.QuestionTypeConstants;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("QuestionPromptFormatter Unit Tests")
 class QuestionPromptFormatterTest {
@@ -75,9 +77,9 @@ class QuestionPromptFormatterTest {
                 .topic("Thermodynamics")
                 .subtopic("Carnot Engine")
                 .rawTextInput("Explain Carnot cycle efficiency")
-                .difficulty("HARD")
-                .cognitiveLevel("ANALYZE")
-                .questionType("SINGLE_MCQ")
+                .difficulty(QuestionTaxonomyConstants.Difficulty.HARD)
+                .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.ANALYZE)
+                .questionType(QuestionTypeConstants.SINGLE_MCQ)
                 .targetExam("JEE_ADV")
                 .build();
 
@@ -105,9 +107,9 @@ class QuestionPromptFormatterTest {
                 .subtopic(null)
                 .rawTextInput(null)
                 .description(null)
-                .difficulty("EASY")
-                .cognitiveLevel("REMEMBER")
-                .questionType("NUMERICAL")
+                .difficulty(QuestionTaxonomyConstants.Difficulty.EASY)
+                .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.REMEMBER)
+                .questionType(QuestionTypeConstants.NUMERICAL)
                 .targetExam(null)
                 .build();
 

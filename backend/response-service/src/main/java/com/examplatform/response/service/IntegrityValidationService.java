@@ -19,7 +19,10 @@
 
 package com.examplatform.response.service;
 
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
+
 import com.examplatform.response.exception.ResponseIntegrityException;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -47,7 +50,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class IntegrityValidationService {
 
-    private static final String AUDIT_TOPIC = "exam.audit.events";
 
     private final RestTemplate deliveryRestTemplate;
     private final EventPublisher eventPublisher;
@@ -114,12 +116,12 @@ public class IntegrityValidationService {
                     "eventType", "INTEGRITY_ALERT",
                     "sessionId", sessionId.toString(),
                     "candidateId", candidateId.toString(),
-                    "questionId", questionId.toString(),
+                SharedConstants.QUESTION_ID, questionId.toString(),
                     "reason", reason,
-                    "tenantId", tenantId,
+                SharedConstants.TENANT_ID, tenantId,
                     "occurredAt", Instant.now().toString()
             );
-            eventPublisher.publish(AUDIT_TOPIC, sessionId.toString(), alert);
+            eventPublisher.publish(AUDIT_EVENTS_TOPIC, sessionId.toString(), alert);
         } catch (Exception ex) {
             log.error("Failed to publish integrity alert: {}", ex.getMessage());
         }

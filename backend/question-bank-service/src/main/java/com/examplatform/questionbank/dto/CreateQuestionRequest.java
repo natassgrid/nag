@@ -22,6 +22,7 @@ package com.examplatform.questionbank.dto;
 import com.examplatform.questionbank.domain.enums.CognitiveLevel;
 import com.examplatform.questionbank.domain.enums.DifficultyLevel;
 import com.examplatform.questionbank.domain.enums.QuestionType;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
@@ -109,5 +110,5 @@ public class CreateQuestionRequest {
     @JsonProperty("state")
     @JsonAlias({"status"})
     @Builder.Default
-    private String state = "DRAFT";
+    private String state = QuestionStateConstants.DRAFT;
 }

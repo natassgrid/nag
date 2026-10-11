@@ -30,6 +30,8 @@ import com.examplatform.questionbank.grpc.QuestionBankGrpcServiceGrpc;
 import com.examplatform.questionbank.grpc.QuestionSummaryGrpc;
 import com.examplatform.shared.auth.ClientAuthTokenResolver;
 import com.examplatform.shared.auth.ServiceAccountTokenProvider;
+import com.examplatform.shared.constants.QuestionStateConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.grpc.GrpcChannelFactory;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.grpc.ManagedChannel;
@@ -172,7 +174,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
         try {
             String url = questionBankServiceUrl + "/api/v1/questions/blueprint-match";
             Map<String, String> requestBody = new HashMap<>();
-            requestBody.put("subject", cleanSubject);
+            requestBody.put(SharedConstants.SUBJECT, cleanSubject);
             requestBody.put("topic", cleanTopic);
             if (cleanDifficulty != null) requestBody.put("difficulty", cleanDifficulty);
             if (cleanCognitiveLevel != null) requestBody.put("cognitiveLevel", cleanCognitiveLevel);
@@ -363,7 +365,8 @@ public class QuestionBankClientImpl implements QuestionBankClient {
         body.put("questionIds", questionIds);
         body.put("sourceLanguage", request != null && request.getSourceLanguage() != null ? request.getSourceLanguage() : "en");
         body.put("targetLanguage", request != null && request.getTargetLanguage() != null ? request.getTargetLanguage() : "hi");
-        body.put("targetStatus", request != null && request.getTargetStatus() != null ? request.getTargetStatus() : "PUBLISHED");
+        body.put("targetStatus", request != null && request.getTargetStatus() != null ? request.getTargetStatus() :
+            QuestionStateConstants.PUBLISHED);
         body.put("overwriteExisting", request == null || request.getOverwriteExisting() == null || request.getOverwriteExisting());
         body.put("batchSize", request != null && request.getBatchSize() != null ? request.getBatchSize() : 50);
         body.put("throttleDelayMs", request != null && request.getThrottleDelayMs() != null ? request.getThrottleDelayMs() : 50);
@@ -441,7 +444,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
         Integer passageOrderIndex = (Integer) rs.getObject("passage_order_index");
         return QuestionSummary.builder()
                 .questionId(rs.getObject("id", UUID.class))
-                .subject(rs.getString("subject"))
+                .subject(rs.getString(SharedConstants.SUBJECT))
                 .topic(rs.getString("topic"))
                 .difficulty(rs.getString("difficulty"))
                 .cognitiveLevel(rs.getString("cognitive_level"))

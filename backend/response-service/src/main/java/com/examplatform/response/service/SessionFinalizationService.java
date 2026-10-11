@@ -21,6 +21,7 @@ package com.examplatform.response.service;
 
 import com.examplatform.response.domain.Response;
 import com.examplatform.response.repository.ResponseRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -105,7 +106,7 @@ public class SessionFinalizationService {
                     "candidateId", candidateId.toString(),
                     "responseCount", responses.size(),
                     "submittedAt", Instant.now().toString(),
-                    "tenantId", tenantId
+                SharedConstants.TENANT_ID, tenantId
             );
             eventPublisher.publish(TOPIC_SESSION_EVENTS, sessionId.toString(), event);
         } catch (Exception e) {

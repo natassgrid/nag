@@ -36,6 +36,7 @@ import com.examplatform.identity.repository.ActiveSessionRepository;
 import com.examplatform.identity.repository.UserAccountRepository;
 import com.examplatform.identity.repository.UserRoleAssignmentRepository;
 import com.examplatform.shared.audit.AuditEventType;
+import com.examplatform.shared.constants.SharedConstants;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -422,7 +423,7 @@ public class RoleManagementService {
                 actorId,
                 "identity:roles/" + targetUserId,
                 null, null,
-                Map.of("tenantId", tenantId, "action", action.name(),
+                Map.of(SharedConstants.TENANT_ID, tenantId, "action", action.name(),
                         "targetUserId", targetUserId.toString(),
                         "role", role.name())
         );

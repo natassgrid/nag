@@ -36,6 +36,8 @@ import com.examplatform.questionbank.translation.service.IndicTrans2Service;
 import com.examplatform.questionbank.translation.service.TranslationQueryService;
 import com.examplatform.questionbank.translation.service.TranslationReviewService;
 import com.examplatform.questionbank.translation.service.TranslationWorkflowService;
+import com.examplatform.shared.constants.QuestionStateConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -152,7 +154,7 @@ class TranslationControllerIntegrationTest extends AbstractIntegrationTest {
                     .status(BatchTranslationJobStatus.PENDING)
                     .sourceLanguage("en")
                     .targetLanguage("hi")
-                    .targetStatus("PUBLISHED")
+                    .targetStatus(QuestionStateConstants.PUBLISHED)
                     .build();
 
             when(batchTranslationService.startBatchJob(any(BatchTranslationRequest.class), any(), anyString()))
@@ -160,7 +162,7 @@ class TranslationControllerIntegrationTest extends AbstractIntegrationTest {
 
             BatchTranslationRequest request = BatchTranslationRequest.builder()
                     .targetLanguage("hi")
-                    .targetStatus("PUBLISHED")
+                    .targetStatus(QuestionStateConstants.PUBLISHED)
                     .batchSize(20)
                     .build();
 
@@ -295,7 +297,7 @@ class TranslationControllerIntegrationTest extends AbstractIntegrationTest {
                             .content(objectMapper.writeValueAsString(validTranslationRequest())))
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.translationId").value(TRANSLATION_ID.toString()))
-                    .andExpect(jsonPath("$.status").value("DRAFT"));
+                    .andExpect(jsonPath("$.status").value(QuestionStateConstants.DRAFT));
         }
 
         @Test
@@ -332,7 +334,7 @@ class TranslationControllerIntegrationTest extends AbstractIntegrationTest {
                             .content(jsonPayload))
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.translationId").value(TRANSLATION_ID.toString()))
-                    .andExpect(jsonPath("$.status").value("DRAFT"));
+                    .andExpect(jsonPath("$.status").value(QuestionStateConstants.DRAFT));
 
             ArgumentCaptor<TranslationRequest> captor = ArgumentCaptor.forClass(TranslationRequest.class);
             verify(translationWorkflowService).requestTranslation(captor.capture(), anyString());
@@ -356,10 +358,10 @@ class TranslationControllerIntegrationTest extends AbstractIntegrationTest {
             mockMvc.perform(post("/api/v1/translations/{id}/approve", TRANSLATION_ID)
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_REVIEWER")))
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(Map.of("reviewerId", REVIEWER_ID.toString()))))
+                            .content(objectMapper.writeValueAsString(Map.of(SharedConstants.REVIEWER_ID, REVIEWER_ID.toString()))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.translationId").value(TRANSLATION_ID.toString()))
-                    .andExpect(jsonPath("$.status").value("APPROVED"));
+                    .andExpect(jsonPath("$.status").value(QuestionStateConstants.APPROVED));
         }
 
         @Test
@@ -383,7 +385,7 @@ class TranslationControllerIntegrationTest extends AbstractIntegrationTest {
                             .content("{}"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.translationId").value(TRANSLATION_ID.toString()))
-                    .andExpect(jsonPath("$.status").value("APPROVED"));
+                    .andExpect(jsonPath("$.status").value(QuestionStateConstants.APPROVED));
 
             verify(translationReviewService).approve(eq(TRANSLATION_ID), eq(REVIEWER_ID), anyString());
         }
@@ -401,7 +403,7 @@ class TranslationControllerIntegrationTest extends AbstractIntegrationTest {
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.translationId").value(TRANSLATION_ID.toString()))
-                    .andExpect(jsonPath("$.status").value("DRAFT"));
+                    .andExpect(jsonPath("$.status").value(QuestionStateConstants.DRAFT));
         }
     }
 
@@ -418,20 +420,20 @@ class TranslationControllerIntegrationTest extends AbstractIntegrationTest {
                     .topic("Thermodynamics")
                     .content("What is entropy?")
                     .translatedLanguages(List.of("hi"))
-                    .translationStatusMap(Map.of("hi", "APPROVED"))
-                    .translationStatus("APPROVED")
+                    .translationStatusMap(Map.of("hi", QuestionStateConstants.APPROVED))
+                    .translationStatus(QuestionStateConstants.APPROVED)
                     .build();
 
             when(questionService.listQuestions(
                     any(), any(), any(), any(), any(), any(), any(),
-                    eq("hi"), eq("APPROVED"), any(), any(), anyInt(), anyInt(), anyString()))
+                    eq("hi"), eq(QuestionStateConstants.APPROVED), any(), any(), anyInt(), anyInt(), anyString()))
                     .thenReturn(new PageImpl<>(List.of(resp)));
 
             mockMvc.perform(get("/api/v1/translations/questions?targetLang=hi&translationStatus=APPROVED")
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_TRANSLATOR"))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data.content[0].id").value(QUESTION_ID.toString()))
-                    .andExpect(jsonPath("$.data.content[0].translationStatus").value("APPROVED"))
+                    .andExpect(jsonPath("$.data.content[0].translationStatus").value(QuestionStateConstants.APPROVED))
                     .andExpect(jsonPath("$.data.content[0].translatedLanguages[0]").value("hi"));
         }
 
@@ -454,7 +456,7 @@ class TranslationControllerIntegrationTest extends AbstractIntegrationTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.translationId").value(TRANSLATION_ID.toString()))
                     .andExpect(jsonPath("$.languageCode").value("hi"))
-                    .andExpect(jsonPath("$.status").value("APPROVED"));
+                    .andExpect(jsonPath("$.status").value(QuestionStateConstants.APPROVED));
         }
 
         @Test
@@ -476,7 +478,7 @@ class TranslationControllerIntegrationTest extends AbstractIntegrationTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.translationId").value(TRANSLATION_ID.toString()))
                     .andExpect(jsonPath("$.languageCode").value("hi"))
-                    .andExpect(jsonPath("$.status").value("APPROVED"));
+                    .andExpect(jsonPath("$.status").value(QuestionStateConstants.APPROVED));
         }
 
         @Test
