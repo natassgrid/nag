@@ -53,4 +53,6 @@ include 'backend:practice-service'
 include 'backend:recommendation-service'
 
 // ── Composite Build: Anvaya-Prajna AI Explanation Engine ────────────────────
-includeBuild '../anvaya-prajna'
+if (file('../anvaya-prajna').exists()) {
+    includeBuild '../anvaya-prajna'
+}

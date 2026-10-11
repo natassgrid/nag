@@ -41,7 +41,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
         try {
             String inSql = String.join(",", Collections.nCopies(questionIds.size(), "?"));
             String sql = String.format("""
-                SELECT id, answer_key, question_type, topic_id, topic, subject, difficulty, content, options, explanation
+                SELECT id, answer_key, question_type, subject_id, subject, topic_id, topic, subtopic_id, subtopic, difficulty, content, options, explanation, benchmark_time_seconds
                 FROM question_service.question
                 WHERE id IN (%s)
                 """, inSql);
@@ -99,19 +99,25 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                 UUID qId = rs.getObject("id", UUID.class);
                 String answerKey = rs.getString("answer_key");
                 String questionType = rs.getString("question_type");
+                Long subjectId = rs.getObject("subject_id", Long.class);
+                String subject = rs.getString(SharedConstants.SUBJECT);
                 String topicId = rs.getString("topic_id");
                 String topicName = rs.getString("topic");
-                String subject = rs.getString(SharedConstants.SUBJECT);
+                Long subtopicId = rs.getObject("subtopic_id", Long.class);
+                String subtopicName = rs.getString("subtopic");
                 String difficulty = rs.getString("difficulty");
                 String content = rs.getString("content");
                 String optionsJson = rs.getString("options");
                 String explanation = rs.getString("explanation");
+                Integer benchmarkTime = rs.getObject("benchmark_time_seconds", Integer.class);
+                int benchmarkTimeSec = (benchmarkTime != null && benchmarkTime > 0) ? benchmarkTime : 90;
 
                 if (qId != null) {
                     Map<String, Map<String, Object>> qTranslations = translationsByQuestion.get(qId);
                     map.put(qId, new AnswerKeyDto(
                             qId, answerKey, questionType, topicId, topicName, difficulty, 2,
-                            content, optionsJson, explanation, subject, qTranslations
+                            content, optionsJson, explanation, subject, qTranslations,
+                            subjectId, subtopicId, subtopicName, benchmarkTimeSec
                     ));
                 }
             }, questionIds.toArray());
@@ -128,27 +134,21 @@ public class QuestionBankClientImpl implements QuestionBankClient {
         if (jdbcTemplate == null || subjectPattern == null || subjectPattern.isBlank()) {
             return Collections.emptyList();
         }
-
-        int resolvedLimit = limit > 0 ? limit : 25;
-        String fullPattern = "%" + subjectPattern.replace('-', ' ').replace('_', ' ').trim() + "%";
-        String firstToken = "%" + subjectPattern.split("[-_\\s]+")[0] + "%";
-
         try {
             String sql = """
                 SELECT id FROM question_service.question
-                WHERE (subject ILIKE ? OR topic ILIKE ?)
-                   OR (subject ILIKE ? OR topic ILIKE ?)
-                ORDER BY id
+                WHERE state = 'PUBLISHED'
+                  AND LOWER(subject) LIKE LOWER(?)
+                ORDER BY created_at DESC
                 LIMIT ?
                 """;
-
-            return jdbcTemplate.query(
-                    sql,
+            return jdbcTemplate.query(sql,
                     (rs, rowNum) -> rs.getObject("id", UUID.class),
-                    fullPattern, fullPattern, firstToken, firstToken, resolvedLimit
+                    "%" + subjectPattern.trim() + "%",
+                    Math.max(1, limit)
             );
         } catch (Exception e) {
-            log.warn("Failed to find question IDs for subject pattern {}: {}", subjectPattern, e.getMessage());
+            log.warn("Failed to query question IDs by subject from question_service: {}", e.getMessage());
             return Collections.emptyList();
         }
     }

@@ -16,8 +16,29 @@ public record AnswerKeyDto(
     String optionsJson,
     String explanation,
     String subject,
-    Map<String, Map<String, Object>> translations
+    Map<String, Map<String, Object>> translations,
+    Long subjectId,
+    Long subtopicId,
+    String subtopicName,
+    int benchmarkTimeSeconds
 ) {
+    public AnswerKeyDto(
+        UUID questionId,
+        String answerKey,
+        String questionType,
+        String topicId,
+        String topicName,
+        String difficulty,
+        int marks,
+        String content,
+        String optionsJson,
+        String explanation,
+        String subject,
+        Map<String, Map<String, Object>> translations
+    ) {
+        this(questionId, answerKey, questionType, topicId, topicName, difficulty, marks, content, optionsJson, explanation, subject, translations, null, null, null, 90);
+    }
+
     public AnswerKeyDto(
         UUID questionId,
         String answerKey,
@@ -31,7 +52,7 @@ public record AnswerKeyDto(
         String explanation,
         String subject
     ) {
-        this(questionId, answerKey, questionType, topicId, topicName, difficulty, marks, content, optionsJson, explanation, subject, null);
+        this(questionId, answerKey, questionType, topicId, topicName, difficulty, marks, content, optionsJson, explanation, subject, null, null, null, null, 90);
     }
 
     public AnswerKeyDto(
@@ -43,6 +64,6 @@ public record AnswerKeyDto(
         String difficulty,
         int marks
     ) {
-        this(questionId, answerKey, questionType, topicId, topicName, difficulty, marks, null, null, null, null, null);
+        this(questionId, answerKey, questionType, topicId, topicName, difficulty, marks, null, null, null, null, null, null, null, null, 90);
     }
 }

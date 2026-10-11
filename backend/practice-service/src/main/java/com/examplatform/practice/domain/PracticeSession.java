@@ -59,6 +59,10 @@ public class PracticeSession extends BaseEntity {
     private String topicWiseBreakdown;
 
     @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "subtopic_wise_breakdown", columnDefinition = "jsonb")
+    private String subtopicWiseBreakdown;
+
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "difficulty_breakdown", columnDefinition = "jsonb")
     private String difficultyBreakdown;
 

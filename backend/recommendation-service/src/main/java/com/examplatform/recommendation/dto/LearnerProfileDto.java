@@ -9,5 +9,17 @@ public record LearnerProfileDto(
     double overallAccuracy,
     String weakTopics,
     String strongTopics,
-    String topicAccuracyMap
-) {}
+    String topicAccuracyMap,
+    String subtopicAccuracyMap
+) {
+    public LearnerProfileDto(
+        UUID candidateId,
+        int totalPracticeSessions,
+        double overallAccuracy,
+        String weakTopics,
+        String strongTopics,
+        String topicAccuracyMap
+    ) {
+        this(candidateId, totalPracticeSessions, overallAccuracy, weakTopics, strongTopics, topicAccuracyMap, "{}");
+    }
+}
