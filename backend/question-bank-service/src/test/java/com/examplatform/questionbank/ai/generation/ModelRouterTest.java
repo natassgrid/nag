@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestPropertySource;
 
+import static com.examplatform.questionbank.ai.generation.ModelRouter.AMAZON_NOVA_LITE_V_1_0;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(classes = ModelRouter.class)
@@ -71,9 +72,9 @@ class ModelRouterTest {
     @Test
     @DisplayName("selectBatchModelId() returns correct Bedrock model IDs by difficulty")
     void selectBatchModelId_returnCorrectIds() {
-        assertThat(modelRouter.selectBatchModelId(QuestionTaxonomyConstants.Difficulty.EASY)).isEqualTo("amazon.nova-micro-v1:0");
-        assertThat(modelRouter.selectBatchModelId(QuestionTaxonomyConstants.Difficulty.MEDIUM)).isEqualTo("amazon.nova-lite-v1:0");
-        assertThat(modelRouter.selectBatchModelId(QuestionTaxonomyConstants.Difficulty.HARD)).isEqualTo("amazon.nova-lite-v1:0");
-        assertThat(modelRouter.selectBatchModelId(null)).isEqualTo("amazon.nova-lite-v1:0");
+        assertThat(modelRouter.selectBatchModelId(QuestionTaxonomyConstants.Difficulty.EASY)).isEqualTo(AMAZON_NOVA_LITE_V_1_0);
+        assertThat(modelRouter.selectBatchModelId(QuestionTaxonomyConstants.Difficulty.MEDIUM)).isEqualTo(AMAZON_NOVA_LITE_V_1_0);
+        assertThat(modelRouter.selectBatchModelId(QuestionTaxonomyConstants.Difficulty.HARD)).isEqualTo(AMAZON_NOVA_LITE_V_1_0);
+        assertThat(modelRouter.selectBatchModelId(null)).isEqualTo(AMAZON_NOVA_LITE_V_1_0);
     }
 }

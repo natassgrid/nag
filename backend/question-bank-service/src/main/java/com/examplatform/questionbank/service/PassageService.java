@@ -62,6 +62,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class PassageService {
 
+    public static final String PASSAGE_NOT_FOUND = "Passage not found: ";
     private final PassageRepository passageRepository;
     private final QuestionRepository questionRepository;
     private final SubjectRepository subjectRepository;
@@ -125,7 +126,9 @@ public class PassageService {
                 if (qEmbedding != null && qEmbedding.length > 0) {
                     questionRepository.updateEmbedding(savedSubQ.getId(), EmbeddingUtils.embeddingToString(qEmbedding));
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception _) {
+                // Ignore
+            }
 
             createdQuestions.add(savedSubQ);
         }
@@ -145,7 +148,7 @@ public class PassageService {
     @Transactional(readOnly = true)
     public PassageResponse getPassage(UUID passageId, String tenantId) {
         Passage passage = passageRepository.findByIdAndTenantId(passageId, tenantId)
-                .orElseThrow(() -> new EntityNotFoundException("Passage not found: " + passageId));
+                .orElseThrow(() -> new EntityNotFoundException(PASSAGE_NOT_FOUND + passageId));
 
         List<Question> subQuestions = questionRepository.findByPassageIdOrderByPassageOrderIndexAsc(passageId);
         return toResponse(passage, subQuestions);
@@ -156,7 +159,7 @@ public class PassageService {
      */
     public PassageResponse updatePassage(UUID passageId, PassageRequest request, UUID authorId, String tenantId) {
         Passage passage = passageRepository.findByIdAndTenantId(passageId, tenantId)
-                .orElseThrow(() -> new EntityNotFoundException("Passage not found: " + passageId));
+                .orElseThrow(() -> new EntityNotFoundException(PASSAGE_NOT_FOUND + passageId));
 
         ResolvedPassageContext ctx = validateAndResolveContext(request, tenantId);
         Subject subject = ctx.subject();
@@ -258,7 +261,7 @@ public class PassageService {
      */
     public void deletePassage(UUID passageId, UUID authorId, String tenantId) {
         Passage passage = passageRepository.findByIdAndTenantId(passageId, tenantId)
-                .orElseThrow(() -> new EntityNotFoundException("Passage not found: " + passageId));
+                .orElseThrow(() -> new EntityNotFoundException(PASSAGE_NOT_FOUND + passageId));
 
         if (!QuestionStateConstants.DRAFT.equals(passage.getState())) {
             throw new IllegalStateException("Only DRAFT passages can be deleted. Current state: " + passage.getState());

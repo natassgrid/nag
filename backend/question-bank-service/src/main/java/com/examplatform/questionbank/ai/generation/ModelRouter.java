@@ -38,6 +38,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class ModelRouter {
 
+    public static final String AMAZON_NOVA_LITE_V_1_0 = "amazon.nova-lite-v1:0";
     @Value("${app.ai.models.easy:nova-micro}")
     private String easyModel;
 
@@ -74,13 +75,13 @@ public class ModelRouter {
      */
     public String selectBatchModelId(String difficulty) {
         if (difficulty == null || difficulty.isBlank()) {
-            return "amazon.nova-lite-v1:0";
+            return AMAZON_NOVA_LITE_V_1_0;
         }
 
         return switch (difficulty.toUpperCase().trim()) {
             case QuestionTaxonomyConstants.Difficulty.EASY -> "amazon.nova-micro-v1:0";
-            case QuestionTaxonomyConstants.Difficulty.MEDIUM, QuestionTaxonomyConstants.Difficulty.HARD -> "amazon.nova-lite-v1:0";
-            default -> "amazon.nova-lite-v1:0";
+            case QuestionTaxonomyConstants.Difficulty.MEDIUM, QuestionTaxonomyConstants.Difficulty.HARD -> AMAZON_NOVA_LITE_V_1_0;
+            default -> AMAZON_NOVA_LITE_V_1_0;
         };
     }
 }
