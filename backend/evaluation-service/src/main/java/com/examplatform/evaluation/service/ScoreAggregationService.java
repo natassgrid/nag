@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  *
  * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -114,7 +114,7 @@ public class ScoreAggregationService {
 
         // Publish aggregation event
         publishAggregationEvent(result);
-        
+
         publishEvaluationCompletedEvent(result, sessionId, candidateId, examId, tenantId, evaluations);
 
         log.info("Score aggregation complete for session={}, candidate={}: total={}",

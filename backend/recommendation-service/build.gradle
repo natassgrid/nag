@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  *
  * Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 Open Digital Public Infrastructure (DPI) Platform Contributors
+ * Copyright (C) 2026 Open Digital Public Infrastructure (DPI) Platform Contributors
  */
 plugins {
     id 'java'
