@@ -75,6 +75,11 @@ public class CreateQuestionRequest {
     @NotNull(message = "Difficulty level is required")
     private DifficultyLevel difficulty;
 
+    /** Expected completion time in seconds for pacing telemetry and performance analysis. */
+    @JsonProperty("benchmarkTimeSeconds")
+    @JsonAlias({"benchmark_time_seconds", "benchmarkTime"})
+    private Integer benchmarkTimeSeconds;
+
     @NotNull(message = "Cognitive level is required")
     private CognitiveLevel cognitiveLevel;
 

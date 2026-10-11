@@ -18,8 +18,29 @@ public record PracticeQuestionDto(
     String primaryLanguage,
     boolean fallbackToEnglish,
     Map<String, Object> primaryTranslation,
-    Map<String, Map<String, Object>> translations
+    Map<String, Map<String, Object>> translations,
+    String subtopic,
+    int benchmarkTimeSeconds
 ) {
+    public PracticeQuestionDto(
+        UUID id,
+        int order,
+        String questionCode,
+        String content,
+        String optionsJson,
+        int marks,
+        double negativeMarks,
+        String subject,
+        String topic,
+        String difficulty,
+        String primaryLanguage,
+        boolean fallbackToEnglish,
+        Map<String, Object> primaryTranslation,
+        Map<String, Map<String, Object>> translations
+    ) {
+        this(id, order, questionCode, content, optionsJson, marks, negativeMarks, subject, topic, difficulty, primaryLanguage, fallbackToEnglish, primaryTranslation, translations, null, 90);
+    }
+
     public PracticeQuestionDto(
         UUID id,
         int order,
@@ -32,6 +53,6 @@ public record PracticeQuestionDto(
         String topic,
         String difficulty
     ) {
-        this(id, order, questionCode, content, optionsJson, marks, negativeMarks, subject, topic, difficulty, "en", false, null, null);
+        this(id, order, questionCode, content, optionsJson, marks, negativeMarks, subject, topic, difficulty, "en", false, null, null, null, 90);
     }
 }

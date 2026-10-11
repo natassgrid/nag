@@ -139,7 +139,9 @@ public class PracticeSessionService {
                         targetLang,
                         fallbackToEnglish,
                         primaryTranslation,
-                        translations
+                        translations,
+                        key.subtopicName(),
+                        key.benchmarkTimeSeconds() > 0 ? key.benchmarkTimeSeconds() : 90
                 ));
                 order++;
             }
@@ -198,7 +200,8 @@ public class PracticeSessionService {
                 sessionId, candidateId, evaluated.getPracticeSetId(),
                 evaluated.getCorrectCount(), evaluated.getIncorrectCount(),
                 evaluated.getSkippedCount(), evaluated.getObtainedMarks(),
-                evaluated.getTotalMarks(), evaluated.getTopicWiseBreakdown()
+                evaluated.getTotalMarks(), evaluated.getTopicWiseBreakdown(),
+                evaluated.getSubtopicWiseBreakdown()
         ));
 
         return practiceResultService.getResult(sessionId, candidateId);

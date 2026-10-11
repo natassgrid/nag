@@ -119,6 +119,11 @@ public class Question extends BaseEntity {
     @Column(name = "difficulty", nullable = false, length = 20)
     private String difficulty;
 
+    /** Expected completion time in seconds for pacing telemetry and performance analysis. */
+    @Column(name = "benchmark_time_seconds", nullable = false)
+    @Builder.Default
+    private int benchmarkTimeSeconds = 90;
+
     @Column(name = "cognitive_level", nullable = false, length = 20)
     private String cognitiveLevel;
 

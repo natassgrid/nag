@@ -150,7 +150,8 @@ public class PracticeResultService {
                 qResults,
                 practiceSetName,
                 session.getMode(),
-                flaggedCount
+                flaggedCount,
+                session.getSubtopicWiseBreakdown()
         );
     }
 

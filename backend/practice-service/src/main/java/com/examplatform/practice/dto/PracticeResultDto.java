@@ -18,8 +18,28 @@ public record PracticeResultDto(
     List<QuestionResultDto> questionResults,
     String practiceSetName,
     String mode,
-    int flaggedCount
+    int flaggedCount,
+    String subtopicWiseBreakdown
 ) {
+    public PracticeResultDto(
+        UUID sessionId,
+        int correctCount,
+        int incorrectCount,
+        int skippedCount,
+        int obtainedMarks,
+        int totalMarks,
+        double accuracyPercent,
+        String topicWiseBreakdown,
+        String difficultyBreakdown,
+        String timingBreakdown,
+        List<QuestionResultDto> questionResults,
+        String practiceSetName,
+        String mode,
+        int flaggedCount
+    ) {
+        this(sessionId, correctCount, incorrectCount, skippedCount, obtainedMarks, totalMarks, accuracyPercent, topicWiseBreakdown, difficultyBreakdown, timingBreakdown, questionResults, practiceSetName, mode, flaggedCount, null);
+    }
+
     public PracticeResultDto(
         UUID sessionId,
         int correctCount,
@@ -35,7 +55,7 @@ public record PracticeResultDto(
         String practiceSetName,
         String mode
     ) {
-        this(sessionId, correctCount, incorrectCount, skippedCount, obtainedMarks, totalMarks, accuracyPercent, topicWiseBreakdown, difficultyBreakdown, timingBreakdown, questionResults, practiceSetName, mode, 0);
+        this(sessionId, correctCount, incorrectCount, skippedCount, obtainedMarks, totalMarks, accuracyPercent, topicWiseBreakdown, difficultyBreakdown, timingBreakdown, questionResults, practiceSetName, mode, 0, null);
     }
 
     public PracticeResultDto(
@@ -51,6 +71,6 @@ public record PracticeResultDto(
         String timingBreakdown,
         List<QuestionResultDto> questionResults
     ) {
-        this(sessionId, correctCount, incorrectCount, skippedCount, obtainedMarks, totalMarks, accuracyPercent, topicWiseBreakdown, difficultyBreakdown, timingBreakdown, questionResults, null, null, 0);
+        this(sessionId, correctCount, incorrectCount, skippedCount, obtainedMarks, totalMarks, accuracyPercent, topicWiseBreakdown, difficultyBreakdown, timingBreakdown, questionResults, null, null, 0, null);
     }
 }

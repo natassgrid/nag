@@ -12,6 +12,7 @@ import com.examplatform.practice.repository.PracticeSetRepository;
 import com.examplatform.practice.util.PracticeQuestionUtils;
 import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import com.examplatform.shared.constants.QuestionTypeConstants;
+import com.examplatform.shared.dto.SubtopicPerformanceDto;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -134,9 +135,97 @@ public class PracticeEvaluationService {
         int noResponseCount = totalQuestions - latestResponses.size();
         skipped += Math.max(0, noResponseCount);
 
+        // Granular subtopic performance telemetry
+        List<UUID> targetQuestions = !allQuestionIds.isEmpty() ? allQuestionIds : new ArrayList<>(latestResponses.keySet());
+        Map<String, SubtopicAccumulator> subtopicMap = new LinkedHashMap<>();
+
+        for (UUID qId : targetQuestions) {
+            AnswerKeyDto ak = answerKeys.get(qId);
+            String subKey = (ak != null && ak.subtopicName() != null && !ak.subtopicName().isBlank())
+                    ? ak.subtopicName()
+                    : (ak != null && ak.topicName() != null ? ak.topicName() : "General");
+
+            SubtopicAccumulator acc = subtopicMap.computeIfAbsent(subKey, k -> {
+                SubtopicAccumulator a = new SubtopicAccumulator();
+                if (ak != null) {
+                    a.subjectId = ak.subjectId();
+                    a.subjectName = ak.subject() != null ? ak.subject() : "General";
+                    try {
+                        a.topicId = ak.topicId() != null ? Long.parseLong(ak.topicId()) : null;
+                    } catch (NumberFormatException ignored) {}
+                    a.topicName = ak.topicName() != null ? ak.topicName() : "General";
+                    a.subtopicId = ak.subtopicId();
+                    a.subtopicName = subKey;
+                } else {
+                    a.subjectName = "General";
+                    a.topicName = "General";
+                    a.subtopicName = subKey;
+                }
+                return a;
+            });
+
+            acc.totalQuestions++;
+            int benchSec = (ak != null && ak.benchmarkTimeSeconds() > 0) ? ak.benchmarkTimeSeconds() : 90;
+            acc.totalBenchmarkTimeMs += benchSec * 1000L;
+
+            PracticeResponse resp = latestResponses.get(qId);
+            boolean hasAnswer = resp != null && (
+                    (resp.getSelectedOptionIds() != null && !resp.getSelectedOptionIds().isBlank() && !resp.getSelectedOptionIds().equals("[]"))
+                    || (resp.getEnteredValue() != null && !resp.getEnteredValue().isBlank())
+            );
+
+            if (!hasAnswer) {
+                acc.skippedCount++;
+            } else {
+                acc.attemptedCount++;
+                acc.totalTimeSpentMs += resp.getTimeSpentMs();
+                if (resp.isCorrect()) {
+                    acc.correctCount++;
+                } else {
+                    acc.incorrectCount++;
+                }
+            }
+        }
+
+        List<SubtopicPerformanceDto> subtopicList = new ArrayList<>();
+        for (SubtopicAccumulator acc : subtopicMap.values()) {
+            double accuracy = acc.attemptedCount > 0
+                    ? Math.round((acc.correctCount * 100.0 / acc.attemptedCount) * 100.0) / 100.0
+                    : 0.0;
+            double skipRate = acc.totalQuestions > 0
+                    ? Math.round((acc.skippedCount * 100.0 / acc.totalQuestions) * 100.0) / 100.0
+                    : 0.0;
+            long avgTimeSpent = acc.attemptedCount > 0 ? (acc.totalTimeSpentMs / acc.attemptedCount) : 0;
+            long avgBenchmark = acc.totalQuestions > 0 ? (acc.totalBenchmarkTimeMs / acc.totalQuestions) : 90000L;
+            double paceRatio = (avgBenchmark > 0 && acc.attemptedCount > 0)
+                    ? Math.round(((double) avgTimeSpent / avgBenchmark) * 100.0) / 100.0
+                    : 1.0;
+
+            subtopicList.add(new SubtopicPerformanceDto(
+                    acc.subjectId,
+                    acc.subjectName,
+                    acc.topicId,
+                    acc.topicName,
+                    acc.subtopicId,
+                    acc.subtopicName,
+                    acc.totalQuestions,
+                    acc.attemptedCount,
+                    acc.correctCount,
+                    acc.incorrectCount,
+                    acc.skippedCount,
+                    acc.totalTimeSpentMs,
+                    avgTimeSpent,
+                    avgBenchmark,
+                    accuracy,
+                    skipRate,
+                    paceRatio
+            ));
+        }
+
         String topicJson = serialize(topicBreakdown);
         String diffJson = serialize(diffBreakdown);
         String timingJson = serialize(timingBreakdown);
+        String subtopicJson = serialize(subtopicList);
 
         session.setCorrectCount(correct);
         session.setIncorrectCount(incorrect);
@@ -144,12 +233,13 @@ public class PracticeEvaluationService {
         session.setTotalMarks(totalMarks);
         session.setObtainedMarks(Math.max(0, obtained));
         session.setTopicWiseBreakdown(topicJson);
+        session.setSubtopicWiseBreakdown(subtopicJson);
         session.setDifficultyBreakdown(diffJson);
         session.setTimingBreakdown(timingJson);
         practiceSessionRepository.save(session);
 
-        log.info("Practice session {} evaluated: correct={}, incorrect={}, skipped={}, obtained={}/{}",
-                sessionId, correct, incorrect, skipped, obtained, totalMarks);
+        log.info("Practice session {} evaluated: correct={}, incorrect={}, skipped={}, obtained={}/{}, subtopics={}",
+                sessionId, correct, incorrect, skipped, obtained, totalMarks, subtopicList.size());
     }
 
     boolean evaluateAnswer(PracticeResponse resp, AnswerKeyDto ak) {
@@ -236,8 +326,6 @@ public class PracticeEvaluationService {
         return result;
     }
 
-
-
     private String serialize(Object obj) {
         try {
             return objectMapper.writeValueAsString(obj);
@@ -245,5 +333,21 @@ public class PracticeEvaluationService {
             log.warn("Failed to serialize breakdown", e);
             return "{}";
         }
+    }
+
+    private static class SubtopicAccumulator {
+        Long subjectId;
+        String subjectName;
+        Long topicId;
+        String topicName;
+        Long subtopicId;
+        String subtopicName;
+        int totalQuestions = 0;
+        int attemptedCount = 0;
+        int correctCount = 0;
+        int incorrectCount = 0;
+        int skippedCount = 0;
+        long totalTimeSpentMs = 0;
+        long totalBenchmarkTimeMs = 0;
     }
 }

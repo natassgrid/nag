@@ -4,13 +4,28 @@ package com.examplatform.recommendation.event;
 import java.util.UUID;
 
 public record PracticeSessionCompletedEvent(
-  UUID sessionId,
-  UUID candidateId,
-  UUID practiceSetId,
-  int correctCount,
-  int incorrectCount,
-  int skippedCount,
-  int obtainedMarks,
-  int totalMarks,
-  String topicWiseBreakdown
-) {}
+    UUID sessionId,
+    UUID candidateId,
+    UUID practiceSetId,
+    int correctCount,
+    int incorrectCount,
+    int skippedCount,
+    int obtainedMarks,
+    int totalMarks,
+    String topicWiseBreakdown,
+    String subtopicWiseBreakdown
+) {
+    public PracticeSessionCompletedEvent(
+        UUID sessionId,
+        UUID candidateId,
+        UUID practiceSetId,
+        int correctCount,
+        int incorrectCount,
+        int skippedCount,
+        int obtainedMarks,
+        int totalMarks,
+        String topicWiseBreakdown
+    ) {
+        this(sessionId, candidateId, practiceSetId, correctCount, incorrectCount, skippedCount, obtainedMarks, totalMarks, topicWiseBreakdown, null);
+    }
+}

@@ -33,6 +33,7 @@ import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.domain.Subject;
 import com.examplatform.questionbank.domain.Subtopic;
 import com.examplatform.questionbank.domain.Topic;
+import com.examplatform.questionbank.domain.enums.DifficultyLevel;
 import com.examplatform.questionbank.domain.enums.QuestionType;
 import com.examplatform.questionbank.dto.CreateQuestionRequest;
 import com.examplatform.questionbank.dto.QuestionResponse;
@@ -218,6 +219,7 @@ public class QuestionService {
                 .subtopic(hierarchy.subtopicName())
                 .chapter(request.getChapter())
                 .difficulty(request.getDifficulty().name())
+                .benchmarkTimeSeconds(resolveBenchmarkTimeSeconds(request.getBenchmarkTimeSeconds(), request.getDifficulty()))
                 .cognitiveLevel(request.getCognitiveLevel().name())
                 .questionType(request.getQuestionType().name())
                 .content(request.getContent())
@@ -822,5 +824,19 @@ public class QuestionService {
         if (text == null || text.isBlank()) return false;
         if (text.contains("<img") || text.contains("<svg") || text.contains("data:image/")) return true;
         return text.matches(".*!\\[[^\\]]*\\]\\([^)]+\\).*");
+    }
+
+    private int resolveBenchmarkTimeSeconds(Integer requestBenchmark, DifficultyLevel difficulty) {
+        if (requestBenchmark != null && requestBenchmark > 0) {
+            return requestBenchmark;
+        }
+        if (difficulty == null) {
+            return 90;
+        }
+        return switch (difficulty) {
+            case EASY -> 60;
+            case MEDIUM -> 120;
+            case HARD -> 180;
+        };
     }
 }
