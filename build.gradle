@@ -25,7 +25,6 @@ plugins {
     alias(libs.plugins.spring.dependency.management) apply false
     alias(libs.plugins.lombok) apply false
     alias(libs.plugins.protobuf) apply false
-    alias(libs.plugins.rewrite) apply false
 }
 
 repositories {
@@ -85,12 +84,6 @@ subprojects {
 
     plugins.withType(JavaPlugin) {
         project.pluginManager.apply('pmd')
-        project.pluginManager.apply('org.openrewrite.rewrite')
-
-        project.rewrite {
-            configFile = rootProject.file('rewrite.yml')
-            activeRecipe('com.examplatform.RefactorNotificationDelivery')
-        }
 
         project.pmd {
             toolVersion = rootProject.libs.versions.pmd.get()

@@ -12,7 +12,7 @@ The goal is to build an open-source platform that helps students prepare for com
 - Sub-topics
 - Previous examination questions
 
-The platform should use locally hosted AI models through **Ollama** (via **LiteLLM** gateway) to generate new questions based on the knowledge extracted from these PDFs.
+The platform uses locally hosted AI models through **Ollama** (via **LiteLLM** gateway) and **Spring AI** to generate new questions based on the knowledge extracted from these resources and blueprints.
 
 ---
 
@@ -24,18 +24,22 @@ The `question_service.question` table stores all question data:
 |--------|------|-------------|
 | `id` | UUID (v7) | Primary key, app-generated |
 | `tenant_id` | VARCHAR(255) | Multi-tenant isolation |
+| `subject_id` | BIGINT | Numeric foreign key to subject table |
+| `topic_id` | BIGINT | Numeric foreign key to topic table |
+| `subtopic_id` | BIGINT | Optional numeric foreign key to subtopic |
 | `subject` | VARCHAR(100) | Subject classification (e.g., Physics, Mathematics) |
 | `topic` | VARCHAR(200) | Topic within subject (e.g., Electromagnetism) |
 | `subtopic` | VARCHAR(200) | Optional subtopic (e.g., Faraday's Law) |
 | `chapter` | VARCHAR(200) | Optional chapter reference |
 | `difficulty` | VARCHAR(20) | EASY, MEDIUM, HARD, EXPERT |
 | `cognitive_level` | VARCHAR(20) | REMEMBER, UNDERSTAND, APPLY, ANALYZE, EVALUATE, CREATE |
-| `question_type` | VARCHAR(30) | MCQ, MSQ, NUMERICAL, DESCRIPTIVE, TRUE_FALSE, FILL_BLANK |
-| `content` | TEXT (encrypted) | Question body — HTML rich text (supports inline images via asset URLs) |
+| `question_type` | VARCHAR(30) | SINGLE_MCQ, MULTI_MCQ, NUMERICAL, DESCRIPTIVE, ASSERTION_REASON, PARAGRAPH_SET |
+| `content` | TEXT (encrypted) | Question body — HTML rich text with LaTeX ($$...$$) and inline images/SVGs |
 | `answer_key` | TEXT (encrypted) | Correct answer / answer key |
 | `explanation` | TEXT | Detailed explanation of the correct answer (shown post-evaluation) |
-| `references` | TEXT | Source citations: textbook, chapter, page, URL, PDF source |
-| `embedding_vector` | JSONB | 768-dim vector from nomic-embed-text for similarity detection |
+| `references` | TEXT | Source citations: textbook, chapter, page, URL, or model routing reference |
+| `embedding_vector` | vector(768) | 768-dim vector from nomic-embed-text for pgvector similarity |
+| `has_images` | BOOLEAN | Flag indicating presence of embedded images or figures |
 | `state` | VARCHAR(20) | Lifecycle: DRAFT → REVIEW → APPROVED → PUBLISHED → RETIRED |
 | `encryption_key_id` | VARCHAR(255) | Vault DEK reference for content/answerKey encryption |
 | `usage_count` | INTEGER | Times used in exams |
@@ -61,9 +65,9 @@ Options are stored as JSON within the question record and represented in the DTO
 
 ```java
 public class QuestionOption {
-    private String id;        // A, B, C, D, E, F
-    private String text;      // Option text (can include HTML with <img> tags)
-    private boolean correct;  // Is this the correct answer?
+    private String id;        // A, B, C, D
+    private String text;      // Option text (LaTeX $$...$$ and optional HTML/<img>)
+    private boolean isCorrect;// Is this the correct answer?
 }
 ```
 
@@ -77,29 +81,27 @@ The platform has a dedicated **asset-service** that stores multimedia files (ima
 
 ```text
 ┌──────────────────┐        ┌──────────────────┐
-│ question-bank-   │        │ asset-service     │
-│ service          │        │                   │
-│                  │        │ Upload → validate │
+│ question-bank-   │        │ asset-service    │
+│ service          │        │                  │
+│                  │        │ Upload → validate│
 │ content: HTML    │───────>│ → virus scan     │
 │ (references      │  asset │ → store binary   │
 │  asset UUIDs)    │  UUIDs │ → generate thumb │
-│                  │        │                   │
-│ options[].text:  │        │ GET /api/v1/assets│
-│  HTML            │        │ /{id}/download    │
+│                  │        │                  │
+│ options[].text:  │        │ GET /api/v1/assets
+│  HTML            │        │ /{id}/download   │
 └──────────────────┘        └──────────────────┘
 ```
 
 ### 3.2 How Images Work in Question Content
 
-The `content` field stores **HTML** (via the Quill rich text editor). Images are embedded as:
+The `content` field stores HTML with LaTeX formulas and image references:
 
 ```html
 <p>Consider the following circuit diagram:</p>
 <img src="/api/v1/assets/{asset-uuid}/download" alt="Circuit diagram" />
-<p>What is the total resistance?</p>
+<p>What is the total resistance $$R_{\text{total}}$$?</p>
 ```
-
-The asset UUID references a file stored in the asset-service. During exam delivery, the frontend resolves these URLs to render images inline.
 
 ### 3.3 How Images Work in Options
 
@@ -116,135 +118,96 @@ Options support HTML in the `text` field, enabling image-based options:
 }
 ```
 
-Options can also mix text and images:
-
-```json
-{ "id": "A", "text": "Waveform X: <img src=\"/api/v1/assets/uuid-1/download\" alt=\"Waveform X\" />", "isCorrect": true }
-```
-
 ### 3.4 Image Handling Strategy
 
 | Concern | Approach |
 |---------|----------|
 | Storage | Binary stored in asset-service (local filesystem or S3-compatible) |
-| Reference | Asset UUID embedded in HTML `<img src>` tags |
+| Reference | Asset UUID embedded in HTML `<img>` tags |
 | Security | Asset download requires valid JWT; per-tenant isolation |
 | Accessibility | `alt` text mandatory for all images (WCAG 2.2 AA) |
 | Encryption | Images in asset-service can be encrypted at rest via Vault |
-| PDF Import | Images extracted from PDFs are uploaded to asset-service, UUIDs inserted into content HTML |
-| AI Generation | LLM generates text-only questions; images must be added manually or via separate diagram generation |
+| PDF Import | Images extracted from PDFs via `SampleDocumentParserService` (Tier 1) |
+| AI Generation | Multimodal vision models ingest downsampled figures; generated stems support SVG |
 | Delivery | Frontend resolves asset URLs; CDN-cacheable with signed URLs in production |
 | Offline | Delivery service pre-fetches and bundles all referenced assets for offline exam packages |
 
-### 3.5 Frontend Implementation
-
-The Quill editor in the Create Question form supports image insertion via:
-1. **Asset Library picker** — browse existing assets, select, insert `<img>` tag
-2. **Direct upload** — upload from toolbar, auto-uploads to asset-service, inserts UUID reference
-
-For options, the frontend provides a toggle to switch between text-only and rich-text (HTML) mode per option.
-
 ---
 
-## 4. Recommended Architecture
+## 4. Production AI Generation Architecture (`SpringAiGenerationService`)
 
-The recommended approach is **RAG + LLM-based question generation**, rather than immediately fine-tuning an LLM.
+The generation engine uses **Spring AI** backed by **LiteLLM / Ollama** and implements an intelligent **"Agent Only When Needed" dual-path architecture**:
 
 ```text
-                    ┌──────────────────┐
-                    │    Exam PDFs     │
-                    │ Questions/Answers│
-                    └────────┬─────────┘
-                             │
-                             ▼
-                  ┌─────────────────────┐
-                  │ PDF Parser / OCR    │
-                  └──────────┬──────────┘
-                             │
-                             ▼
-                  ┌─────────────────────┐
-                  │ Content Structuring │
-                  │                     │
-                  │ Subject             │
-                  │ Topic               │
-                  │ Sub-topic           │
-                  │ Question            │
-                  │ Answer              │
-                  │ Explanation         │
-                  │ References          │
-                  └──────────┬──────────┘
-                             │
-                 ┌───────────┴───────────┐
-                 ▼                       ▼
-          ┌─────────────┐        ┌──────────────┐
-          │ Embeddings  │        │ Question DB  │
-          │nomic-embed  │        │ (PostgreSQL) │
-          └──────┬──────┘        └──────────────┘
-                 │
-                 ▼
-          ┌───────────────┐
-          │ pgvector      │
-          │ (768-dim)     │
-          └───────┬───────┘
-                  │
-        Topic + difficulty +
-        question type
-                  │
-                  ▼
-          ┌────────────────┐
-          │ LiteLLM Gateway│
-          │ (port 4000)    │
-          └───────┬────────┘
-                  │
-                  ▼
-          ┌────────────────┐
-          │ Ollama         │
-          │ Qwen3 8B       │
-          └───────┬────────┘
-                  │
-                  ▼
-          ┌────────────────┐
-          │ Question       │
-          │ Generator      │
-          └───────┬────────┘
-                  │
-                  ▼
-          ┌────────────────┐
-          │ Validator      │
-          │ + Deduplication│
-          └───────┬────────┘
-                  │
-                  ▼
-          ┌────────────────┐
-          │ Question Bank  │
-          │ (state=DRAFT)  │
-          └────────────────┘
+               ┌───────────────────────────────────────────────┐
+               │    Author Request + Sample Documents (PDF)    │
+               └───────────────────────┬───────────────────────┘
+                                       │
+                                       ▼
+               ┌───────────────────────────────────────────────┐
+               │ SampleDocumentParserService (Tier 0/1/2 Ladder│
+               │ Tier 0: PDFBox Text  Tier 1: PDImageXObject   │
+               │ Tier 2: 150 DPI Fallback Rasterization        │
+               └───────────────────────┬───────────────────────┘
+                                       │
+                                       ▼
+               ┌───────────────────────────────────────────────┐
+               │ Pre-Generation RAG Vector Search (pgvector)   │
+               │ Retrieve Top-5 Similar Questions as Negatives │
+               └───────────────────────┬───────────────────────┘
+                                       │
+                                       ▼
+               ┌───────────────────────────────────────────────┐
+               │    ComplexityEvaluator (Conditional Triage)   │
+               └───────────────┬───────────────────────┬───────┘
+                               │                       │
+                (Low Complexity: ~90%)   (High Complexity / Overrides)
+                               ▼                       ▼
+    ┌──────────────────────────────────┐   ┌──────────────────────────────────┐
+    │     Single-Model Fast Path       │   │  Multi-Agent Collaborative Team  │
+    │  - Single LLM call via ChatClient│   │  1. Requirement Analyst Agent    │
+    │  - ModelRouter (Nova Micro/Lite) │   │  2. Question Author Agent        │
+    │  - Sub-2-second latency          │   │  3. Psychometric Critic Agent    │
+    │                                  │   │  4. Refinement Agent (1 cycle)   │
+    │                                  │   │  5. Similarity Auditor Agent     │
+    └──────────────────┬───────────────┘   └──────────────────┬───────────────┘
+                       │                                      │
+                       └───────────────────┬──────────────────┘
+                                           │
+                                           ▼
+               ┌───────────────────────────────────────────────┐
+               │ LaTeX Normalizer & Option / Schema Validator  │
+               │ Delimiter normalization: \( \) / \[ \] → $$   │
+               └───────────────────────┬───────────────────────┘
+                                       │
+                                       ▼
+               ┌───────────────────────────────────────────────┐
+               │ Taxonomy Resolution (SubjectTopicService) &   │
+               │ Auto-Save as DRAFT + Embedding Computation    │
+               └───────────────────────────────────────────────┘
 ```
 
 ---
 
-## 5. Recommended Ollama Models
+## 5. Recommended Models
 
 ### 5.1 Generation Models
 
-| Model | Primary Use | Recommendation |
+| Model | Primary Use | Routing Strategy |
 |---|---|---|
-| Qwen3 8B | Question generation, classification, explanations | Primary |
-| Qwen3 14B | Higher-quality question generation | When resources allow |
-| Llama 3.x 8B | General generation | Alternative |
-| Gemma 3 12B | Reasoning and generation | Alternative |
+| Amazon Nova Micro / Qwen3 8B | Fast Path, low-complexity MCQs (`EASY`) | `ModelRouter.selectModel("EASY")` |
+| Amazon Nova Lite / Qwen3 14B | Medium & hard questions, multi-agent committee | `ModelRouter.selectModel("MEDIUM" / "HARD")` |
+| Llama 3.x 8B / Gemma 3 12B | General alternative models via LiteLLM | Configurable in `application.yml` |
 
 ### 5.2 Embedding Model
 
 | Model | Dimensions | Use |
 |---|---|---|
-| nomic-embed-text (v1.5) | 768 | Question similarity, RAG retrieval |
+| nomic-embed-text (v1.5) | 768 | pgvector cosine similarity, RAG pre-generation retrieval |
 
 ### 5.3 Local Setup
 
 ```bash
-# Models are auto-pulled via docker compose (ollama-pull service)
-# Or manually:
 docker exec exam-ollama ollama pull qwen3:8b
 docker exec exam-ollama ollama pull nomic-embed-text
 ```
@@ -252,267 +215,176 @@ docker exec exam-ollama ollama pull nomic-embed-text
 ### 5.4 API Access via LiteLLM (port 4000)
 
 ```bash
-# Generate embeddings
 curl http://localhost:4000/v1/embeddings \
   -H "Authorization: Bearer sk-litellm-dev-key" \
   -H "Content-Type: application/json" \
   -d '{"model": "nomic-embed-text", "input": "What is Faraday'\''s Law?"}'
-
-# Generate questions via chat completion
-curl http://localhost:4000/v1/chat/completions \
-  -H "Authorization: Bearer sk-litellm-dev-key" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "qwen3-8b",
-    "messages": [{"role": "user", "content": "Generate 5 MCQ questions on Faraday'\''s Law..."}]
-  }'
 ```
 
 ---
 
 ## 6. Why RAG Instead of Fine-Tuning?
 
-The initial version should **not require model fine-tuning**.
+The platform utilizes **RAG + LLM-based question generation**, rather than fine-tuning an LLM:
 
-Instead:
-
-```text
-PDF → Extract knowledge → Store structured content → Generate embeddings
-→ Vector search → Retrieve relevant content → Qwen3 → Generate question
-```
-
-Advantages:
-
-- No expensive model training
-- Easier to update the knowledge base
-- New PDFs can be added dynamically
-- Source attribution via `references` field
-- Different examination domains can coexist
-- Users can run the system locally
-- The LLM can be replaced via LiteLLM config
-
-Fine-tuning can be considered after the platform accumulates a large, validated question dataset.
+- **Dynamically Updated Knowledge Base**: New syllabus PDFs and question pools can be indexed instantly without retraining.
+- **Syllabus & Negative Grounding**: Top-5 similar questions are retrieved before generation and supplied to the prompt to explicitly prevent duplicate generation.
+- **Cost & Speed**: Lightweight local or cloud models generate questions in <2s on the fast path.
+- **Swappable Providers**: Models are decoupled through LiteLLM and Spring AI `ChatClient`.
 
 ---
 
-## 7. PDF Processing Pipeline
+## 7. PDF Processing Pipeline (`SampleDocumentParserService`)
+
+The parser implements a cost-optimized 3-tier extraction ladder:
+
+1. **Tier 0 (Local Text Stream Extraction)**:
+   - Uses Apache PDFBox `PDFTextStripper` to extract digital text streams directly.
+   - If digital text is extracted and no formulas/diagrams require visual inspection, vision models are completely bypassed ($0.00 vision token spend).
+2. **Tier 1 (Selective Diagram Isolation)**:
+   - Traverses PDF resource dictionaries (`PDResources`, `PDImageXObject`).
+   - Extracts and downsamples only the embedded figure (max 1024px dimension) instead of whole-page rendering.
+3. **Tier 2 (Scanned Fallback)**:
+   - When digital text streams are empty (scanned paper), renders pages at 150 DPI (`SCANNED_RENDER_DPI`).
+   - Reduces image byte size by 75% compared to standard 300 DPI scans.
+
+---
+
+## 8. Topic-Based Retrieval & Taxonomy
+
+Questions are organized in a strict relational hierarchy:
 
 ```text
-PDF
- │
- ▼
-PDF Parser (Apache PDFBox / Tika)
- │
- ├── Text extraction
- ├── Image extraction → upload to asset-service → get asset UUIDs
- ├── Table extraction
- └── OCR when required (Tesseract)
- │
- ▼
-Content segmentation
- │
- ▼
-Question extraction (LLM-assisted)
- │
- ▼
-Answer + Explanation extraction
- │
- ▼
-Topic classification (LLM or embedding-based)
- │
- ▼
-Store in question table (state=DRAFT, references=source PDF + page)
+Subject (e.g. Physics)
+   └── Topic (e.g. Electromagnetism)
+        └── Subtopic (e.g. Faraday's Law)
 ```
 
-A normalized question maps directly to the database schema:
+In [`SpringAiGenerationService`](file:///F:/code/IdeaProjects/nag/backend/question-bank-service/src/main/java/com/examplatform/questionbank/ai/generation/SpringAiGenerationService.java), taxonomy persistence verifies:
+- If `subjectId` and `topicId` are supplied in the request, [`SubjectTopicService.resolveByIds()`](file:///F:/code/IdeaProjects/nag/backend/question-bank-service/src/main/java/com/examplatform/questionbank/service/SubjectTopicService.java) validates their presence and assigns IDs. It never creates arbitrary new categories from typos.
+- If IDs are omitted, legacy fallback `resolveOrCreateByName()` handles backwards compatibility.
 
-```json
-{
-  "subject": "Physics",
-  "topic": "Electromagnetism",
-  "subtopic": "Faraday's Law",
-  "difficulty": "MEDIUM",
-  "cognitiveLevel": "APPLY",
-  "questionType": "MCQ",
-  "content": "<p>A coil of 100 turns...</p>",
-  "options": [
-    { "id": "A", "text": "0.5 V", "isCorrect": false },
-    { "id": "B", "text": "1.0 V", "isCorrect": true },
-    { "id": "C", "text": "1.5 V", "isCorrect": false },
-    { "id": "D", "text": "2.0 V", "isCorrect": false }
-  ],
-  "answerKey": "B",
-  "explanation": "Using Faraday's Law: EMF = -N × dΦ/dt = -100 × 0.01 = 1.0 V",
-  "references": "physics-question-bank.pdf, page 42; NCERT Class 12, Ch. 6"
-}
+---
+
+## 9. Generation Prompt Structure
+
+The system prompt enforces LaTeX mathematics, KaTeX formatting, and option rules:
+
+```text
+System Prompt Rules:
+- ALL mathematical and physical expressions MUST be enclosed in $$...$$ delimiters.
+- Chemical reactions MUST use valid LaTeX mhchem syntax ($$\ce{2H2 + O2 -> 2H2O}$$).
+- Percentage signs in math mode must be escaped as \% ($$99.9\%$$).
+- For SINGLE_MCQ: exactly 4 options (A, B, C, D) with exactly ONE "isCorrect": true.
+- Output ONLY a JSON array of question objects without markdown wrapping.
 ```
 
 ---
 
-## 8. Topic-Based Retrieval
+## 10. Multi-Agent Question Validation Pipeline
 
-Questions are organized in a hierarchy (stored in subject/topic/subtopic tables):
-
-```text
-Subject
-   └── Topic
-        └── Subtopic
-             └── Concept (via embeddings)
-```
-
-Example:
+Generated questions are validated through a multi-stage quality pipeline:
 
 ```text
-Physics
- └── Electromagnetism
-      ├── Faraday's Law
-      ├── Lenz's Law
-      ├── Electromagnetic Induction
-      └── Transformers
+Generated Question
+       │
+       ▼
+Schema & Option Validation (4 options for MCQ, valid answerKey)
+       │
+       ▼
+Psychometric Critic Agent Review
+  • Unambiguous sole correct answer
+  • Plausible distractors (no throwaway "All/None of the above")
+  • LaTeX KaTeX & mhchem delimiter compliance
+       │
+       ├─────────────────────────────────┐
+       │ (Issues detected)               │ (Approved)
+       ▼                                 │
+Refinement Agent                         │
+  • Replaces weak distractors            │
+  • Fixes broken LaTeX syntax             │
+  • Bounded to 1 retry loop              │
+       │                                 │
+       └────────────────┬────────────────┘
+                        │
+                        ▼
+Similarity Auditor Agent (<0.85 Cosine Similarity Audit)
+  • Matches pgvector cosine distance against existing tenant items
+  • Reject if similarity >= 0.85
+       │
+       ▼
+Taxonomy Resolution & Auto-Save
+  • Persists to question_service.question (state=DRAFT)
+  • Generates and stores 768-dim embedding_vector
 ```
-
-This allows generation requests like:
-
-```json
-{
-  "subject": "Physics",
-  "topic": "Electromagnetism",
-  "subtopic": "Faraday's Law",
-  "questionType": "MCQ",
-  "difficulty": "MEDIUM",
-  "cognitiveLevel": "APPLY",
-  "count": 10,
-  "avoidDuplicate": true,
-  "sourceBased": true
-}
-```
-
----
-
-## 9. Question Generation Prompt
-
-Retrieved source material is supplied to the LLM with structured instructions:
-
-```text
-Topic: Faraday's Law
-Difficulty: Medium
-Cognitive Level: Apply
-Question Type: MCQ (4 options, exactly one correct)
-
-Source Material:
-[Retrieved content from vector search]
-
-Existing Questions (to avoid duplication):
-[Embeddings-matched existing questions]
-
-Generate 5 NEW questions. Requirements:
-- Do not copy source questions
-- Test the same underlying concepts with different scenarios/values
-- Provide exactly 4 options (A-D)
-- Have exactly one correct answer
-- Include a detailed explanation referencing the source concept
-- Include source reference (topic, textbook if known)
-- Maintain the requested difficulty and cognitive level
-- Return structured JSON matching the question schema
-```
-
----
-
-## 10. Question Validation Pipeline
-
-Generated questions enter the existing lifecycle FSM:
-
-```text
-AI Generated Question
-       │
-       ▼
-Schema Validation (JSON structure, required fields)
-       │
-       ▼
-Answer Validation (correct answer exists in options)
-       │
-       ▼
-Duplicate Detection (embedding similarity > threshold → reject)
-       │
-       ▼
-Difficulty Validation (LLM cross-check)
-       │
-       ▼
-Source Grounding Validation (explanation cites source)
-       │
-       ▼
-Quality Score
-       │
-       ├── Reject (auto)
-       │
-       ├── state=DRAFT (needs human review)
-       │
-       └── state=REVIEW (high confidence → fast-track to reviewer)
-```
-
-Human reviewers then move questions through REVIEW → APPROVED → PUBLISHED via the existing lifecycle transitions.
 
 ---
 
 ## 11. Duplicate Detection via Embeddings
 
 ```text
-Generated Question content
+Question content
         │
         ▼
 nomic-embed-text (768-dim vector)
         │
         ▼
-pgvector cosine similarity search
+pgvector Cosine Similarity Search
         │
-        ▼
-If similarity > 0.92 → reject as near-duplicate
-If similarity 0.85-0.92 → flag for human review
-If similarity < 0.85 → pass
+        ├─ Similarity >= 0.85 ──► Flagged as Duplicate / Rejected by SimilarityAuditorAgent
+        └─ Similarity <  0.85 ──► Unique Item Accepted
 ```
 
-The `embedding_vector` JSONB column on the question table stores pre-computed vectors for all existing questions, enabling sub-second similarity lookups.
+The `embedding_vector` vector(768) column with `ivfflat` index enables sub-10ms similarity searches across hundreds of thousands of questions.
 
 ---
 
 ## 12. Spring Boot Integration
 
-### Service Interface (LLM-agnostic)
+### Service Interface
+
+The core service interface is [`QuestionGenerationService`](file:///F:/code/IdeaProjects/nag/backend/question-bank-service/src/main/java/com/examplatform/questionbank/ai/generation/QuestionGenerationService.java):
 
 ```java
 public interface QuestionGenerationService {
-    List<GeneratedQuestion> generate(QuestionGenerationRequest request);
-}
 
-public interface EmbeddingService {
-    float[] embed(String text);
-    List<float[]> embedBatch(List<String> texts);
+    /**
+     * Generates questions based on provided request parameters.
+     */
+    QuestionGenerationResponse generate(QuestionGenerationRequest request, String tenantId, UUID authorId);
+
+    /**
+     * Generates questions with normalized sample questions guiding style and structure.
+     * Evaluates complexity to route between Fast Path and Multi-Agent pipeline.
+     */
+    QuestionGenerationResponse generateWithSamples(
+            QuestionGenerationRequest request,
+            List<NormalizedSampleQuestion> sampleQuestions,
+            String tenantId,
+            UUID authorId);
+
+    /**
+     * Interactively clarifies generation requirements when author parameters are ambiguous.
+     */
+    ClarifyRequirementsResponse clarifyRequirements(ClarifyRequirementsRequest request);
 }
 ```
 
-### Implementation via LiteLLM (OpenAI-compatible)
+### Implementation Architecture
 
-```text
-QuestionGenerationService
-        │
-        └── LiteLLMQuestionGenerationService
-                 └── POST http://litellm:4000/v1/chat/completions
-                          model: "qwen3-8b"
-
-EmbeddingService
-        │
-        └── LiteLLMEmbeddingService
-                 └── POST http://litellm:4000/v1/embeddings
-                          model: "nomic-embed-text"
-```
-
-This allows swapping to OpenAI, Anthropic, or AWS Bedrock by changing only the LiteLLM config — no code changes needed.
+[`SpringAiGenerationService`](file:///F:/code/IdeaProjects/nag/backend/question-bank-service/src/main/java/com/examplatform/questionbank/ai/generation/SpringAiGenerationService.java) implements the pipeline using:
+- **`org.springframework.ai.chat.client.ChatClient`**: Interacts with the LiteLLM gateway.
+- **`ModelRouter`**: Maps difficulty levels (`EASY`, `MEDIUM`, `HARD`) to configured models (e.g., Nova Micro, Nova Lite).
+- **`ComplexityEvaluator`**: Decides between Single-Model Fast Path and Multi-Agent Committee.
+- **`SampleDocumentParserService`**: Parses uploaded PDF/image sample questions.
+- **Agent Committee Components**: `RequirementAnalystAgent`, `QuestionAuthorAgent`, `PsychometricCriticAgent`, `SimilarityAuditorAgent`, `RefinementAgent`.
+- **`EmbeddingService` / `SpringAiEmbeddingService`**: Generates 768-dimensional embeddings via `nomic-embed-text`.
 
 ---
 
 ## 13. Infrastructure (Docker Compose)
 
-All AI services are included in the local dev stack:
+All AI components are included in the local dev stack:
 
 | Service | Port | Purpose |
 |---------|------|---------|
@@ -523,45 +395,10 @@ All AI services are included in the local dev stack:
 
 ---
 
-## 14. Suggested MVP Phases
+## 14. Implementation Phases
 
-### Phase 1: PDF Ingestion
-```text
-PDF → Extract text + images → Store in asset-service
-→ LLM-assisted question extraction → Store in question table (state=DRAFT)
-→ Set references field to source PDF + page
-```
-
-### Phase 2: Embedding & Similarity
-```text
-All questions → nomic-embed-text → Store embedding_vector
-→ Enable duplicate detection on new question creation
-```
-
-### Phase 3: AI Question Generation
-```text
-Topic + Difficulty + Cognitive Level
-→ Vector search (retrieve relevant existing questions/content)
-→ Qwen3 8B via LiteLLM
-→ Generate new questions
-→ Validate + deduplicate
-→ Store as DRAFT for human review
-```
-
-### Phase 4: Quality & Automation
-```text
-→ Auto-difficulty classification
-→ Auto-cognitive-level classification
-→ Explanation generation for questions lacking explanations
-→ Multi-language question generation (22 scheduled languages)
-→ Batch generation with exam blueprint constraints
-```
-
-### Phase 5: Advanced
-```text
-→ Student performance-based adaptive question generation
-→ Weak-topic detection → targeted question generation
-→ Image/diagram generation (future — specialized models)
-→ Question quality scoring via LLM-as-judge
-→ Fine-tuning on validated question corpus
-```
+- **Phase 1: PDF Ingestion & Tiered Parser Ladder** (`SampleDocumentParserService`) — Completed
+- **Phase 2: Embedding & pgvector Similarity Detection** (`SpringAiEmbeddingService`) — Completed
+- **Phase 3: Fast Path & Multi-Agent Committee Pipeline** (`SpringAiGenerationService`) — Completed
+- **Phase 4: Requirement Clarification & Multimodal Upload Endpoints** (`QuestionAiController`) — Completed
+- **Phase 5: Asynchronous Bedrock Batch Generation** (`BedrockBatchService`) — Completed
