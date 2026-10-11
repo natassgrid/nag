@@ -43,9 +43,10 @@ public class HalfVecAttributeConverter implements AttributeConverter<float[], PG
     }
 
     @Override
+    @SuppressWarnings("java:S1168")
     public float[] convertToEntityAttribute(PGhalfvec dbData) {
         if (dbData == null) {
-            return new float[0];
+            return null;
         }
         try {
             return dbData.toArray();
