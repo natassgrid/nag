@@ -19,6 +19,8 @@ import com.examplatform.questionbank.ai.generation.ExecutionMode;
 import com.examplatform.questionbank.ai.generation.ModelRouter;
 import com.examplatform.questionbank.ai.generation.QuestionGenerationRequest;
 import com.examplatform.questionbank.ai.parser.NormalizedSampleQuestion;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.examplatform.shared.constants.QuestionTypeConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -41,10 +43,11 @@ import java.util.Set;
 public class ComplexityEvaluator {
 
     private static final Set<String> HIGH_COGNITIVE_LEVELS = Set.of(
-            "ANALYZE", "EVALUATE", "CREATE");
+        QuestionTaxonomyConstants.CognitiveLevel.ANALYZE, QuestionTaxonomyConstants.CognitiveLevel.EVALUATE,
+        QuestionTaxonomyConstants.CognitiveLevel.CREATE);
 
     private static final Set<String> COMPLEX_QUESTION_TYPES = Set.of(
-            "PARAGRAPH_SET", "ASSERTION_REASON", "MATRIX_MATCH");
+        QuestionTypeConstants.PARAGRAPH_SET, QuestionTypeConstants.ASSERTION_REASON, QuestionTypeConstants.MATRIX_MATCH);
 
     private final ModelRouter modelRouter;
 
@@ -81,7 +84,7 @@ public class ComplexityEvaluator {
             String qType = request.getQuestionType().toUpperCase().trim();
             if (COMPLEX_QUESTION_TYPES.contains(qType)) {
                 triggers.add("COMPLEX_QUESTION_TYPE_" + qType);
-            } else if ("NUMERICAL".equals(qType) && "HARD".equalsIgnoreCase(request.getDifficulty())) {
+            } else if (QuestionTypeConstants.NUMERICAL.equals(qType) && QuestionTaxonomyConstants.Difficulty.HARD.equalsIgnoreCase(request.getDifficulty())) {
                 triggers.add("MULTI_STEP_NUMERICAL");
             }
         }
@@ -125,7 +128,7 @@ public class ComplexityEvaluator {
                   request.getQuestionType() + " / " + request.getCognitiveLevel() + ")";
 
         String selectedModel = shouldEscalate
-                ? modelRouter.selectModel("HARD")
+                ? modelRouter.selectModel(QuestionTaxonomyConstants.Difficulty.HARD)
                 : modelRouter.selectModel(request.getDifficulty());
 
         log.info("Complexity triage completed: useMultiAgent={}, triggersCount={}, model={}",

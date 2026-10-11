@@ -22,6 +22,7 @@ package com.examplatform.evaluation.service;
 import com.examplatform.evaluation.domain.Evaluation;
 import com.examplatform.evaluation.dto.AggregatedScoreResult;
 import com.examplatform.evaluation.repository.EvaluationRepository;
+import com.examplatform.shared.constants.MessagingConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -49,7 +50,7 @@ import java.util.stream.Collectors;
 public class ScoreAggregationService {
 
     private static final String EVALUATION_EVENTS_TOPIC = "exam.evaluation.events";
-    private static final String EVALUATION_COMPLETED_TOPIC = "exam.evaluation.completed";
+    private static final String EVALUATION_COMPLETED_TOPIC = MessagingConstants.EVALUATION_COMPLETED_TOPIC;
 
     private final EvaluationRepository evaluationRepository;
     private final EventPublisher eventPublisher;

@@ -19,6 +19,7 @@
 
 package com.examplatform.questionbank.service;
 
+import com.examplatform.shared.constants.QuestionTypeConstants;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -73,7 +74,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class QuestionService {
 
-    private static final String AUDIT_TOPIC = "audit-events";
+    private static final String AUDIT_EVENTS_TOPIC = "audit-events";
 
     private final QuestionRepository questionRepository;
     private final SubjectRepository subjectRepository;
@@ -729,7 +730,7 @@ public class QuestionService {
 
     private void publishAuditEvent(String eventType, UUID questionId, UUID actorId,
                                     String tenantId, Map<String, Object> extra) {
-        AuditEventHelper.publishAuditEvent(eventPublisher, log, AUDIT_TOPIC, eventType, "questionId", questionId, actorId, tenantId, extra);
+        AuditEventHelper.publishAuditEvent(eventPublisher, log, AUDIT_EVENTS_TOPIC, eventType, "questionId", questionId, actorId, tenantId, extra);
     }
 
     private static final com.fasterxml.jackson.databind.ObjectMapper MAPPER =
@@ -743,7 +744,8 @@ public class QuestionService {
         java.util.List<com.examplatform.questionbank.dto.QuestionOption> options = question.getOptions();
         if ((options == null || options.isEmpty())) {
             String questionType = question.getQuestionType();
-            if (questionType != null && (questionType.equals("SINGLE_MCQ") || questionType.equals("MULTI_MCQ"))
+            if (questionType != null && (questionType.equals(QuestionTypeConstants.SINGLE_MCQ) || questionType.equals(
+                QuestionTypeConstants.MULTI_MCQ))
                     && question.getAnswerKey() != null && question.getAnswerKey().startsWith("[")) {
                 try {
                     options = MAPPER.readValue(question.getAnswerKey(),

@@ -18,6 +18,7 @@
 
 package com.examplatform.shared.messaging;
 
+import com.examplatform.shared.constants.MessagingConstants;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -43,9 +44,9 @@ class RabbitMessagingTest {
         RabbitEventPublisher publisher = new RabbitEventPublisher(rabbitTemplate);
         Map<String, Object> payload = Map.of("eventType", "TEST_EVENT", "value", 42);
 
-        publisher.publish("exam.evaluation.completed", "key-123", payload);
+        publisher.publish(MessagingConstants.EVALUATION_COMPLETED_TOPIC, "key-123", payload);
 
-        verify(rabbitTemplate).convertAndSend("exam.events", "exam.evaluation.completed", payload);
+        verify(rabbitTemplate).convertAndSend("exam.events", MessagingConstants.EVALUATION_COMPLETED_TOPIC, payload);
     }
 
     @Test

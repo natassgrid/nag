@@ -22,6 +22,8 @@ package com.examplatform.questionbank.service;
 import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.domain.QuestionVersion;
 import com.examplatform.questionbank.repository.QuestionVersionRepository;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.examplatform.shared.constants.QuestionTypeConstants;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
@@ -70,9 +72,9 @@ class QuestionVersioningServiceTest {
                 .topic(topic)
                 .subtopic("Subtopic A")
                 .chapter("Chapter 1")
-                .difficulty("MEDIUM")
-                .cognitiveLevel("APPLY")
-                .questionType("SINGLE_MCQ")
+                .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
+                .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.APPLY)
+                .questionType(QuestionTypeConstants.SINGLE_MCQ)
                 .content(content)
                 .answerKey("{\"correct\": \"A\"}")
                 .state("DRAFT")
@@ -190,9 +192,10 @@ class QuestionVersioningServiceTest {
             assertThat(snapshot.get("subject").asText()).isEqualTo("Physics");
             assertThat(snapshot.get("topic").asText()).isEqualTo("Mechanics");
             assertThat(snapshot.get("content").asText()).isEqualTo("<p>new content</p>");
-            assertThat(snapshot.get("questionType").asText()).isEqualTo("SINGLE_MCQ");
-            assertThat(snapshot.get("difficulty").asText()).isEqualTo("MEDIUM");
-            assertThat(snapshot.get("cognitiveLevel").asText()).isEqualTo("APPLY");
+            assertThat(snapshot.get("questionType").asText()).isEqualTo(QuestionTypeConstants.SINGLE_MCQ);
+            assertThat(snapshot.get("difficulty").asText()).isEqualTo(QuestionTaxonomyConstants.Difficulty.MEDIUM);
+            assertThat(snapshot.get("cognitiveLevel").asText()).isEqualTo(
+                QuestionTaxonomyConstants.CognitiveLevel.APPLY);
             assertThat(snapshot.get("state").asText()).isEqualTo("DRAFT");
             assertThat(snapshot.get("id").asText()).isEqualTo(QUESTION_ID.toString());
             assertThat(snapshot.get("authorId").asText()).isEqualTo(AUTHOR_ID.toString());

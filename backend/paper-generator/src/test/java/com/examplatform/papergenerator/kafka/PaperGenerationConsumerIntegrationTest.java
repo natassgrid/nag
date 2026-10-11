@@ -19,6 +19,7 @@ import com.examplatform.papergenerator.dto.QuestionSummary;
 import com.examplatform.papergenerator.repository.BlueprintTemplateRepository;
 import com.examplatform.papergenerator.repository.PaperRepository;
 import com.examplatform.papergenerator.support.AbstractIntegrationTest;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import com.examplatform.shared.messaging.GenericDomainEvent;
 import org.junit.jupiter.api.DisplayName;
@@ -75,10 +76,13 @@ class PaperGenerationConsumerIntegrationTest extends AbstractIntegrationTest {
         UUID q1 = UUID.randomUUID();
         UUID q2 = UUID.randomUUID();
 
-        when(questionBankClient.findAvailableQuestions(eq("Mathematics"), eq("Algebra"), eq("EASY"), any(), eq(TENANT_ID)))
+        when(questionBankClient.findAvailableQuestions(eq("Mathematics"), eq("Algebra"), eq(
+            QuestionTaxonomyConstants.Difficulty.EASY), any(), eq(TENANT_ID)))
                 .thenReturn(List.of(
-                        QuestionSummary.builder().questionId(q1).subject("Mathematics").topic("Algebra").difficulty("EASY").build(),
-                        QuestionSummary.builder().questionId(q2).subject("Mathematics").topic("Algebra").difficulty("EASY").build()
+                        QuestionSummary.builder().questionId(q1).subject("Mathematics").topic("Algebra").difficulty(
+                            QuestionTaxonomyConstants.Difficulty.EASY).build(),
+                        QuestionSummary.builder().questionId(q2).subject("Mathematics").topic("Algebra").difficulty(
+                            QuestionTaxonomyConstants.Difficulty.EASY).build()
                 ));
 
         Map<String, Object> requestPayload = Map.of(
@@ -88,7 +92,8 @@ class PaperGenerationConsumerIntegrationTest extends AbstractIntegrationTest {
                 "tenantId", TENANT_ID,
                 "name", "E2E Math Paper",
                 "blueprintRules", List.of(
-                        Map.of("subject", "Mathematics", "topic", "Algebra", "difficulty", "EASY", "questionCount", 2)
+                        Map.of("subject", "Mathematics", "topic", "Algebra", "difficulty",
+                            QuestionTaxonomyConstants.Difficulty.EASY, "questionCount", 2)
                 )
         );
         String json = objectMapper.writeValueAsString(requestPayload);
@@ -123,7 +128,8 @@ class PaperGenerationConsumerIntegrationTest extends AbstractIntegrationTest {
         String shiftId = "SHIFT-TEMPLATE-01";
 
         List<BlueprintRule> templateRules = List.of(
-                BlueprintRule.builder().subject("Physics").topic("Optics").difficulty("MEDIUM").questionCount(1).build()
+                BlueprintRule.builder().subject("Physics").topic("Optics").difficulty(
+                    QuestionTaxonomyConstants.Difficulty.MEDIUM).questionCount(1).build()
         );
 
         BlueprintTemplate template = BlueprintTemplate.builder()
@@ -136,9 +142,11 @@ class PaperGenerationConsumerIntegrationTest extends AbstractIntegrationTest {
         BlueprintTemplate savedTemplate = blueprintTemplateRepository.save(template);
 
         UUID qId = UUID.randomUUID();
-        when(questionBankClient.findAvailableQuestions(eq("Physics"), eq("Optics"), eq("MEDIUM"), any(), eq(TENANT_ID)))
+        when(questionBankClient.findAvailableQuestions(eq("Physics"), eq("Optics"), eq(
+            QuestionTaxonomyConstants.Difficulty.MEDIUM), any(), eq(TENANT_ID)))
                 .thenReturn(List.of(
-                        QuestionSummary.builder().questionId(qId).subject("Physics").topic("Optics").difficulty("MEDIUM").build()
+                        QuestionSummary.builder().questionId(qId).subject("Physics").topic("Optics").difficulty(
+                            QuestionTaxonomyConstants.Difficulty.MEDIUM).build()
                 ));
 
         Map<String, Object> requestPayload = Map.of(
@@ -168,7 +176,8 @@ class PaperGenerationConsumerIntegrationTest extends AbstractIntegrationTest {
         UUID qId = UUID.randomUUID();
         when(questionBankClient.findAvailableQuestions(anyString(), anyString(), anyString(), any(), eq(TENANT_ID)))
                 .thenReturn(List.of(
-                        QuestionSummary.builder().questionId(qId).subject("Chemistry").topic("Acids").difficulty("EASY").build()
+                        QuestionSummary.builder().questionId(qId).subject("Chemistry").topic("Acids").difficulty(
+                            QuestionTaxonomyConstants.Difficulty.EASY).build()
                 ));
 
         Map<String, Object> requestPayload = Map.of(
@@ -177,7 +186,8 @@ class PaperGenerationConsumerIntegrationTest extends AbstractIntegrationTest {
                 "shiftId", shiftId,
                 "tenantId", TENANT_ID,
                 "blueprintRules", List.of(
-                        Map.of("subject", "Chemistry", "topic", "Acids", "difficulty", "EASY", "questionCount", 1)
+                        Map.of("subject", "Chemistry", "topic", "Acids", "difficulty",
+                            QuestionTaxonomyConstants.Difficulty.EASY, "questionCount", 1)
                 )
         );
         String json = objectMapper.writeValueAsString(requestPayload);

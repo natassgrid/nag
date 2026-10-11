@@ -19,6 +19,8 @@
 
 package com.examplatform.papergenerator.service;
 
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
+
 import com.examplatform.papergenerator.client.QuestionBankClient;
 import com.examplatform.papergenerator.crypto.CanonicalPaperManifest;
 import com.examplatform.papergenerator.crypto.MerkleTree;
@@ -32,6 +34,7 @@ import com.examplatform.papergenerator.dto.QuestionSummary;
 import com.examplatform.papergenerator.dto.RuleFeasibilityDetail;
 import com.examplatform.papergenerator.exception.InsufficientQuestionsException;
 import com.examplatform.papergenerator.repository.PaperRepository;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -68,7 +71,7 @@ import java.util.stream.Collectors;
 public class PaperAssemblyService {
 
     private static final String PAPER_EVENTS_TOPIC = "exam.paper.events";
-    private static final String AUDIT_TOPIC = "exam.audit.events";
+
     private static final String NOTIFICATION_TOPIC = "exam.notifications.outbound";
     private static final String STATUS_DRAFT = "DRAFT";
 
@@ -481,9 +484,9 @@ public class PaperAssemblyService {
         }
 
         return switch (question.getDifficulty().toUpperCase()) {
-            case "EASY" -> 1.0;
-            case "MEDIUM" -> 2.0;
-            case "HARD" -> 3.0;
+            case QuestionTaxonomyConstants.Difficulty.EASY -> 1.0;
+            case QuestionTaxonomyConstants.Difficulty.MEDIUM -> 2.0;
+            case QuestionTaxonomyConstants.Difficulty.HARD -> 3.0;
             default -> 2.0;
         };
     }
@@ -515,7 +518,7 @@ public class PaperAssemblyService {
                     "tenantId", tenantId,
                     "occurredAt", Instant.now().toString()
             );
-            eventPublisher.publish(AUDIT_TOPIC, paper.getId().toString(), event);
+            eventPublisher.publish(AUDIT_EVENTS_TOPIC, paper.getId().toString(), event);
         } catch (Exception e) {
             log.error("Unexpected error publishing audit event {} for paper {}: {}",
                     eventType, paper.getId(), e.getMessage());
@@ -529,7 +532,7 @@ public class PaperAssemblyService {
 
     private void publishInsufficientQuestionsAuditEvent(
             List<GapDetail> gaps, @Nullable UUID examId, @Nullable String shiftId, String tenantId) {
-        publishDeficitPayload(AUDIT_TOPIC, "eventType", "BLUEPRINT_DEFICIT_DETECTED", gaps, examId, shiftId, tenantId);
+        publishDeficitPayload(AUDIT_EVENTS_TOPIC, "eventType", "BLUEPRINT_DEFICIT_DETECTED", gaps, examId, shiftId, tenantId);
     }
 
     private void publishDeficitPayload(

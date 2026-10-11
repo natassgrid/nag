@@ -19,6 +19,8 @@
 
 package com.examplatform.papergenerator.service;
 
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
+
 import com.examplatform.papergenerator.domain.Paper;
 import com.examplatform.papergenerator.repository.PaperRepository;
 import com.examplatform.shared.crypto.VaultCryptoService;
@@ -47,7 +49,6 @@ import java.util.UUID;
 @Transactional
 public class PaperApprovalService {
 
-    private static final String AUDIT_TOPIC = "exam.audit.events";
     private static final String STATUS_DRAFT = "DRAFT";
     private static final String STATUS_APPROVED = "APPROVED";
     private static final String STATUS_ENCRYPTED = "ENCRYPTED";
@@ -120,7 +121,7 @@ public class PaperApprovalService {
                     "tenantId", tenantId,
                     "occurredAt", Instant.now().toString()
             );
-            eventPublisher.publish(AUDIT_TOPIC, paper.getId().toString(), event);
+            eventPublisher.publish(AUDIT_EVENTS_TOPIC, paper.getId().toString(), event);
         } catch (Exception e) {
             log.error("Unexpected error publishing PAPER_APPROVED audit event: {}", e.getMessage());
         }

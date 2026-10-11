@@ -3,6 +3,7 @@
  */
 package com.examplatform.questionbank.ai.generation;
 
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -27,21 +28,21 @@ class ModelRouterTest {
     private ModelRouter modelRouter;
 
     @ParameterizedTest
-    @ValueSource(strings = {"EASY", "easy", "Easy"})
+    @ValueSource(strings = {QuestionTaxonomyConstants.Difficulty.EASY, "easy", "Easy"})
     @DisplayName("selectModel() routes EASY difficulty to nova-micro")
     void selectModel_easy_returnsNovaMicro(String difficulty) {
         assertThat(modelRouter.selectModel(difficulty)).isEqualTo("nova-micro");
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"MEDIUM", "medium", "Medium"})
+    @ValueSource(strings = {QuestionTaxonomyConstants.Difficulty.MEDIUM, "medium", "Medium"})
     @DisplayName("selectModel() routes MEDIUM difficulty to nova-lite")
     void selectModel_medium_returnsNovaLite(String difficulty) {
         assertThat(modelRouter.selectModel(difficulty)).isEqualTo("nova-lite");
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"HARD", "hard", "Hard"})
+    @ValueSource(strings = {QuestionTaxonomyConstants.Difficulty.HARD, "hard", "Hard"})
     @DisplayName("selectModel() routes HARD difficulty to nova-lite")
     void selectModel_hard_returnsNovaLite(String difficulty) {
         assertThat(modelRouter.selectModel(difficulty)).isEqualTo("nova-lite");
@@ -70,9 +71,9 @@ class ModelRouterTest {
     @Test
     @DisplayName("selectBatchModelId() returns correct Bedrock model IDs by difficulty")
     void selectBatchModelId_returnCorrectIds() {
-        assertThat(modelRouter.selectBatchModelId("EASY")).isEqualTo("amazon.nova-micro-v1:0");
-        assertThat(modelRouter.selectBatchModelId("MEDIUM")).isEqualTo("amazon.nova-lite-v1:0");
-        assertThat(modelRouter.selectBatchModelId("HARD")).isEqualTo("amazon.nova-lite-v1:0");
+        assertThat(modelRouter.selectBatchModelId(QuestionTaxonomyConstants.Difficulty.EASY)).isEqualTo("amazon.nova-micro-v1:0");
+        assertThat(modelRouter.selectBatchModelId(QuestionTaxonomyConstants.Difficulty.MEDIUM)).isEqualTo("amazon.nova-lite-v1:0");
+        assertThat(modelRouter.selectBatchModelId(QuestionTaxonomyConstants.Difficulty.HARD)).isEqualTo("amazon.nova-lite-v1:0");
         assertThat(modelRouter.selectBatchModelId(null)).isEqualTo("amazon.nova-lite-v1:0");
     }
 }

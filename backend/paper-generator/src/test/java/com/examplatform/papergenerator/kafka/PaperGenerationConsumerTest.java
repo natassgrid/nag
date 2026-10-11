@@ -19,6 +19,7 @@ import com.examplatform.papergenerator.exception.InsufficientQuestionsException;
 import com.examplatform.papergenerator.repository.BlueprintTemplateRepository;
 import com.examplatform.papergenerator.repository.PaperRepository;
 import com.examplatform.papergenerator.service.PaperAssemblyService;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import com.examplatform.shared.messaging.GenericDomainEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -128,7 +129,8 @@ class PaperGenerationConsumerTest {
                     "tenantId", TENANT_ID,
                     "requestedBy", USER_ID.toString(),
                     "blueprintRules", List.of(
-                            Map.of("subject", "Physics", "topic", "Mechanics", "difficulty", "EASY", "questionCount", 5)
+                            Map.of("subject", "Physics", "topic", "Mechanics", "difficulty",
+                                QuestionTaxonomyConstants.Difficulty.EASY, "questionCount", 5)
                     )
             );
             String json = objectMapper.writeValueAsString(payload);
@@ -172,7 +174,8 @@ class PaperGenerationConsumerTest {
                     "shiftId", SHIFT_ID,
                     "tenantId", TENANT_ID,
                     "blueprintRules", List.of(
-                            Map.of("subject", "Chemistry", "topic", "Organic", "difficulty", "HARD", "questionCount", 3)
+                            Map.of("subject", "Chemistry", "topic", "Organic", "difficulty",
+                                QuestionTaxonomyConstants.Difficulty.HARD, "questionCount", 3)
                     )
             );
             String json = objectMapper.writeValueAsString(payload);
@@ -197,7 +200,8 @@ class PaperGenerationConsumerTest {
                     "shiftId", SHIFT_ID,
                     "tenantId", TENANT_ID,
                     "blueprintRules", List.of(
-                            Map.of("subject", "Mathematics", "topic", "Algebra", "difficulty", "MEDIUM", "questionCount", 4)
+                            Map.of("subject", "Mathematics", "topic", "Algebra", "difficulty",
+                                QuestionTaxonomyConstants.Difficulty.MEDIUM, "questionCount", 4)
                     )
             );
             String json = objectMapper.writeValueAsString(payload);
@@ -225,7 +229,8 @@ class PaperGenerationConsumerTest {
         void resolvesRulesFromTemplateId() throws Exception {
             UUID templateId = UUID.randomUUID();
             List<BlueprintRule> templateRules = List.of(
-                    BlueprintRule.builder().subject("Biology").topic("Genetics").difficulty("MEDIUM").questionCount(10).build()
+                    BlueprintRule.builder().subject("Biology").topic("Genetics").difficulty(
+                        QuestionTaxonomyConstants.Difficulty.MEDIUM).questionCount(10).build()
             );
             BlueprintTemplate template = BlueprintTemplate.builder()
                     .name("Biology Standard Blueprint")
@@ -272,7 +277,8 @@ class PaperGenerationConsumerTest {
                     "shiftId", SHIFT_ID,
                     "tenantId", TENANT_ID,
                     "blueprintRules", List.of(
-                            Map.of("subject", "Math", "topic", "Calculus", "difficulty", "EASY", "questionCount", 2)
+                            Map.of("subject", "Math", "topic", "Calculus", "difficulty",
+                                QuestionTaxonomyConstants.Difficulty.EASY, "questionCount", 2)
                     )
             );
 
@@ -309,7 +315,8 @@ class PaperGenerationConsumerTest {
                     "shiftId", SHIFT_ID,
                     "tenantId", TENANT_ID,
                     "blueprintRules", List.of(
-                            Map.of("subject", "Physics", "topic", "Optics", "difficulty", "HARD", "questionCount", 50)
+                            Map.of("subject", "Physics", "topic", "Optics", "difficulty",
+                                QuestionTaxonomyConstants.Difficulty.HARD, "questionCount", 50)
                     )
             );
 

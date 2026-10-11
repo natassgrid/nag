@@ -35,6 +35,8 @@ import com.examplatform.questionbank.service.QuestionService;
 import com.examplatform.questionbank.service.QuestionUpdateService;
 import com.examplatform.questionbank.service.QuestionVersioningService;
 import com.examplatform.questionbank.support.AbstractIntegrationTest;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.examplatform.shared.constants.QuestionTypeConstants;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -119,9 +121,9 @@ class QuestionControllerIntegrationTest extends AbstractIntegrationTest {
                 .subject("Physics")
                 .topic("Thermodynamics")
                 .subtopic("Carnot Engine")
-                .difficulty("MEDIUM")
-                .cognitiveLevel("APPLY")
-                .questionType("SINGLE_MCQ")
+                .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
+                .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.APPLY)
+                .questionType(QuestionTypeConstants.SINGLE_MCQ)
                 .content("What is the efficiency of an ideal Carnot engine operating between 300K and 600K?")
                 .answerKey("B")
                 .state("DRAFT")
@@ -620,7 +622,8 @@ class QuestionControllerIntegrationTest extends AbstractIntegrationTest {
         @Test
         @DisplayName("+ve: Match blueprint via /api/v1/questions/blueprint-match alias - returns 200 OK")
         void matchBlueprintViaAlias() throws Exception {
-            when(questionService.findBlueprintQuestions(eq("Physics"), eq("Thermodynamics"), eq("MEDIUM"), eq("APPLY"), eq(TENANT_ID)))
+            when(questionService.findBlueprintQuestions(eq("Physics"), eq("Thermodynamics"), eq(
+                QuestionTaxonomyConstants.Difficulty.MEDIUM), eq(QuestionTaxonomyConstants.CognitiveLevel.APPLY), eq(TENANT_ID)))
                     .thenReturn(List.of(sampleQuestionResponse()));
 
             String requestJson = """
@@ -644,7 +647,8 @@ class QuestionControllerIntegrationTest extends AbstractIntegrationTest {
         @Test
         @DisplayName("+ve: Match blueprint via /api/v1/questions/match-blueprint - returns 200 OK")
         void matchBlueprintStandard() throws Exception {
-            when(questionService.findBlueprintQuestions(eq("Physics"), eq("Thermodynamics"), eq("MEDIUM"), eq("APPLY"), eq(TENANT_ID)))
+            when(questionService.findBlueprintQuestions(eq("Physics"), eq("Thermodynamics"), eq(
+                QuestionTaxonomyConstants.Difficulty.MEDIUM), eq(QuestionTaxonomyConstants.CognitiveLevel.APPLY), eq(TENANT_ID)))
                     .thenReturn(List.of(sampleQuestionResponse()));
 
             String requestJson = """

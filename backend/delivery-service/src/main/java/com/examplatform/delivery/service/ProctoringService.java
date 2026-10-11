@@ -19,6 +19,8 @@
 
 package com.examplatform.delivery.service;
 
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
+
 import com.examplatform.delivery.config.ProctoringProperties;
 import com.examplatform.delivery.domain.ExamSession;
 import com.examplatform.delivery.repository.ExamSessionRepository;
@@ -45,7 +47,6 @@ import java.util.UUID;
 public class ProctoringService {
 
     private static final String PROCTORING_TOPIC = "exam.proctoring.alerts";
-    private static final String AUDIT_TOPIC = "exam.audit.events";
 
     private final ExamSessionRepository examSessionRepository;
     private final EventPublisher eventPublisher;
@@ -125,7 +126,7 @@ public class ProctoringService {
             );
 
             try {
-                eventPublisher.publish(AUDIT_TOPIC, sessionId.toString(), alertEvent);
+                eventPublisher.publish(AUDIT_EVENTS_TOPIC, sessionId.toString(), alertEvent);
             } catch (Exception e) {
                 log.error("Failed to publish fullscreen exit alert for session={}: {}",
                         sessionId, e.getMessage());

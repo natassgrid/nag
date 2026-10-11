@@ -21,6 +21,7 @@ package com.examplatform.delivery.service;
 
 import com.examplatform.delivery.dto.QuestionDeliveryDto;
 import com.examplatform.delivery.dto.QuestionOptionDeliveryDto;
+import com.examplatform.shared.constants.QuestionTypeConstants;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -89,7 +90,8 @@ public class QuestionDeliveryParser {
             boolean hasImages = qNode.has("hasImages") && qNode.get("hasImages").asBoolean();
 
             String questionType = qNode.has("questionType") ? qNode.get("questionType").asText() :
-                    (qNode.has("question_type") ? qNode.get("question_type").asText() : "SINGLE_MCQ");
+                    (qNode.has("question_type") ? qNode.get("question_type").asText() :
+                        QuestionTypeConstants.SINGLE_MCQ);
             String passageId = qNode.has("passageId") ? qNode.get("passageId").asText() :
                     (qNode.has("passage_id") ? qNode.get("passage_id").asText() : null);
             String passageContent = qNode.has("passageContent") ? qNode.get("passageContent").asText() :

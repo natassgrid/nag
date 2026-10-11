@@ -11,6 +11,8 @@ import com.examplatform.questionbank.repository.QuestionRepository;
 import com.examplatform.questionbank.service.SimilarityDetectionService;
 import com.examplatform.questionbank.service.SubjectTopicService;
 import com.examplatform.questionbank.util.EmbeddingUtils;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.examplatform.shared.constants.QuestionTypeConstants;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -59,7 +61,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class BedrockBatchService {
 
-    private static final Set<String> MCQ_TYPES = Set.of("SINGLE_MCQ", "MULTI_MCQ");
+    private static final Set<String> MCQ_TYPES = Set.of(QuestionTypeConstants.SINGLE_MCQ,
+        QuestionTypeConstants.MULTI_MCQ);
 
     private final BatchGenerationJobRepository jobRepository;
     private final QuestionRepository questionRepository;
@@ -353,7 +356,7 @@ public class BedrockBatchService {
                             List<RawQuestion> questions = parseModelOutput(modelOutput);
 
                             for (RawQuestion raw : questions) {
-                                String qType = item != null ? item.getQuestionType() : "SINGLE_MCQ";
+                                String qType = item != null ? item.getQuestionType() : QuestionTypeConstants.SINGLE_MCQ;
                                 if (!isValid(raw, qType)) { totalFailed++; continue; }
 
                                 if (job.isAvoidDuplicates() && item != null) {
@@ -424,9 +427,12 @@ public class BedrockBatchService {
                     .subject(subjectName)
                     .topic(topicName)
                     .subtopic(subtopicName)
-                    .difficulty(raw.difficulty != null ? raw.difficulty : (item != null ? item.getDifficulty() : "MEDIUM"))
-                    .cognitiveLevel(raw.cognitiveLevel != null ? raw.cognitiveLevel : (item != null ? item.getCognitiveLevel() : "APPLY"))
-                    .questionType(raw.questionType != null ? raw.questionType : (item != null ? item.getQuestionType() : "SINGLE_MCQ"))
+                    .difficulty(raw.difficulty != null ? raw.difficulty : (item != null ? item.getDifficulty() :
+                        QuestionTaxonomyConstants.Difficulty.MEDIUM))
+                    .cognitiveLevel(raw.cognitiveLevel != null ? raw.cognitiveLevel : (item != null ? item.getCognitiveLevel() :
+                        QuestionTaxonomyConstants.CognitiveLevel.APPLY))
+                    .questionType(raw.questionType != null ? raw.questionType : (item != null ? item.getQuestionType() :
+                        QuestionTypeConstants.SINGLE_MCQ))
                     .content(raw.content)
                     .answerKey(raw.answerKey)
                     .explanation(raw.explanation)
@@ -501,8 +507,8 @@ public class BedrockBatchService {
         if (MCQ_TYPES.contains(type)) {
             if (raw.options == null || raw.options.size() != 4) return false;
             long correct = raw.options.stream().filter(QuestionOption::isCorrect).count();
-            if ("SINGLE_MCQ".equals(type) && correct != 1) return false;
-            return !"MULTI_MCQ".equals(type) || correct >= 2;
+            if (QuestionTypeConstants.SINGLE_MCQ.equals(type) && correct != 1) return false;
+            return !QuestionTypeConstants.MULTI_MCQ.equals(type) || correct >= 2;
         }
         return true;
     }

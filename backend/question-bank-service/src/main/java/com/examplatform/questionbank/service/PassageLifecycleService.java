@@ -43,8 +43,6 @@ import java.util.UUID;
 @Transactional
 public class PassageLifecycleService {
 
-    private static final String AUDIT_TOPIC = "exam.audit.events";
-
     private static final Map<String, Set<String>> VALID_TRANSITIONS = Map.of(
             "DRAFT", Set.of("REVIEW"),
             "REVIEW", Set.of("APPROVED", "DRAFT"),

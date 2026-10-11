@@ -19,6 +19,8 @@
 
 package com.examplatform.candidate.consumer;
 
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
+
 import com.examplatform.candidate.domain.CandidateProfile;
 import com.examplatform.candidate.repository.CandidateProfileRepository;
 import com.examplatform.shared.crypto.HashingService;
@@ -26,10 +28,11 @@ import com.examplatform.shared.messaging.GenericDomainEvent;
 import com.examplatform.shared.messaging.MessagePayloadExtractor;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Optional;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.ExchangeTypes;
-import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.Exchange;
 import org.springframework.amqp.rabbit.annotation.Queue;
 import org.springframework.amqp.rabbit.annotation.QueueBinding;
@@ -37,10 +40,6 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.context.event.EventListener;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
-
-import java.nio.charset.StandardCharsets;
-import java.util.Optional;
-import java.util.UUID;
 
 /**
  * Listens for candidate registration audit/domain events across Kafka, RabbitMQ,
@@ -50,8 +49,6 @@ import java.util.UUID;
 @Component
 @RequiredArgsConstructor
 public class CandidateRegistrationConsumer {
-
-    public static final String AUDIT_TOPIC = "exam.audit.events";
     private static final String HMAC_KEY_PREFIX = "candidate-doc-hmac-";
     private static final String DEK_PREFIX = "candidate-dek-";
 
@@ -59,7 +56,7 @@ public class CandidateRegistrationConsumer {
     private final HashingService hashingService;
     private final ObjectMapper objectMapper;
 
-    @KafkaListener(topics = AUDIT_TOPIC, groupId = "candidate-registration-provisioning")
+    @KafkaListener(topics = AUDIT_EVENTS_TOPIC, groupId = "candidate-registration-provisioning")
     public void onKafkaAuditEvent(String message) {
         processRegistrationEvent(message);
     }
@@ -68,7 +65,7 @@ public class CandidateRegistrationConsumer {
             bindings = @QueueBinding(
                     value = @Queue(value = "candidate.registration.provisioning.queue", durable = "true"),
                     exchange = @Exchange(value = "exam.events", type = ExchangeTypes.TOPIC),
-                    key = AUDIT_TOPIC
+                    key = AUDIT_EVENTS_TOPIC
             )
     )
     public void onRabbitAuditEvent(Object message) {
@@ -81,7 +78,7 @@ public class CandidateRegistrationConsumer {
 
     @EventListener
     public void onSpringAuditEvent(GenericDomainEvent event) {
-        if (!AUDIT_TOPIC.equals(event.topic())) {
+        if (!AUDIT_EVENTS_TOPIC.equals(event.topic())) {
             return;
         }
         try {

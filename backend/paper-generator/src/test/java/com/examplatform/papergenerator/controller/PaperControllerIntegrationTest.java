@@ -35,6 +35,7 @@ import com.examplatform.papergenerator.service.PaperAssemblyService;
 import com.examplatform.papergenerator.service.PaperSerializer;
 import com.examplatform.papergenerator.service.PaperTranslationService;
 import com.examplatform.papergenerator.support.AbstractIntegrationTest;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -97,8 +98,8 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
         return BlueprintRule.builder()
                 .subject("Mathematics")
                 .topic("Algebra")
-                .difficulty("EASY")
-                .cognitiveLevel("APPLY")
+                .difficulty(QuestionTaxonomyConstants.Difficulty.EASY)
+                .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.APPLY)
                 .questionCount(5)
                 .build();
     }

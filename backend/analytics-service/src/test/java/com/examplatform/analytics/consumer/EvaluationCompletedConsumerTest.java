@@ -20,6 +20,7 @@
 package com.examplatform.analytics.consumer;
 
 import com.examplatform.analytics.service.AnalyticsService;
+import com.examplatform.shared.constants.MessagingConstants;
 import com.examplatform.shared.messaging.GenericDomainEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -130,7 +131,7 @@ class EvaluationCompletedConsumerTest {
                 "tenantId", "default"
         );
         GenericDomainEvent domainEvent = new GenericDomainEvent(
-                "exam.evaluation.completed",
+            MessagingConstants.EVALUATION_COMPLETED_TOPIC,
                 SESSION_ID.toString(),
                 objectMapper.writeValueAsString(event)
         );

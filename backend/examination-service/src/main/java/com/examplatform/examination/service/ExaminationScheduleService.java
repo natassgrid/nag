@@ -19,6 +19,8 @@
 
 package com.examplatform.examination.service;
 
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
+
 import com.examplatform.examination.domain.ExamShift;
 import com.examplatform.examination.domain.ExaminationSchedule;
 import com.examplatform.examination.dto.schedule.AmendScheduleRequest;
@@ -70,7 +72,6 @@ import java.util.UUID;
 @Transactional
 public class ExaminationScheduleService {
 
-    private static final String AUDIT_TOPIC = "exam.audit.events";
     private static final String NOTIF_TOPIC = "exam.notifications.outbound";
 
     // Valid forward transitions (Req 7b.7)
@@ -487,7 +488,7 @@ public class ExaminationScheduleService {
             if (previousValue != null) event.put("previousValue", previousValue);
             if (newValue != null)      event.put("newValue", newValue);
 
-            eventPublisher.publish(AUDIT_TOPIC, schedule.getId().toString(), event);
+            eventPublisher.publish(AUDIT_EVENTS_TOPIC, schedule.getId().toString(), event);
         } catch (Exception e) {
             log.error("Unexpected error publishing audit event [{}]: {}", eventType, e.getMessage());
         }
@@ -503,7 +504,7 @@ public class ExaminationScheduleService {
             event.put("actorId", actorId != null ? actorId.toString() : null);
             event.put("tenantId", tenantId);
             event.put("occurredAt", Instant.now().toString());
-            eventPublisher.publish(AUDIT_TOPIC, shiftId.toString(), event);
+            eventPublisher.publish(AUDIT_EVENTS_TOPIC, shiftId.toString(), event);
         } catch (Exception e) {
             log.error("Unexpected error publishing shift audit event: {}", e.getMessage());
         }

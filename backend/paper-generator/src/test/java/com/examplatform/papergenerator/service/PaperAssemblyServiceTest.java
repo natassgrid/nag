@@ -27,6 +27,7 @@ import com.examplatform.papergenerator.dto.PaperGenerationRequest;
 import com.examplatform.papergenerator.dto.QuestionSummary;
 import com.examplatform.papergenerator.exception.InsufficientQuestionsException;
 import com.examplatform.papergenerator.repository.PaperRepository;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -97,15 +98,15 @@ class PaperAssemblyServiceTest {
                 BlueprintRule.builder()
                         .subject("Mathematics")
                         .topic("Algebra")
-                        .difficulty("EASY")
+                        .difficulty(QuestionTaxonomyConstants.Difficulty.EASY)
                         .cognitiveLevel("KNOWLEDGE")
                         .questionCount(2)
                         .build(),
                 BlueprintRule.builder()
                         .subject("Mathematics")
                         .topic("Calculus")
-                        .difficulty("MEDIUM")
-                        .cognitiveLevel("APPLY")
+                        .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
+                        .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.APPLY)
                         .questionCount(1)
                         .build()
         );
@@ -121,15 +122,18 @@ class PaperAssemblyServiceTest {
         UUID q2 = UUID.randomUUID();
         UUID q3 = UUID.randomUUID();
 
-        when(questionBankClient.findAvailableQuestions("Mathematics", "Algebra", "EASY", "KNOWLEDGE", TENANT_ID))
+        when(questionBankClient.findAvailableQuestions("Mathematics", "Algebra",
+            QuestionTaxonomyConstants.Difficulty.EASY, "KNOWLEDGE", TENANT_ID))
                 .thenReturn(List.of(
-                        createQuestionSummary(q1, "Mathematics", "Algebra", "EASY", "KNOWLEDGE", 0, null, null),
-                        createQuestionSummary(q2, "Mathematics", "Algebra", "EASY", "KNOWLEDGE", 0, null, null)
+                        createQuestionSummary(q1, "Mathematics", "Algebra", QuestionTaxonomyConstants.Difficulty.EASY, "KNOWLEDGE", 0, null, null),
+                        createQuestionSummary(q2, "Mathematics", "Algebra", QuestionTaxonomyConstants.Difficulty.EASY, "KNOWLEDGE", 0, null, null)
                 ));
 
-        when(questionBankClient.findAvailableQuestions("Mathematics", "Calculus", "MEDIUM", "APPLY", TENANT_ID))
+        when(questionBankClient.findAvailableQuestions("Mathematics", "Calculus",
+            QuestionTaxonomyConstants.Difficulty.MEDIUM, QuestionTaxonomyConstants.CognitiveLevel.APPLY, TENANT_ID))
                 .thenReturn(List.of(
-                        createQuestionSummary(q3, "Mathematics", "Calculus", "MEDIUM", "APPLY", 0, null, null)
+                        createQuestionSummary(q3, "Mathematics", "Calculus",
+                            QuestionTaxonomyConstants.Difficulty.MEDIUM, QuestionTaxonomyConstants.CognitiveLevel.APPLY, 0, null, null)
                 ));
 
         when(paperRepository.save(any(Paper.class))).thenAnswer(invocation -> {
@@ -165,8 +169,8 @@ class PaperAssemblyServiceTest {
                 BlueprintRule.builder()
                         .subject("General Intelligence and Reasoning")
                         .topic("Statement and Conclusion")
-                        .difficulty("HARD")
-                        .cognitiveLevel("ANALYZE")
+                        .difficulty(QuestionTaxonomyConstants.Difficulty.HARD)
+                        .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.ANALYZE)
                         .questionCount(5)
                         .build()
         );
@@ -177,7 +181,8 @@ class PaperAssemblyServiceTest {
                 .blueprintRules(rules)
                 .build();
 
-        when(questionBankClient.findAvailableQuestions("General Intelligence and Reasoning", "Statement and Conclusion", "HARD", "ANALYZE", TENANT_ID))
+        when(questionBankClient.findAvailableQuestions("General Intelligence and Reasoning", "Statement and Conclusion",
+            QuestionTaxonomyConstants.Difficulty.HARD, QuestionTaxonomyConstants.CognitiveLevel.ANALYZE, TENANT_ID))
                 .thenReturn(List.of()); // 0 available
 
         assertThatThrownBy(() -> paperAssemblyService.generatePaper(request, GENERATED_BY, TENANT_ID))
@@ -197,7 +202,7 @@ class PaperAssemblyServiceTest {
                 BlueprintRule.builder()
                         .subject("General Intelligence and Reasoning")
                         .topic("Statement and Conclusion")
-                        .difficulty("HARD")
+                        .difficulty(QuestionTaxonomyConstants.Difficulty.HARD)
                         .questionCount(2)
                         .build()
         );
@@ -206,11 +211,15 @@ class PaperAssemblyServiceTest {
         UUID q2 = UUID.randomUUID();
         UUID q3 = UUID.randomUUID();
 
-        when(questionBankClient.findAvailableQuestions("General Intelligence and Reasoning", "Statement and Conclusion", "HARD", null, TENANT_ID))
+        when(questionBankClient.findAvailableQuestions("General Intelligence and Reasoning", "Statement and Conclusion",
+            QuestionTaxonomyConstants.Difficulty.HARD, null, TENANT_ID))
                 .thenReturn(List.of(
-                        createQuestionSummary(q1, "General Intelligence and Reasoning", "Statement and Conclusion", "HARD", "ANALYZE", 0, null, null),
-                        createQuestionSummary(q2, "General Intelligence and Reasoning", "Statement and Conclusion", "HARD", "ANALYZE", 0, null, null),
-                        createQuestionSummary(q3, "General Intelligence and Reasoning", "Statement and Conclusion", "HARD", "ANALYZE", 0, null, null)
+                        createQuestionSummary(q1, "General Intelligence and Reasoning", "Statement and Conclusion",
+                            QuestionTaxonomyConstants.Difficulty.HARD, QuestionTaxonomyConstants.CognitiveLevel.ANALYZE, 0, null, null),
+                        createQuestionSummary(q2, "General Intelligence and Reasoning", "Statement and Conclusion",
+                            QuestionTaxonomyConstants.Difficulty.HARD, QuestionTaxonomyConstants.CognitiveLevel.ANALYZE, 0, null, null),
+                        createQuestionSummary(q3, "General Intelligence and Reasoning", "Statement and Conclusion",
+                            QuestionTaxonomyConstants.Difficulty.HARD, QuestionTaxonomyConstants.CognitiveLevel.ANALYZE, 0, null, null)
                 ));
 
         BlueprintFeasibilityResponse response = paperAssemblyService.checkBlueprintSufficiency(
@@ -233,15 +242,17 @@ class PaperAssemblyServiceTest {
                 BlueprintRule.builder()
                         .subject("General Intelligence and Reasoning")
                         .topic("Statement and Conclusion")
-                        .difficulty("HARD")
+                        .difficulty(QuestionTaxonomyConstants.Difficulty.HARD)
                         .questionCount(5)
                         .build()
         );
 
         UUID q1 = UUID.randomUUID();
-        when(questionBankClient.findAvailableQuestions("General Intelligence and Reasoning", "Statement and Conclusion", "HARD", null, TENANT_ID))
+        when(questionBankClient.findAvailableQuestions("General Intelligence and Reasoning", "Statement and Conclusion",
+            QuestionTaxonomyConstants.Difficulty.HARD, null, TENANT_ID))
                 .thenReturn(List.of(
-                        createQuestionSummary(q1, "General Intelligence and Reasoning", "Statement and Conclusion", "HARD", "ANALYZE", 0, null, null)
+                        createQuestionSummary(q1, "General Intelligence and Reasoning", "Statement and Conclusion",
+                            QuestionTaxonomyConstants.Difficulty.HARD, QuestionTaxonomyConstants.CognitiveLevel.ANALYZE, 0, null, null)
                 ));
 
         BlueprintFeasibilityResponse response = paperAssemblyService.checkBlueprintSufficiency(
@@ -264,9 +275,11 @@ class PaperAssemblyServiceTest {
     @DisplayName("Should enforce NEVER reuse policy by excluding previously used questions")
     void isEligibleForReuse_neverPolicy_rejectsUsedQuestions() {
         QuestionSummary usedQuestion = createQuestionSummary(
-                UUID.randomUUID(), "Physics", "Mechanics", "HARD", "ANALYZE", 1, Instant.now(), "NEVER");
+                UUID.randomUUID(), "Physics", "Mechanics", QuestionTaxonomyConstants.Difficulty.HARD,
+            QuestionTaxonomyConstants.CognitiveLevel.ANALYZE, 1, Instant.now(), "NEVER");
         QuestionSummary unusedQuestion = createQuestionSummary(
-                UUID.randomUUID(), "Physics", "Mechanics", "HARD", "ANALYZE", 0, null, "NEVER");
+                UUID.randomUUID(), "Physics", "Mechanics", QuestionTaxonomyConstants.Difficulty.HARD,
+            QuestionTaxonomyConstants.CognitiveLevel.ANALYZE, 0, null, "NEVER");
 
         assertThat(paperAssemblyService.isEligibleForReuse(usedQuestion)).isFalse();
         assertThat(paperAssemblyService.isEligibleForReuse(unusedQuestion)).isTrue();
@@ -279,11 +292,14 @@ class PaperAssemblyServiceTest {
         Instant twoYearsAgo = Instant.now().minus(730, ChronoUnit.DAYS);
 
         QuestionSummary recentlyUsed = createQuestionSummary(
-                UUID.randomUUID(), "Chemistry", "Organic", "MEDIUM", "APPLY", 2, sixMonthsAgo, "1_YEAR");
+                UUID.randomUUID(), "Chemistry", "Organic", QuestionTaxonomyConstants.Difficulty.MEDIUM,
+            QuestionTaxonomyConstants.CognitiveLevel.APPLY, 2, sixMonthsAgo, "1_YEAR");
         QuestionSummary oldUsed = createQuestionSummary(
-                UUID.randomUUID(), "Chemistry", "Organic", "MEDIUM", "APPLY", 1, twoYearsAgo, "1_YEAR");
+                UUID.randomUUID(), "Chemistry", "Organic", QuestionTaxonomyConstants.Difficulty.MEDIUM,
+            QuestionTaxonomyConstants.CognitiveLevel.APPLY, 1, twoYearsAgo, "1_YEAR");
         QuestionSummary neverUsed = createQuestionSummary(
-                UUID.randomUUID(), "Chemistry", "Organic", "MEDIUM", "APPLY", 0, null, "1_YEAR");
+                UUID.randomUUID(), "Chemistry", "Organic", QuestionTaxonomyConstants.Difficulty.MEDIUM,
+            QuestionTaxonomyConstants.CognitiveLevel.APPLY, 0, null, "1_YEAR");
 
         assertThat(paperAssemblyService.isEligibleForReuse(recentlyUsed)).isFalse();
         assertThat(paperAssemblyService.isEligibleForReuse(oldUsed)).isTrue();
@@ -297,9 +313,11 @@ class PaperAssemblyServiceTest {
         Instant threeYearsAgo = Instant.now().minus(1095, ChronoUnit.DAYS);
 
         QuestionSummary usedOneYearAgo = createQuestionSummary(
-                UUID.randomUUID(), "Biology", "Genetics", "HARD", "EVALUATE", 1, oneYearAgo, "2_YEARS");
+                UUID.randomUUID(), "Biology", "Genetics", QuestionTaxonomyConstants.Difficulty.HARD,
+            QuestionTaxonomyConstants.CognitiveLevel.EVALUATE, 1, oneYearAgo, "2_YEARS");
         QuestionSummary usedThreeYearsAgo = createQuestionSummary(
-                UUID.randomUUID(), "Biology", "Genetics", "HARD", "EVALUATE", 1, threeYearsAgo, "2_YEARS");
+                UUID.randomUUID(), "Biology", "Genetics", QuestionTaxonomyConstants.Difficulty.HARD,
+            QuestionTaxonomyConstants.CognitiveLevel.EVALUATE, 1, threeYearsAgo, "2_YEARS");
 
         assertThat(paperAssemblyService.isEligibleForReuse(usedOneYearAgo)).isFalse();
         assertThat(paperAssemblyService.isEligibleForReuse(usedThreeYearsAgo)).isTrue();
@@ -309,9 +327,9 @@ class PaperAssemblyServiceTest {
     @DisplayName("Should compute difficulty score accurately based on EASY=1.0, MEDIUM=2.0, HARD=3.0")
     void computeDifficultyScore_calculatesAverageCorrectly() {
         List<QuestionSummary> questions = List.of(
-                createQuestionSummary(UUID.randomUUID(), "S", "T", "EASY", "K", 0, null, null),
-                createQuestionSummary(UUID.randomUUID(), "S", "T", "MEDIUM", "K", 0, null, null),
-                createQuestionSummary(UUID.randomUUID(), "S", "T", "HARD", "K", 0, null, null)
+                createQuestionSummary(UUID.randomUUID(), "S", "T", QuestionTaxonomyConstants.Difficulty.EASY, "K", 0, null, null),
+                createQuestionSummary(UUID.randomUUID(), "S", "T", QuestionTaxonomyConstants.Difficulty.MEDIUM, "K", 0, null, null),
+                createQuestionSummary(UUID.randomUUID(), "S", "T", QuestionTaxonomyConstants.Difficulty.HARD, "K", 0, null, null)
         );
 
         double score = paperAssemblyService.computeDifficultyScore(questions);
@@ -326,7 +344,7 @@ class PaperAssemblyServiceTest {
                 BlueprintRule.builder()
                         .subject("Math")
                         .topic("Algebra")
-                        .difficulty("EASY")
+                        .difficulty(QuestionTaxonomyConstants.Difficulty.EASY)
                         .cognitiveLevel("KNOWLEDGE")
                         .questionCount(1)
                         .build()
@@ -340,7 +358,8 @@ class PaperAssemblyServiceTest {
 
         UUID qId = UUID.randomUUID();
         when(questionBankClient.findAvailableQuestions(anyString(), anyString(), anyString(), anyString(), anyString()))
-                .thenReturn(List.of(createQuestionSummary(qId, "Math", "Algebra", "EASY", "KNOWLEDGE", 0, null, null)));
+                .thenReturn(List.of(createQuestionSummary(qId, "Math", "Algebra",
+                    QuestionTaxonomyConstants.Difficulty.EASY, "KNOWLEDGE", 0, null, null)));
 
         when(paperRepository.save(any(Paper.class))).thenAnswer(inv -> {
             Paper p = inv.getArgument(0);

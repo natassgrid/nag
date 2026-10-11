@@ -19,6 +19,8 @@
 
 package com.examplatform.examination.service;
 
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
+
 import com.examplatform.examination.domain.Examination;
 import com.examplatform.examination.domain.Section;
 import com.examplatform.examination.domain.enums.CalculatorPolicy;
@@ -60,8 +62,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Transactional
 public class ExaminationService {
-
-    private static final String AUDIT_TOPIC = "exam.audit.events";
 
     private final ExaminationRepository examinationRepository;
     private final ObjectMapper objectMapper;
@@ -382,7 +382,7 @@ public class ExaminationService {
             payload.put("entityId", entityId);
             payload.put("tenantId", tenantId);
             payload.put("timestamp", LocalDateTime.ofInstant(Instant.now(), ZoneOffset.UTC).toString());
-            eventPublisher.publish(AUDIT_TOPIC, entityId, payload);
+            eventPublisher.publish(AUDIT_EVENTS_TOPIC, entityId, payload);
         } catch (Exception e) {
             log.warn("Failed to publish audit event {}: {}", eventType, e.getMessage());
         }

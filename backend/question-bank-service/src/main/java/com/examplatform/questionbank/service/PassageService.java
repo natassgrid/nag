@@ -11,6 +11,8 @@
 
 package com.examplatform.questionbank.service;
 
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
+
 import com.examplatform.questionbank.ai.embedding.EmbeddingService;
 import com.examplatform.questionbank.domain.Passage;
 import com.examplatform.questionbank.domain.Question;
@@ -27,8 +29,17 @@ import com.examplatform.questionbank.repository.QuestionRepository;
 import com.examplatform.questionbank.repository.SubjectRepository;
 import com.examplatform.questionbank.repository.TopicRepository;
 import com.examplatform.questionbank.util.EmbeddingUtils;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import jakarta.persistence.EntityNotFoundException;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -40,16 +51,6 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
-import java.util.stream.Collectors;
-
 /**
  * Service managing Comprehension / Case Study passages and their associated sub-questions.
  */
@@ -58,8 +59,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Transactional
 public class PassageService {
-
-    private static final String AUDIT_TOPIC = "exam.audit.events";
 
     private final PassageRepository passageRepository;
     private final QuestionRepository questionRepository;
@@ -308,8 +307,10 @@ public class PassageService {
                 .subject(subject.getName())
                 .topic(topicName != null ? topicName : passage.getTopic())
                 .chapter(subReq.getChapter())
-                .difficulty(subReq.getDifficulty() != null ? subReq.getDifficulty().name() : "MEDIUM")
-                .cognitiveLevel(subReq.getCognitiveLevel() != null ? subReq.getCognitiveLevel().name() : "UNDERSTAND")
+                .difficulty(subReq.getDifficulty() != null ? subReq.getDifficulty().name() :
+                    QuestionTaxonomyConstants.Difficulty.MEDIUM)
+                .cognitiveLevel(subReq.getCognitiveLevel() != null ? subReq.getCognitiveLevel().name() :
+                    QuestionTaxonomyConstants.CognitiveLevel.UNDERSTAND)
                 .questionType(subReq.getQuestionType() != null ? subReq.getQuestionType().name() : QuestionType.SINGLE_MCQ.name())
                 .content(subReq.getContent())
                 .answerKey(payload.answerKey())
@@ -420,6 +421,6 @@ public class PassageService {
 
     void publishAuditEvent(String eventType, UUID passageId, UUID actorId,
                            String tenantId, Map<String, Object> extra) {
-        AuditEventHelper.publishAuditEvent(eventPublisher, log, AUDIT_TOPIC, eventType, "passageId", passageId, actorId, tenantId, extra);
+        AuditEventHelper.publishAuditEvent(eventPublisher, log, AUDIT_EVENTS_TOPIC, eventType, "passageId", passageId, actorId, tenantId, extra);
     }
 }

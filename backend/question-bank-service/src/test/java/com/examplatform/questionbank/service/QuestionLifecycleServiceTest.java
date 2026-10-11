@@ -25,6 +25,8 @@ import com.examplatform.questionbank.dto.TransitionRequest;
 import com.examplatform.questionbank.exception.FourEyesPrincipleViolationException;
 import com.examplatform.questionbank.exception.InvalidTransitionException;
 import com.examplatform.questionbank.repository.QuestionRepository;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.examplatform.shared.constants.QuestionTypeConstants;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -74,9 +76,9 @@ class QuestionLifecycleServiceTest {
         Question question = Question.builder()
                 .subject("Mathematics")
                 .topic("Algebra")
-                .difficulty("MEDIUM")
-                .cognitiveLevel("UNDERSTAND")
-                .questionType("SINGLE_MCQ")
+                .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
+                .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.UNDERSTAND)
+                .questionType(QuestionTypeConstants.SINGLE_MCQ)
                 .content("What is 2+2?")
                 .answerKey("4")
                 .state(state)
@@ -265,9 +267,9 @@ class QuestionLifecycleServiceTest {
         Question question = Question.builder()
                 .subject("Mathematics")
                 .topic("Algebra")
-                .difficulty("MEDIUM")
-                .cognitiveLevel("UNDERSTAND")
-                .questionType("SINGLE_MCQ")
+                .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
+                .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.UNDERSTAND)
+                .questionType(QuestionTypeConstants.SINGLE_MCQ)
                 .content("What is 2+2?")
                 .answerKey("4")
                 .state(state)

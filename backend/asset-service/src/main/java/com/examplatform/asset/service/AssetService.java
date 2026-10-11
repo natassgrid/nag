@@ -19,9 +19,10 @@
 
 package com.examplatform.asset.service;
 
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
+
 import com.examplatform.asset.domain.entity.MediaAsset;
 import com.examplatform.asset.domain.enums.AssetStatus;
-import com.examplatform.asset.domain.enums.AssetType;
 import com.examplatform.asset.dto.AssetMetadataUpdateRequest;
 import com.examplatform.asset.dto.AssetSearchRequest;
 import com.examplatform.asset.dto.AssetUploadResponse;
@@ -37,6 +38,12 @@ import com.examplatform.asset.validation.SecurityValidationPipeline;
 import com.examplatform.shared.messaging.EventPublisher;
 import com.examplatform.shared.tenant.TenantContext;
 import jakarta.persistence.EntityNotFoundException;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.Optional;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -45,13 +52,6 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.util.Optional;
-import java.util.UUID;
 
 /**
  * Core service orchestrating asset upload, retrieval, metadata update,
@@ -69,8 +69,6 @@ public class AssetService {
     private final StorageProviderRegistry storageProviderRegistry;
     private final StorageProperties storageProperties;
     private final EventPublisher eventPublisher;
-
-    private static final String AUDIT_TOPIC = "exam.audit.events";
 
     /**
      * Upload a new asset: validate, compute hash, check for duplicates,
@@ -378,7 +376,7 @@ public class AssetService {
                     "tenantId", tenantId,
                     "timestamp", java.time.Instant.now().toString()
             );
-            eventPublisher.publish(AUDIT_TOPIC, assetId.toString(), event);
+            eventPublisher.publish(AUDIT_EVENTS_TOPIC, assetId.toString(), event);
         } catch (Exception e) {
             log.warn("Failed to publish audit event: {}", e.getMessage());
         }

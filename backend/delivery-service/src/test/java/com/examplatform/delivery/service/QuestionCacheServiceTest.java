@@ -20,6 +20,8 @@
 package com.examplatform.delivery.service;
 
 import com.examplatform.delivery.dto.CachedQuestion;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.examplatform.shared.constants.QuestionTypeConstants;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -68,8 +70,10 @@ class QuestionCacheServiceTest {
         String cacheKey = "question:cache:" + tenantId + ":" + paperId;
 
         List<CachedQuestion> cachedQuestions = List.of(
-                new CachedQuestion(UUID.randomUUID().toString(), "What is 2+2?", "MCQ", "EASY", 1.0, 0.0, "[]", "A"),
-                new CachedQuestion(UUID.randomUUID().toString(), "Solve for x: 3x+1=7", "NUMERICAL", "MEDIUM", 2.0, 0.0, null, "2")
+                new CachedQuestion(UUID.randomUUID().toString(), "What is 2+2?", "MCQ",
+                    QuestionTaxonomyConstants.Difficulty.EASY, 1.0, 0.0, "[]", "A"),
+                new CachedQuestion(UUID.randomUUID().toString(), "Solve for x: 3x+1=7", QuestionTypeConstants.NUMERICAL,
+                    QuestionTaxonomyConstants.Difficulty.MEDIUM, 2.0, 0.0, null, "2")
         );
 
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
@@ -81,7 +85,7 @@ class QuestionCacheServiceTest {
 
         assertThat(result).hasSize(2);
         assertThat(result.get(0).content()).isEqualTo("What is 2+2?");
-        assertThat(result.get(1).type()).isEqualTo("NUMERICAL");
+        assertThat(result.get(1).type()).isEqualTo(QuestionTypeConstants.NUMERICAL);
     }
 
     @Test

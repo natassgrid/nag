@@ -27,6 +27,7 @@ import com.examplatform.evaluation.dto.CandidateResponse;
 import com.examplatform.evaluation.exception.UpstreamServiceUnavailableException;
 import com.examplatform.evaluation.service.AutoEvaluationService;
 import com.examplatform.evaluation.service.ScoreAggregationService;
+import com.examplatform.shared.constants.QuestionTypeConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -124,7 +125,7 @@ class SessionEventConsumerTest {
             List<AnswerKey> mockAnswerKeys = List.of(
                     AnswerKey.builder()
                             .questionId(questionId)
-                            .questionType("SINGLE_MCQ")
+                            .questionType(QuestionTypeConstants.SINGLE_MCQ)
                             .correctAnswer("[\"opt-1\"]")
                             .marksPerQuestion(4.0)
                             .negativeMarks(1.0)
@@ -182,7 +183,7 @@ class SessionEventConsumerTest {
             List<AnswerKey> mockAnswerKeys = List.of(
                     AnswerKey.builder()
                             .questionId(questionId)
-                            .questionType("SINGLE_MCQ")
+                            .questionType(QuestionTypeConstants.SINGLE_MCQ)
                             .correctAnswer("[\"opt-2\"]")
                             .marksPerQuestion(2.0)
                             .build()

@@ -10,6 +10,8 @@ import com.examplatform.practice.repository.PracticeResponseRepository;
 import com.examplatform.practice.repository.PracticeSessionRepository;
 import com.examplatform.practice.repository.PracticeSetRepository;
 import com.examplatform.practice.util.PracticeQuestionUtils;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.examplatform.shared.constants.QuestionTypeConstants;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -108,7 +110,8 @@ public class PracticeEvaluationService {
                             .merge("correct", 1, Integer::sum);
                     topicBreakdown.computeIfAbsent(topic, k -> new HashMap<>())
                             .merge("total", 1, Integer::sum);
-                    String diff = ak.difficulty() != null ? ak.difficulty() : "MEDIUM";
+                    String diff = ak.difficulty() != null ? ak.difficulty() :
+                        QuestionTaxonomyConstants.Difficulty.MEDIUM;
                     diffBreakdown.computeIfAbsent(diff, k -> new Integer[]{0, 0});
                     diffBreakdown.get(diff)[0]++;
                     diffBreakdown.get(diff)[1]++;
@@ -119,7 +122,8 @@ public class PracticeEvaluationService {
                     String topic = ak.topicName() != null ? ak.topicName() : "General";
                     topicBreakdown.computeIfAbsent(topic, k -> new HashMap<>())
                             .merge("total", 1, Integer::sum);
-                    String diff = ak.difficulty() != null ? ak.difficulty() : "MEDIUM";
+                    String diff = ak.difficulty() != null ? ak.difficulty() :
+                        QuestionTaxonomyConstants.Difficulty.MEDIUM;
                     diffBreakdown.computeIfAbsent(diff, k -> new Integer[]{0, 0});
                     diffBreakdown.get(diff)[1]++;
                 }
@@ -154,7 +158,7 @@ public class PracticeEvaluationService {
         String qType = ak.questionType() != null ? ak.questionType().toUpperCase().trim() : "";
 
         // 1. Numerical evaluation
-        if ("NUMERICAL".equals(qType) || "NUMERIC".equals(qType)) {
+        if (QuestionTypeConstants.NUMERICAL.equals(qType) || "NUMERIC".equals(qType)) {
             String entered = resp.getEnteredValue();
             if (entered == null || entered.isBlank()) return false;
             return evaluateNumerical(answerKey, entered);
@@ -178,7 +182,7 @@ public class PracticeEvaluationService {
                 return false;
             }
 
-            if ("MULTI_MCQ".equals(qType) || correctSet.size() > 1) {
+            if (QuestionTypeConstants.MULTI_MCQ.equals(qType) || correctSet.size() > 1) {
                 // Multi-select MCQ: candidate's selected set must exactly match correct set
                 return selectedSet.equals(correctSet);
             } else {

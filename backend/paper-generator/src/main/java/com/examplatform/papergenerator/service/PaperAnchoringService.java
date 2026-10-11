@@ -19,6 +19,8 @@
 
 package com.examplatform.papergenerator.service;
 
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
+
 import com.examplatform.papergenerator.crypto.CanonicalPaperManifest;
 import com.examplatform.papergenerator.crypto.MerkleTree;
 import com.examplatform.papergenerator.domain.Paper;
@@ -57,7 +59,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PaperAnchoringService {
 
-    private static final String AUDIT_TOPIC = "exam.audit.events";
 
     private final LedgerAdapter ledgerAdapter;
     private final PaperRepository paperRepository;
@@ -263,7 +264,7 @@ public class PaperAnchoringService {
                     "tenantId", tenantId != null ? tenantId : "default",
                     "occurredAt", Instant.now().toString()
             );
-            eventPublisher.publish(AUDIT_TOPIC, paper.getId().toString(), event);
+            eventPublisher.publish(AUDIT_EVENTS_TOPIC, paper.getId().toString(), event);
         } catch (Exception e) {
             log.error("Failed to publish PAPER_LEDGER_ANCHORED audit event: {}", e.getMessage());
         }

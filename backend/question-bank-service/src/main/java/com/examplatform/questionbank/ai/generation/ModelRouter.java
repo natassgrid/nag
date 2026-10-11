@@ -15,6 +15,7 @@
  */
 package com.examplatform.questionbank.ai.generation;
 
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -58,9 +59,9 @@ public class ModelRouter {
         }
 
         return switch (difficulty.toUpperCase().trim()) {
-            case "EASY" -> easyModel;
-            case "MEDIUM" -> mediumModel;
-            case "HARD" -> hardModel;
+            case QuestionTaxonomyConstants.Difficulty.EASY -> easyModel;
+            case QuestionTaxonomyConstants.Difficulty.MEDIUM -> mediumModel;
+            case QuestionTaxonomyConstants.Difficulty.HARD -> hardModel;
             default -> mediumModel;
         };
     }
@@ -77,8 +78,8 @@ public class ModelRouter {
         }
 
         return switch (difficulty.toUpperCase().trim()) {
-            case "EASY" -> "amazon.nova-micro-v1:0";
-            case "MEDIUM", "HARD" -> "amazon.nova-lite-v1:0";
+            case QuestionTaxonomyConstants.Difficulty.EASY -> "amazon.nova-micro-v1:0";
+            case QuestionTaxonomyConstants.Difficulty.MEDIUM, QuestionTaxonomyConstants.Difficulty.HARD -> "amazon.nova-lite-v1:0";
             default -> "amazon.nova-lite-v1:0";
         };
     }

@@ -50,9 +50,8 @@ import java.util.Map;
 @Component
 @RequiredArgsConstructor
 public class DDosMitigationFilter implements GlobalFilter, Ordered {
-
+    private static final String AUDIT_EVENTS_TOPIC = "exam.audit.events";
     private static final String REDIS_KEY_PREFIX = "ddos:ip:";
-    private static final String AUDIT_TOPIC = "exam.audit.events";
     private static final String NOTIFICATION_TOPIC = "exam.notifications.outbound";
 
     private final ReactiveRedisTemplate<String, String> reactiveRedisTemplate;
@@ -114,7 +113,7 @@ public class DDosMitigationFilter implements GlobalFilter, Ordered {
 
         try {
             kafkaTemplateProvider.ifAvailable(template -> {
-                template.send(AUDIT_TOPIC, ipAddress, alert);
+                template.send(AUDIT_EVENTS_TOPIC, ipAddress, alert);
                 template.send(NOTIFICATION_TOPIC, ipAddress, alert);
             });
         } catch (Exception e) {

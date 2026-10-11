@@ -26,6 +26,7 @@ import com.examplatform.papergenerator.dto.PaperGenerationRequest;
 import com.examplatform.papergenerator.dto.QuestionSummary;
 import com.examplatform.papergenerator.exception.InsufficientQuestionsException;
 import com.examplatform.papergenerator.repository.PaperRepository;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -85,7 +86,7 @@ class GapReportTest {
                 BlueprintRule.builder()
                         .subject("Mathematics")
                         .topic("Algebra")
-                        .difficulty("HARD")
+                        .difficulty(QuestionTaxonomyConstants.Difficulty.HARD)
                         .questionCount(5)
                         .build()
         );
@@ -99,15 +100,16 @@ class GapReportTest {
         List<QuestionSummary> availableQuestions = List.of(
                 QuestionSummary.builder()
                         .questionId(UUID.randomUUID())
-                        .subject("Mathematics").topic("Algebra").difficulty("HARD")
+                        .subject("Mathematics").topic("Algebra").difficulty(QuestionTaxonomyConstants.Difficulty.HARD)
                         .usageCount(0).build(),
                 QuestionSummary.builder()
                         .questionId(UUID.randomUUID())
-                        .subject("Mathematics").topic("Algebra").difficulty("HARD")
+                        .subject("Mathematics").topic("Algebra").difficulty(QuestionTaxonomyConstants.Difficulty.HARD)
                         .usageCount(0).build()
         );
 
-        when(questionBankClient.findAvailableQuestions("Mathematics", "Algebra", "HARD", null, TENANT_ID))
+        when(questionBankClient.findAvailableQuestions("Mathematics", "Algebra",
+            QuestionTaxonomyConstants.Difficulty.HARD, null, TENANT_ID))
                 .thenReturn(availableQuestions);
 
         // When/Then
@@ -120,7 +122,7 @@ class GapReportTest {
                     GapDetail gap = gaps.get(0);
                     assertThat(gap.getSubject()).isEqualTo("Mathematics");
                     assertThat(gap.getTopic()).isEqualTo("Algebra");
-                    assertThat(gap.getDifficulty()).isEqualTo("HARD");
+                    assertThat(gap.getDifficulty()).isEqualTo(QuestionTaxonomyConstants.Difficulty.HARD);
                     assertThat(gap.getNeeded()).isEqualTo(5);
                     assertThat(gap.getAvailable()).isEqualTo(2);
                 });
@@ -134,7 +136,7 @@ class GapReportTest {
                 BlueprintRule.builder()
                         .subject("Physics")
                         .topic("Quantum")
-                        .difficulty("HARD")
+                        .difficulty(QuestionTaxonomyConstants.Difficulty.HARD)
                         .questionCount(3)
                         .build()
         );
@@ -145,7 +147,7 @@ class GapReportTest {
                 .blueprintRules(rules)
                 .build();
 
-        when(questionBankClient.findAvailableQuestions("Physics", "Quantum", "HARD", null, TENANT_ID))
+        when(questionBankClient.findAvailableQuestions("Physics", "Quantum", QuestionTaxonomyConstants.Difficulty.HARD, null, TENANT_ID))
                 .thenReturn(Collections.emptyList());
 
         // When/Then
@@ -168,13 +170,13 @@ class GapReportTest {
                 BlueprintRule.builder()
                         .subject("Chemistry")
                         .topic("Organic")
-                        .difficulty("MEDIUM")
+                        .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
                         .questionCount(4)
                         .build(),
                 BlueprintRule.builder()
                         .subject("Chemistry")
                         .topic("Inorganic")
-                        .difficulty("EASY")
+                        .difficulty(QuestionTaxonomyConstants.Difficulty.EASY)
                         .questionCount(3)
                         .build()
         );
@@ -186,12 +188,14 @@ class GapReportTest {
                 .build();
 
         // Only 1 question available for Organic, 0 for Inorganic
-        when(questionBankClient.findAvailableQuestions("Chemistry", "Organic", "MEDIUM", null, TENANT_ID))
+        when(questionBankClient.findAvailableQuestions("Chemistry", "Organic",
+            QuestionTaxonomyConstants.Difficulty.MEDIUM, null, TENANT_ID))
                 .thenReturn(List.of(QuestionSummary.builder()
                         .questionId(UUID.randomUUID())
-                        .subject("Chemistry").topic("Organic").difficulty("MEDIUM")
+                        .subject("Chemistry").topic("Organic").difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
                         .usageCount(0).build()));
-        when(questionBankClient.findAvailableQuestions("Chemistry", "Inorganic", "EASY", null, TENANT_ID))
+        when(questionBankClient.findAvailableQuestions("Chemistry", "Inorganic",
+            QuestionTaxonomyConstants.Difficulty.EASY, null, TENANT_ID))
                 .thenReturn(Collections.emptyList());
 
         // When/Then

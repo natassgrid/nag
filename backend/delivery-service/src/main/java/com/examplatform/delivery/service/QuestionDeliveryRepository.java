@@ -21,6 +21,7 @@ package com.examplatform.delivery.service;
 
 import com.examplatform.delivery.dto.QuestionDeliveryDto;
 import com.examplatform.delivery.dto.QuestionOptionDeliveryDto;
+import com.examplatform.shared.constants.QuestionTypeConstants;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -244,7 +245,7 @@ public class QuestionDeliveryRepository {
                         .topic(topic != null ? topic : "General")
                         .correctOptionIndex(correctOptionIndex)
                         .explanation(explanation)
-                        .questionType(questionType != null ? questionType : "SINGLE_MCQ")
+                        .questionType(questionType != null ? questionType : QuestionTypeConstants.SINGLE_MCQ)
                         .passageId(passageId)
                         .passageContent(passageContent)
                         .passageOrderIndex(passageOrderIndex)

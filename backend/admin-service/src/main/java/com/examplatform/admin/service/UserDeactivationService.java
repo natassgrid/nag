@@ -19,6 +19,8 @@
 
 package com.examplatform.admin.service;
 
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
+
 import com.examplatform.admin.client.KeycloakAdminClient;
 import com.examplatform.shared.audit.AuditEventType;
 import com.examplatform.shared.messaging.EventPublisher;
@@ -43,7 +45,6 @@ import java.util.UUID;
 public class UserDeactivationService {
 
     private static final String SESSION_KEY_PATTERN = "session:*:user:%s";
-    private static final String AUDIT_TOPIC = "exam.audit.events";
 
     private final StringRedisTemplate redisTemplate;
     private final KeycloakAdminClient keycloakAdminClient;
@@ -93,7 +94,7 @@ public class UserDeactivationService {
                 "timestamp", Instant.now().toString()
         );
         try {
-            eventPublisher.publish(AUDIT_TOPIC, tenantId, auditEvent);
+            eventPublisher.publish(AUDIT_EVENTS_TOPIC, tenantId, auditEvent);
         } catch (Exception ex) {
             log.warn("Failed to publish audit event for user deactivation: {}", ex.getMessage());
         }

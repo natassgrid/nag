@@ -37,6 +37,8 @@ import com.examplatform.questionbank.translation.domain.Translation;
 import com.examplatform.questionbank.translation.repository.TranslationRepository;
 import com.examplatform.questionbank.repository.QuestionVersionRepository;
 import com.examplatform.questionbank.domain.QuestionVersion;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.examplatform.shared.constants.QuestionTypeConstants;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -202,8 +204,8 @@ class QuestionServiceTest {
             assertThat(response.getState()).isEqualTo("DRAFT");
             assertThat(response.getSubject()).isEqualTo("Mathematics");
             assertThat(response.getTopic()).isEqualTo("Calculus");
-            assertThat(response.getQuestionType()).isEqualTo("SINGLE_MCQ");
-            assertThat(response.getDifficulty()).isEqualTo("MEDIUM");
+            assertThat(response.getQuestionType()).isEqualTo(QuestionTypeConstants.SINGLE_MCQ);
+            assertThat(response.getDifficulty()).isEqualTo(QuestionTaxonomyConstants.Difficulty.MEDIUM);
             assertThat(response.getContent()).isEqualTo("<p>Find the derivative of x^2</p>");
             assertThat(response.getEncryptionKeyId()).startsWith("question-dek-");
 
@@ -394,7 +396,7 @@ class QuestionServiceTest {
             Question q1 = Question.builder()
                     .subject("Physics")
                     .topic("Mechanics")
-                    .difficulty("MEDIUM")
+                    .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
                     .state("APPROVED")
                     .content("What is Newton's second law?")
                     .build();
@@ -407,7 +409,7 @@ class QuestionServiceTest {
             Question q2 = Question.builder()
                     .subject("Physics")
                     .topic("Thermodynamics")
-                    .difficulty("EASY")
+                    .difficulty(QuestionTaxonomyConstants.Difficulty.EASY)
                     .state("APPROVED")
                     .content("Define isothermal process.")
                     .build();
@@ -481,8 +483,8 @@ class QuestionServiceTest {
             Question question = Question.builder()
                     .subject("Physics")
                     .topic("Mechanics")
-                    .difficulty("MEDIUM")
-                    .questionType("SINGLE_MCQ")
+                    .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
+                    .questionType(QuestionTypeConstants.SINGLE_MCQ)
                     .state("DRAFT")
                     .authorId(authorId)
                     .usageCount(0)
@@ -566,9 +568,9 @@ class QuestionServiceTest {
                     .topicId(10L)
                     .subject("Mathematics")
                     .topic("Calculus")
-                    .difficulty("MEDIUM")
-                    .cognitiveLevel("APPLY")
-                    .questionType("SINGLE_MCQ")
+                    .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
+                    .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.APPLY)
+                    .questionType(QuestionTypeConstants.SINGLE_MCQ)
                     .content("What is the derivative of x^2?")
                     .state("DRAFT")
                     .build();

@@ -19,6 +19,8 @@
 
 package com.examplatform.questionbank.service;
 
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
+
 import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.dto.BulkTransitionItemResult;
 import com.examplatform.questionbank.dto.BulkTransitionRequest;
@@ -31,20 +33,17 @@ import com.examplatform.questionbank.exception.InvalidTransitionException;
 import com.examplatform.questionbank.repository.QuestionRepository;
 import com.examplatform.shared.messaging.EventPublisher;
 import jakarta.persistence.EntityNotFoundException;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Service implementing the question lifecycle finite state machine (FSM).
@@ -69,8 +68,6 @@ import java.util.UUID;
         IllegalArgumentException.class
 })
 public class QuestionLifecycleService {
-
-    private static final String AUDIT_TOPIC = "exam.audit.events";
 
     private static final Map<String, Set<String>> VALID_TRANSITIONS = Map.of(
             "DRAFT", Set.of("REVIEW"),
@@ -236,7 +233,7 @@ public class QuestionLifecycleService {
             event.put("toState", toState);
             event.put("occurredAt", Instant.now().toString());
 
-            eventPublisher.publish(AUDIT_TOPIC, questionId.toString(), event);
+            eventPublisher.publish(AUDIT_EVENTS_TOPIC, questionId.toString(), event);
         } catch (Exception e) {
             log.error("Unexpected error publishing state transition audit event: {}", e.getMessage());
         }

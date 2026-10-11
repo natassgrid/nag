@@ -19,6 +19,7 @@
 
 package com.examplatform.questionbank.domain.enums;
 
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonCreator;
 
@@ -39,9 +40,9 @@ public enum DifficultyLevel {
         }
         String normalized = value.trim().toUpperCase();
         return switch (normalized) {
-            case "EASY", "BEGINNER", "SIMPLE" -> EASY;
-            case "MEDIUM", "INTERMEDIATE", "MODERATE", "NORMAL" -> MEDIUM;
-            case "HARD", "ADVANCED", "EXPERT", "DIFFICULT" -> HARD;
+            case QuestionTaxonomyConstants.Difficulty.EASY, "BEGINNER", "SIMPLE" -> EASY;
+            case QuestionTaxonomyConstants.Difficulty.MEDIUM, "INTERMEDIATE", "MODERATE", "NORMAL" -> MEDIUM;
+            case QuestionTaxonomyConstants.Difficulty.HARD, "ADVANCED", "EXPERT", "DIFFICULT" -> HARD;
             default -> {
                 for (DifficultyLevel level : values()) {
                     if (level.name().equalsIgnoreCase(normalized)) {

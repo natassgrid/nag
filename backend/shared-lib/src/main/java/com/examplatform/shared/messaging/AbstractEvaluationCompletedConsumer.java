@@ -15,6 +15,7 @@
  */
 package com.examplatform.shared.messaging;
 
+import com.examplatform.shared.constants.MessagingConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -33,7 +34,7 @@ import java.util.function.Consumer;
 @Slf4j
 public abstract class AbstractEvaluationCompletedConsumer {
 
-    public static final String EVALUATION_COMPLETED_TOPIC = "exam.evaluation.completed";
+    public static final String EVALUATION_COMPLETED_TOPIC = MessagingConstants.EVALUATION_COMPLETED_TOPIC;
     public static final String EVALUATION_COMPLETED_EVENT_TYPE = "EVALUATION_COMPLETED";
 
     protected final ObjectMapper objectMapper;

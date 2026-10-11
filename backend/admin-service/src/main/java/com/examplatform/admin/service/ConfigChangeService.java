@@ -19,6 +19,8 @@
 
 package com.examplatform.admin.service;
 
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
+
 import com.examplatform.admin.domain.SystemConfig;
 import com.examplatform.admin.dto.SystemConfigResponse;
 import com.examplatform.admin.repository.SystemConfigRepository;
@@ -53,8 +55,6 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class ConfigChangeService {
-
-    private static final String AUDIT_TOPIC = "exam.audit.events";
     private static final String REDIS_CONFIG_KEY_PREFIX = "nag:config:";
 
     public static final Map<String, String> DEFAULT_CONFIGS = DefaultPlatformConfigs.DEFAULTS;
@@ -256,7 +256,7 @@ public class ConfigChangeService {
                     "tenantId", tenantId,
                     "timestamp", Instant.now().toString()
             );
-            eventPublisher.publish(AUDIT_TOPIC, tenantId, auditEvent);
+            eventPublisher.publish(AUDIT_EVENTS_TOPIC, tenantId, auditEvent);
         } catch (Exception ex) {
             log.warn("Failed to publish audit event for config change '{}': {}", paramName, ex.getMessage());
         }

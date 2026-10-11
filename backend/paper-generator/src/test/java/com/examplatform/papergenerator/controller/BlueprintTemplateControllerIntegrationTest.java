@@ -25,6 +25,7 @@ import com.examplatform.papergenerator.dto.BlueprintTemplateRequest;
 import com.examplatform.papergenerator.dto.BlueprintTemplateResponse;
 import com.examplatform.papergenerator.service.BlueprintTemplateService;
 import com.examplatform.papergenerator.support.AbstractIntegrationTest;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -65,8 +66,8 @@ class BlueprintTemplateControllerIntegrationTest extends AbstractIntegrationTest
         return BlueprintRule.builder()
                 .subject("Mathematics")
                 .topic("Algebra")
-                .difficulty("EASY")
-                .cognitiveLevel("APPLY")
+                .difficulty(QuestionTaxonomyConstants.Difficulty.EASY)
+                .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.APPLY)
                 .questionCount(5)
                 .build();
     }

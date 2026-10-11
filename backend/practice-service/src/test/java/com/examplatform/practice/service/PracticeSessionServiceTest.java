@@ -13,6 +13,8 @@ import com.examplatform.practice.exception.SessionAlreadySubmittedException;
 import com.examplatform.practice.repository.PracticeResponseRepository;
 import com.examplatform.practice.repository.PracticeSessionRepository;
 import com.examplatform.practice.repository.PracticeSetRepository;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.examplatform.shared.constants.QuestionTypeConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -215,7 +217,7 @@ class PracticeSessionServiceTest {
         transMap.put("hi", hiTranslation);
 
         AnswerKeyDto ak = new AnswerKeyDto(
-                qId, "A", "SINGLE_MCQ", "top-1", "Calculus", "MEDIUM", 2,
+                qId, "A", QuestionTypeConstants.SINGLE_MCQ, "top-1", "Calculus", QuestionTaxonomyConstants.Difficulty.MEDIUM, 2,
                 "What is calculus?", "[]", "Calculus is math.", "Math", transMap
         );
         when(questionBankClient.getAnswerKeys(List.of(qId)))
@@ -244,7 +246,7 @@ class PracticeSessionServiceTest {
                 .thenReturn(Optional.of(practiceSet));
 
         AnswerKeyDto ak = new AnswerKeyDto(
-                qId, "A", "SINGLE_MCQ", "top-1", "Calculus", "MEDIUM", 2,
+                qId, "A", QuestionTypeConstants.SINGLE_MCQ, "top-1", "Calculus", QuestionTaxonomyConstants.Difficulty.MEDIUM, 2,
                 "What is calculus?", "[]", "Calculus is math.", "Math", null
         );
         when(questionBankClient.getAnswerKeys(List.of(qId)))

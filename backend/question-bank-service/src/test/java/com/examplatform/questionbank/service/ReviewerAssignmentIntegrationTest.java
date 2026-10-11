@@ -26,6 +26,8 @@ import com.examplatform.questionbank.dto.ReviewerDto;
 import com.examplatform.questionbank.dto.TransitionRequest;
 import com.examplatform.questionbank.repository.QuestionRepository;
 import com.examplatform.questionbank.support.AbstractIntegrationTest;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.examplatform.shared.constants.QuestionTypeConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -100,9 +102,9 @@ class ReviewerAssignmentIntegrationTest extends AbstractIntegrationTest {
                 .topicId(10L)
                 .subject("Mathematics")
                 .topic("Calculus")
-                .difficulty("MEDIUM")
-                .cognitiveLevel("APPLY")
-                .questionType("SINGLE_MCQ")
+                .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
+                .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.APPLY)
+                .questionType(QuestionTypeConstants.SINGLE_MCQ)
                 .content("Calculate the derivative of f(x) = x^2.")
                 .answerKey("2x")
                 .state("DRAFT")

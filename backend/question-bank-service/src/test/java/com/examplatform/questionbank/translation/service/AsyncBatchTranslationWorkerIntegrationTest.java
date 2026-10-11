@@ -30,6 +30,7 @@ import com.examplatform.questionbank.translation.dto.AutoTranslateResponse;
 import com.examplatform.questionbank.translation.dto.TranslatedOptionDto;
 import com.examplatform.questionbank.translation.repository.BatchTranslationJobRepository;
 import com.examplatform.questionbank.translation.repository.TranslationRepository;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -78,8 +79,8 @@ class AsyncBatchTranslationWorkerIntegrationTest extends AbstractIntegrationTest
                 .topicId(10L)
                 .subject("Physics")
                 .topic("Mechanics")
-                .difficulty("MEDIUM")
-                .cognitiveLevel("UNDERSTAND")
+                .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
+                .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.UNDERSTAND)
                 .questionType("MCQ")
                 .content("What is Newton's first law?")
                 .authorId(UUID.randomUUID())
@@ -93,8 +94,8 @@ class AsyncBatchTranslationWorkerIntegrationTest extends AbstractIntegrationTest
                 .topicId(20L)
                 .subject("Chemistry")
                 .topic("Organic")
-                .difficulty("EASY")
-                .cognitiveLevel("REMEMBER")
+                .difficulty(QuestionTaxonomyConstants.Difficulty.EASY)
+                .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.REMEMBER)
                 .questionType("MCQ")
                 .content("What is methane?")
                 .authorId(UUID.randomUUID())
@@ -173,8 +174,8 @@ class AsyncBatchTranslationWorkerIntegrationTest extends AbstractIntegrationTest
                 .topicId(30L)
                 .subject("Mathematics")
                 .topic("Algebra")
-                .difficulty("HARD")
-                .cognitiveLevel("APPLY")
+                .difficulty(QuestionTaxonomyConstants.Difficulty.HARD)
+                .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.APPLY)
                 .questionType("MCQ")
                 .content("Solve 2x + 4 = 10")
                 .authorId(UUID.randomUUID())
@@ -188,8 +189,8 @@ class AsyncBatchTranslationWorkerIntegrationTest extends AbstractIntegrationTest
                 .topicId(40L)
                 .subject("History")
                 .topic("Modern India")
-                .difficulty("EASY")
-                .cognitiveLevel("REMEMBER")
+                .difficulty(QuestionTaxonomyConstants.Difficulty.EASY)
+                .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.REMEMBER)
                 .questionType("MCQ")
                 .content("When did India become independent?")
                 .authorId(UUID.randomUUID())

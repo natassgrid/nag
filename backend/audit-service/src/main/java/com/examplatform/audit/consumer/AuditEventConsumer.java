@@ -19,6 +19,8 @@
 
 package com.examplatform.audit.consumer;
 
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
+
 import com.examplatform.audit.service.AuditIngestionService;
 import com.examplatform.shared.messaging.GenericDomainEvent;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -49,8 +51,6 @@ import java.nio.charset.StandardCharsets;
 @RequiredArgsConstructor
 public class AuditEventConsumer {
 
-    public static final String AUDIT_TOPIC = "exam.audit.events";
-
     private final AuditIngestionService auditIngestionService;
     private final ObjectMapper objectMapper;
 
@@ -59,7 +59,7 @@ public class AuditEventConsumer {
      *
      * @param message the raw JSON string payload from Kafka
      */
-    @KafkaListener(topics = AUDIT_TOPIC, groupId = "audit-service")
+    @KafkaListener(topics = AUDIT_EVENTS_TOPIC, groupId = "audit-service")
     public void onKafkaAuditEvent(String message) {
         log.debug("Received Kafka audit event: {}", message);
         processAuditEvent(message);
@@ -74,7 +74,7 @@ public class AuditEventConsumer {
             bindings = @QueueBinding(
                     value = @Queue(value = "audit.events.queue", durable = "true"),
                     exchange = @Exchange(value = "exam.events", type = ExchangeTypes.TOPIC),
-                    key = AUDIT_TOPIC
+                    key = AUDIT_EVENTS_TOPIC
             )
     )
     public void onRabbitAuditEvent(Object message) {
@@ -93,7 +93,7 @@ public class AuditEventConsumer {
      */
     @EventListener
     public void onSpringAuditEvent(GenericDomainEvent event) {
-        if (!AUDIT_TOPIC.equals(event.topic())) {
+        if (!AUDIT_EVENTS_TOPIC.equals(event.topic())) {
             return;
         }
         log.debug("Received Spring in-memory audit event: key={}", event.key());
