@@ -128,6 +128,7 @@ CREATE TABLE question_service.question (
     explanation             TEXT,
     source_references       TEXT,
     embedding               halfvec(384),
+    benchmark_time_seconds  INTEGER NOT NULL DEFAULT 90,
     has_images              BOOLEAN NOT NULL DEFAULT FALSE,
     state                   VARCHAR(20) NOT NULL DEFAULT 'DRAFT',
     encryption_key_id       VARCHAR(255),
