@@ -1,6 +1,6 @@
 # Platform Gaps Analysis & Remediation Tracking
 
-> **National Assessment Grid (NAG)** — Open Digital Public Infrastructure (DPI) Platform  
+> **NextGen Assessment Grid (NAG)** — Open Digital Public Infrastructure (DPI) Platform  
 > **Document Status:** Active Remediation Log  
 > **Last Updated:** September 2026
 
@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-This document catalogues identified architectural, structural, and implementation gaps across the National Assessment Grid backend services and records the concrete remediation applied to each.
+This document catalogues identified architectural, structural, and implementation gaps across the NextGen Assessment Grid backend services and records the concrete remediation applied to each.
 
 ---
 

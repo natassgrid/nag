@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -454,7 +454,7 @@ public class SessionStartService {
 
     private String resolveExamTitle(UUID examId) {
         if (examId == null) {
-            return "National Assessment Grid Examination";
+            return "NextGen Assessment Grid Examination";
         }
         String examIdStr = examId.toString();
         if (STANDARD_EXAM_TITLES.containsKey(examIdStr)) {
@@ -474,7 +474,7 @@ public class SessionStartService {
             } catch (Exception ignored) {
             }
         }
-        return "National Assessment Grid Examination (" + examIdStr.substring(0, 8) + ")";
+        return "NextGen Assessment Grid Examination (" + examIdStr.substring(0, 8) + ")";
     }
 
     private int resolveExamDurationMinutes(UUID examId, ShiftAssignment assignment) {

@@ -26,7 +26,7 @@ import { CommonModule } from '@angular/common';
   `,
 })
 export class AuthBrandHeaderComponent {
-  @Input() title = 'National Assessment Grid';
+  @Input() title = 'NextGen Assessment Grid';
   @Input() subtitle = 'Candidate Portal';
   @Input() description = '';
   @Input() highlightTarget?: string;

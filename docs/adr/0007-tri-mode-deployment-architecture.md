@@ -8,7 +8,7 @@
 
 ## 1. Context
 
-The National Assessment Grid (NAG) is designed to serve a diverse spectrum of adopting organizations:
+The NextGen Assessment Grid (NAG) is designed to serve a diverse spectrum of adopting organizations:
 1. **National Testing Agencies / Large Ministries**: Require massive horizontal elasticity (>1,000,000 concurrent candidates), independent team deployments, and multi-region Kubernetes clusters.
 2. **State Examination Boards / Universities**: Require predictable operational costs and simple operations on single/dual virtual machines (e.g., AWS EC2 `t3.medium`/`t3.large`) with low maintenance overhead.
 3. **Developers & Small Evaluators**: Require immediate local startup with minimal memory footprint (~1 GB RAM) without having to launch heavy external message brokers (Kafka) or 15 separate JVM processes.

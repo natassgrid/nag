@@ -35,7 +35,7 @@ export class ExamDetailsDrawerComponent {
     const blob = new Blob(
       [
         `========================================================================\n` +
-        `GOVERNMENT OF INDIA - NATIONAL ASSESSMENT GRID (NAG)\n` +
+        `GOVERNMENT OF INDIA - NEXTGEN ASSESSMENT GRID (NAG)\n` +
         `OFFICIAL NOTIFICATION: ${this.exam().title} (${this.exam().code})\n` +
         `========================================================================\n\n` +
         `Conducting Authority: ${this.exam().conductingAuthority}\n` +
@@ -51,7 +51,7 @@ export class ExamDetailsDrawerComponent {
         `\nInstructions:\n` +
         `1. Candidates must verify identity via Aadhaar or DigiLocker before final registration.\n` +
         `2. Valid biometric or QR-signed Admit Card is required at the examination center.\n` +
-        `3. Test centres adhere strictly to the National Assessment Grid DPI guidelines.\n`
+        `3. Test centres adhere strictly to the NextGen Assessment Grid DPI guidelines.\n`
       ],
       { type: 'text/plain;charset=utf-8' }
     );

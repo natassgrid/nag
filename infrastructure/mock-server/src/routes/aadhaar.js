@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  */
 
 import { Router } from 'express';
@@ -104,7 +104,7 @@ router.post(['/v1/otp/generate', '/api/v1/aadhaar/generate-otp', '/generate-otp'
     mobile: persona.maskedMobile || 'XXXX-XXXX-1210',
     sender: 'UIDAI',
     otpCode: otp,
-    message: `Your UIDAI Aadhaar verification OTP for National Assessment Grid (NAG) is ${otp}. Valid for 10 minutes. Do not share.`,
+    message: `Your UIDAI Aadhaar verification OTP for NextGen Assessment Grid (NAG) is ${otp}. Valid for 10 minutes. Do not share.`,
     sentAt: new Date().toISOString(),
     status: 'DELIVERED'
   });

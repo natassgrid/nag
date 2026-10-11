@@ -19,7 +19,7 @@ Key challenges:
 
 ## 2. Decision
 
-We adopt **Apache Kafka** as the distributed event streaming platform for the National Assessment Grid:
+We adopt **Apache Kafka** as the distributed event streaming platform for the NextGen Assessment Grid:
 
 1. **Topic Partitioning Strategy**: Topics partitioned by `tenantId` and `examId` to guarantee ordered message processing per exam session while enabling parallel consumer scaling.
 2. **Log Retention & Durability**: Configured with replication factor of 3 and `acks=all` for critical audit and response streams to prevent message loss.

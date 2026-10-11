@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 #
-# National Assessment Grid (NAG) - Macro-Services Helm Values Overlay
+# NextGen Assessment Grid (NAG) - Macro-Services Helm Values Overlay
 # Usage:
 #   helm upgrade --install exam-platform ./infrastructure/helm/examination-platform \
 #     -f values.yaml \

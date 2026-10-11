@@ -51,7 +51,7 @@ describe('shared-util-i18n', () => {
 
     // Key present in en but not in ta
     service.setLanguage('ta');
-    expect(service.translate('exam.title')).toBe('National Assessment Grid');
+    expect(service.translate('exam.title')).toBe('NextGen Assessment Grid');
 
     // Missing key everywhere
     expect(service.translate('non.existent.key')).toBe('non.existent.key');

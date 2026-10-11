@@ -13,8 +13,8 @@ read -r -d '' HEADER_BLOCK << 'EOF'
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -35,20 +35,20 @@ EOF
 
 read -r -d '' HEADER_SQL << 'EOF'
 --
--- National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
--- Copyright (C) 2025 NAG Contributors
+-- NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+-- Copyright (C) 2026 NAG Contributors
 EOF
 
 read -r -d '' HEADER_HTML << 'EOF'
 <!--
-  National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
-  Copyright (C) 2025 NAG Contributors
+  NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+  Copyright (C) 2026 NAG Contributors
 -->
 EOF
 
 read -r -d '' HEADER_CSS << 'EOF'
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  */
 EOF
 

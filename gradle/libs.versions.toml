@@ -166,4 +166,3 @@ spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
 spring-dependency-management = { id = "io.spring.dependency-management", version.ref = "spring-dependency-management" }
 lombok = { id = "io.freefair.lombok", version.ref = "lombok-plugin" }
 protobuf = { id = "com.google.protobuf", version.ref = "protobuf-plugin" }
-rewrite = { id = "org.openrewrite.rewrite", version.ref = "rewrite-plugin" }

@@ -1,8 +1,8 @@
 /*
  * SPDX-License-Identifier: AGPL-3.0-only
  *
- * National Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
- * Copyright (C) 2025 NAG Contributors
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
  */
 
 import crypto from 'node:crypto';
@@ -14,7 +14,7 @@ export function generateMockPdf(title, subject, candidateName, regNo) {
   const content = `BT /F1 18 Tf 50 750 Td (${title}) Tj ET\n` +
     `BT /F1 12 Tf 50 720 Td (Issued to: ${candidateName} | Reg/Roll: ${regNo}) Tj ET\n` +
     `BT /F1 12 Tf 50 700 Td (Document Subject: ${subject}) Tj ET\n` +
-    `BT /F1 10 Tf 50 670 Td (DigiLocker Cryptographically Verified by National Assessment Grid) Tj ET\n` +
+    `BT /F1 10 Tf 50 670 Td (DigiLocker Cryptographically Verified by NextGen Assessment Grid) Tj ET\n` +
     `BT /F1 10 Tf 50 650 Td (Digital Signature: SHA256withRSA-${crypto.randomBytes(16).toString('hex')}) Tj ET\n`;
 
   const streamLength = Buffer.byteLength(content, 'utf8');

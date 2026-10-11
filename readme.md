@@ -22,23 +22,23 @@ NAG enables governments, public service commissions, universities, certification
 NAG is engineered from a single unified codebase to support **three operational deployment topologies** (Tri-Mode Architecture). Organizations can seamlessly switch topologies without changing business logic:
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                    UNIFIED CODEBASE                                         │
-│                      (14 Domain Modules + Shared Security & Messaging)                      │
-└─────────────────────────────────────────────────────────────────────────────────────────────┘
-                                               │
-             ┌─────────────────────────────────┼─────────────────────────────────┐
-             ▼                                 ▼                                 ▼
-   ┌───────────────────┐             ┌───────────────────┐             ┌───────────────────┐
-   │  1. MICROSERVICES │             │  2. MACROSERVICES │             │   3. MONOLITH     │
-   │      (Scale)      │             │    (Balanced)     │             │    (Ultralight)   │
-   ├───────────────────┤             ├───────────────────┤             ├───────────────────┤
-   │ • 14 Indep. Svcs  │             │ • 5 Aggregators   │             │ • 1 Single JAR    │
-   │ • Apache Kafka    │             │ • RabbitMQ / Kafka│             │ • In-Memory Bus   │
-   │ • API Gateway     │             │ • API Gateway     │             │ • Zero External MB│
-   │ • Multi-AZ K8s    │             │ • Single EC2 / K8s│             │ • Local / Demo/Dev│
-   │ • > 1M Candidates │             │ • Medium Workloads│             │ • ~1 GB RAM       │
-   └───────────────────┘             └───────────────────┘             └───────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│                                    UNIFIED CODEBASE                                     │
+│                      (14 Domain Modules + Shared Security & Messaging)                  │
+└────────────────────────────────────────────┬────────────────────────────────────────────┘
+                                             │
+             ┌───────────────────────────────┼───────────────────────────────┐
+             ▼                               ▼                               ▼
+   ┌───────────────────┐           ┌───────────────────┐           ┌───────────────────┐
+   │  1. MICROSERVICES │           │  2. MACROSERVICES │           │   3. MONOLITH     │
+   │      (Scale)      │           │    (Balanced)     │           │    (Ultralight)   │
+   ├───────────────────┤           ├───────────────────┤           ├───────────────────┤
+   │ • 14 Indep. Svcs  │           │ • 5 Aggregators   │           │ • 1 Single JAR    │
+   │ • Apache Kafka    │           │ • RabbitMQ / Kafka│           │ • In-Memory Bus   │
+   │ • API Gateway     │           │ • API Gateway     │           │ • Zero External MB│
+   │ • Multi-AZ K8s    │           │ • Single EC2 / K8s│           │ • Local / Demo/Dev│
+   │ • > 1M Candidates │           │ • Medium Workloads│           │ • ~1 GB RAM       │
+   └───────────────────┘           └───────────────────┘           └───────────────────┘
 ```
 
 ### 1. 🚀 Full Microservices Mode (`micro`)
@@ -61,6 +61,18 @@ NAG is engineered from a single unified codebase to support **three operational 
 
 ---
 
+# Key Platform Capabilities
+
+- **AI-Powered Item Generation Engine**: Dual-path generation pipeline with conditional complexity triage ("Agent Only When Needed") routing between sub-2-second Fast Path and a 5-agent collaborative committee.
+- **pgvector RAG Deduplication**: High-speed semantic similarity searches (768-dim `nomic-embed-text`) preventing duplicate questions (<0.85 cosine distance threshold).
+- **Multimodal Tiered Document Ingestion**: Cost-optimized sample parsing ladder (Tier 0 local text stream, Tier 1 selective diagram isolation, Tier 2 scanned 150 DPI fallback).
+- **LaTeX & Chemistry Support**: Full KaTeX mathematical rendering and `mhchem` chemical equation support (`\ce{...}`) across stems, options, and derivations.
+- **Time-Locked Cryptographic Paper Packages**: Multi-set question randomization, AES-256 envelope encryption, and Shamir's Secret Sharing (3-of-5 threshold) for leak prevention.
+- **High-Concurrency CBT Runtime**: Resilient candidate test delivery with local offline response buffering, tamper-evident HMAC signing, and auto-save heartbeats.
+- **Verifiable Audit & Normalization**: Immutable append-only hash-chained audit trails, multi-session percentile normalization, and cryptographically signed scorecards.
+
+---
+
 # Core Modules
 
 The platform is structured into modular domain-driven contexts:
@@ -71,7 +83,7 @@ The platform is structured into modular domain-driven contexts:
 | **Candidate Service** | `8082` | `auth-admin-app` | Candidate profile, registration, biometric & consent management |
 | **Admin Service** | `8093` | `auth-admin-app` | Tenant management, system config, dynamic feature flags |
 | **Notification Service** | `8092` | `auth-admin-app` | Email, SMS, Webhook, and SSE notification dispatching |
-| **Question Bank** | `8083` | `content-app` | Multilingual authoring, LaTeX/MathML, taxonomies, item pooling |
+| **Question Bank** | `8083` | `content-app` | Authoring, KaTeX/mhchem, AI generation (Fast Path + Multi-Agent), pgvector RAG |
 | **Examination Service** | `8085` | `content-app` | Exam lifecycles, schedule versions, shifts, center & seat allocation |
 | **Paper Generator** | `8086` | `content-app` | Blueprint-based randomization, balancing, AES-256 envelope encryption |
 | **Asset Service** | `8095` | `content-app` | Secure multimedia asset management (S3 / Local storage) |
@@ -121,20 +133,21 @@ The platform is structured into modular domain-driven contexts:
 - **Java 21** / **Spring Boot 3.x**
 - **Spring Security** (OAuth2 Resource Server / JWT)
 - **Spring Cloud Gateway**
-- **Spring AI** (Ollama, LiteLLM, IndicTrans2)
+- **Spring AI** (Ollama, LiteLLM, AWS Bedrock, IndicTrans2)
 - **Apache PDFBox** & **Apache Tika**
 
 ## Frontend
 - **Angular 21** (Standalone Components)
 - **Angular Material** (WCAG 2.1 AA / GIGW Accessible)
+- **KaTeX & mhchem** (High-performance math & chemistry formula rendering)
 - **Tailwind CSS**
 
 ## Infrastructure & Messaging
-- **PostgreSQL 16** with Multi-Schema Isolation
+- **PostgreSQL 16** with Multi-Schema Isolation & **pgvector** extension
 - **Redis 7** (Session cache & rate limiting)
 - **Apache Kafka** / **RabbitMQ** / **Spring In-Memory Events**
 - **Keycloak** (OIDC / OAuth2 IAM)
-- **HashiCorp Vault** (Secrets & Key Management)
+- **HashiCorp Vault / AWS KMS** (Secrets & Key Management)
 - **Kubernetes / Helm** & **Docker Compose**
 
 ---
@@ -147,7 +160,7 @@ nag/
 │   ├── shared-lib/              # Shared entities, DTOs, security, & messaging abstractions
 │   ├── identity-service/        # IAM & authentication service
 │   ├── candidate-service/       # Candidate profile & registration
-│   ├── question-bank-service/   # Question authoring & item bank
+│   ├── question-bank-service/   # Question authoring, AI generation, & item bank
 │   ├── examination-service/     # Examination lifecycle & scheduling
 │   ├── paper-generator/         # Automated cryptographic paper packaging
 │   ├── delivery-service/        # CBT examination delivery engine
@@ -177,10 +190,14 @@ nag/
 
 # Documentation
 
-Comprehensive documentation is available in the [`/docs`](docs/) directory:
+Comprehensive architecture, security, and developer specifications are available in the [`/docs`](docs/) directory:
 
 - [**Architecture Overview**](docs/architecture/overview.md)
 - [**Tri-Mode Deployment Architecture**](docs/architecture/deployment.md)
+- [**System Sequence Diagrams**](docs/architecture/sequence-diagrams.md)
+- [**Question Bank Module Specification**](docs/modules/question-bank.md)
+- [**Question Generation Standard Operating Procedure**](docs/question_generation_standard.md)
+- [**AI Question Pipeline & RAG Specification**](docs/requirements/question-pipeline.md)
 - [**Developer Setup Guide**](docs/developer/setup.md)
 - [**Running Locally Guide**](docs/developer/running-locally.md)
 - [**Docker & Compose Guide**](docs/developer/docker.md)

@@ -204,7 +204,7 @@ test.describe('Admin Portal E2E Suite', () => {
 
   test('Admin 2FA Login Flow: Step-up authentication on MFA challenge and redirection to Dashboard', async ({ page }) => {
     await page.goto('/login');
-    await expect(page).toHaveTitle(/Admin Portal|National Assessment Grid|NAG/i);
+    await expect(page).toHaveTitle(/Admin Portal|NextGen Assessment Grid|NAG/i);
     await expect(page.locator('body')).toBeVisible();
 
     // 1. Enter admin credentials
@@ -264,7 +264,7 @@ test.describe('Admin Portal E2E Suite', () => {
     await expect(errorMsg).toContainText(/expired/i);
   });
 
-  test('should render national assessment grid admin dashboard', async ({ page }) => {
+  test('should render nextgen assessment grid admin dashboard', async ({ page }) => {
     await page.goto('/dashboard');
     await expect(page.locator('body')).toBeVisible();
   });

@@ -43,7 +43,7 @@ export const DEFAULT_MOCK_EXAMS: CatalogExam[] = [
     id: 'mock-nes-101',
     code: 'MOCK-NES-2026-P1',
     title: 'NES 2026 Official Practice Mock Assessment (CS & AI)',
-    conductingAuthority: 'National Assessment Grid / Academic Council',
+    conductingAuthority: 'NextGen Assessment Grid / Academic Council',
     category: 'ENGINEERING',
     examinationType: 'COMPUTER_BASED_TEST',
     examinationMode: 'OPEN_PRACTICE',
