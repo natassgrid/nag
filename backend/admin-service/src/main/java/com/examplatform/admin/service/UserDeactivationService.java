@@ -23,6 +23,7 @@ import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_
 
 import com.examplatform.admin.client.KeycloakAdminClient;
 import com.examplatform.shared.audit.AuditEventType;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -89,7 +90,7 @@ public class UserDeactivationService {
                 "eventType", AuditEventType.ROLE_CHANGE.name(),
                 "userId", userId.toString(),
                 "actorId", actorId.toString(),
-                "tenantId", tenantId,
+            SharedConstants.TENANT_ID, tenantId,
                 "action", "USER_DEACTIVATED",
                 "timestamp", Instant.now().toString()
         );

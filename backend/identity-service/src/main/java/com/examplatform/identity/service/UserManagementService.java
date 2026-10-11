@@ -19,6 +19,7 @@
 
 package com.examplatform.identity.service;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.crypto.HashingService;
 
 import com.examplatform.identity.domain.UserAccount;
@@ -112,7 +113,7 @@ public class UserManagementService {
                 actorId,
                 "identity:users/" + saved.getId(),
                 null, null,
-                Map.of("tenantId", effectiveTenant, "action", "ADMIN_CREATE_USER",
+                Map.of(SharedConstants.TENANT_ID, effectiveTenant, "action", "ADMIN_CREATE_USER",
                         "targetUsername", request.getEmail())
         );
 
@@ -166,7 +167,7 @@ public class UserManagementService {
                 actorId,
                 "identity:users/" + userId,
                 null, null,
-                Map.of("tenantId", effectiveTenant, "action", "ADMIN_UPDATE_USER")
+                Map.of(SharedConstants.TENANT_ID, effectiveTenant, "action", "ADMIN_UPDATE_USER")
         );
 
         return UserAccountResponse.builder()
@@ -198,7 +199,7 @@ public class UserManagementService {
                 actorId,
                 "identity:users/" + userId,
                 null, null,
-                Map.of("tenantId", effectiveTenant, "action", "ADMIN_DEACTIVATE_USER")
+                Map.of(SharedConstants.TENANT_ID, effectiveTenant, "action", "ADMIN_DEACTIVATE_USER")
         );
     }
 }

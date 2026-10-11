@@ -22,6 +22,7 @@ package com.examplatform.questionbank.domain;
 import com.examplatform.questionbank.crypto.EncryptedFieldConverter;
 import com.examplatform.questionbank.dto.QuestionOption;
 import com.examplatform.shared.constants.QuestionStateConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
@@ -101,7 +102,7 @@ public class Question extends BaseEntity {
     private Long subtopicId;
 
     /** Denormalized subject name, kept in sync with {@link #subjectId} at write time. */
-    @Column(name = "subject", nullable = false, length = 100)
+    @Column(name = SharedConstants.SUBJECT, nullable = false, length = 100)
     private String subject;
 
     /** Denormalized topic name, kept in sync with {@link #topicId} at write time. */

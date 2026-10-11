@@ -25,6 +25,7 @@ import com.examplatform.candidate.dto.DigiLockerCallbackResult;
 import com.examplatform.candidate.dto.DigiLockerResponse;
 import com.examplatform.candidate.exception.ProfileNotFoundException;
 import com.examplatform.candidate.repository.CandidateProfileRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -109,8 +110,8 @@ public class DigiLockerService {
                 } catch (IllegalArgumentException ignored) {
                 }
             }
-            if (stateData.containsKey("tenantId")) {
-                tenantId = stateData.get("tenantId");
+            if (stateData.containsKey(SharedConstants.TENANT_ID)) {
+                tenantId = stateData.get(SharedConstants.TENANT_ID);
             }
         }
 
@@ -362,7 +363,7 @@ public class DigiLockerService {
                 map.put("userId", parts[0]);
             }
             if (parts.length >= 2 && !parts[1].isBlank()) {
-                map.put("tenantId", parts[1]);
+                map.put(SharedConstants.TENANT_ID, parts[1]);
             }
         } catch (Exception e) {
             log.warn("Could not decode state token '{}': {}", state, e.getMessage());

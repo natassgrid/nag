@@ -24,6 +24,7 @@ import com.examplatform.result.dto.CandidateScoreInput;
 import com.examplatform.result.repository.ResultRepository;
 import com.examplatform.result.service.QuestionAnalyticsService;
 import com.examplatform.result.service.ResultComputationService;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.GenericDomainEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -93,7 +94,7 @@ class EvaluationCompletedConsumerTest {
                 "examId", examId.toString(),
                 "totalRawScore", 145.0,
                 "sectionScores", Map.of("Physics", 55.0),
-                "tenantId", "default",
+            SharedConstants.TENANT_ID, "default",
                 "questionLevelScores", List.of()
         ));
 
@@ -126,7 +127,7 @@ class EvaluationCompletedConsumerTest {
                 "examId", examId.toString(),
                 "totalRawScore", 145.0,
                 "sectionScores", Map.of("Physics", 55.0),
-                "tenantId", "default",
+            SharedConstants.TENANT_ID, "default",
                 "questionLevelScores", List.of()
         );
 
@@ -159,7 +160,7 @@ class EvaluationCompletedConsumerTest {
                 "examId", examId.toString(),
                 "totalRawScore", 145.0,
                 "sectionScores", Map.of("Physics", 55.0),
-                "tenantId", "default",
+            SharedConstants.TENANT_ID, "default",
                 "questionLevelScores", List.of()
         );
 
@@ -197,7 +198,7 @@ class EvaluationCompletedConsumerTest {
                 "candidateId", candidateId.toString(),
                 "examId", examId.toString(),
                 "totalRawScore", 145.0,
-                "tenantId", "default"
+            SharedConstants.TENANT_ID, "default"
         ));
 
         Result existingResult = Result.builder().candidateId(candidateId).examId(examId)

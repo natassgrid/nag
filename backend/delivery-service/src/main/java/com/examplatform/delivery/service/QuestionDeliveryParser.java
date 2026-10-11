@@ -22,6 +22,7 @@ package com.examplatform.delivery.service;
 import com.examplatform.delivery.dto.QuestionDeliveryDto;
 import com.examplatform.delivery.dto.QuestionOptionDeliveryDto;
 import com.examplatform.shared.constants.QuestionTypeConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -77,10 +78,10 @@ public class QuestionDeliveryParser {
     public QuestionDeliveryDto parseSingleQuestionNode(JsonNode qNode, int sequenceNumber) {
         try {
             String id = qNode.has("id") ? qNode.get("id").asText() :
-                    (qNode.has("questionId") ? qNode.get("questionId").asText() : UUID.randomUUID().toString());
+                    (qNode.has(SharedConstants.QUESTION_ID) ? qNode.get(SharedConstants.QUESTION_ID).asText() : UUID.randomUUID().toString());
             String content = qNode.has("content") ? qNode.get("content").asText() :
                     (qNode.has("text") ? qNode.get("text").asText() : "");
-            String subject = qNode.has("subject") ? qNode.get("subject").asText() : null;
+            String subject = qNode.has(SharedConstants.SUBJECT) ? qNode.get(SharedConstants.SUBJECT).asText() : null;
             String topic = qNode.has("topic") ? qNode.get("topic").asText() : "General";
             String explanation = qNode.has("explanation") ? qNode.get("explanation").asText() : null;
             String answerKey = qNode.has("answerKey") ? qNode.get("answerKey").asText() :
@@ -297,9 +298,9 @@ public class QuestionDeliveryParser {
                 try {
                     accumulator.add(UUID.fromString(node.get("id").asText()));
                 } catch (IllegalArgumentException ignored) {}
-            } else if (node.has("questionId")) {
+            } else if (node.has(SharedConstants.QUESTION_ID)) {
                 try {
-                    accumulator.add(UUID.fromString(node.get("questionId").asText()));
+                    accumulator.add(UUID.fromString(node.get(SharedConstants.QUESTION_ID).asText()));
                 } catch (IllegalArgumentException ignored) {}
             } else if (node.has("question_id")) {
                 try {

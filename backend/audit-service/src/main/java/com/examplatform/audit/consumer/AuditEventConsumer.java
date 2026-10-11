@@ -22,6 +22,7 @@ package com.examplatform.audit.consumer;
 import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
 
 import com.examplatform.audit.service.AuditIngestionService;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.GenericDomainEvent;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -113,7 +114,7 @@ public class AuditEventConsumer {
             String resource = getTextOrDefault(root, "resource", "unknown");
             String ipAddress = getTextOrNull(root, "ipAddress");
             String deviceFingerprint = getTextOrNull(root, "deviceFingerprint");
-            String tenantId = getTextOrDefault(root, "tenantId", "default");
+            String tenantId = getTextOrDefault(root, SharedConstants.TENANT_ID, "default");
 
             auditIngestionService.ingest(message, eventType, actorId, resource,
                     ipAddress, deviceFingerprint, tenantId);

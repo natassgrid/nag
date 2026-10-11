@@ -24,6 +24,7 @@ import com.examplatform.delivery.dto.SessionStartRequest;
 import com.examplatform.delivery.dto.SessionStartResponse;
 import com.examplatform.delivery.service.ExamQuestionDeliveryService;
 import com.examplatform.delivery.service.SessionStartService;
+import com.examplatform.shared.constants.SharedConstants;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -127,7 +128,7 @@ public class SessionController {
         return ResponseEntity.ok(Map.of(
                 "status", "success",
                 "terminatedCount", count,
-                "message", "Active exam session(s) terminated successfully."
+            SharedConstants.MESSAGE, "Active exam session(s) terminated successfully."
         ));
     }
 

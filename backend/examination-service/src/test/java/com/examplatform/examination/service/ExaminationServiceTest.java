@@ -29,6 +29,7 @@ import com.examplatform.examination.exception.ExaminationNotFoundException;
 import com.examplatform.examination.exception.SectionMarksValidationException;
 import com.examplatform.examination.repository.ExaminationRepository;
 import com.examplatform.shared.constants.QuestionStateConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -314,7 +315,7 @@ class ExaminationServiceTest {
                 var idField = existing.getClass().getSuperclass().getDeclaredField("id");
                 idField.setAccessible(true);
                 idField.set(existing, examId);
-                var tenantField = existing.getClass().getSuperclass().getDeclaredField("tenantId");
+                var tenantField = existing.getClass().getSuperclass().getDeclaredField(SharedConstants.TENANT_ID);
                 tenantField.setAccessible(true);
                 tenantField.set(existing, TENANT_ID);
                 var createdAtField = existing.getClass().getSuperclass().getDeclaredField("createdAt");
@@ -433,7 +434,7 @@ class ExaminationServiceTest {
                 var createdAtField = examination.getClass().getSuperclass().getDeclaredField("createdAt");
                 createdAtField.setAccessible(true);
                 createdAtField.set(examination, Instant.now());
-                var tenantField = examination.getClass().getSuperclass().getDeclaredField("tenantId");
+                var tenantField = examination.getClass().getSuperclass().getDeclaredField(SharedConstants.TENANT_ID);
                 tenantField.setAccessible(true);
                 tenantField.set(examination, TENANT_ID);
             } catch (Exception e) {

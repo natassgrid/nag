@@ -22,6 +22,7 @@ package com.examplatform.result.controller;
 import com.examplatform.result.domain.Result;
 import com.examplatform.result.dto.ExamReviewResponse;
 import com.examplatform.result.service.ExamReviewService;
+import com.examplatform.shared.constants.SharedConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -140,7 +141,7 @@ public class ReviewController {
             response.put("accuracyRate", result.getAccuracyRate());
         }
         response.put("status", "VALID");
-        response.put("message", "Scorecard verified successfully");
+        response.put(SharedConstants.MESSAGE, "Scorecard verified successfully");
 
         return ResponseEntity.ok(response);
     }

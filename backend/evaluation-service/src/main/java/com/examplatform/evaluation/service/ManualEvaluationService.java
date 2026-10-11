@@ -21,6 +21,7 @@ package com.examplatform.evaluation.service;
 
 import com.examplatform.evaluation.domain.Evaluation;
 import com.examplatform.evaluation.repository.EvaluationRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -139,7 +140,7 @@ public class ManualEvaluationService {
                     "sessionId", sessionId.toString(),
                     "candidateId", candidateId.toString(),
                     "evaluatorsRequired", 2,
-                    "tenantId", tenantId,
+                SharedConstants.TENANT_ID, tenantId,
                     "occurredAt", Instant.now().toString()
             );
             eventPublisher.publish(EVALUATION_EVENTS_TOPIC, sessionId.toString(), event);

@@ -26,6 +26,7 @@ import com.examplatform.response.domain.Response;
 import com.examplatform.response.dto.SaveResponseRequest;
 import com.examplatform.response.dto.SaveResponseResponse;
 import com.examplatform.response.repository.ResponseRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import com.examplatform.shared.messaging.EventPublisher;
@@ -111,12 +112,12 @@ public class ResponseSaveService {
         Map<String, Object> savedEvent = Map.of(
                 "responseId", saved.getId(),
                 "sessionId", sessionId,
-                "questionId", request.getQuestionId(),
+            SharedConstants.QUESTION_ID, request.getQuestionId(),
                 "candidateId", candidateId,
                 "revisionSequence", newRevision,
                 "saveSource", request.getSaveSource(),
                 "savedAt", Instant.now().toString(),
-                "tenantId", tenantId
+            SharedConstants.TENANT_ID, tenantId
         );
 
         eventPublisher.publish(TOPIC_RESPONSE_SAVED, sessionId.toString(), savedEvent);
@@ -156,8 +157,8 @@ public class ResponseSaveService {
                         "eventType", "RESPONSE_SAVED",
                         "sessionId", sessionId.toString(),
                         "candidateId", candidateId.toString(),
-                        "questionId", questionId.toString(),
-                        "tenantId", tenantId,
+                    SharedConstants.QUESTION_ID, questionId.toString(),
+                    SharedConstants.TENANT_ID, tenantId,
                         "occurredAt", Instant.now().toString()
                 );
                 eventPublisher.publish(AUDIT_EVENTS_TOPIC, candidateId.toString(), auditEvent);

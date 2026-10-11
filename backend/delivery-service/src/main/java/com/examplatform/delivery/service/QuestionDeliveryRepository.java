@@ -22,6 +22,7 @@ package com.examplatform.delivery.service;
 import com.examplatform.delivery.dto.QuestionDeliveryDto;
 import com.examplatform.delivery.dto.QuestionOptionDeliveryDto;
 import com.examplatform.shared.constants.QuestionTypeConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -78,7 +79,7 @@ public class QuestionDeliveryRepository {
                     int secIdx = 1;
                     for (JsonNode secNode : sectionsArr) {
                         String secName = secNode.path("name").asText("Section " + secIdx);
-                        String subject = secNode.path("subject").asText("");
+                        String subject = secNode.path(SharedConstants.SUBJECT).asText("");
                         int count = secNode.path("questionCount").asInt(25);
                         double marks = secNode.path("marksPerQuestion").asDouble(2.0);
                         double negMarks = secNode.path("negativeMarksPerQuestion").asDouble(0.5);
@@ -199,7 +200,7 @@ public class QuestionDeliveryRepository {
         try {
             return jdbcTemplate.query(sql, (rs, rowNum) -> {
                 UUID id = rs.getObject("id", UUID.class);
-                String subject = rs.getString("subject");
+                String subject = rs.getString(SharedConstants.SUBJECT);
                 String topic = rs.getString("topic");
                 String content = rs.getString("content");
                 String questionType = rs.getString("question_type");

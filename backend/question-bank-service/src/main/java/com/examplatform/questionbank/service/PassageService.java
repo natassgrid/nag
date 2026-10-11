@@ -31,6 +31,7 @@ import com.examplatform.questionbank.repository.TopicRepository;
 import com.examplatform.questionbank.util.EmbeddingUtils;
 import com.examplatform.shared.constants.QuestionStateConstants;
 import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.LocalDateTime;
@@ -224,7 +225,8 @@ public class PassageService {
 
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
 
-        Specification<Passage> spec = Specification.where((root, query, cb) -> cb.equal(root.get("tenantId"), tenantId));
+        Specification<Passage> spec = Specification.where((root, query, cb) -> cb.equal(root.get(
+            SharedConstants.TENANT_ID), tenantId));
 
         if (subjectId != null) {
             spec = spec.and((root, query, cb) -> cb.equal(root.get("subjectId"), subjectId));
@@ -237,7 +239,7 @@ public class PassageService {
             spec = spec.and((root, query, cb) -> cb.or(
                     cb.like(cb.lower(root.get("title")), pattern),
                     cb.like(cb.lower(root.get("content")), pattern),
-                    cb.like(cb.lower(root.get("subject")), pattern)
+                    cb.like(cb.lower(root.get(SharedConstants.SUBJECT)), pattern)
             ));
         }
 

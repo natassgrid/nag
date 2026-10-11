@@ -24,6 +24,7 @@ import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_
 import com.examplatform.papergenerator.domain.Paper;
 import com.examplatform.papergenerator.repository.PaperRepository;
 import com.examplatform.shared.constants.QuestionStateConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.crypto.VaultCryptoService;
 import com.examplatform.shared.messaging.EventPublisher;
 import jakarta.persistence.EntityNotFoundException;
@@ -119,7 +120,7 @@ public class PaperApprovalService {
                     "paperRootHash", paper.getPaperRootHash() != null ? paper.getPaperRootHash() : "",
                     "ledgerTxHash", paper.getLedgerTxHash() != null ? paper.getLedgerTxHash() : "",
                     "encryptionKeyId", paper.getEncryptionKeyId() != null ? paper.getEncryptionKeyId() : "",
-                    "tenantId", tenantId,
+                SharedConstants.TENANT_ID, tenantId,
                     "occurredAt", Instant.now().toString()
             );
             eventPublisher.publish(AUDIT_EVENTS_TOPIC, paper.getId().toString(), event);

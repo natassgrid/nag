@@ -19,6 +19,7 @@
 
 package com.examplatform.notification.domain;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -73,7 +74,7 @@ public class Notification extends BaseEntity {
     @Column(name = "fcm_token", columnDefinition = "TEXT")
     private String fcmToken;
 
-    @Column(name = "subject", length = 500)
+    @Column(name = SharedConstants.SUBJECT, length = 500)
     private String subject;
 
     @Column(name = "body", nullable = false, columnDefinition = "TEXT")

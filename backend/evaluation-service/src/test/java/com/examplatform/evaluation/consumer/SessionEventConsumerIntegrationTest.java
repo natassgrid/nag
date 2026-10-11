@@ -30,6 +30,7 @@ import com.examplatform.evaluation.repository.EvaluationRepository;
 import com.examplatform.evaluation.support.AbstractIntegrationTest;
 import com.examplatform.shared.constants.MessagingConstants;
 import com.examplatform.shared.constants.QuestionTypeConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import com.examplatform.shared.messaging.GenericDomainEvent;
 import org.junit.jupiter.api.BeforeEach;
@@ -220,7 +221,7 @@ class SessionEventConsumerIntegrationTest extends AbstractIntegrationTest {
                     "candidateId", candidateId.toString(),
                     "paperId", paperId.toString(),
                     "examId", examId.toString(),
-                    "tenantId", tenantId
+                SharedConstants.TENANT_ID, tenantId
             );
             sessionEventConsumer.onSpringSessionEvent(new GenericDomainEvent(
                     SessionEventConsumer.SESSION_EVENTS_TOPIC,
@@ -260,7 +261,7 @@ class SessionEventConsumerIntegrationTest extends AbstractIntegrationTest {
             assertThat(completedEvent.get("sessionId")).isEqualTo(sessionId.toString());
             assertThat(completedEvent.get("candidateId")).isEqualTo(candidateId.toString());
             assertThat(completedEvent.get("examId")).isEqualTo(examId.toString());
-            assertThat(completedEvent.get("tenantId")).isEqualTo(tenantId);
+            assertThat(completedEvent.get(SharedConstants.TENANT_ID)).isEqualTo(tenantId);
             assertThat(completedEvent.get("totalRawScore")).isEqualTo(new BigDecimal("7.50"));
 
             @SuppressWarnings("unchecked")
@@ -296,7 +297,7 @@ class SessionEventConsumerIntegrationTest extends AbstractIntegrationTest {
                     "candidateId", candidateId.toString(),
                     "paperId", paperId.toString(),
                     "examId", examId.toString(),
-                    "tenantId", tenantId
+                SharedConstants.TENANT_ID, tenantId
             );
             sessionEventConsumer.onSpringSessionEvent(new GenericDomainEvent(
                     SessionEventConsumer.SESSION_EVENTS_TOPIC,
@@ -319,7 +320,7 @@ class SessionEventConsumerIntegrationTest extends AbstractIntegrationTest {
             assertThat(dlqEvent.get("candidateId")).isEqualTo(candidateId.toString());
             assertThat(dlqEvent.get("paperId")).isEqualTo(paperId.toString());
             assertThat(dlqEvent.get("examId")).isEqualTo(examId.toString());
-            assertThat(dlqEvent.get("tenantId")).isEqualTo(tenantId);
+            assertThat(dlqEvent.get(SharedConstants.TENANT_ID)).isEqualTo(tenantId);
             assertThat(dlqEvent.get("reason").toString()).contains("Connection to question-bank-service refused");
             assertThat(dlqEvent).containsKey("failedAt");
             assertThat(dlqEvent).containsKey("originalEvent");
@@ -344,7 +345,7 @@ class SessionEventConsumerIntegrationTest extends AbstractIntegrationTest {
                     "sessionId", sessionId.toString(),
                     "candidateId", candidateId.toString(),
                     "paperId", paperId.toString(),
-                    "tenantId", tenantId
+                SharedConstants.TENANT_ID, tenantId
             );
             sessionEventConsumer.onSpringSessionEvent(new GenericDomainEvent(
                     SessionEventConsumer.SESSION_EVENTS_TOPIC,
@@ -438,7 +439,7 @@ class SessionEventConsumerIntegrationTest extends AbstractIntegrationTest {
                     "candidateId", candidateId.toString(),
                     "paperId", paperId.toString(),
                     "examId", examId.toString(),
-                    "tenantId", customTenantId
+                SharedConstants.TENANT_ID, customTenantId
             );
             sessionEventConsumer.onSpringSessionEvent(new GenericDomainEvent(
                     SessionEventConsumer.SESSION_EVENTS_TOPIC,
@@ -456,7 +457,7 @@ class SessionEventConsumerIntegrationTest extends AbstractIntegrationTest {
             verify(eventPublisher, atLeastOnce()).publish(eq(MessagingConstants.EVALUATION_COMPLETED_TOPIC), eq(sessionId.toString()), completedEventCaptor.capture());
 
             Map<String, Object> completedEvent = completedEventCaptor.getValue();
-            assertThat(completedEvent.get("tenantId")).isEqualTo(customTenantId);
+            assertThat(completedEvent.get(SharedConstants.TENANT_ID)).isEqualTo(customTenantId);
         }
     }
 }

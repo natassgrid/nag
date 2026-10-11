@@ -32,6 +32,7 @@ import com.examplatform.questionbank.exception.FourEyesPrincipleViolationExcepti
 import com.examplatform.questionbank.exception.InvalidTransitionException;
 import com.examplatform.questionbank.repository.QuestionRepository;
 import com.examplatform.shared.constants.QuestionStateConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
@@ -227,9 +228,9 @@ public class QuestionLifecycleService {
         try {
             Map<String, Object> event = new HashMap<>();
             event.put("eventType", "QUESTION_STATE_TRANSITION");
-            event.put("questionId", questionId.toString());
+            event.put(SharedConstants.QUESTION_ID, questionId.toString());
             event.put("actorId", actorId.toString());
-            event.put("tenantId", tenantId);
+            event.put(SharedConstants.TENANT_ID, tenantId);
             event.put("fromState", fromState);
             event.put("toState", toState);
             event.put("occurredAt", Instant.now().toString());

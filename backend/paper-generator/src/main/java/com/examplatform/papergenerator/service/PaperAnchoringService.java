@@ -28,6 +28,7 @@ import com.examplatform.papergenerator.ledger.LedgerAdapter;
 import com.examplatform.papergenerator.ledger.LedgerAttestationPayload;
 import com.examplatform.papergenerator.ledger.LedgerAttestationReceipt;
 import com.examplatform.papergenerator.repository.PaperRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -189,7 +190,7 @@ public class PaperAnchoringService {
             return Map.of(
                     "verified", false,
                     "paperRootHash", paperRootHash != null ? paperRootHash : "",
-                    "message", "Paper root hash not found in repository or public ledger attestation index"
+                SharedConstants.MESSAGE, "Paper root hash not found in repository or public ledger attestation index"
             );
         }
 
@@ -261,7 +262,7 @@ public class PaperAnchoringService {
                     "txHash", receipt.getTxHash(),
                     "consensusTimestamp", receipt.getConsensusTimestamp(),
                     "ledgerNetwork", receipt.getNetwork(),
-                    "tenantId", tenantId != null ? tenantId : "default",
+                SharedConstants.TENANT_ID, tenantId != null ? tenantId : "default",
                     "occurredAt", Instant.now().toString()
             );
             eventPublisher.publish(AUDIT_EVENTS_TOPIC, paper.getId().toString(), event);

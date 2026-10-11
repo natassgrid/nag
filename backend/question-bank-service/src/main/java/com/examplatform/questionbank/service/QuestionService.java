@@ -21,6 +21,7 @@ package com.examplatform.questionbank.service;
 
 import com.examplatform.shared.constants.QuestionStateConstants;
 import com.examplatform.shared.constants.QuestionTypeConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -361,7 +362,7 @@ public class QuestionService {
                 Long parsedId = Long.parseLong(subject.trim());
                 spec = spec.and((root, query, cb) -> cb.equal(root.get("subjectId"), parsedId));
             } catch (NumberFormatException e) {
-                spec = spec.and(fieldEquals("subject", subject));
+                spec = spec.and(fieldEquals(SharedConstants.SUBJECT, subject));
             }
         }
 
@@ -437,7 +438,7 @@ public class QuestionService {
     private String resolveQuestionSortProperty(String sort) {
         if (sort == null || sort.isBlank()) return "updatedAt";
         return switch (sort.trim().toLowerCase()) {
-            case "subject", "subjectname" -> "subject";
+            case SharedConstants.SUBJECT, "subjectname" -> SharedConstants.SUBJECT;
             case "topic", "topicname" -> "topic";
             case "subtopic" -> "subtopic";
             case "chapter" -> "chapter";
@@ -453,7 +454,7 @@ public class QuestionService {
     }
 
     private org.springframework.data.jpa.domain.Specification<Question> tenantEquals(String tenantId) {
-        return (root, query, cb) -> cb.equal(root.get("tenantId"), tenantId);
+        return (root, query, cb) -> cb.equal(root.get(SharedConstants.TENANT_ID), tenantId);
     }
 
     private org.springframework.data.jpa.domain.Specification<Question> fieldEquals(String field, String value) {
@@ -501,7 +502,7 @@ public class QuestionService {
     }
 
     private static final List<String> SEARCHABLE_QUESTION_FIELDS = List.of(
-            "subject", "topic", "subtopic", "chapter", "difficulty",
+        SharedConstants.SUBJECT, "topic", "subtopic", "chapter", "difficulty",
             "cognitiveLevel", "questionType", "content", "explanation", "state", "sourceReferences"
     );
 
@@ -523,15 +524,15 @@ public class QuestionService {
         return (root, query, cb) -> {
             jakarta.persistence.criteria.Subquery<UUID> subquery = query.subquery(UUID.class);
             jakarta.persistence.criteria.Root<Translation> tRoot = subquery.from(Translation.class);
-            subquery.select(tRoot.get("questionId"));
+            subquery.select(tRoot.get(SharedConstants.QUESTION_ID));
 
             List<jakarta.persistence.criteria.Predicate> predicates = new java.util.ArrayList<>();
-            predicates.add(cb.equal(tRoot.get("questionId"), root.get("id")));
+            predicates.add(cb.equal(tRoot.get(SharedConstants.QUESTION_ID), root.get("id")));
 
             if (tenantId != null && !tenantId.isBlank()) {
                 predicates.add(cb.or(
-                        cb.equal(tRoot.get("tenantId"), tenantId),
-                        cb.equal(tRoot.get("tenantId"), "default")
+                        cb.equal(tRoot.get(SharedConstants.TENANT_ID), tenantId),
+                        cb.equal(tRoot.get(SharedConstants.TENANT_ID), "default")
                 ));
             }
 
@@ -732,7 +733,8 @@ public class QuestionService {
 
     private void publishAuditEvent(String eventType, UUID questionId, UUID actorId,
                                     String tenantId, Map<String, Object> extra) {
-        AuditEventHelper.publishAuditEvent(eventPublisher, log, new AuditEventHelper.AuditEventParams(AUDIT_EVENTS_TOPIC, eventType, "questionId", questionId, actorId, tenantId, extra));
+        AuditEventHelper.publishAuditEvent(eventPublisher, log, new AuditEventHelper.AuditEventParams(AUDIT_EVENTS_TOPIC, eventType,
+            SharedConstants.QUESTION_ID, questionId, actorId, tenantId, extra));
     }
 
     private static final com.fasterxml.jackson.databind.ObjectMapper MAPPER =

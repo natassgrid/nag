@@ -20,6 +20,7 @@
 package com.examplatform.examination.repository;
 
 import com.examplatform.examination.domain.ExaminationSchedule;
+import com.examplatform.shared.constants.SharedConstants;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -57,7 +58,7 @@ public interface ExaminationScheduleRepository extends JpaRepository<Examination
               AND s.status <> 'CANCELLED'
             """)
     boolean existsConflictingExamDate(
-            @Param("tenantId") String tenantId,
+            @Param(SharedConstants.TENANT_ID) String tenantId,
             @Param("reserveDate") LocalDate reserveDate,
             @Param("excludeId") UUID excludeId);
 
@@ -73,7 +74,7 @@ public interface ExaminationScheduleRepository extends JpaRepository<Examination
               AND s.status <> 'CANCELLED'
             """)
     boolean existsConflictingReserveDate(
-            @Param("tenantId") String tenantId,
+            @Param(SharedConstants.TENANT_ID) String tenantId,
             @Param("examDate") LocalDate examDate,
             @Param("excludeId") UUID excludeId);
 }

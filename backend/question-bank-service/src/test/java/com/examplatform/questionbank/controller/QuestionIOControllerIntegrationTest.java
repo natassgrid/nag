@@ -23,6 +23,7 @@ import com.examplatform.questionbank.io.ImportResult;
 import com.examplatform.questionbank.io.QuestionExportService;
 import com.examplatform.questionbank.io.QuestionImportService;
 import com.examplatform.questionbank.support.AbstractIntegrationTest;
+import com.examplatform.shared.constants.SharedConstants;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -62,7 +63,7 @@ class QuestionIOControllerIntegrationTest extends AbstractIntegrationTest {
             mockMvc.perform(get("/api/v1/questions/export")
                             .header("X-Tenant-Id", TENANT_ID)
                             .param("format", "json")
-                            .param("subject", "Physics")
+                            .param(SharedConstants.SUBJECT, "Physics")
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_QUESTION_AUTHOR"))))
                     .andExpect(status().isOk())
                     .andExpect(header().string("Content-Type", "application/zip"));

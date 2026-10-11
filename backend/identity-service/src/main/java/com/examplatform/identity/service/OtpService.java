@@ -19,6 +19,7 @@
 
 package com.examplatform.identity.service;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.crypto.HashingService;
 
 import com.examplatform.identity.config.SmsProperties;
@@ -162,7 +163,7 @@ public class OtpService {
                 "eventType", eventType,
                 "userId", userId != null ? userId.toString() : "",
                 hashKey, hashValue != null ? hashValue : "",
-                "tenantId", effectiveTenant,
+            SharedConstants.TENANT_ID, effectiveTenant,
                 "channel", channel,
                 "otpHash", otpHash,
                 "expiresAt", expiresAt != null ? expiresAt.toString() : ""

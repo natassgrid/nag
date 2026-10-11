@@ -24,6 +24,7 @@ import com.examplatform.identity.dto.CreatePersonalAccessTokenRequest;
 import com.examplatform.identity.dto.PersonalAccessTokenResponse;
 import com.examplatform.identity.repository.PersonalAccessTokenRepository;
 import com.examplatform.shared.audit.AuditEventType;
+import com.examplatform.shared.constants.SharedConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -89,7 +90,7 @@ public class PersonalAccessTokenService {
                 userId.toString(),
                 "identity:tokens/" + saved.getId(),
                 null, null,
-                Map.of("action", "CREATE_PAT", "tokenName", request.getName(), "tenantId", effectiveTenant)
+                Map.of("action", "CREATE_PAT", "tokenName", request.getName(), SharedConstants.TENANT_ID, effectiveTenant)
         );
 
         log.info("Created Personal Access Token id={} for user={} tenant={}", saved.getId(), userId, effectiveTenant);
@@ -141,7 +142,7 @@ public class PersonalAccessTokenService {
                             userId.toString(),
                             "identity:tokens/" + tokenId,
                             null, null,
-                            Map.of("action", "REVOKE_PAT", "tokenId", tokenId.toString(), "tenantId", effectiveTenant)
+                            Map.of("action", "REVOKE_PAT", "tokenId", tokenId.toString(), SharedConstants.TENANT_ID, effectiveTenant)
                     );
                     log.info("Revoked Personal Access Token id={} for user={} tenant={}", tokenId, userId, effectiveTenant);
                 });

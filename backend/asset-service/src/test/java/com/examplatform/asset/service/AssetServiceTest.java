@@ -33,6 +33,7 @@ import com.examplatform.asset.storage.StorageProvider;
 import com.examplatform.asset.storage.StorageProviderRegistry;
 import com.examplatform.asset.validation.AssetValidationException;
 import com.examplatform.asset.validation.SecurityValidationPipeline;
+import com.examplatform.shared.constants.SharedConstants;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import com.examplatform.shared.messaging.EventPublisher;
@@ -126,7 +127,7 @@ class AssetServiceTest {
             var updatedAtField = asset.getClass().getSuperclass().getDeclaredField("updatedAt");
             updatedAtField.setAccessible(true);
             updatedAtField.set(asset, Instant.now());
-            var tenantField = asset.getClass().getSuperclass().getDeclaredField("tenantId");
+            var tenantField = asset.getClass().getSuperclass().getDeclaredField(SharedConstants.TENANT_ID);
             tenantField.setAccessible(true);
             tenantField.set(asset, TENANT_ID);
         } catch (Exception e) {

@@ -36,6 +36,7 @@ import com.examplatform.papergenerator.exception.InsufficientQuestionsException;
 import com.examplatform.papergenerator.repository.PaperRepository;
 import com.examplatform.shared.constants.QuestionStateConstants;
 import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -516,7 +517,7 @@ public class PaperAssemblyService {
                     "paperId", paper.getId().toString(),
                     "examId", paper.getExamId().toString(),
                     "shiftId", paper.getShiftId(),
-                    "tenantId", tenantId,
+                SharedConstants.TENANT_ID, tenantId,
                     "occurredAt", Instant.now().toString()
             );
             eventPublisher.publish(AUDIT_EVENTS_TOPIC, paper.getId().toString(), event);
@@ -544,7 +545,7 @@ public class PaperAssemblyService {
                     typeKey, typeValue,
                     "examId", examId != null ? examId.toString() : "",
                     "shiftId", shiftId != null ? shiftId : "",
-                    "tenantId", tenantId,
+                SharedConstants.TENANT_ID, tenantId,
                     "deficitRuleCount", gaps.size(),
                     "gapDetails", gaps,
                     "occurredAt", Instant.now().toString()

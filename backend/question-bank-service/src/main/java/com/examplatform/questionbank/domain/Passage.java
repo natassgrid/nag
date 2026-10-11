@@ -21,6 +21,7 @@ package com.examplatform.questionbank.domain;
 
 import com.examplatform.questionbank.crypto.EncryptedFieldConverter;
 import com.examplatform.shared.constants.QuestionStateConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
@@ -65,7 +66,7 @@ public class Passage extends BaseEntity {
     @Column(name = "topic_id")
     private Long topicId;
 
-    @Column(name = "subject", nullable = false, length = 100)
+    @Column(name = SharedConstants.SUBJECT, nullable = false, length = 100)
     private String subject;
 
     @Column(name = "topic", length = 200)

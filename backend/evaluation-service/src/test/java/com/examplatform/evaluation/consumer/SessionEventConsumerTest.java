@@ -28,6 +28,7 @@ import com.examplatform.evaluation.exception.UpstreamServiceUnavailableException
 import com.examplatform.evaluation.service.AutoEvaluationService;
 import com.examplatform.evaluation.service.ScoreAggregationService;
 import com.examplatform.shared.constants.QuestionTypeConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -284,7 +285,7 @@ class SessionEventConsumerTest {
             assertThat(dlqEvent.get("eventType")).isEqualTo("EVALUATION_FAILED_DLQ");
             assertThat(dlqEvent.get("sessionId")).isEqualTo(sessionId.toString());
             assertThat(dlqEvent.get("candidateId")).isEqualTo(candidateId.toString());
-            assertThat(dlqEvent.get("tenantId")).isEqualTo("test-tenant");
+            assertThat(dlqEvent.get(SharedConstants.TENANT_ID)).isEqualTo("test-tenant");
             assertThat(dlqEvent.get("reason").toString()).contains("QuestionBank gRPC connection refused");
         }
 

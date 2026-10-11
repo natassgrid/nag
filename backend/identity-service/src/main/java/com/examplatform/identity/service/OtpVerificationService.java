@@ -19,6 +19,7 @@
 
 package com.examplatform.identity.service;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.crypto.HashingService;
 
 import com.examplatform.identity.domain.UserAccount;
@@ -145,7 +146,7 @@ public class OtpVerificationService {
             String.valueOf(account.getId()),
             "identity:otp-activation",
             null, null,
-            Map.of("tenantId", effectiveTenant, "event", "otp-activation")
+            Map.of(SharedConstants.TENANT_ID, effectiveTenant, "event", "otp-activation")
         );
 
         return tokens;

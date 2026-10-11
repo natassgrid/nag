@@ -25,6 +25,7 @@ import com.examplatform.identity.domain.enums.AccountStatus;
 import com.examplatform.identity.repository.UserAccountRepository;
 import com.examplatform.shared.audit.AuditEventType;
 import com.examplatform.shared.config.DynamicConfigService;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -94,7 +95,7 @@ public class AccountLockoutService {
                         null,
                         null,
                         Map.of(
-                                "tenantId", tenantId,
+                            SharedConstants.TENANT_ID, tenantId,
                                 "failedAttempts", account.getFailedAttemptCount(),
                                 "maxAttempts", maxAttempts,
                                 "lockoutMinutes", lockoutMinutes
@@ -105,9 +106,9 @@ public class AccountLockoutService {
                 Map<String, Object> notification = Map.of(
                         "eventType", "ACCOUNT_LOCKED",
                         "userId", String.valueOf(account.getId()),
-                        "tenantId", tenantId,
+                    SharedConstants.TENANT_ID, tenantId,
                         "lockedAt", account.getLockedAt().toString(),
-                        "message", "Your account has been locked due to multiple failed login attempts."
+                    SharedConstants.MESSAGE, "Your account has been locked due to multiple failed login attempts."
                 );
                 eventPublisher.publish(NOTIFICATIONS_TOPIC, String.valueOf(account.getId()), notification);
 

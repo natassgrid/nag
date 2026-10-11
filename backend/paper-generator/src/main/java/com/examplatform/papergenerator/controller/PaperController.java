@@ -40,6 +40,7 @@ import com.examplatform.papergenerator.service.PaperApprovalService;
 import com.examplatform.papergenerator.service.PaperAssemblyService;
 import com.examplatform.papergenerator.service.PaperSerializer;
 import com.examplatform.papergenerator.service.PaperTranslationService;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.tenant.TenantContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -385,7 +386,7 @@ public class PaperController {
 
         return ResponseEntity.badRequest().body(Map.of(
                 "verified", false,
-                "message", "Either 'paperId' or 'hash' parameter must be provided for verification"
+            SharedConstants.MESSAGE, "Either 'paperId' or 'hash' parameter must be provided for verification"
         ));
     }
 
@@ -402,7 +403,7 @@ public class PaperController {
                 "valid", valid,
                 "leafHash", request.getLeafHash(),
                 "rootHash", request.getRootHash(),
-                "message", valid ? "Question leaf cryptographically confirmed in Paper Merkle Tree"
+            SharedConstants.MESSAGE, valid ? "Question leaf cryptographically confirmed in Paper Merkle Tree"
                         : "Proof failed: Leaf does not match expected Merkle root"
         ));
     }

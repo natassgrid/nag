@@ -27,6 +27,7 @@ import com.examplatform.papergenerator.repository.BlueprintTemplateRepository;
 import com.examplatform.papergenerator.repository.PaperRepository;
 import com.examplatform.papergenerator.service.PaperAssemblyService;
 import com.examplatform.shared.constants.QuestionStateConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import com.examplatform.shared.messaging.GenericDomainEvent;
 import com.examplatform.shared.tenant.TenantContext;
@@ -204,7 +205,7 @@ public class PaperGenerationConsumer {
 
         UUID examId = parseUUID(getFieldText(rootNode, "examId"));
         String shiftId = getFieldText(rootNode, "shiftId");
-        String tenantId = getFieldText(rootNode, "tenantId");
+        String tenantId = getFieldText(rootNode, SharedConstants.TENANT_ID);
         if (tenantId == null || tenantId.isBlank()) {
             tenantId = "default";
         }
@@ -314,7 +315,7 @@ public class PaperGenerationConsumer {
             event.put("manifestDigest", paper.getManifestDigest() != null ? paper.getManifestDigest() : "");
             event.put("difficultyScore", paper.getDifficultyScore());
             event.put("isPractice", paper.isPractice());
-            event.put("tenantId", tenantId);
+            event.put(SharedConstants.TENANT_ID, tenantId);
             event.put("occurredAt", Instant.now().toString());
 
             String key = paper.getId() != null ? paper.getId().toString() : (paper.getExamId() != null ? paper.getExamId().toString() : "GLOBAL");
@@ -331,7 +332,7 @@ public class PaperGenerationConsumer {
             failEvent.put("eventType", EVENT_PAPER_GENERATION_FAILED);
             failEvent.put("examId", examId != null ? examId.toString() : "");
             failEvent.put("shiftId", shiftId != null ? shiftId : "");
-            failEvent.put("tenantId", tenantId);
+            failEvent.put(SharedConstants.TENANT_ID, tenantId);
             failEvent.put("errorMessage", errorMessage != null ? errorMessage : "Unknown error");
             failEvent.put("errorClass", errorClass != null ? errorClass : "Exception");
             failEvent.put("occurredAt", Instant.now().toString());
@@ -350,7 +351,7 @@ public class PaperGenerationConsumer {
             dlqEvent.put("deadLetterReason", errorReason);
             dlqEvent.put("examId", examId != null ? examId.toString() : "");
             dlqEvent.put("shiftId", shiftId != null ? shiftId : "");
-            dlqEvent.put("tenantId", tenantId);
+            dlqEvent.put(SharedConstants.TENANT_ID, tenantId);
             dlqEvent.put("originalPayload", originalPayload);
             dlqEvent.put("failedAt", Instant.now().toString());
 

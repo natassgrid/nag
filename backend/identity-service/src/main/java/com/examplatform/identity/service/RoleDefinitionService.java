@@ -31,6 +31,7 @@ import com.examplatform.identity.repository.PermissionRepository;
 import com.examplatform.identity.repository.RoleDefinitionRepository;
 import com.examplatform.shared.audit.AuditEventType;
 import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -148,7 +149,7 @@ public class RoleDefinitionService {
                 null, null,
                 Map.of("action", "DELETE",
                         "roleCode", role.getCode(),
-                        "tenantId", tenantId)
+                    SharedConstants.TENANT_ID, tenantId)
         );
     }
 
@@ -212,7 +213,7 @@ public class RoleDefinitionService {
                 null, null,
                 Map.of("action", action,
                         "roleCode", saved.getCode(),
-                        "tenantId", tenantId)
+                    SharedConstants.TENANT_ID, tenantId)
         );
 
         return toResponse(saved);

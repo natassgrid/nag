@@ -35,6 +35,7 @@ import com.examplatform.asset.storage.StorageProvider;
 import com.examplatform.asset.storage.StorageProviderRegistry;
 import com.examplatform.asset.validation.AssetValidationException;
 import com.examplatform.asset.validation.SecurityValidationPipeline;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import com.examplatform.shared.tenant.TenantContext;
 import jakarta.persistence.EntityNotFoundException;
@@ -373,7 +374,7 @@ public class AssetService {
                     "eventType", eventType,
                     "assetId", assetId.toString(),
                     "userId", userId.toString(),
-                    "tenantId", tenantId,
+                SharedConstants.TENANT_ID, tenantId,
                     "timestamp", java.time.Instant.now().toString()
             );
             eventPublisher.publish(AUDIT_EVENTS_TOPIC, assetId.toString(), event);

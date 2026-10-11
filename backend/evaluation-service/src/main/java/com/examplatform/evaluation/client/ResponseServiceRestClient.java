@@ -22,6 +22,7 @@ package com.examplatform.evaluation.client;
 import com.examplatform.evaluation.dto.CandidateResponse;
 import com.examplatform.evaluation.exception.UpstreamServiceUnavailableException;
 import com.examplatform.shared.auth.ServiceAccountTokenProvider;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
@@ -125,8 +126,8 @@ public class ResponseServiceRestClient implements CandidateResponseClient {
 
             if (dataNode.isArray()) {
                 for (JsonNode item : dataNode) {
-                    if (item.has("questionId")) {
-                        UUID qId = UUID.fromString(item.get("questionId").asText());
+                    if (item.has(SharedConstants.QUESTION_ID)) {
+                        UUID qId = UUID.fromString(item.get(SharedConstants.QUESTION_ID).asText());
                         String selectedOptions = item.has("selectedOptionIds") && !item.get("selectedOptionIds").isNull()
                                 ? item.get("selectedOptionIds").asText() : null;
                         String enteredValue = item.has("enteredValue") && !item.get("enteredValue").isNull()

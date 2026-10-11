@@ -22,6 +22,7 @@ package com.examplatform.identity.service;
 import com.examplatform.identity.domain.enums.UserRole;
 import com.examplatform.identity.dto.AdminActivityLogResponse;
 import com.examplatform.identity.dto.AdminPermissionDetailResponse;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -159,32 +160,32 @@ public class AdminActivityService {
         list.add(createHistoricalLog("AUTH_SESSION_ESTABLISHED", "AUTH",
                 "Signed in via Secure Console Single Sign-On (TOTP 2FA Verified)",
                 now.minus(5, ChronoUnit.MINUTES),
-                Map.of("tenantId", tenantId, "browser", "Google Chrome 129.0", "mfaMethod", "TOTP")));
+                Map.of(SharedConstants.TENANT_ID, tenantId, "browser", "Google Chrome 129.0", "mfaMethod", "TOTP")));
 
         list.add(createHistoricalLog("PROFILE_UPDATE", "SETTINGS",
                 "Updated localization preferences (Timezone & Working Language)",
                 now.minus(2, ChronoUnit.HOURS),
-                Map.of("tenantId", tenantId, "timezone", "Asia/Kolkata")));
+                Map.of(SharedConstants.TENANT_ID, tenantId, "timezone", "Asia/Kolkata")));
 
         list.add(createHistoricalLog("PAT_TOKEN_CREATED", "SECURITY",
                 "Created Personal API Token 'CI-Pipeline-Ingest' with scope [questions:read, questions:write]",
                 now.minus(1, ChronoUnit.DAYS),
-                Map.of("tenantId", tenantId, "tokenPrefix", "nag_pat_a8f9...")));
+                Map.of(SharedConstants.TENANT_ID, tenantId, "tokenPrefix", "nag_pat_a8f9...")));
 
         list.add(createHistoricalLog("QUESTION_STATUS_TRANSITION", "QUESTION",
                 "Approved and certified 12 Mathematics questions to bank",
                 now.minus(2, ChronoUnit.DAYS),
-                Map.of("tenantId", tenantId, "subject", "Mathematics", "transition", "REVIEW -> APPROVED")));
+                Map.of(SharedConstants.TENANT_ID, tenantId, SharedConstants.SUBJECT, "Mathematics", "transition", "REVIEW -> APPROVED")));
 
         list.add(createHistoricalLog("PAPER_GENERATION_TRIGGER", "EXAM",
                 "Generated encrypted question paper bundle for RRB NTPC Shift 1",
                 now.minus(3, ChronoUnit.DAYS),
-                Map.of("tenantId", tenantId, "algorithm", "Deterministic Knapsack")));
+                Map.of(SharedConstants.TENANT_ID, tenantId, "algorithm", "Deterministic Knapsack")));
 
         list.add(createHistoricalLog("SECURITY_KEY_ROTATION", "SECURITY",
                 "Verified Ed25519 tenant cryptographic seal against HashiCorp Vault",
                 now.minus(5, ChronoUnit.DAYS),
-                Map.of("tenantId", tenantId, "keyType", "Ed25519")));
+                Map.of(SharedConstants.TENANT_ID, tenantId, "keyType", "Ed25519")));
 
         return list;
     }

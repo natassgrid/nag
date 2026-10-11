@@ -19,6 +19,7 @@
 
 package com.examplatform.identity.service;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.crypto.HashingService;
 
 import com.examplatform.identity.domain.AdminInvitation;
@@ -170,7 +171,7 @@ public class AdminInvitationService {
                 invitedBy != null ? invitedBy.toString() : "SYSTEM",
                 "identity:invitations/" + saved.getId(),
                 null, null,
-                Map.of("action", "ADMIN_INVITED", "recipient", email, "roles", rolesStr, "tenantId", tenantId)
+                Map.of("action", "ADMIN_INVITED", "recipient", email, "roles", rolesStr, SharedConstants.TENANT_ID, tenantId)
         );
 
         return AdminInviteResponse.builder()
@@ -275,7 +276,7 @@ public class AdminInvitationService {
                 userId.toString(),
                 "identity:users/" + userId,
                 null, null,
-                Map.of("action", "TOTP_2FA_ENABLED", "username", account.getUsername(), "tenantId", effectiveTenant)
+                Map.of("action", "TOTP_2FA_ENABLED", "username", account.getUsername(), SharedConstants.TENANT_ID, effectiveTenant)
         );
     }
 
@@ -297,7 +298,7 @@ public class AdminInvitationService {
                 userId.toString(),
                 "identity:users/" + userId,
                 null, null,
-                Map.of("action", "TOTP_2FA_DISABLED", "username", account.getUsername(), "tenantId", effectiveTenant)
+                Map.of("action", "TOTP_2FA_DISABLED", "username", account.getUsername(), SharedConstants.TENANT_ID, effectiveTenant)
         );
     }
 
@@ -363,7 +364,7 @@ public class AdminInvitationService {
                 account.getId().toString(),
                 "identity:invitations/" + invitation.getId(),
                 null, null,
-                Map.of("action", "ADMIN_INVITATION_ACCEPTED", "email", invitation.getEmail(), "tenantId", invitation.getTenantId())
+                Map.of("action", "ADMIN_INVITATION_ACCEPTED", "email", invitation.getEmail(), SharedConstants.TENANT_ID, invitation.getTenantId())
         );
 
         return AuthTokenResponse.builder()

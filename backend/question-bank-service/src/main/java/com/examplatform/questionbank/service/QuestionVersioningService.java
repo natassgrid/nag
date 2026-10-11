@@ -22,6 +22,7 @@ package com.examplatform.questionbank.service;
 import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.domain.QuestionVersion;
 import com.examplatform.questionbank.repository.QuestionVersionRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -108,7 +109,7 @@ public class QuestionVersioningService {
     String computeDiff(Question oldQuestion, Question newQuestion) {
         Map<String, Map<String, String>> diff = new LinkedHashMap<>();
 
-        addIfChanged(diff, "subject", oldQuestion.getSubject(), newQuestion.getSubject());
+        addIfChanged(diff, SharedConstants.SUBJECT, oldQuestion.getSubject(), newQuestion.getSubject());
         addIfChanged(diff, "topic", oldQuestion.getTopic(), newQuestion.getTopic());
         addIfChanged(diff, "subtopic", oldQuestion.getSubtopic(), newQuestion.getSubtopic());
         addIfChanged(diff, "chapter", oldQuestion.getChapter(), newQuestion.getChapter());
@@ -142,7 +143,7 @@ public class QuestionVersioningService {
         try {
             ObjectNode node = objectMapper.createObjectNode();
             node.put("id", question.getId() != null ? question.getId().toString() : null);
-            node.put("subject", question.getSubject());
+            node.put(SharedConstants.SUBJECT, question.getSubject());
             node.put("topic", question.getTopic());
             node.put("subtopic", question.getSubtopic());
             node.put("chapter", question.getChapter());
@@ -152,7 +153,8 @@ public class QuestionVersioningService {
             node.put("content", question.getContent());
             node.put("answerKey", question.getAnswerKey());
             node.put("state", question.getState());
-            node.put("authorId", question.getAuthorId() != null ? question.getAuthorId().toString() : null);
+            node.put(
+                SharedConstants.AUTHOR_ID, question.getAuthorId() != null ? question.getAuthorId().toString() : null);
             return objectMapper.writeValueAsString(node);
         } catch (JsonProcessingException e) {
             log.error("Failed to serialize question snapshot", e);

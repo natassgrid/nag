@@ -28,6 +28,7 @@ import com.examplatform.questionbank.translation.dto.AutoTranslateResponse;
 import com.examplatform.questionbank.translation.repository.BatchTranslationJobRepository;
 import com.examplatform.questionbank.translation.repository.TranslationRepository;
 import com.examplatform.shared.constants.QuestionStateConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.tenant.TenantContext;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
@@ -390,8 +391,8 @@ public class AsyncBatchTranslationWorker {
 
             if (tenantId != null && !tenantId.isBlank()) {
                 predicates.add(cb.or(
-                        cb.equal(root.get("tenantId"), tenantId),
-                        cb.equal(root.get("tenantId"), "default")
+                        cb.equal(root.get(SharedConstants.TENANT_ID), tenantId),
+                        cb.equal(root.get(SharedConstants.TENANT_ID), "default")
                 ));
             }
 
@@ -403,8 +404,8 @@ public class AsyncBatchTranslationWorker {
                 } catch (NumberFormatException _) {
                     String pattern = "%" + trimmed.toLowerCase() + "%";
                     predicates.add(cb.or(
-                            cb.equal(cb.lower(root.get("subject")), trimmed.toLowerCase()),
-                            cb.like(cb.lower(root.get("subject")), pattern)
+                            cb.equal(cb.lower(root.get(SharedConstants.SUBJECT)), trimmed.toLowerCase()),
+                            cb.like(cb.lower(root.get(SharedConstants.SUBJECT)), pattern)
                     ));
                 }
             }

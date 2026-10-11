@@ -19,6 +19,7 @@
 
 package com.examplatform.questionbank.service;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import org.slf4j.Logger;
 
@@ -54,7 +55,7 @@ public final class AuditEventHelper {
             event.put("eventType", params.eventType());
             event.put(params.entityKey(), params.entityId().toString());
             event.put("actorId", params.actorId().toString());
-            event.put("tenantId", params.tenantId());
+            event.put(SharedConstants.TENANT_ID, params.tenantId());
             event.put("occurredAt", Instant.now().toString());
             if (params.extra() != null) {
                 event.putAll(params.extra());

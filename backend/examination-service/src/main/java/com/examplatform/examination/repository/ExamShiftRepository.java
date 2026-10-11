@@ -20,6 +20,7 @@
 package com.examplatform.examination.repository;
 
 import com.examplatform.examination.domain.ExamShift;
+import com.examplatform.shared.constants.SharedConstants;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -62,7 +63,7 @@ public interface ExamShiftRepository extends JpaRepository<ExamShift, UUID> {
               AND sh.id        <> :excludeShiftId
             """)
     List<ExamShift> findShiftsOnSameDateForTenant(
-            @Param("tenantId") String tenantId,
+            @Param(SharedConstants.TENANT_ID) String tenantId,
             @Param("scheduleId") UUID scheduleId,
             @Param("excludeShiftId") UUID excludeShiftId);
 }

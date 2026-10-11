@@ -33,6 +33,7 @@ import com.examplatform.examination.exception.ShiftNotFoundException;
 import com.examplatform.examination.repository.ExaminationCentreRepository;
 import com.examplatform.examination.repository.ExamShiftRepository;
 import com.examplatform.examination.repository.ShiftSeatAllocationRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -243,7 +244,7 @@ public class ExaminationCentreService {
             event.put("centreId", a.getCentreId().toString());
             event.put("availableSeats", a.getAvailableSeats());
             event.put("actorId", actorId != null ? actorId.toString() : null);
-            event.put("tenantId", tenantId);
+            event.put(SharedConstants.TENANT_ID, tenantId);
             event.put("occurredAt", Instant.now().toString());
             eventPublisher.publish(AUDIT_EVENTS_TOPIC, a.getId().toString(), event);
         } catch (Exception e) {

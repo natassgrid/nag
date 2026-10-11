@@ -39,6 +39,7 @@ import com.examplatform.examination.repository.ExaminationRepository;
 import com.examplatform.examination.repository.ExaminationScheduleRepository;
 import com.examplatform.examination.repository.ExamShiftRepository;
 import com.examplatform.shared.constants.QuestionStateConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -475,7 +476,7 @@ public class ExaminationScheduleService {
         event.put("scheduleId", schedule.getId().toString());
         event.put("examinationId", schedule.getExaminationId().toString());
         event.put("scheduleVersion", schedule.getScheduleVersion());
-        event.put("tenantId", tenantId);
+        event.put(SharedConstants.TENANT_ID, tenantId);
         event.put("occurredAt", Instant.now().toString());
         return event;
     }
@@ -503,7 +504,7 @@ public class ExaminationScheduleService {
             event.put("shiftId", shiftId.toString());
             event.put("scheduleId", scheduleId.toString());
             event.put("actorId", actorId != null ? actorId.toString() : null);
-            event.put("tenantId", tenantId);
+            event.put(SharedConstants.TENANT_ID, tenantId);
             event.put("occurredAt", Instant.now().toString());
             eventPublisher.publish(AUDIT_EVENTS_TOPIC, shiftId.toString(), event);
         } catch (Exception e) {

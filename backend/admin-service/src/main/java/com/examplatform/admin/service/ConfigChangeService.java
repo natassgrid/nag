@@ -29,6 +29,7 @@ import com.examplatform.shared.config.DefaultPlatformConfigs;
 import com.examplatform.shared.config.DynamicConfigInvalidationListener;
 import com.examplatform.shared.config.DynamicConfigService;
 import com.examplatform.shared.config.SystemConfigChangeEvent;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -253,7 +254,7 @@ public class ConfigChangeService {
                     "oldValue", oldValue != null ? oldValue : "",
                     "newValue", newValue != null ? newValue : "",
                     "actorId", actorId != null ? actorId.toString() : "SYSTEM",
-                    "tenantId", tenantId,
+                SharedConstants.TENANT_ID, tenantId,
                     "timestamp", Instant.now().toString()
             );
             eventPublisher.publish(AUDIT_EVENTS_TOPIC, tenantId, auditEvent);

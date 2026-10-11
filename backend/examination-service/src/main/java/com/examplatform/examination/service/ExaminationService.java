@@ -31,6 +31,7 @@ import com.examplatform.examination.exception.ExaminationNotFoundException;
 import com.examplatform.examination.exception.SectionMarksValidationException;
 import com.examplatform.examination.repository.ExaminationRepository;
 import com.examplatform.shared.constants.QuestionStateConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -381,7 +382,7 @@ public class ExaminationService {
             Map<String, Object> payload = new HashMap<>(details);
             payload.put("eventType", eventType);
             payload.put("entityId", entityId);
-            payload.put("tenantId", tenantId);
+            payload.put(SharedConstants.TENANT_ID, tenantId);
             payload.put("timestamp", LocalDateTime.ofInstant(Instant.now(), ZoneOffset.UTC).toString());
             eventPublisher.publish(AUDIT_EVENTS_TOPIC, entityId, payload);
         } catch (Exception e) {

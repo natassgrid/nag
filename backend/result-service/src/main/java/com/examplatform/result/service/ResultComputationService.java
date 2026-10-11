@@ -23,6 +23,7 @@ import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_
 import com.examplatform.result.domain.Result;
 import com.examplatform.result.dto.CandidateScoreInput;
 import com.examplatform.result.repository.ResultRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityNotFoundException;
@@ -166,7 +167,7 @@ public class ResultComputationService {
                     "eventType", "RESULT_PUBLISHED",
                     "examId", examId.toString(),
                     "candidateCount", candidateCount,
-                    "tenantId", tenantId,
+                SharedConstants.TENANT_ID, tenantId,
                     "occurredAt", Instant.now().toString()
             );
             eventPublisher.publish(AUDIT_EVENTS_TOPIC, examId.toString(), event);

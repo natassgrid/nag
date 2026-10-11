@@ -145,11 +145,11 @@ class ReviewWorkflowServiceTest {
         Map<String, Object> payload = (Map<String, Object>) values.get(0);
         assertThat(payload)
                 .containsEntry("eventType", "SUBMITTED_FOR_REVIEW")
-                .containsEntry("questionId", questionId)
-                .containsEntry("subject", "Mathematics")
-                .containsEntry("authorId", authorId)
+                .containsEntry(SharedConstants.QUESTION_ID, questionId)
+                .containsEntry(SharedConstants.SUBJECT, "Mathematics")
+                .containsEntry(SharedConstants.AUTHOR_ID, authorId)
                 .containsEntry("actorId", actorId)
-                .containsEntry("tenantId", tenantId)
+                .containsEntry(SharedConstants.TENANT_ID, tenantId)
                 .containsEntry("dualReviewRequired", true)
                 .containsEntry("assignedReviewer", reviewerId.toString())
                 .containsEntry("assignedReviewer2", secondaryReviewerId.toString())
@@ -184,9 +184,9 @@ class ReviewWorkflowServiceTest {
         Map<String, Object> lifecyclePayload = (Map<String, Object>) values.get(0);
         assertThat(lifecyclePayload)
                 .containsEntry("eventType", "REVIEWER_APPROVED")
-                .containsEntry("questionId", questionId)
+                .containsEntry(SharedConstants.QUESTION_ID, questionId)
                 .containsEntry(SharedConstants.REVIEWER_ID, actorId)
-                .containsEntry("authorId", authorId);
+                .containsEntry(SharedConstants.AUTHOR_ID, authorId);
 
         // Second call: notifications topic
         assertThat(topics.get(1)).isEqualTo("exam.notifications.outbound");
@@ -196,10 +196,10 @@ class ReviewWorkflowServiceTest {
         Map<String, Object> notifPayload = (Map<String, Object>) values.get(1);
         assertThat(notifPayload)
                 .containsEntry("type", "QUESTION_APPROVED_BY_REVIEWER")
-                .containsEntry("recipientId", authorId)
-                .containsEntry("questionId", questionId)
+                .containsEntry(SharedConstants.RECIPIENT_ID, authorId)
+                .containsEntry(SharedConstants.QUESTION_ID, questionId)
                 .containsEntry(SharedConstants.REVIEWER_ID, actorId)
-                .containsEntry("subject", "Mathematics");
+                .containsEntry(SharedConstants.SUBJECT, "Mathematics");
     }
 
     @Test
@@ -246,13 +246,13 @@ class ReviewWorkflowServiceTest {
         assertThat(lifecyclePayload)
                 .containsEntry("eventType", "QUESTION_PUBLISHED")
                 .containsEntry("publisherId", actorId)
-                .containsEntry("authorId", authorId);
+                .containsEntry(SharedConstants.AUTHOR_ID, authorId);
 
         assertThat(topics.get(1)).isEqualTo("exam.notifications.outbound");
         @SuppressWarnings("unchecked")
         Map<String, Object> notifPayload = (Map<String, Object>) values.get(1);
         assertThat(notifPayload)
                 .containsEntry("type", "QUESTION_PUBLISHED")
-                .containsEntry("recipientId", authorId);
+                .containsEntry(SharedConstants.RECIPIENT_ID, authorId);
     }
 }

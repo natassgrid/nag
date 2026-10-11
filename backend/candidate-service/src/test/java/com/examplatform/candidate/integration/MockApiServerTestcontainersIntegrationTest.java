@@ -9,6 +9,7 @@ package com.examplatform.candidate.integration;
 
 import com.examplatform.candidate.client.DigiLockerClientImpl;
 import com.examplatform.candidate.dto.DigiLockerResponse;
+import com.examplatform.shared.constants.SharedConstants;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -337,7 +338,7 @@ class MockApiServerTestcontainersIntegrationTest {
             assertThat(inspectResponse).isNotNull();
             assertThat(inspectResponse.get("success")).isEqualTo(true);
 
-            Map<?, ?> message = (Map<?, ?>) inspectResponse.get("message");
+            Map<?, ?> message = (Map<?, ?>) inspectResponse.get(SharedConstants.MESSAGE);
             assertThat(message.get("mobile")).isEqualTo("9876543210");
             assertThat(message.get("otpCode")).isEqualTo("000000");
 
@@ -349,7 +350,7 @@ class MockApiServerTestcontainersIntegrationTest {
 
             assertThat(verifyResponse).isNotNull();
             assertThat(verifyResponse.get("type")).isEqualTo("success");
-            assertThat(verifyResponse.get("message")).isEqualTo("OTP verified success");
+            assertThat(verifyResponse.get(SharedConstants.MESSAGE)).isEqualTo("OTP verified success");
         }
 
         @Test
@@ -399,7 +400,7 @@ class MockApiServerTestcontainersIntegrationTest {
 
             assertThat(verifyRes).isNotNull();
             assertThat(verifyRes.get("type")).isEqualTo("success");
-            assertThat(verifyRes.get("message")).isEqualTo("OTP verified success");
+            assertThat(verifyRes.get(SharedConstants.MESSAGE)).isEqualTo("OTP verified success");
         }
 
         @Test

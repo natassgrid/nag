@@ -21,6 +21,7 @@ package com.examplatform.questionbank.translation.service;
 
 import com.examplatform.questionbank.translation.domain.Translation;
 import com.examplatform.questionbank.translation.repository.TranslationRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -132,10 +133,10 @@ public class TranslationReviewService {
                     "eventType", "TRANSLATION_REJECTED",
                     "translationId", translation.getId().toString(),
                     "translatorId", translation.getTranslatorId().toString(),
-                    "reviewerId", reviewerId.toString(),
+                SharedConstants.REVIEWER_ID, reviewerId.toString(),
                     "languageCode", translation.getLanguageCode(),
                     "comments", comments,
-                    "tenantId", tenantId,
+                SharedConstants.TENANT_ID, tenantId,
                     "occurredAt", Instant.now().toString()
             );
             eventPublisher.publish(TRANSLATION_EVENTS_TOPIC, translation.getId().toString(), event);
@@ -148,7 +149,7 @@ public class TranslationReviewService {
         try {
             Map<String, Object> event = Map.of(
                     "eventType", "TRANSLATIONS_MARKED_STALE",
-                    "questionId", questionId.toString(),
+                SharedConstants.QUESTION_ID, questionId.toString(),
                     "affectedCount", count,
                     "occurredAt", Instant.now().toString()
             );

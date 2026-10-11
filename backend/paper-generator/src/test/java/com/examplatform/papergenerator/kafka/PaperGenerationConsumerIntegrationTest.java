@@ -21,6 +21,7 @@ import com.examplatform.papergenerator.repository.PaperRepository;
 import com.examplatform.papergenerator.support.AbstractIntegrationTest;
 import com.examplatform.shared.constants.QuestionStateConstants;
 import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import com.examplatform.shared.messaging.GenericDomainEvent;
 import org.junit.jupiter.api.DisplayName;
@@ -90,10 +91,10 @@ class PaperGenerationConsumerIntegrationTest extends AbstractIntegrationTest {
                 "eventType", "PAPER_GENERATION_REQUEST",
                 "examId", EXAM_ID.toString(),
                 "shiftId", SHIFT_ID,
-                "tenantId", TENANT_ID,
+            SharedConstants.TENANT_ID, TENANT_ID,
                 "name", "E2E Math Paper",
                 "blueprintRules", List.of(
-                        Map.of("subject", "Mathematics", "topic", "Algebra", "difficulty",
+                        Map.of(SharedConstants.SUBJECT, "Mathematics", "topic", "Algebra", "difficulty",
                             QuestionTaxonomyConstants.Difficulty.EASY, "questionCount", 2)
                 )
         );
@@ -154,7 +155,7 @@ class PaperGenerationConsumerIntegrationTest extends AbstractIntegrationTest {
                 "eventType", "PAPER_GENERATION_REQUEST",
                 "examId", templateExamId.toString(),
                 "shiftId", shiftId,
-                "tenantId", TENANT_ID,
+            SharedConstants.TENANT_ID, TENANT_ID,
                 "blueprintTemplateId", savedTemplate.getId().toString()
         );
         String json = objectMapper.writeValueAsString(requestPayload);
@@ -185,9 +186,9 @@ class PaperGenerationConsumerIntegrationTest extends AbstractIntegrationTest {
                 "eventType", "PAPER_GENERATION_REQUEST",
                 "examId", examId.toString(),
                 "shiftId", shiftId,
-                "tenantId", TENANT_ID,
+            SharedConstants.TENANT_ID, TENANT_ID,
                 "blueprintRules", List.of(
-                        Map.of("subject", "Chemistry", "topic", "Acids", "difficulty",
+                        Map.of(SharedConstants.SUBJECT, "Chemistry", "topic", "Acids", "difficulty",
                             QuestionTaxonomyConstants.Difficulty.EASY, "questionCount", 1)
                 )
         );

@@ -26,6 +26,7 @@ import com.examplatform.evaluation.dto.AnswerKey;
 import com.examplatform.evaluation.dto.CandidateResponse;
 import com.examplatform.evaluation.service.AutoEvaluationService;
 import com.examplatform.evaluation.service.ScoreAggregationService;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import com.examplatform.shared.messaging.GenericDomainEvent;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -157,8 +158,8 @@ public class SessionEventConsumer {
 
             sessionId = UUID.fromString(event.get("sessionId").asText());
             candidateId = UUID.fromString(event.get("candidateId").asText());
-            tenantId = event.has("tenantId") && !event.get("tenantId").asText().isBlank()
-                    ? event.get("tenantId").asText() : "default";
+            tenantId = event.has(SharedConstants.TENANT_ID) && !event.get(SharedConstants.TENANT_ID).asText().isBlank()
+                    ? event.get(SharedConstants.TENANT_ID).asText() : "default";
 
             if (event.has("paperId") && !event.get("paperId").asText().isBlank()) {
                 try {
@@ -261,7 +262,7 @@ public class SessionEventConsumer {
             dlqEvent.put("eventType", "EVALUATION_FAILED_DLQ");
             dlqEvent.put("sessionId", sessionId.toString());
             dlqEvent.put("candidateId", candidateId.toString());
-            dlqEvent.put("tenantId", tenantId != null ? tenantId : "default");
+            dlqEvent.put(SharedConstants.TENANT_ID, tenantId != null ? tenantId : "default");
             dlqEvent.put("paperId", paperId != null ? paperId.toString() : "");
             dlqEvent.put("examId", examId != null ? examId.toString() : "");
             dlqEvent.put("reason", reason != null ? reason : "Unknown evaluation failure");

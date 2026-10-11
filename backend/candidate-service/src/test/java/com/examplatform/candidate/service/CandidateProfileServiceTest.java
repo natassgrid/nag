@@ -27,6 +27,7 @@ import com.examplatform.candidate.exception.DuplicateProfileException;
 import com.examplatform.candidate.exception.ProfileNotFoundException;
 import com.examplatform.candidate.repository.CandidateEducationRepository;
 import com.examplatform.candidate.repository.CandidateProfileRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.crypto.HashingService;
 import com.examplatform.shared.crypto.VaultCryptoService;
 import com.examplatform.shared.event.UserAuditEvent;
@@ -215,7 +216,7 @@ class CandidateProfileServiceTest {
             } else if (eventObj instanceof Map<?, ?> event) {
                 assertThat(event.get("eventType")).isEqualTo("CANDIDATE_PROFILE_CREATED");
                 assertThat(event.get("actorId")).isEqualTo(USER_ID.toString());
-                assertThat(event.get("tenantId")).isEqualTo(TENANT_ID);
+                assertThat(event.get(SharedConstants.TENANT_ID)).isEqualTo(TENANT_ID);
                 assertThat(event.get("occurredAt")).isNotNull();
             }
         }

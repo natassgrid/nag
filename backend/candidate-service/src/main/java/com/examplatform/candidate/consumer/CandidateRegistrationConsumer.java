@@ -23,6 +23,7 @@ import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_
 
 import com.examplatform.candidate.domain.CandidateProfile;
 import com.examplatform.candidate.repository.CandidateProfileRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.crypto.HashingService;
 import com.examplatform.shared.messaging.GenericDomainEvent;
 import com.examplatform.shared.messaging.MessagePayloadExtractor;
@@ -113,7 +114,8 @@ public class CandidateRegistrationConsumer {
             }
 
             JsonNode details = root.path("details");
-            String tenantId = root.hasNonNull("tenantId") ? root.path("tenantId").asText("default") : details.path("tenantId").asText("default");
+            String tenantId = root.hasNonNull(SharedConstants.TENANT_ID) ? root.path(SharedConstants.TENANT_ID).asText("default") : details.path(
+                SharedConstants.TENANT_ID).asText("default");
             String fullName = root.hasNonNull("fullName") ? root.path("fullName").asText("") : details.path("fullName").asText("");
             String email = root.hasNonNull("email") ? root.path("email").asText("") : details.path("email").asText("");
             String mobile = root.hasNonNull("mobile") ? root.path("mobile").asText("") : details.path("mobile").asText("");

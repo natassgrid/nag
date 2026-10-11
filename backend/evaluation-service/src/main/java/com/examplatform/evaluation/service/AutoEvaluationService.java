@@ -28,6 +28,7 @@ import com.examplatform.evaluation.dto.MarkingScheme;
 import com.examplatform.evaluation.repository.EvaluationRepository;
 import com.examplatform.shared.config.DynamicConfigService;
 import com.examplatform.shared.constants.QuestionTypeConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -159,7 +160,7 @@ public class AutoEvaluationService {
                     "candidateId", anonymized ? ("ANON-" + UUID.nameUUIDFromBytes(candidateId.toString().getBytes())) : candidateId.toString(),
                     "evaluationCount", evaluationCount,
                     "evaluationType", "AUTO",
-                    "tenantId", tenantId,
+                SharedConstants.TENANT_ID, tenantId,
                     "anonymized", anonymized,
                     "occurredAt", Instant.now().toString()
             );

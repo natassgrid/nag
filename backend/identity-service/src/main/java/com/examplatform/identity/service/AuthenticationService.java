@@ -19,6 +19,7 @@
 
 package com.examplatform.identity.service;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.crypto.HashingService;
 
 import com.examplatform.identity.config.AppSecurityProperties;
@@ -390,7 +391,7 @@ public class AuthenticationService {
                         "identity:auth/token",
                         ipAddress,
                         deviceFingerprint,
-                        Map.of("tenantId", tenantId != null ? tenantId : "default")
+                        Map.of(SharedConstants.TENANT_ID, tenantId != null ? tenantId : "default")
                 );
             }
         } catch (Exception e) {

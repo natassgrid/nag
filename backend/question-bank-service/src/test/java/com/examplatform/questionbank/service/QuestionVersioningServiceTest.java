@@ -25,6 +25,7 @@ import com.examplatform.questionbank.repository.QuestionVersionRepository;
 import com.examplatform.shared.constants.QuestionStateConstants;
 import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import com.examplatform.shared.constants.QuestionTypeConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
@@ -117,9 +118,9 @@ class QuestionVersioningServiceTest {
             QuestionVersion saved = captor.getValue();
 
             JsonNode diff = objectMapper.readTree(saved.getDiffJson());
-            assertThat(diff.has("subject")).isTrue();
-            assertThat(diff.get("subject").get("old").asText()).isEqualTo("Mathematics");
-            assertThat(diff.get("subject").get("new").asText()).isEqualTo("Physics");
+            assertThat(diff.has(SharedConstants.SUBJECT)).isTrue();
+            assertThat(diff.get(SharedConstants.SUBJECT).get("old").asText()).isEqualTo("Mathematics");
+            assertThat(diff.get(SharedConstants.SUBJECT).get("new").asText()).isEqualTo("Physics");
             assertThat(diff.has("content")).isTrue();
             assertThat(diff.get("content").get("old").asText()).isEqualTo("<p>old content</p>");
             assertThat(diff.get("content").get("new").asText()).isEqualTo("<p>new content</p>");
@@ -190,7 +191,7 @@ class QuestionVersioningServiceTest {
             QuestionVersion saved = captor.getValue();
 
             JsonNode snapshot = objectMapper.readTree(saved.getSnapshotJson());
-            assertThat(snapshot.get("subject").asText()).isEqualTo("Physics");
+            assertThat(snapshot.get(SharedConstants.SUBJECT).asText()).isEqualTo("Physics");
             assertThat(snapshot.get("topic").asText()).isEqualTo("Mechanics");
             assertThat(snapshot.get("content").asText()).isEqualTo("<p>new content</p>");
             assertThat(snapshot.get("questionType").asText()).isEqualTo(QuestionTypeConstants.SINGLE_MCQ);
@@ -199,7 +200,7 @@ class QuestionVersioningServiceTest {
                 QuestionTaxonomyConstants.CognitiveLevel.APPLY);
             assertThat(snapshot.get("state").asText()).isEqualTo(QuestionStateConstants.DRAFT);
             assertThat(snapshot.get("id").asText()).isEqualTo(QUESTION_ID.toString());
-            assertThat(snapshot.get("authorId").asText()).isEqualTo(AUTHOR_ID.toString());
+            assertThat(snapshot.get(SharedConstants.AUTHOR_ID).asText()).isEqualTo(AUTHOR_ID.toString());
         }
 
         @Test
