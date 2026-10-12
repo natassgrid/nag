@@ -21,7 +21,7 @@ public class SecurityConfig {
     public SecurityFilterChain recommendationSecurityFilterChain(HttpSecurity http,
                                                            JwtAuthenticationConverter jwtAuthenticationConverter) throws Exception {
         http
-            .securityMatcher("/api/recommendations/**")
+            .securityMatcher("/api/recommendations/**", "/api/learning-path/**")
             .csrf(csrf -> csrf.disable())
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth

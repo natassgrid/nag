@@ -11,9 +11,14 @@
 
 package com.examplatform.recommendation.controller;
 
+import com.examplatform.recommendation.domain.PerformanceBracket;
+import com.examplatform.recommendation.dto.DynamicLearningPathResponse;
 import com.examplatform.recommendation.dto.LearnerProfileDto;
+import com.examplatform.recommendation.dto.LearningPathSummaryResponse;
+import com.examplatform.recommendation.dto.MilestoneGraphDto;
 import com.examplatform.recommendation.dto.RecommendationDto;
 import com.examplatform.recommendation.service.LearnerProfileService;
+import com.examplatform.recommendation.service.LearningPathGeneratorService;
 import com.examplatform.recommendation.service.RecommendationService;
 import com.examplatform.recommendation.support.AbstractIntegrationTest;
 import org.junit.jupiter.api.DisplayName;
@@ -25,7 +30,9 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -47,6 +54,9 @@ class RecommendationControllerIntegrationTest extends AbstractIntegrationTest {
 
     @MockitoBean
     private LearnerProfileService learnerProfileService;
+
+    @MockitoBean
+    private LearningPathGeneratorService learningPathGeneratorService;
 
     private static final UUID CANDIDATE_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
     private static final UUID RECOMMENDATION_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
@@ -168,6 +178,38 @@ class RecommendationControllerIntegrationTest extends AbstractIntegrationTest {
                     .andExpect(jsonPath("$.totalPracticeSessions").value(15))
                     .andExpect(jsonPath("$.overallAccuracy").value(78.5))
                     .andExpect(jsonPath("$.weakTopics").value("[\"Permutation & Combination\", \"Trigonometry\"]"));
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /api/recommendations/learning-path/current - Active DLP")
+    class LearningPathCurrentEndpoint {
+
+        @Test
+        @DisplayName("200 OK - Retrieves active DLP via recommendation controller")
+        void canGetLearningPath() throws Exception {
+            DynamicLearningPathResponse resp = new DynamicLearningPathResponse(
+                    UUID.randomUUID(),
+                    CANDIDATE_ID,
+                    UUID.randomUUID(),
+                    "JEE_MAIN",
+                    "ACTIVE",
+                    0,
+                    0,
+                    1,
+                    new MilestoneGraphDto(Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), 1, 100.0),
+                    Instant.now(),
+                    Instant.now()
+            );
+
+            when(learningPathGeneratorService.getCurrentActivePath(eq(CANDIDATE_ID))).thenReturn(Optional.of(resp));
+
+            mockMvc.perform(get("/api/recommendations/learning-path/current")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(CANDIDATE_ID.toString()))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.candidateId").value(CANDIDATE_ID.toString()))
+                    .andExpect(jsonPath("$.examTarget").value("JEE_MAIN"));
         }
     }
 }
