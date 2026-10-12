@@ -19,8 +19,37 @@
 
 package com.examplatform.examination.domain.enums;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
+
 public enum CalculatorPolicy {
     NONE,
     BASIC,
-    SCIENTIFIC
+    SCIENTIFIC;
+
+    @JsonCreator
+    public static CalculatorPolicy fromString(String value) {
+        if (value == null || value.isBlank()) {
+            return NONE;
+        }
+        String normalized = value.trim().toUpperCase();
+        return switch (normalized) {
+            case "NONE", "DISALLOWED", "NO_CALCULATOR", "NOT_PERMITTED" -> NONE;
+            case "BASIC", "VIRTUAL_BASIC", "STANDARD_VIRTUAL" -> BASIC;
+            case "SCIENTIFIC", "VIRTUAL_SCIENTIFIC", "SCIENTIFIC_VIRTUAL" -> SCIENTIFIC;
+            default -> {
+                for (CalculatorPolicy policy : values()) {
+                    if (policy.name().equalsIgnoreCase(normalized)) {
+                        yield policy;
+                    }
+                }
+                throw new IllegalArgumentException("Unknown CalculatorPolicy: " + value);
+            }
+        };
+    }
+
+    @JsonValue
+    public String toValue() {
+        return this.name();
+    }
 }

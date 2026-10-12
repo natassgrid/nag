@@ -40,9 +40,9 @@
         (ngModelChange)="navPolicyChange.emit($event)"
         class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
       >
-        <option value="FREE_NAVIGATION">Free Navigation (Candidates jump freely)</option>
-        <option value="SECTION_LOCKED">Section Locked (Sequential per section)</option>
-        <option value="STRICT_SEQUENTIAL">Strict Sequential (No back-tracking)</option>
+        <option value="FLEXIBLE">Free Navigation (Candidates jump freely)</option>
+        <option value="RESTRICTED">Section Locked (Sequential per section)</option>
+        <option value="SEQUENTIAL">Strict Sequential (No back-tracking)</option>
       </select>
     </div>
 
@@ -57,8 +57,8 @@
         class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
       >
         <option value="NONE">No Calculator Allowed</option>
-        <option value="VIRTUAL_BASIC">Virtual Basic Calculator</option>
-        <option value="VIRTUAL_SCIENTIFIC">Virtual Scientific Calculator</option>
+        <option value="BASIC">Virtual Basic Calculator</option>
+        <option value="SCIENTIFIC">Virtual Scientific Calculator</option>
       </select>
     </div>
   </div>
