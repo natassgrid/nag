@@ -19,8 +19,37 @@
 
 package com.examplatform.examination.domain.enums;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
+
 public enum NavigationPolicy {
     SEQUENTIAL,
     FLEXIBLE,
-    RESTRICTED
+    RESTRICTED;
+
+    @JsonCreator
+    public static NavigationPolicy fromString(String value) {
+        if (value == null || value.isBlank()) {
+            return FLEXIBLE;
+        }
+        String normalized = value.trim().toUpperCase();
+        return switch (normalized) {
+            case "FREE_NAVIGATION", "FREE_FORWARD_BACKWARD", "FLEXIBLE" -> FLEXIBLE;
+            case "SECTION_LOCKED", "RESTRICTED", "LINEAR_SECTION_TIMED" -> RESTRICTED;
+            case "STRICT_SEQUENTIAL", "LINEAR_ONLY", "SEQUENTIAL" -> SEQUENTIAL;
+            default -> {
+                for (NavigationPolicy policy : values()) {
+                    if (policy.name().equalsIgnoreCase(normalized)) {
+                        yield policy;
+                    }
+                }
+                throw new IllegalArgumentException("Unknown NavigationPolicy: " + value);
+            }
+        };
+    }
+
+    @JsonValue
+    public String toValue() {
+        return this.name();
+    }
 }

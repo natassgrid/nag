@@ -9,7 +9,7 @@
           </div>
           <div>
             <h2 class="text-base font-black text-slate-900">
-              {{ editingExam() ? 'Edit Examination Blueprint' : 'Create New Examination' }}
+              {{ editingExam() ? 'Edit Examination' : 'Create New Examination' }}
             </h2>
             <p class="text-xs text-slate-500">Configure examination settings, sections, and delivery policies</p>
           </div>
@@ -92,7 +92,7 @@
               <span>Saving...</span>
             } @else {
               <mat-icon class="!text-sm leading-none">save</mat-icon>
-              <span>{{ editingExam() ? 'Update Blueprint' : 'Create Examination' }}</span>
+              <span>{{ editingExam() ? 'Update Examination' : 'Create Examination' }}</span>
             }
           </span>
         </button>

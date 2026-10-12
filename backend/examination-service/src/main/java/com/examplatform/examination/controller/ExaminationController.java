@@ -5,7 +5,7 @@
  * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU标识 Affero General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, version 3 of the License.
  *
  * This program is distributed in the hope that it will be useful,
@@ -39,6 +39,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -106,8 +107,9 @@ public class ExaminationController {
 
     /**
      * Publish an examination (transition from DRAFT to PUBLISHED). Requires EXAM_CONTROLLER role.
+     * Supports both PUT and POST for client flexibility.
      */
-    @PutMapping("/{examId}/publish")
+    @RequestMapping(value = "/{examId}/publish", method = {RequestMethod.PUT, RequestMethod.POST})
     @PreAuthorize("hasRole('EXAM_CONTROLLER')")
     public ResponseEntity<ApiResponse<ExaminationResponse>> publish(
             @PathVariable UUID examId,

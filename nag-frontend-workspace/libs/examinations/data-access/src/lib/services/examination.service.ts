@@ -132,7 +132,7 @@ export class ExaminationService {
 
   publishExam(examId: string): Observable<ExaminationResponse> {
     return this.http
-      .post<ApiResponse<ExaminationResponse> | ExaminationResponse>(
+      .put<ApiResponse<ExaminationResponse> | ExaminationResponse>(
         `${this.baseUrl}/${examId}/publish`,
         {}
       )
