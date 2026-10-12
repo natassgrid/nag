@@ -22,6 +22,7 @@ package com.examplatform.questionbank.service;
 import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.dto.ReviewerAssignment;
 import com.examplatform.shared.config.DynamicConfigService;
+import com.examplatform.shared.constants.MessagingConstants;
 import com.examplatform.shared.constants.QuestionStateConstants;
 import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
@@ -46,7 +47,7 @@ import java.util.UUID;
 public class ReviewWorkflowService {
 
     private static final String TOPIC_LIFECYCLE = "exam.question.lifecycle";
-    private static final String TOPIC_NOTIFICATIONS = "exam.notifications.outbound";
+    private static final String TOPIC_NOTIFICATIONS = MessagingConstants.NOTIFICATIONS_OUTBOUND_TOPIC;
 
     private final EventPublisher eventPublisher;
     private final DynamicConfigService dynamicConfigService;
@@ -88,7 +89,7 @@ public class ReviewWorkflowService {
         UUID secondaryReviewer = assignment.getSecondaryReviewerId();
 
         Map<String, Object> lifecycleEvent = new HashMap<>();
-        lifecycleEvent.put("eventType", "SUBMITTED_FOR_REVIEW");
+        lifecycleEvent.put(SharedConstants.EVENT_TYPE, "SUBMITTED_FOR_REVIEW");
         lifecycleEvent.put(SharedConstants.QUESTION_ID, question.getId());
         lifecycleEvent.put(SharedConstants.SUBJECT, question.getSubject());
         lifecycleEvent.put(SharedConstants.AUTHOR_ID, question.getAuthorId());
@@ -144,7 +145,7 @@ public class ReviewWorkflowService {
             SharedConstants.REVIEWER_ID, actorId,
             SharedConstants.SUBJECT, question.getSubject(),
             SharedConstants.TENANT_ID, tenantId,
-            SharedConstants.MESSAGE, SharedConstants.YOUR_QUESTION_FOR_SUBJECT + question.getSubject() + "' has been approved by the reviewer."
+            SharedConstants.MESSAGE, SharedConstants.YOUR_QUESTION_FOR_SUBJECT_PREFIX + question.getSubject() + "' has been approved by the reviewer."
         );
         publishNotification(question.getAuthorId(), notification);
 
@@ -177,7 +178,7 @@ public class ReviewWorkflowService {
             SharedConstants.REVIEWER_ID, actorId,
                 "comments", comments != null ? comments : "",
             SharedConstants.TENANT_ID, tenantId,
-            SharedConstants.MESSAGE, SharedConstants.YOUR_QUESTION_FOR_SUBJECT + question.getSubject() +
+            SharedConstants.MESSAGE, SharedConstants.YOUR_QUESTION_FOR_SUBJECT_PREFIX + question.getSubject() +
                            "' was returned with comments: " + (comments != null ? comments : "No comments provided")
         );
         publishNotification(question.getAuthorId(), notification);
@@ -203,7 +204,7 @@ public class ReviewWorkflowService {
             SharedConstants.QUESTION_ID, question.getId(),
             SharedConstants.SUBJECT, question.getSubject(),
             SharedConstants.TENANT_ID, tenantId,
-            SharedConstants.MESSAGE, SharedConstants.YOUR_QUESTION_FOR_SUBJECT + question.getSubject() + "' has been published to the question bank."
+            SharedConstants.MESSAGE, SharedConstants.YOUR_QUESTION_FOR_SUBJECT_PREFIX + question.getSubject() + "' has been published to the question bank."
         );
         publishNotification(question.getAuthorId(), notification);
 
@@ -221,7 +222,7 @@ public class ReviewWorkflowService {
 
     private Map<String, Object> createLifecyclePayload(String eventType, UUID questionId, String tenantId) {
         Map<String, Object> payload = new HashMap<>();
-        payload.put("eventType", eventType);
+        payload.put(SharedConstants.EVENT_TYPE, eventType);
         payload.put(SharedConstants.QUESTION_ID, questionId);
         payload.put(SharedConstants.TENANT_ID, tenantId);
         payload.put("timestamp", Instant.now().toString());

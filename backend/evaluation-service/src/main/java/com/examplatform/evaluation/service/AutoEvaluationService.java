@@ -148,14 +148,14 @@ public class AutoEvaluationService {
                                               int evaluationCount, String tenantId, boolean anonymized) {
         try {
             Map<String, Object> event = Map.of(
-                    "eventType", "EVALUATION_CREATED",
+                SharedConstants.EVENT_TYPE, "EVALUATION_CREATED",
                     "sessionId", sessionId.toString(),
                     "candidateId", anonymized ? ("ANON-" + UUID.nameUUIDFromBytes(candidateId.toString().getBytes())) : candidateId.toString(),
                     "evaluationCount", evaluationCount,
                     "evaluationType", "AUTO",
                 SharedConstants.TENANT_ID, tenantId,
                     "anonymized", anonymized,
-                    "occurredAt", Instant.now().toString()
+                SharedConstants.OCCURRED_AT, Instant.now().toString()
             );
             eventPublisher.publish(AUDIT_EVENTS_TOPIC, sessionId.toString(), event);
         } catch (Exception e) {

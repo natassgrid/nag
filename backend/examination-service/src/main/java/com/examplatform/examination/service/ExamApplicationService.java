@@ -14,6 +14,7 @@ import com.examplatform.examination.dto.ExamApplicationResponse;
 import com.examplatform.examination.dto.PublicCentreResponse;
 import com.examplatform.examination.repository.*;
 import com.examplatform.shared.constants.QuestionStateConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -259,7 +260,7 @@ public class ExamApplicationService {
 
     private String generateQrVerificationHash(String hallTicketNumber, UUID candidateId, UUID examId, UUID centreId) {
         try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            MessageDigest digest = MessageDigest.getInstance(SharedConstants.SHA_256);
             String raw = String.format("%s:%s:%s:%s", hallTicketNumber, candidateId, examId, centreId);
             byte[] hash = digest.digest(raw.getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(hash);

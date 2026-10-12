@@ -12,6 +12,7 @@
 package com.examplatform.examination.grpc;
 
 import com.examplatform.examination.service.ExaminationService;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.grpc.ExamBreakdownGrpcRequest;
 import com.examplatform.shared.grpc.ExamBreakdownGrpcResponse;
 import com.examplatform.shared.grpc.ExaminationMetricsGrpcServiceGrpc;
@@ -39,7 +40,7 @@ public class ExaminationMetricsGrpcServiceImpl extends ExaminationMetricsGrpcSer
         request.getTenantId();
         String tenantId = !request.getTenantId().isBlank()
                 ? request.getTenantId()
-                : "default";
+                : SharedConstants.DEFAULT_TENANT;
         log.info("gRPC getExaminationStatusBreakdown request for tenant={}", tenantId);
 
         try {

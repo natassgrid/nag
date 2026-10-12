@@ -25,6 +25,7 @@ import com.examplatform.examination.dto.schedule.SeatAllocationRequest;
 import com.examplatform.examination.dto.schedule.SeatAllocationResponse;
 import com.examplatform.examination.service.ExaminationCentreService;
 import com.examplatform.shared.api.ApiResponse;
+import com.examplatform.shared.constants.SharedConstants;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -57,7 +58,7 @@ public class ExaminationCentreController {
     @PostMapping("/api/v1/examinations/centres")
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<CentreResponse>> createCentre(
-            @RequestHeader("X-Tenant-Id") String tenantId,
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
             @Valid @RequestBody CreateCentreRequest request,
             @AuthenticationPrincipal Jwt jwt) {
 
@@ -69,7 +70,7 @@ public class ExaminationCentreController {
     @GetMapping("/api/v1/examinations/centres")
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN','SECURITY_ADMIN')")
     public ResponseEntity<ApiResponse<org.springframework.data.domain.Page<CentreResponse>>> listCentres(
-            @RequestHeader("X-Tenant-Id") String tenantId,
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String search,
@@ -88,7 +89,7 @@ public class ExaminationCentreController {
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN','SECURITY_ADMIN')")
     public ResponseEntity<ApiResponse<CentreResponse>> getCentre(
             @PathVariable UUID centreId,
-            @RequestHeader("X-Tenant-Id") String tenantId,
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
             @AuthenticationPrincipal Jwt jwt) {
 
         return ResponseEntity.ok(
@@ -99,7 +100,7 @@ public class ExaminationCentreController {
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<CentreResponse>> deactivateCentre(
             @PathVariable UUID centreId,
-            @RequestHeader("X-Tenant-Id") String tenantId,
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
             @AuthenticationPrincipal Jwt jwt) {
 
         return ResponseEntity.ok(
@@ -115,7 +116,7 @@ public class ExaminationCentreController {
             @PathVariable UUID examId,
             @PathVariable UUID scheduleId,
             @PathVariable UUID shiftId,
-            @RequestHeader("X-Tenant-Id") String tenantId,
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
             @Valid @RequestBody SeatAllocationRequest request,
             @AuthenticationPrincipal Jwt jwt) {
 
@@ -130,7 +131,7 @@ public class ExaminationCentreController {
             @PathVariable UUID examId,
             @PathVariable UUID scheduleId,
             @PathVariable UUID shiftId,
-            @RequestHeader("X-Tenant-Id") String tenantId,
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
             @AuthenticationPrincipal Jwt jwt) {
 
         return ResponseEntity.ok(ApiResponse.success(

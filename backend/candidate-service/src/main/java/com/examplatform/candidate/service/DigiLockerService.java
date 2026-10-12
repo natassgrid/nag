@@ -94,7 +94,7 @@ public class DigiLockerService {
         log.info("Handling DigiLocker OAuth2 callback for state={}", state);
 
         UUID userId = null;
-        String tenantId = "default";
+        String tenantId = SharedConstants.DEFAULT_TENANT;
 
         if (state != null && !state.isBlank()) {
             Map<String, String> stateData = parseStateToken(state);
@@ -124,8 +124,8 @@ public class DigiLockerService {
         try {
             // 1. Exchange code for access token
             Map<String, Object> tokenResponse = digiLockerClient.exchangeCodeForToken(code, redirectUri);
-            String accessToken = tokenResponse != null && tokenResponse.get("access_token") != null
-                    ? tokenResponse.get("access_token").toString() : null;
+            String accessToken = tokenResponse != null && tokenResponse.get(SharedConstants.ACCESS_TOKEN) != null
+                    ? tokenResponse.get(SharedConstants.ACCESS_TOKEN).toString() : null;
 
             if (accessToken == null || accessToken.isBlank()) {
                 log.warn("Empty access token received from DigiLocker for userId={}", effectiveUserId);
@@ -228,8 +228,8 @@ public class DigiLockerService {
         String dlDob = null;
 
         if (userInfo != null) {
-            if (userInfo.get("name") != null) {
-                dlName = String.valueOf(userInfo.get("name"));
+            if (userInfo.get(SharedConstants.NAME) != null) {
+                dlName = String.valueOf(userInfo.get(SharedConstants.NAME));
             } else if (userInfo.get("fullName") != null) {
                 dlName = String.valueOf(userInfo.get("fullName"));
             }
@@ -342,7 +342,7 @@ public class DigiLockerService {
 
     private String generateStateToken(UUID userId, String tenantId) {
         String raw = (userId != null ? userId.toString() : "") + ":"
-                + (tenantId != null ? tenantId : "default") + ":"
+                + (tenantId != null ? tenantId : SharedConstants.DEFAULT_TENANT) + ":"
                 + UUID.randomUUID();
         return Base64.getUrlEncoder().withoutPadding().encodeToString(raw.getBytes(StandardCharsets.UTF_8));
     }

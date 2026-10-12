@@ -19,6 +19,7 @@
 
 package com.examplatform.shared.entity;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.tenant.TenantContext;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -85,7 +86,7 @@ public abstract class NumericBaseEntity {
         this.createdAt = ts;
         this.updatedAt = ts;
         if (this.tenantId == null) {
-            this.tenantId = Objects.requireNonNullElse(TenantContext.get(), "default");
+            this.tenantId = Objects.requireNonNullElse(TenantContext.get(), SharedConstants.DEFAULT_TENANT);
         }
     }
 

@@ -79,7 +79,7 @@ public class QuestionDeliveryParser {
         try {
             String id = qNode.has("id") ? qNode.get("id").asText() :
                     (qNode.has(SharedConstants.QUESTION_ID) ? qNode.get(SharedConstants.QUESTION_ID).asText() : UUID.randomUUID().toString());
-            String content = qNode.has("content") ? qNode.get("content").asText() :
+            String content = qNode.has(SharedConstants.CONTENT) ? qNode.get(SharedConstants.CONTENT).asText() :
                     (qNode.has("text") ? qNode.get("text").asText() : "");
             String subject = qNode.has(SharedConstants.SUBJECT) ? qNode.get(SharedConstants.SUBJECT).asText() : null;
             String topic = qNode.has("topic") ? qNode.get("topic").asText() : "General";

@@ -18,6 +18,7 @@
 
 package com.examplatform.examination.domain;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -44,11 +45,11 @@ import java.util.UUID;
 @Table(name = "examination", schema = "examination_service")
 public class Examination extends BaseEntity {
 
-    @Column(name = "name", nullable = false, length = 500)
+    @Column(name = SharedConstants.NAME, nullable = false, length = 500)
     private String name;
 
     /** Short unique examination code per tenant (e.g. "JEE-MAIN-2027"). */
-    @Column(name = "code", length = 100)
+    @Column(name = SharedConstants.CODE, length = 100)
     private String code;
 
     /** Authority that conducts this examination (e.g. "NTA", "UPSC"). */
@@ -101,7 +102,7 @@ public class Examination extends BaseEntity {
     private String sectionsJson;
 
     /** DRAFT / APPROVED / PUBLISHED / CANCELLED / COMPLETED */
-    @Column(name = "status", nullable = false, length = 30)
+    @Column(name = SharedConstants.STATUS, nullable = false, length = 30)
     private String status;
 
     /** UUID of the Exam Controller who created this examination. */

@@ -72,21 +72,21 @@ public class ResponseServiceRestClient implements CandidateResponseClient {
     @Override
     @CircuitBreaker(name = "responseService", fallbackMethod = "fetchResponsesFallback")
     public List<CandidateResponse> getCandidateResponses(UUID sessionId, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         log.info("Fetching candidate responses via REST for sessionId={}, tenantId={} from {}",
                 sessionId, effectiveTenant, responseServiceUrl);
 
         try {
             var request = restClient.get()
                     .uri("/api/v1/responses/{sessionId}/responses", sessionId)
-                    .header("X-Tenant-Id", effectiveTenant)
+                    .header(SharedConstants.HEADER_TENANT_ID, effectiveTenant)
                     .accept(MediaType.APPLICATION_JSON);
 
             if (tokenProvider != null) {
                 try {
                     String token = tokenProvider.getServiceToken("evaluation-service");
                     if (token != null && !token.isBlank()) {
-                        request.header(HttpHeaders.AUTHORIZATION, "Bearer " + token);
+                        request.header(HttpHeaders.AUTHORIZATION, SharedConstants.BEARER_PREFIX + token);
                     }
                 } catch (Exception e) {
                     log.debug("Could not obtain service account token for evaluation-service: {}", e.getMessage());

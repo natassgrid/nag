@@ -23,6 +23,7 @@ import com.examplatform.result.dto.CandidateEvaluationItemDto;
 import com.examplatform.result.dto.CandidateExamResponseDto;
 import com.examplatform.shared.auth.ClientAuthTokenResolver;
 import com.examplatform.shared.auth.ServiceAccountTokenProvider;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;
@@ -77,14 +78,14 @@ public class EvaluationClientImpl implements EvaluationClient {
         if (candidateId == null) {
             return Collections.emptyList();
         }
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
 
         // 1. Try REST call to evaluation-service
         try {
             String url = evaluationServiceUrl + "/api/v1/evaluations/candidate/" + candidateId;
             RestClient.RequestHeadersSpec<?> spec = restClient.get()
                     .uri(url)
-                    .header("X-Tenant-Id", effectiveTenant)
+                    .header(SharedConstants.HEADER_TENANT_ID, effectiveTenant)
                     .accept(MediaType.APPLICATION_JSON);
             attachAuthHeader(spec);
 
@@ -136,7 +137,7 @@ public class EvaluationClientImpl implements EvaluationClient {
                 double maxMarks = rs.getDouble("max_marks");
                 double negMarks = rs.getDouble("negative_marks");
                 String comments = rs.getString("comments");
-                String status = rs.getString("status");
+                String status = rs.getString(SharedConstants.STATUS);
 
                 if (qId != null) {
                     questionToSession.put(qId, sessId);
@@ -176,7 +177,7 @@ public class EvaluationClientImpl implements EvaluationClient {
         if (examId == null) {
             return Collections.emptyList();
         }
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
 
         // 1. Try JDBC query first for fastest batch computation
         if (jdbcTemplate != null) {
@@ -312,7 +313,7 @@ public class EvaluationClientImpl implements EvaluationClient {
             String url = responseServiceUrl + "/api/v1/responses/" + sessionId + "/responses";
             RestClient.RequestHeadersSpec<?> spec = restClient.get()
                     .uri(url)
-                    .header("X-Tenant-Id", tenantId)
+                    .header(SharedConstants.HEADER_TENANT_ID, tenantId)
                     .accept(MediaType.APPLICATION_JSON);
             attachAuthHeader(spec);
 

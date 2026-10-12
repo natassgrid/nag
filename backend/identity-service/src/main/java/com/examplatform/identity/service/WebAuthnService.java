@@ -145,7 +145,7 @@ public class WebAuthnService {
             }
 
             // Signed data = authenticatorData || SHA-256(clientDataJSON)
-            MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
+            MessageDigest sha256 = MessageDigest.getInstance(SharedConstants.SHA_256);
             byte[] clientDataHash = sha256.digest(clientDataJSON);
             byte[] signedData = new byte[authData.length + clientDataHash.length];
             System.arraycopy(authData, 0, signedData, 0, authData.length);

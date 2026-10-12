@@ -12,6 +12,7 @@
 package com.examplatform.evaluation.grpc;
 
 import com.examplatform.evaluation.service.ManualEvaluationService;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.grpc.EvaluationMetricsGrpcRequest;
 import com.examplatform.shared.grpc.EvaluationMetricsGrpcResponse;
 import com.examplatform.shared.grpc.EvaluationMetricsGrpcServiceGrpc;
@@ -38,7 +39,7 @@ public class EvaluationMetricsGrpcServiceImpl extends EvaluationMetricsGrpcServi
         request.getTenantId();
         String tenantId = !request.getTenantId().isBlank()
                 ? request.getTenantId()
-                : "default";
+                : SharedConstants.DEFAULT_TENANT;
         log.info("gRPC getEvaluationQueueMetrics request for tenant={}", tenantId);
 
         try {

@@ -26,6 +26,7 @@ import com.examplatform.evaluation.dto.AnswerKey;
 import com.examplatform.evaluation.dto.CandidateResponse;
 import com.examplatform.evaluation.service.AutoEvaluationService;
 import com.examplatform.evaluation.service.ScoreAggregationService;
+import com.examplatform.shared.constants.MessagingConstants;
 import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import com.examplatform.shared.messaging.GenericDomainEvent;
@@ -90,7 +91,7 @@ public class SessionEventConsumer {
     @RabbitListener(
             bindings = @QueueBinding(
                     value = @Queue(value = "evaluation.session.events.queue", durable = "true"),
-                    exchange = @Exchange(value = "exam.events", type = ExchangeTypes.TOPIC),
+                    exchange = @Exchange(value = MessagingConstants.EXAM_EVENTS_TOPIC, type = ExchangeTypes.TOPIC),
                     key = SESSION_EVENTS_TOPIC
             )
     )
@@ -146,12 +147,12 @@ public class SessionEventConsumer {
     public void processJsonEvent(JsonNode event) {
         UUID sessionId = null;
         UUID candidateId = null;
-        String tenantId = "default";
+        String tenantId = SharedConstants.DEFAULT_TENANT;
         UUID paperId = null;
         UUID examId = null;
 
         try {
-            String eventType = event.has("eventType") ? event.get("eventType").asText() : "";
+            String eventType = event.has(SharedConstants.EVENT_TYPE) ? event.get(SharedConstants.EVENT_TYPE).asText() : "";
 
             if (!"SESSION_SUBMITTED".equals(eventType)) {
                 log.debug("Ignoring non-submission event: {}", eventType);
@@ -161,7 +162,7 @@ public class SessionEventConsumer {
             sessionId = UUID.fromString(event.get("sessionId").asText());
             candidateId = UUID.fromString(event.get("candidateId").asText());
             tenantId = event.has(SharedConstants.TENANT_ID) && !event.get(SharedConstants.TENANT_ID).asText().isBlank()
-                    ? event.get(SharedConstants.TENANT_ID).asText() : "default";
+                    ? event.get(SharedConstants.TENANT_ID).asText() : SharedConstants.DEFAULT_TENANT;
 
             if (event.has("paperId") && !event.get("paperId").asText().isBlank()) {
                 try {
@@ -263,10 +264,10 @@ public class SessionEventConsumer {
                                     UUID paperId, UUID examId, String reason, JsonNode originalEvent) {
         try {
             Map<String, Object> dlqEvent = new HashMap<>();
-            dlqEvent.put("eventType", "EVALUATION_FAILED_DLQ");
+            dlqEvent.put(SharedConstants.EVENT_TYPE, "EVALUATION_FAILED_DLQ");
             dlqEvent.put("sessionId", sessionId.toString());
             dlqEvent.put("candidateId", candidateId.toString());
-            dlqEvent.put(SharedConstants.TENANT_ID, tenantId != null ? tenantId : "default");
+            dlqEvent.put(SharedConstants.TENANT_ID, tenantId != null ? tenantId : SharedConstants.DEFAULT_TENANT);
             dlqEvent.put("paperId", paperId != null ? paperId.toString() : "");
             dlqEvent.put("examId", examId != null ? examId.toString() : "");
             dlqEvent.put("reason", reason != null ? reason : "Unknown evaluation failure");

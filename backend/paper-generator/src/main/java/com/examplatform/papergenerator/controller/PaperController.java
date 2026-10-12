@@ -495,7 +495,7 @@ public class PaperController {
 
     private String getEffectiveTenantId() {
         String tenantId = TenantContext.get();
-        return (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        return (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
     }
 
     private UUID extractUserId(Jwt jwt) {

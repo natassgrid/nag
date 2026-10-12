@@ -22,6 +22,7 @@ package com.examplatform.identity.controller;
 import com.examplatform.identity.service.AuditEventPublisher;
 import com.examplatform.identity.service.KeyRevocationScheduler;
 import com.examplatform.shared.audit.AuditEventType;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.crypto.VaultCryptoService;
 import com.examplatform.shared.response.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
@@ -67,7 +68,7 @@ public class VaultAdminController {
         auditEventPublisher.publish(AuditEventType.KEY_REVOCATION,
                 authentication.getName(), "vault:key:" + keyName,
                 request.getRemoteAddr(), null,
-                Map.of("keyName", keyName, "action", "revoke-scheduled"));
+                Map.of("keyName", keyName, SharedConstants.ACTION, "revoke-scheduled"));
         log.warn("SECURITY: Key [{}] revocation scheduled by [{}]", keyName, authentication.getName());
         return ResponseEntity.accepted()
                 .body(ApiResponse.success(null, "Key " + keyName + " scheduled for revocation within 60 seconds."));
@@ -87,7 +88,7 @@ public class VaultAdminController {
         auditEventPublisher.publish(AuditEventType.KEY_REVOCATION,
                 authentication.getName(), "vault:key:" + keyName,
                 request.getRemoteAddr(), null,
-                Map.of("keyName", keyName, "action", "rotate"));
+                Map.of("keyName", keyName, SharedConstants.ACTION, "rotate"));
         return ResponseEntity.ok(ApiResponse.success(null, "Key " + keyName + " rotated successfully."));
     }
 }

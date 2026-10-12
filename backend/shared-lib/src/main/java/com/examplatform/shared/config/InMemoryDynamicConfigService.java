@@ -19,6 +19,7 @@
 
 package com.examplatform.shared.config;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.tenant.TenantContext;
 import lombok.extern.slf4j.Slf4j;
 
@@ -126,7 +127,7 @@ public class InMemoryDynamicConfigService implements DynamicConfigService {
 
     @Override
     public Map<String, String> getAllConfigs(String tenantId) {
-        String effectiveTenant = (tenantId == null || tenantId.isBlank()) ? "default" : tenantId;
+        String effectiveTenant = (tenantId == null || tenantId.isBlank()) ? SharedConstants.DEFAULT_TENANT : tenantId;
         Map<String, String> result = new LinkedHashMap<>(DefaultPlatformConfigs.DEFAULTS);
 
         // Overlay L1 near cache
@@ -143,7 +144,7 @@ public class InMemoryDynamicConfigService implements DynamicConfigService {
 
     @Override
     public void updateLocalCache(String tenantId, String paramName, String newValue) {
-        String effectiveTenant = (tenantId == null || tenantId.isBlank()) ? "default" : tenantId;
+        String effectiveTenant = (tenantId == null || tenantId.isBlank()) ? SharedConstants.DEFAULT_TENANT : tenantId;
         String cacheKey = makeCacheKey(effectiveTenant, paramName);
         if (newValue == null) {
             l1Cache.remove(cacheKey);
@@ -161,7 +162,7 @@ public class InMemoryDynamicConfigService implements DynamicConfigService {
     }
 
     protected String getRawValue(String paramName, String tenantId) {
-        String effectiveTenant = (tenantId == null || tenantId.isBlank()) ? "default" : tenantId;
+        String effectiveTenant = (tenantId == null || tenantId.isBlank()) ? SharedConstants.DEFAULT_TENANT : tenantId;
         String cacheKey = makeCacheKey(effectiveTenant, paramName);
 
         // 1. L1 In-Memory Near Cache Hit
@@ -186,6 +187,6 @@ public class InMemoryDynamicConfigService implements DynamicConfigService {
 
     protected String resolveTenant() {
         String contextTenant = TenantContext.get();
-        return (contextTenant != null && !contextTenant.isBlank()) ? contextTenant : "default";
+        return (contextTenant != null && !contextTenant.isBlank()) ? contextTenant : SharedConstants.DEFAULT_TENANT;
     }
 }

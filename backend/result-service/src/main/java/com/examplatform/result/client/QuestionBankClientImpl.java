@@ -76,14 +76,14 @@ public class QuestionBankClientImpl implements QuestionBankClient {
         if (questionIds == null || questionIds.isEmpty()) {
             return Collections.emptyList();
         }
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
 
         // 1. Try REST call to question-bank-service
         try {
             String url = questionBankServiceUrl + "/api/v1/questions/by-ids";
             RestClient.RequestBodySpec spec = restClient.post()
                     .uri(url)
-                    .header("X-Tenant-Id", effectiveTenant)
+                    .header(SharedConstants.HEADER_TENANT_ID, effectiveTenant)
                     .contentType(MediaType.APPLICATION_JSON);
             attachAuthHeader(spec);
 
@@ -132,9 +132,9 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                         .id(id)
                         .subject(rs.getString(SharedConstants.SUBJECT))
                         .topic(rs.getString("topic"))
-                        .difficulty(rs.getString("difficulty"))
+                        .difficulty(rs.getString(SharedConstants.DIFFICULTY))
                         .cognitiveLevel(rs.getString("cognitive_level"))
-                        .content(rs.getString("content"))
+                        .content(rs.getString(SharedConstants.CONTENT))
                         .options(options)
                         .explanation(rs.getString("explanation"))
                         .answerKey(rs.getString("answer_key"))

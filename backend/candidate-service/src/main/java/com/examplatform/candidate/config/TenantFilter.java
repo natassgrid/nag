@@ -1,5 +1,6 @@
 package com.examplatform.candidate.config;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.tenant.TenantContext;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -24,9 +25,9 @@ public class TenantFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain)
             throws ServletException, IOException {
-        String tenantId = request.getHeader("X-Tenant-Id");
+        String tenantId = request.getHeader(SharedConstants.HEADER_TENANT_ID);
         if (tenantId == null || tenantId.isBlank()) {
-            tenantId = "default";
+            tenantId = SharedConstants.DEFAULT_TENANT;
         }
         TenantContext.set(tenantId);
         try {

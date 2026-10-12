@@ -49,7 +49,7 @@ public class PersonalAccessTokenService {
 
     @Transactional
     public PersonalAccessTokenResponse createToken(UUID userId, CreatePersonalAccessTokenRequest request, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
 
         // Generate 32 bytes of secure random data -> 64 hex characters
         byte[] randomBytes = new byte[32];
@@ -86,7 +86,7 @@ public class PersonalAccessTokenService {
                 userId.toString(),
                 "identity:tokens/" + saved.getId(),
                 null, null,
-                Map.of("action", "CREATE_PAT", "tokenName", request.getName(), SharedConstants.TENANT_ID, effectiveTenant)
+                Map.of(SharedConstants.ACTION, "CREATE_PAT", "tokenName", request.getName(), SharedConstants.TENANT_ID, effectiveTenant)
         );
 
         log.info("Created Personal Access Token id={} for user={} tenant={}", saved.getId(), userId, effectiveTenant);
@@ -107,7 +107,7 @@ public class PersonalAccessTokenService {
 
     @Transactional(readOnly = true)
     public List<PersonalAccessTokenResponse> listTokens(UUID userId, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         List<PersonalAccessToken> tokens = tokenRepository
                 .findAllByUserIdAndTenantIdOrderByCreatedAtDesc(userId, effectiveTenant);
 
@@ -128,7 +128,7 @@ public class PersonalAccessTokenService {
 
     @Transactional
     public void revokeToken(UUID tokenId, UUID userId, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         tokenRepository.findByIdAndUserIdAndTenantId(tokenId, userId, effectiveTenant)
                 .ifPresent(token -> {
                     token.setRevoked(true);
@@ -138,7 +138,7 @@ public class PersonalAccessTokenService {
                             userId.toString(),
                             "identity:tokens/" + tokenId,
                             null, null,
-                            Map.of("action", "REVOKE_PAT", "tokenId", tokenId.toString(), SharedConstants.TENANT_ID, effectiveTenant)
+                            Map.of(SharedConstants.ACTION, "REVOKE_PAT", "tokenId", tokenId.toString(), SharedConstants.TENANT_ID, effectiveTenant)
                     );
                     log.info("Revoked Personal Access Token id={} for user={} tenant={}", tokenId, userId, effectiveTenant);
                 });
@@ -146,7 +146,7 @@ public class PersonalAccessTokenService {
 
     private String hashToken(String token) {
         try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            MessageDigest digest = MessageDigest.getInstance(SharedConstants.SHA_256);
             byte[] hash = digest.digest(token.getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(hash);
         } catch (NoSuchAlgorithmException e) {

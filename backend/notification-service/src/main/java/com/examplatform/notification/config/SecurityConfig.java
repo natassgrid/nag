@@ -19,6 +19,7 @@
 
 package com.examplatform.notification.config;
 
+import com.examplatform.shared.constants.SharedConstants;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -67,7 +68,7 @@ public class SecurityConfig {
         return request -> {
             // 1. Authorization header takes precedence (populated directly or by API Gateway)
             String authHeader = request.getHeader("Authorization");
-            if (authHeader != null && authHeader.regionMatches(true, 0, "Bearer ", 0, 7)) {
+            if (authHeader != null && authHeader.regionMatches(true, 0, SharedConstants.BEARER_PREFIX, 0, 7)) {
                 String token = authHeader.substring(7).trim();
                 if (!token.isBlank()) {
                     return token;
@@ -80,7 +81,7 @@ public class SecurityConfig {
                 return tokenParam;
             }
 
-            String accessTokenParam = request.getParameter("access_token");
+            String accessTokenParam = request.getParameter(SharedConstants.ACCESS_TOKEN);
             if (accessTokenParam != null && !accessTokenParam.isBlank()) {
                 return accessTokenParam;
             }

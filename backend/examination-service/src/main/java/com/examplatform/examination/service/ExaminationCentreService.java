@@ -125,16 +125,16 @@ public class ExaminationCentreService {
     }
 
     private String resolveCentreSortProperty(String sort) {
-        if (sort == null || sort.isBlank()) return "createdAt";
+        if (sort == null || sort.isBlank()) return SharedConstants.CREATED_AT;
         return switch (sort.trim().toLowerCase()) {
-            case "centrename", "name" -> "centreName";
+            case "centrename", SharedConstants.NAME -> "centreName";
             case "city" -> "city";
             case "state" -> "state";
             case "district" -> "district";
             case "totalcapacity", "capacity" -> "totalCapacity";
             case "active" -> "active";
             case "updatedat" -> "updatedAt";
-            default -> "createdAt";
+            default -> SharedConstants.CREATED_AT;
         };
     }
 
@@ -237,14 +237,14 @@ public class ExaminationCentreService {
     private void publishAuditAllocation(ShiftSeatAllocation a, UUID actorId, String tenantId) {
         try {
             Map<String, Object> event = new LinkedHashMap<>();
-            event.put("eventType", "SEAT_ALLOCATION_UPDATED");
+            event.put(SharedConstants.EVENT_TYPE, "SEAT_ALLOCATION_UPDATED");
             event.put("allocationId", a.getId().toString());
             event.put("shiftId", a.getShiftId().toString());
             event.put("centreId", a.getCentreId().toString());
             event.put("availableSeats", a.getAvailableSeats());
             event.put("actorId", actorId != null ? actorId.toString() : null);
             event.put(SharedConstants.TENANT_ID, tenantId);
-            event.put("occurredAt", Instant.now().toString());
+            event.put(SharedConstants.OCCURRED_AT, Instant.now().toString());
             eventPublisher.publish(AUDIT_EVENTS_TOPIC, a.getId().toString(), event);
         } catch (Exception e) {
             log.error("Unexpected error publishing seat allocation audit: {}", e.getMessage());

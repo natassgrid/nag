@@ -109,7 +109,7 @@ public class RoleManagementService {
      * Get assigned roles for a specific user within a tenant.
      */
     public List<UserRole> getRoles(UUID userId, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         return roleAssignmentRepository.findByUserIdAndTenantId(userId, effectiveTenant)
                 .stream()
                 .map(UserRoleAssignment::getRole)
@@ -120,7 +120,7 @@ public class RoleManagementService {
      * List all user accounts in tenant.
      */
     public List<UserAccountResponse> listAllUsers(String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         List<UserAccount> accounts = userAccountRepository.findByTenantId(effectiveTenant);
         if (accounts.isEmpty()) {
             return Collections.emptyList();
@@ -147,7 +147,7 @@ public class RoleManagementService {
      * Get user profile by ID or username.
      */
     public UserAccountResponse getUserProfile(String userIdentifier, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         UserAccount account = findAccountByIdentifier(userIdentifier, effectiveTenant);
 
         List<String> roles = roleAssignmentRepository.findByUserIdAndTenantId(account.getId(), effectiveTenant)
@@ -212,7 +212,7 @@ public class RoleManagementService {
      * Update editable profile fields for a user.
      */
     public UserAccountResponse updateUserProfile(String userIdentifier, AdminUpdateUserRequest request, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         UserAccount account = findAccountByIdentifier(userIdentifier, effectiveTenant);
 
         applyIfPresent(account::setFullName, request.getFullName());
@@ -248,7 +248,7 @@ public class RoleManagementService {
      * Get active login sessions for a user.
      */
     public List<ActiveSessionResponse> getActiveSessions(String userIdentifier, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         UserAccount account = findAccountByIdentifier(userIdentifier, effectiveTenant);
 
         List<ActiveSession> sessions = activeSessionRepository.findAllByUserIdAndTenantId(account.getId(), effectiveTenant);
@@ -286,7 +286,7 @@ public class RoleManagementService {
      * Terminate individual session.
      */
     public void revokeSession(String userIdentifier, UUID sessionId, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         UserAccount account = findAccountByIdentifier(userIdentifier, effectiveTenant);
         log.info("Revoking session [{}] for user [{}] in tenant [{}]", sessionId, account.getId(), effectiveTenant);
         activeSessionRepository.findById(sessionId).ifPresent(s -> {
@@ -300,7 +300,7 @@ public class RoleManagementService {
      * Revoke other active sessions for user.
      */
     public void revokeOtherSessions(String userIdentifier, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         UserAccount account = findAccountByIdentifier(userIdentifier, effectiveTenant);
         log.info("Revoking other sessions for user [{}] in tenant [{}]", account.getId(), effectiveTenant);
     }
@@ -346,7 +346,7 @@ public class RoleManagementService {
      * @return list of matching reviewer responses
      */
     public List<ReviewerResponse> findReviewers(String subject, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         List<UserAccount> accounts = userAccountRepository.findByTenantId(effectiveTenant);
         if (accounts.isEmpty()) {
             return Collections.emptyList();
@@ -412,7 +412,7 @@ public class RoleManagementService {
                 actorId,
                 "identity:roles/" + targetUserId,
                 null, null,
-                Map.of(SharedConstants.TENANT_ID, tenantId, "action", action.name(),
+                Map.of(SharedConstants.TENANT_ID, tenantId, SharedConstants.ACTION, action.name(),
                         "targetUserId", targetUserId.toString(),
                         "role", role.name())
         );

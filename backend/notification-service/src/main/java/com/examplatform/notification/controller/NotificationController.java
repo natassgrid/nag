@@ -28,6 +28,7 @@ import com.examplatform.notification.dto.NotificationSendRequest;
 import com.examplatform.notification.service.DeviceTokenService;
 import com.examplatform.notification.service.NotificationPreferenceService;
 import com.examplatform.notification.service.NotificationProcessingService;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.tenant.TenantContext;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -63,7 +64,7 @@ public class NotificationController {
     public ResponseEntity<Notification> sendNotification(
             @Valid @RequestBody NotificationSendRequest request,
             @AuthenticationPrincipal Jwt jwt) {
-        String tenantId = TenantContext.get() != null ? TenantContext.get() : "default";
+        String tenantId = TenantContext.get() != null ? TenantContext.get() : SharedConstants.DEFAULT_TENANT;
         if (request.getTenantId() == null) {
             request.setTenantId(tenantId);
         }
@@ -90,7 +91,7 @@ public class NotificationController {
         if (userId == null && jwt != null && jwt.getSubject() != null) {
             userId = UUID.fromString(jwt.getSubject());
         }
-        String tenantId = TenantContext.get() != null ? TenantContext.get() : "default";
+        String tenantId = TenantContext.get() != null ? TenantContext.get() : SharedConstants.DEFAULT_TENANT;
 
         DeviceToken registered = deviceTokenService.registerToken(
                 userId != null ? userId : UUID.randomUUID(),
@@ -108,7 +109,7 @@ public class NotificationController {
     public ResponseEntity<NotificationPreference> getPreferences(
             @PathVariable UUID userId,
             @AuthenticationPrincipal Jwt jwt) {
-        String tenantId = TenantContext.get() != null ? TenantContext.get() : "default";
+        String tenantId = TenantContext.get() != null ? TenantContext.get() : SharedConstants.DEFAULT_TENANT;
         NotificationPreference preference = preferenceService.getPreferences(userId, tenantId);
         return ResponseEntity.ok(preference);
     }
@@ -122,7 +123,7 @@ public class NotificationController {
             @PathVariable UUID userId,
             @RequestBody NotificationPreferenceRequest request,
             @AuthenticationPrincipal Jwt jwt) {
-        String tenantId = TenantContext.get() != null ? TenantContext.get() : "default";
+        String tenantId = TenantContext.get() != null ? TenantContext.get() : SharedConstants.DEFAULT_TENANT;
         NotificationPreference updated = preferenceService.updatePreferences(userId, tenantId, request);
         return ResponseEntity.ok(updated);
     }

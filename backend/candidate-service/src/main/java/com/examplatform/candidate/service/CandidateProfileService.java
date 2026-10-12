@@ -28,6 +28,7 @@ import com.examplatform.candidate.exception.ProfileNotFoundException;
 import com.examplatform.candidate.repository.CandidateEducationRepository;
 import com.examplatform.candidate.repository.CandidateProfileRepository;
 import com.examplatform.shared.audit.AuditEventType;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.crypto.HashingService;
 import com.examplatform.shared.crypto.VaultCryptoService;
 import com.examplatform.shared.event.UserAuditEvent;
@@ -297,7 +298,7 @@ public class CandidateProfileService {
     @Transactional(readOnly = true)
     public Map<String, Object> getCandidateMetrics(String tenantId) {
         long total;
-        if (tenantId == null || "default".equalsIgnoreCase(tenantId) || tenantId.isBlank()) {
+        if (tenantId == null || SharedConstants.DEFAULT_TENANT.equalsIgnoreCase(tenantId) || tenantId.isBlank()) {
             total = candidateProfileRepository.count();
         } else {
             total = candidateProfileRepository.countByTenantId(tenantId);

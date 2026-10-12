@@ -153,7 +153,7 @@ public class AdminInvitationService {
                 invitedBy != null ? invitedBy.toString() : "SYSTEM",
                 "identity:invitations/" + saved.getId(),
                 null, null,
-                Map.of("action", "ADMIN_INVITED", "recipient", email, "roles", rolesStr, SharedConstants.TENANT_ID, tenantId)
+                Map.of(SharedConstants.ACTION, "ADMIN_INVITED", "recipient", email, "roles", rolesStr, SharedConstants.TENANT_ID, tenantId)
         );
 
         return AdminInviteResponse.builder()
@@ -217,7 +217,7 @@ public class AdminInvitationService {
      */
     @Transactional(readOnly = true)
     public boolean isTotpEnabled(UUID userId, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         return userAccountRepository.findByIdAndTenantId(userId, effectiveTenant)
                 .map(UserAccount::isMfaEnabled)
                 .orElse(false);
@@ -238,7 +238,7 @@ public class AdminInvitationService {
      */
     @Transactional
     public void verifyAndEnableTotp(UUID userId, TotpVerifySetupRequest request, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         UserAccount account = userAccountRepository.findByIdAndTenantId(userId, effectiveTenant)
                 .orElseThrow(() -> new AccountNotFoundException("User not found: " + userId + " in tenant: " + effectiveTenant));
 
@@ -258,7 +258,7 @@ public class AdminInvitationService {
                 userId.toString(),
                 "identity:users/" + userId,
                 null, null,
-                Map.of("action", "TOTP_2FA_ENABLED", "username", account.getUsername(), SharedConstants.TENANT_ID, effectiveTenant)
+                Map.of(SharedConstants.ACTION, "TOTP_2FA_ENABLED", "username", account.getUsername(), SharedConstants.TENANT_ID, effectiveTenant)
         );
     }
 
@@ -267,7 +267,7 @@ public class AdminInvitationService {
      */
     @Transactional
     public void disableTotp(UUID userId, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         UserAccount account = userAccountRepository.findByIdAndTenantId(userId, effectiveTenant)
                 .orElseThrow(() -> new AccountNotFoundException("User not found: " + userId + " in tenant: " + effectiveTenant));
         account.setMfaEnabled(false);
@@ -280,7 +280,7 @@ public class AdminInvitationService {
                 userId.toString(),
                 "identity:users/" + userId,
                 null, null,
-                Map.of("action", "TOTP_2FA_DISABLED", "username", account.getUsername(), SharedConstants.TENANT_ID, effectiveTenant)
+                Map.of(SharedConstants.ACTION, "TOTP_2FA_DISABLED", "username", account.getUsername(), SharedConstants.TENANT_ID, effectiveTenant)
         );
     }
 
@@ -346,7 +346,7 @@ public class AdminInvitationService {
                 account.getId().toString(),
                 "identity:invitations/" + invitation.getId(),
                 null, null,
-                Map.of("action", "ADMIN_INVITATION_ACCEPTED", "email", invitation.getEmail(), SharedConstants.TENANT_ID, invitation.getTenantId())
+                Map.of(SharedConstants.ACTION, "ADMIN_INVITATION_ACCEPTED", "email", invitation.getEmail(), SharedConstants.TENANT_ID, invitation.getTenantId())
         );
 
         return AuthTokenResponse.builder()
@@ -360,7 +360,7 @@ public class AdminInvitationService {
 
     private String hashToken(String rawToken) {
         try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            MessageDigest digest = MessageDigest.getInstance(SharedConstants.SHA_256);
             byte[] hash = digest.digest(rawToken.getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(hash);
         } catch (NoSuchAlgorithmException e) {

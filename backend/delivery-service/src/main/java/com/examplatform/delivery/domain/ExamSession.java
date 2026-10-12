@@ -19,6 +19,7 @@
 
 package com.examplatform.delivery.domain;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -55,7 +56,7 @@ public class ExamSession extends BaseEntity {
     private UUID paperId;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 20)
+    @Column(name = SharedConstants.STATUS, nullable = false, length = 20)
     private ExamSessionStatus status;
 
     @Column(name = "started_at", nullable = false)

@@ -19,6 +19,7 @@
 
 package com.examplatform.identity.domain;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -38,10 +39,10 @@ import lombok.*;
 @Table(name = "permission", schema = "identity_service")
 public class Permission extends BaseEntity {
 
-    @Column(name = "code", nullable = false, length = 100)
+    @Column(name = SharedConstants.CODE, nullable = false, length = 100)
     private String code;
 
-    @Column(name = "name", nullable = false, length = 200)
+    @Column(name = SharedConstants.NAME, nullable = false, length = 200)
     private String name;
 
     @Column(name = "description", length = 500)

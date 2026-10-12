@@ -19,6 +19,7 @@
 
 package com.examplatform.shared.messaging;
 
+import com.examplatform.shared.constants.MessagingConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -32,7 +33,7 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 @RequiredArgsConstructor
 public class RabbitEventPublisher implements EventPublisher {
 
-    public static final String EXCHANGE_NAME = "exam.events";
+    public static final String EXCHANGE_NAME = MessagingConstants.EXAM_EVENTS_TOPIC;
     public static final String DEAD_LETTER_EXCHANGE = "exam.events.dlx";
     public static final String DEAD_LETTER_QUEUE = "exam.events.dlq";
 

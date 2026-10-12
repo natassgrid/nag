@@ -25,6 +25,7 @@ import com.examplatform.evaluation.dto.ScoreRecordedResponse;
 import com.examplatform.evaluation.dto.ScoreRequest;
 import com.examplatform.evaluation.service.ManualEvaluationService;
 import com.examplatform.evaluation.service.ScoreAggregationService;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.tenant.TenantContext;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -86,7 +87,7 @@ public class EvaluationController {
         UUID sessionId = UUID.fromString(body.get("sessionId"));
         UUID candidateId = UUID.fromString(body.get("candidateId"));
         UUID examId = body.containsKey("examId") && body.get("examId") != null ? UUID.fromString(body.get("examId")) : null;
-        String tenantId = TenantContext.get() != null ? TenantContext.get() : "default";
+        String tenantId = TenantContext.get() != null ? TenantContext.get() : SharedConstants.DEFAULT_TENANT;
 
         log.info("Score aggregation requested for session={}, candidate={}, exam={}", sessionId, candidateId, examId);
 
@@ -105,7 +106,7 @@ public class EvaluationController {
     public ResponseEntity<List<Evaluation>> getCandidateEvaluations(
             @PathVariable UUID candidateId,
             @RequestParam(required = false) UUID sessionId,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
 
         log.info("Fetching evaluations for candidate={}, sessionId={}, tenant={}", candidateId, sessionId, tenantId);
 

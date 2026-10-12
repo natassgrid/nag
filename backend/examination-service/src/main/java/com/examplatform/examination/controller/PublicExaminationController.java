@@ -11,6 +11,7 @@ import com.examplatform.examination.dto.*;
 import com.examplatform.examination.service.ExamApplicationService;
 import com.examplatform.examination.service.ExaminationService;
 import com.examplatform.shared.api.ApiResponse;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -61,7 +62,7 @@ public class PublicExaminationController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
 
-        String tenantId = TenantContext.get() != null ? TenantContext.get() : "default";
+        String tenantId = TenantContext.get() != null ? TenantContext.get() : SharedConstants.DEFAULT_TENANT;
 
         log.debug("Public exam listing request: search={}, category={}, page={}, size={}, tenant={}",
                 search, category, page, size, tenantId);
@@ -92,7 +93,7 @@ public class PublicExaminationController {
             @RequestParam(required = false) String state,
             @RequestParam(required = false) String city) {
 
-        String tenantId = TenantContext.get() != null ? TenantContext.get() : "default";
+        String tenantId = TenantContext.get() != null ? TenantContext.get() : SharedConstants.DEFAULT_TENANT;
         List<PublicCentreResponse> centres = examApplicationService.listPublicCentres(tenantId, state, city);
         return ResponseEntity.ok(ApiResponse.success(centres, "Examination centres retrieved successfully"));
     }
@@ -109,7 +110,7 @@ public class PublicExaminationController {
             @AuthenticationPrincipal Jwt jwt) {
 
         UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
-        String tenantId = TenantContext.get() != null ? TenantContext.get() : "default";
+        String tenantId = TenantContext.get() != null ? TenantContext.get() : SharedConstants.DEFAULT_TENANT;
 
         log.info("Candidate {} applying for exam {} with center preferences", candidateId, examId);
 
@@ -137,7 +138,7 @@ public class PublicExaminationController {
             @AuthenticationPrincipal Jwt jwt) {
 
         UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
-        String tenantId = TenantContext.get() != null ? TenantContext.get() : "default";
+        String tenantId = TenantContext.get() != null ? TenantContext.get() : SharedConstants.DEFAULT_TENANT;
 
         List<ExamApplicationResponse> responses = examApplicationService.getMyApplications(candidateId, tenantId);
         return ResponseEntity.ok(ApiResponse.success(responses, "Candidate applications retrieved successfully"));
@@ -153,7 +154,7 @@ public class PublicExaminationController {
             @AuthenticationPrincipal Jwt jwt) {
 
         UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
-        String tenantId = TenantContext.get() != null ? TenantContext.get() : "default";
+        String tenantId = TenantContext.get() != null ? TenantContext.get() : SharedConstants.DEFAULT_TENANT;
 
         ExamApplicationResponse response = examApplicationService.getMyApplication(examId, candidateId, tenantId);
         if (response == null) {
@@ -172,7 +173,7 @@ public class PublicExaminationController {
             @AuthenticationPrincipal Jwt jwt) {
 
         UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
-        String tenantId = TenantContext.get() != null ? TenantContext.get() : "default";
+        String tenantId = TenantContext.get() != null ? TenantContext.get() : SharedConstants.DEFAULT_TENANT;
 
         log.info("Candidate {} requesting admit card for exam {}", candidateId, examId);
 
@@ -190,7 +191,7 @@ public class PublicExaminationController {
             @AuthenticationPrincipal Jwt jwt) {
 
         UUID userId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
-        String tenantId = TenantContext.get() != null ? TenantContext.get() : "default";
+        String tenantId = TenantContext.get() != null ? TenantContext.get() : SharedConstants.DEFAULT_TENANT;
 
         log.info("User {} requesting admit card for application {}", userId, applicationId);
 

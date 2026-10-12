@@ -23,6 +23,7 @@ import com.examplatform.papergenerator.dto.BlueprintFeasibilityResponse;
 import com.examplatform.papergenerator.dto.BlueprintTemplateRequest;
 import com.examplatform.papergenerator.dto.BlueprintTemplateResponse;
 import com.examplatform.papergenerator.service.BlueprintTemplateService;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.tenant.TenantContext;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -132,7 +133,7 @@ public class BlueprintTemplateController {
 
     private String tenantId() {
         String t = TenantContext.getTenantId();
-        return (t != null && !t.isBlank()) ? t : "default";
+        return (t != null && !t.isBlank()) ? t : SharedConstants.DEFAULT_TENANT;
     }
 
     private UUID extractUserId(Jwt jwt) {

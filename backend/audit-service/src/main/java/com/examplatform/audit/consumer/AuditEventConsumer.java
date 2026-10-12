@@ -20,6 +20,7 @@
 package com.examplatform.audit.consumer;
 
 import com.examplatform.audit.service.AuditIngestionService;
+import com.examplatform.shared.constants.MessagingConstants;
 import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.GenericDomainEvent;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -71,7 +72,7 @@ public class AuditEventConsumer {
     @RabbitListener(
             bindings = @QueueBinding(
                     value = @Queue(value = "audit.events.queue", durable = "true"),
-                    exchange = @Exchange(value = "exam.events", type = ExchangeTypes.TOPIC),
+                    exchange = @Exchange(value = MessagingConstants.EXAM_EVENTS_TOPIC, type = ExchangeTypes.TOPIC),
                     key = AUDIT_EVENTS_TOPIC
             )
     )
@@ -106,12 +107,12 @@ public class AuditEventConsumer {
         try {
             JsonNode root = objectMapper.readTree(message);
 
-            String eventType = getTextOrDefault(root, "eventType", "UNKNOWN");
+            String eventType = getTextOrDefault(root, SharedConstants.EVENT_TYPE, "UNKNOWN");
             String actorId = getTextOrDefault(root, "actorId", "00000000-0000-0000-0000-000000000000");
             String resource = getTextOrDefault(root, "resource", "unknown");
             String ipAddress = getTextOrNull(root, "ipAddress");
             String deviceFingerprint = getTextOrNull(root, "deviceFingerprint");
-            String tenantId = getTextOrDefault(root, SharedConstants.TENANT_ID, "default");
+            String tenantId = getTextOrDefault(root, SharedConstants.TENANT_ID, SharedConstants.DEFAULT_TENANT);
 
             auditIngestionService.ingest(message, eventType, actorId, resource,
                     ipAddress, deviceFingerprint, tenantId);

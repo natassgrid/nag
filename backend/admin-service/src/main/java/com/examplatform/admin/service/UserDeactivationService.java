@@ -87,11 +87,11 @@ public class UserDeactivationService {
 
     private void publishAuditEvent(UUID userId, UUID actorId, String tenantId) {
         Map<String, Object> auditEvent = Map.of(
-                "eventType", AuditEventType.ROLE_CHANGE.name(),
+            SharedConstants.EVENT_TYPE, AuditEventType.ROLE_CHANGE.name(),
                 "userId", userId.toString(),
                 "actorId", actorId.toString(),
             SharedConstants.TENANT_ID, tenantId,
-                "action", "USER_DEACTIVATED",
+            SharedConstants.ACTION, "USER_DEACTIVATED",
                 "timestamp", Instant.now().toString()
         );
         try {

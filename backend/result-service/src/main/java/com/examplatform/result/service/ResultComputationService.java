@@ -160,11 +160,11 @@ public class ResultComputationService {
      private void publishResultAuditEvent(UUID examId, int candidateCount, String tenantId) {
         try {
             Map<String, Object> event = Map.of(
-                    "eventType", "RESULT_PUBLISHED",
+                SharedConstants.EVENT_TYPE, "RESULT_PUBLISHED",
                     "examId", examId.toString(),
                     "candidateCount", candidateCount,
                 SharedConstants.TENANT_ID, tenantId,
-                    "occurredAt", Instant.now().toString()
+                SharedConstants.OCCURRED_AT, Instant.now().toString()
             );
             eventPublisher.publish(AUDIT_EVENTS_TOPIC, examId.toString(), event);
         } catch (Exception e) {

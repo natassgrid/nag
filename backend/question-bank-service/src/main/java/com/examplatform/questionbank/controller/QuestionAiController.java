@@ -24,6 +24,7 @@ import com.examplatform.questionbank.ai.generation.*;
 import com.examplatform.questionbank.ai.parser.NormalizedSampleQuestion;
 import com.examplatform.questionbank.ai.parser.SampleDocumentParserService;
 import com.examplatform.shared.api.ApiResponse;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -63,7 +64,7 @@ public class QuestionAiController {
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'QUESTION_AUTHOR')")
     public ResponseEntity<ApiResponse<QuestionGenerationResponse>> generateQuestions(
             @Valid @RequestBody QuestionGenerationRequest request,
-            @RequestHeader("X-Tenant-Id") String tenantId,
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
             @AuthenticationPrincipal Jwt jwt) {
 
         log.info("AI question generation requested: subject={}, topic={}, count={}, tenant={}",
@@ -91,7 +92,7 @@ public class QuestionAiController {
     public ResponseEntity<ApiResponse<QuestionGenerationResponse>> generateWithSamplesMultipart(
             @RequestPart(value = "file", required = false) MultipartFile file,
             @RequestPart("request") String requestJson,
-            @RequestHeader("X-Tenant-Id") String tenantId,
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
             @AuthenticationPrincipal Jwt jwt) throws IOException {
 
         UUID authorId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
@@ -123,7 +124,7 @@ public class QuestionAiController {
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'QUESTION_AUTHOR')")
     public ResponseEntity<ApiResponse<QuestionGenerationResponse>> generateWithSamplesJson(
             @Valid @RequestBody QuestionGenerationRequest request,
-            @RequestHeader("X-Tenant-Id") String tenantId,
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
             @AuthenticationPrincipal Jwt jwt) {
 
         UUID authorId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
@@ -159,7 +160,7 @@ public class QuestionAiController {
     @PostMapping("/embeddings/backfill")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> backfillEmbeddings(
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
 
         log.info("Starting embedding backfill for tenant={}", tenantId);
 

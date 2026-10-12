@@ -19,6 +19,7 @@
 
 package com.examplatform.result.client;
 
+import com.examplatform.shared.constants.SharedConstants;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
@@ -80,7 +81,7 @@ public class DigiLockerClientImpl implements DigiLockerClient {
                 log.info("DigiLocker scorecard push succeeded for candidate {}: docId={}, status={}",
                         candidateId,
                         response != null ? response.get("docId") : "N/A",
-                        response != null ? response.get("status") : "SUCCESS");
+                        response != null ? response.get(SharedConstants.STATUS) : "SUCCESS");
             } catch (Exception e) {
                 log.warn("Failed to push scorecard to DigiLocker at {}: {}", digiLockerPushUrl, e.getMessage());
             }

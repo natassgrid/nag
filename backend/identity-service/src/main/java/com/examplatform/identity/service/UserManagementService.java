@@ -65,7 +65,7 @@ public class UserManagementService {
      * in ACTIVE status, bypassing OTP verification.
      */
     public UserAccountResponse createUser(AdminCreateUserRequest request, String actorId, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         String emailHash = hashingService.sha256(request.getEmail().toLowerCase().trim());
 
         // Check for duplicate email within tenant
@@ -110,7 +110,7 @@ public class UserManagementService {
                 actorId,
                 "identity:users/" + saved.getId(),
                 null, null,
-                Map.of(SharedConstants.TENANT_ID, effectiveTenant, "action", "ADMIN_CREATE_USER",
+                Map.of(SharedConstants.TENANT_ID, effectiveTenant, SharedConstants.ACTION, "ADMIN_CREATE_USER",
                         "targetUsername", request.getEmail())
         );
 
@@ -131,7 +131,7 @@ public class UserManagementService {
      */
     public UserAccountResponse updateUser(UUID userId, AdminUpdateUserRequest request,
                                           String actorId, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         UserAccount account = userAccountRepository.findByIdAndTenantId(userId, effectiveTenant)
                 .orElseThrow(() -> new AccountNotFoundException("User not found: " + userId + " in tenant: " + effectiveTenant));
 
@@ -164,7 +164,7 @@ public class UserManagementService {
                 actorId,
                 "identity:users/" + userId,
                 null, null,
-                Map.of(SharedConstants.TENANT_ID, effectiveTenant, "action", "ADMIN_UPDATE_USER")
+                Map.of(SharedConstants.TENANT_ID, effectiveTenant, SharedConstants.ACTION, "ADMIN_UPDATE_USER")
         );
 
         return UserAccountResponse.builder()
@@ -182,7 +182,7 @@ public class UserManagementService {
      * Deactivates a user account by setting status to DEACTIVATED.
      */
     public void deactivateUser(UUID userId, String actorId, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         UserAccount account = userAccountRepository.findByIdAndTenantId(userId, effectiveTenant)
                 .orElseThrow(() -> new AccountNotFoundException("User not found: " + userId + " in tenant: " + effectiveTenant));
 
@@ -196,7 +196,7 @@ public class UserManagementService {
                 actorId,
                 "identity:users/" + userId,
                 null, null,
-                Map.of(SharedConstants.TENANT_ID, effectiveTenant, "action", "ADMIN_DEACTIVATE_USER")
+                Map.of(SharedConstants.TENANT_ID, effectiveTenant, SharedConstants.ACTION, "ADMIN_DEACTIVATE_USER")
         );
     }
 }

@@ -26,6 +26,7 @@ import com.examplatform.examination.exception.*;
 import com.examplatform.examination.repository.ExamShiftRepository;
 import com.examplatform.examination.repository.ExaminationRepository;
 import com.examplatform.examination.repository.ExaminationScheduleRepository;
+import com.examplatform.shared.constants.MessagingConstants;
 import com.examplatform.shared.constants.QuestionStateConstants;
 import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
@@ -60,7 +61,7 @@ import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_
 @Transactional
 public class ExaminationScheduleService {
 
-    private static final String NOTIF_TOPIC = "exam.notifications.outbound";
+    private static final String NOTIF_TOPIC = MessagingConstants.NOTIFICATIONS_OUTBOUND_TOPIC;
 
     // Valid forward transitions (Req 7b.7)
     private static final Map<String, String> NEXT_STATUS = Map.of(
@@ -457,12 +458,12 @@ public class ExaminationScheduleService {
 
     private Map<String, Object> createBaseScheduleEvent(String eventType, ExaminationSchedule schedule, String tenantId) {
         Map<String, Object> event = new LinkedHashMap<>();
-        event.put("eventType", eventType);
+        event.put(SharedConstants.EVENT_TYPE, eventType);
         event.put("scheduleId", schedule.getId().toString());
         event.put("examinationId", schedule.getExaminationId().toString());
         event.put("scheduleVersion", schedule.getScheduleVersion());
         event.put(SharedConstants.TENANT_ID, tenantId);
-        event.put("occurredAt", Instant.now().toString());
+        event.put(SharedConstants.OCCURRED_AT, Instant.now().toString());
         return event;
     }
 
@@ -485,12 +486,12 @@ public class ExaminationScheduleService {
                                UUID actorId, String tenantId) {
         try {
             Map<String, Object> event = new LinkedHashMap<>();
-            event.put("eventType", eventType);
+            event.put(SharedConstants.EVENT_TYPE, eventType);
             event.put("shiftId", shiftId.toString());
             event.put("scheduleId", scheduleId.toString());
             event.put("actorId", actorId != null ? actorId.toString() : null);
             event.put(SharedConstants.TENANT_ID, tenantId);
-            event.put("occurredAt", Instant.now().toString());
+            event.put(SharedConstants.OCCURRED_AT, Instant.now().toString());
             eventPublisher.publish(AUDIT_EVENTS_TOPIC, shiftId.toString(), event);
         } catch (Exception e) {
             log.error("Unexpected error publishing shift audit event: {}", e.getMessage());

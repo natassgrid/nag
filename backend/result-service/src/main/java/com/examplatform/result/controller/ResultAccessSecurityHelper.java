@@ -19,6 +19,7 @@
 
 package com.examplatform.result.controller;
 
+import com.examplatform.shared.constants.SharedConstants;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -30,7 +31,7 @@ import java.util.UUID;
 
 public final class ResultAccessSecurityHelper {
 
-    public static final String DEFAULT_TENANT_ID = "default";
+    public static final String DEFAULT_TENANT_ID = SharedConstants.DEFAULT_TENANT;
 
     private static final Set<String> ELEVATED_ROLES = Set.of(
             "ROLE_ADMIN", "ROLE_SUPER_ADMIN", "ROLE_EXAM_CONTROLLER"

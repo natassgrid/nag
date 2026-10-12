@@ -23,6 +23,7 @@ import com.examplatform.asset.dto.*;
 import com.examplatform.asset.service.AssetService;
 import com.examplatform.asset.service.ReferenceService;
 import com.examplatform.shared.api.ApiResponse;
+import com.examplatform.shared.constants.SharedConstants;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -66,7 +67,7 @@ public class AssetController {
     public ResponseEntity<ApiResponse<AssetUploadResponse>> uploadAsset(
             @RequestParam("file") MultipartFile file,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) throws IOException {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) throws IOException {
 
         UUID userId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         AssetUploadResponse response = assetService.upload(file, userId, tenantId);
@@ -83,7 +84,7 @@ public class AssetController {
             @PathVariable UUID id,
             @RequestParam("file") MultipartFile file,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) throws IOException {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) throws IOException {
 
         UUID userId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         AssetUploadResponse response = assetService.replaceContent(id, file, userId, tenantId);
@@ -108,7 +109,7 @@ public class AssetController {
     public ResponseEntity<ApiResponse<Page<AssetUploadResponse>>> listAssets(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
 
         Page<AssetUploadResponse> results = assetService.listAssets(page, size, tenantId);
         return ResponseEntity.ok(ApiResponse.success(results, "Assets retrieved successfully"));
@@ -123,7 +124,7 @@ public class AssetController {
             @ModelAttribute AssetSearchRequest searchRequest,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
 
         Page<AssetUploadResponse> results = assetService.searchAssets(searchRequest, page, size, tenantId);
         return ResponseEntity.ok(ApiResponse.success(results, "Search completed successfully"));
@@ -138,7 +139,7 @@ public class AssetController {
             @PathVariable UUID id,
             @Valid @RequestBody AssetMetadataUpdateRequest request,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
 
         UUID userId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         AssetUploadResponse response = assetService.updateMetadata(id, request, userId, tenantId);
@@ -153,7 +154,7 @@ public class AssetController {
     public ResponseEntity<ApiResponse<AssetReferenceResponse>> addReference(
             @Valid @RequestBody AssetReferenceRequest request,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
 
         UUID userId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         AssetReferenceResponse response = referenceService.addReference(request, userId, tenantId);
@@ -190,7 +191,7 @@ public class AssetController {
     public ResponseEntity<ApiResponse<Void>> deleteAsset(
             @PathVariable UUID id,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
 
         UUID userId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         assetService.deleteAsset(id, userId, tenantId);
@@ -257,7 +258,7 @@ public class AssetController {
     public ResponseEntity<ApiResponse<AssetUploadResponse>> archiveAsset(
             @PathVariable UUID id,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
 
         UUID actorId = getSubjectUserId(jwt);
         AssetUploadResponse res = assetService.archiveAsset(id, actorId, tenantId);
@@ -272,7 +273,7 @@ public class AssetController {
     public ResponseEntity<ApiResponse<AssetUploadResponse>> restoreAsset(
             @PathVariable UUID id,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
 
         UUID actorId = getSubjectUserId(jwt);
         AssetUploadResponse res = assetService.restoreAsset(id, actorId, tenantId);

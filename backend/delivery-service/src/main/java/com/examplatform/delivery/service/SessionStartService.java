@@ -29,6 +29,7 @@ import com.examplatform.delivery.dto.ShiftAssignment;
 import com.examplatform.delivery.exception.ConcurrentSessionException;
 import com.examplatform.delivery.repository.ExamSessionRepository;
 import com.examplatform.shared.config.DynamicConfigService;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.crypto.VaultCryptoService;
 import com.examplatform.shared.event.SessionEvents;
 import com.examplatform.shared.messaging.EventPublisher;
@@ -154,7 +155,7 @@ public class SessionStartService {
             mockExamAccessValidator.validateCandidateAccess(candidateId, request.getExamId());
         }
 
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         Instant now = Instant.now();
 
         // 1. Check for existing active session for this candidate
@@ -318,7 +319,7 @@ public class SessionStartService {
      * @return the session start/resume response
      */
     public SessionStartResponse resumeSession(ExamSession session, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         Instant now = Instant.now();
 
         // 1. Look up shift assignment for paper decryption if available
@@ -413,7 +414,7 @@ public class SessionStartService {
      */
     @Transactional
     public int terminateActiveSessionsForCandidate(UUID candidateId, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         List<ExamSession> existingSessions = examSessionRepository.findByCandidateIdAndTenantId(candidateId, effectiveTenant);
         Instant now = Instant.now();
         int count = 0;
@@ -428,7 +429,7 @@ public class SessionStartService {
     }
 
     public SessionStartResponse resumeSessionById(UUID sessionId, UUID candidateId, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         ExamSession session = examSessionRepository.findById(sessionId)
                 .orElseThrow(() -> new IllegalArgumentException("Session not found: " + sessionId));
 

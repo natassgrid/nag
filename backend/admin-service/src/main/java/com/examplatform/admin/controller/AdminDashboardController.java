@@ -21,6 +21,7 @@ package com.examplatform.admin.controller;
 
 import com.examplatform.admin.dto.DashboardSummaryResponse;
 import com.examplatform.admin.service.AdminDashboardService;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -67,6 +68,6 @@ public class AdminDashboardController {
         if (contextTenant != null && !contextTenant.isBlank()) {
             return contextTenant;
         }
-        return "default";
+        return SharedConstants.DEFAULT_TENANT;
     }
 }

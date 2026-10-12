@@ -23,6 +23,7 @@ import com.examplatform.identity.dto.AdminCreateUserRequest;
 import com.examplatform.identity.dto.AdminUpdateUserRequest;
 import com.examplatform.identity.dto.UserAccountResponse;
 import com.examplatform.identity.service.UserManagementService;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.response.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -57,7 +58,7 @@ public class UserManagementController {
     @PostMapping
     public ResponseEntity<ApiResponse<UserAccountResponse>> createUser(
             @Valid @RequestBody AdminCreateUserRequest request,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId,
             Authentication authentication) {
         String actorId = authentication.getName();
         log.debug("Admin [{}] creating user [{}] in tenant [{}]", actorId, request.getEmail(), tenantId);
@@ -73,7 +74,7 @@ public class UserManagementController {
     public ResponseEntity<ApiResponse<UserAccountResponse>> updateUser(
             @PathVariable UUID userId,
             @Valid @RequestBody AdminUpdateUserRequest request,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId,
             Authentication authentication) {
         String actorId = authentication.getName();
         log.debug("Admin [{}] updating user [{}] in tenant [{}]", actorId, userId, tenantId);
@@ -87,7 +88,7 @@ public class UserManagementController {
     @DeleteMapping("/{userId}")
     public ResponseEntity<ApiResponse<Void>> deactivateUser(
             @PathVariable UUID userId,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId,
             Authentication authentication) {
         String actorId = authentication.getName();
         log.debug("Admin [{}] deactivating user [{}] in tenant [{}]", actorId, userId, tenantId);

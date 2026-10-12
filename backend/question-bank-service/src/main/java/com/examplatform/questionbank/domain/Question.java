@@ -108,7 +108,7 @@ public class Question extends BaseEntity {
     @Column(name = "chapter", length = 200)
     private String chapter;
 
-    @Column(name = "difficulty", nullable = false, length = 20)
+    @Column(name = SharedConstants.DIFFICULTY, nullable = false, length = 20)
     private String difficulty;
 
     /** Expected completion time in seconds for pacing telemetry and performance analysis. */
@@ -123,7 +123,7 @@ public class Question extends BaseEntity {
     private String questionType;
 
     @Convert(converter = EncryptedFieldConverter.class)
-    @Column(name = "content", columnDefinition = "TEXT")
+    @Column(name = SharedConstants.CONTENT, columnDefinition = "TEXT")
     private String content;
 
     @Convert(converter = EncryptedFieldConverter.class)

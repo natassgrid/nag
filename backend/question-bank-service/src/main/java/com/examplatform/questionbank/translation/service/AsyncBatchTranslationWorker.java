@@ -285,7 +285,7 @@ public class AsyncBatchTranslationWorker {
                 return;
             }
 
-            PageRequest pageRequest = PageRequest.of(pageNumber, context.batchSize(), Sort.by("createdAt").ascending());
+            PageRequest pageRequest = PageRequest.of(pageNumber, context.batchSize(), Sort.by(SharedConstants.CREATED_AT).ascending());
             page = questionRepository.findAll(spec, pageRequest);
 
             if (pageNumber == 0) {
@@ -390,7 +390,7 @@ public class AsyncBatchTranslationWorker {
             if (tenantId != null && !tenantId.isBlank()) {
                 predicates.add(cb.or(
                         cb.equal(root.get(SharedConstants.TENANT_ID), tenantId),
-                        cb.equal(root.get(SharedConstants.TENANT_ID), "default")
+                        cb.equal(root.get(SharedConstants.TENANT_ID), SharedConstants.DEFAULT_TENANT)
                 ));
             }
 

@@ -147,7 +147,7 @@ public class TranslationController {
     @GetMapping("/batch")
     @PreAuthorize("hasAnyRole('ADMIN', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
     public ResponseEntity<Page<BatchTranslationJobResponse>> listBatchJobs(
-            @PageableDefault(size = 20, sort = {"updatedAt", "createdAt"}, direction = Sort.Direction.DESC) Pageable pageable) {
+            @PageableDefault(size = 20, sort = {"updatedAt", SharedConstants.CREATED_AT}, direction = Sort.Direction.DESC) Pageable pageable) {
         Page<BatchTranslationJobResponse> jobs = batchTranslationService.listJobs(tenantId(), pageable);
         return ResponseEntity.ok(jobs);
     }
@@ -212,7 +212,7 @@ public class TranslationController {
 
         return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
                 "translationId", translation.getId(),
-                "status", translation.getStatus().name(),
+            SharedConstants.STATUS, translation.getStatus().name(),
             SharedConstants.MESSAGE, "Translation request created successfully"
         ));
     }
@@ -236,7 +236,7 @@ public class TranslationController {
 
         return ResponseEntity.ok(Map.of(
                 "translationId", translation.getId(),
-                "status", translation.getStatus().name(),
+            SharedConstants.STATUS, translation.getStatus().name(),
             SharedConstants.MESSAGE, "Translation resubmitted successfully"
         ));
     }
@@ -267,7 +267,7 @@ public class TranslationController {
 
         return ResponseEntity.ok(Map.of(
                 "translationId", translation.getId(),
-                "status", translation.getStatus().name(),
+            SharedConstants.STATUS, translation.getStatus().name(),
             SharedConstants.MESSAGE, "Translation approved successfully"
         ));
     }
@@ -288,7 +288,7 @@ public class TranslationController {
 
         return ResponseEntity.ok(Map.of(
                 "translationId", id,
-                "status", QuestionStateConstants.DRAFT,
+            SharedConstants.STATUS, QuestionStateConstants.DRAFT,
             SharedConstants.MESSAGE, "Translation rejected; translator notified"
         ));
     }
@@ -365,7 +365,7 @@ public class TranslationController {
 
     private String tenantId() {
         String t = TenantContext.get();
-        return t != null ? t : "default";
+        return t != null ? t : SharedConstants.DEFAULT_TENANT;
     }
 
     private UUID extractUserId(Jwt jwt) {

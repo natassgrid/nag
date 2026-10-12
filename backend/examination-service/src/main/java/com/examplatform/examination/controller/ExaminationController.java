@@ -23,6 +23,7 @@ import com.examplatform.examination.dto.CreateExaminationRequest;
 import com.examplatform.examination.dto.ExaminationResponse;
 import com.examplatform.examination.service.ExaminationService;
 import com.examplatform.shared.api.ApiResponse;
+import com.examplatform.shared.constants.SharedConstants;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -54,7 +55,7 @@ public class ExaminationController {
     @GetMapping
     @PreAuthorize("hasRole('EXAM_CONTROLLER')")
     public ResponseEntity<ApiResponse<org.springframework.data.domain.Page<ExaminationResponse>>> list(
-            @RequestHeader("X-Tenant-Id") String tenantId,
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String search,
@@ -72,7 +73,7 @@ public class ExaminationController {
     @PostMapping
     @PreAuthorize("hasRole('EXAM_CONTROLLER')")
     public ResponseEntity<ApiResponse<ExaminationResponse>> create(
-            @RequestHeader("X-Tenant-Id") String tenantId,
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
             @Valid @RequestBody CreateExaminationRequest request,
             @AuthenticationPrincipal Jwt jwt) {
         ExaminationResponse response = examinationService.create(request, tenantId);
@@ -87,7 +88,7 @@ public class ExaminationController {
     @PreAuthorize("hasRole('EXAM_CONTROLLER')")
     public ResponseEntity<ApiResponse<ExaminationResponse>> update(
             @PathVariable UUID examId,
-            @RequestHeader("X-Tenant-Id") String tenantId,
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
             @Valid @RequestBody CreateExaminationRequest request,
             @AuthenticationPrincipal Jwt jwt) {
         ExaminationResponse response = examinationService.update(examId, request, tenantId);
@@ -102,7 +103,7 @@ public class ExaminationController {
     @PreAuthorize("hasRole('EXAM_CONTROLLER')")
     public ResponseEntity<ApiResponse<ExaminationResponse>> publish(
             @PathVariable UUID examId,
-            @RequestHeader("X-Tenant-Id") String tenantId,
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
             @AuthenticationPrincipal Jwt jwt) {
         ExaminationResponse response = examinationService.publish(examId, tenantId);
         return ResponseEntity.ok(ApiResponse.success(response, "Examination published successfully"));

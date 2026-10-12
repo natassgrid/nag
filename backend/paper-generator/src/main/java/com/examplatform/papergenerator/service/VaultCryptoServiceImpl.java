@@ -19,6 +19,7 @@
 
 package com.examplatform.papergenerator.service;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.crypto.VaultCryptoService;
 
 import lombok.RequiredArgsConstructor;
@@ -209,7 +210,7 @@ public class VaultCryptoServiceImpl implements VaultCryptoService {
     }
 
     private byte[] deriveKey(String keyName) throws Exception {
-        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        MessageDigest digest = MessageDigest.getInstance(SharedConstants.SHA_256);
         return digest.digest(keyName.getBytes(StandardCharsets.UTF_8));
     }
 }

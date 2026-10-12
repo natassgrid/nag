@@ -133,7 +133,7 @@ public class ScoreAggregationService {
     private void publishAggregationEvent(AggregatedScoreResult aggregation) {
         try {
             Map<String, Object> event = new HashMap<>();
-            event.put("eventType", "SCORES_AGGREGATED");
+            event.put(SharedConstants.EVENT_TYPE, "SCORES_AGGREGATED");
             event.put("sessionId", aggregation.sessionId());
             event.put("candidateId", aggregation.candidateId());
             event.put("totalRawScore", aggregation.totalRawScore());
@@ -141,7 +141,7 @@ public class ScoreAggregationService {
             event.put("sectionScores", aggregation.sectionScores());
             event.put("evaluationCount", aggregation.evaluationCount());
             event.put(SharedConstants.TENANT_ID, aggregation.tenantId());
-            event.put("occurredAt", Instant.now().toString());
+            event.put(SharedConstants.OCCURRED_AT, Instant.now().toString());
 
             String key = aggregation.sessionId() + ":" + aggregation.candidateId();
             eventPublisher.publish(EVALUATION_EVENTS_TOPIC, key, event);
@@ -170,7 +170,7 @@ public class ScoreAggregationService {
                     .toList();
 
             Map<String, Object> event = new java.util.HashMap<>();
-            event.put("eventType", "EVALUATION_COMPLETED");
+            event.put(SharedConstants.EVENT_TYPE, "EVALUATION_COMPLETED");
             event.put("sessionId", sessionId.toString());
             event.put("candidateId", candidateId.toString());
             event.put("examId", examId != null ? examId.toString() : "");

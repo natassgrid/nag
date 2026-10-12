@@ -59,7 +59,7 @@ public class OtpVerificationService {
      */
     @Transactional
     public AuthTokenResponse verifyOtpAndActivate(OtpVerifyRequest request, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         UserAccount account;
         if (request.getUserId() != null && !request.getUserId().isBlank()) {
             UUID uid = UUID.fromString(request.getUserId().trim());

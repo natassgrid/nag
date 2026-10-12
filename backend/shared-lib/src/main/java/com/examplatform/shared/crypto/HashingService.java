@@ -19,6 +19,7 @@
 
 package com.examplatform.shared.crypto;
 
+import com.examplatform.shared.constants.SharedConstants;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -59,7 +60,7 @@ public class HashingService {
             return null;
         }
         try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            MessageDigest digest = MessageDigest.getInstance(SharedConstants.SHA_256);
             byte[] hashBytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
             StringBuilder hex = new StringBuilder();
             for (byte b : hashBytes) {

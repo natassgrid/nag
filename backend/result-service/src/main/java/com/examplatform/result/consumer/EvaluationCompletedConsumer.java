@@ -24,6 +24,7 @@ import com.examplatform.result.dto.CandidateScoreInput;
 import com.examplatform.result.repository.ResultRepository;
 import com.examplatform.result.service.QuestionAnalyticsService;
 import com.examplatform.result.service.ResultComputationService;
+import com.examplatform.shared.constants.MessagingConstants;
 import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.AbstractEvaluationCompletedConsumer;
 import com.examplatform.shared.util.DataConversionUtils;
@@ -82,7 +83,7 @@ public class EvaluationCompletedConsumer extends AbstractEvaluationCompletedCons
     @RabbitListener(
             bindings = @QueueBinding(
                     value = @Queue(value = "result.evaluation.events.queue", durable = "true"),
-                    exchange = @Exchange(value = "exam.events", type = ExchangeTypes.TOPIC),
+                    exchange = @Exchange(value = MessagingConstants.EXAM_EVENTS_TOPIC, type = ExchangeTypes.TOPIC),
                     key = EVALUATION_COMPLETED_TOPIC
             )
     )
@@ -95,7 +96,7 @@ public class EvaluationCompletedConsumer extends AbstractEvaluationCompletedCons
         handleEvaluationCompleted(payload, event -> {
             UUID candidateId = UUID.fromString((String) event.get("candidateId"));
             UUID examId      = DataConversionUtils.parseUUID(event.get("examId"));
-            String tenantId  = (String) event.getOrDefault(SharedConstants.TENANT_ID, "default");
+            String tenantId  = (String) event.getOrDefault(SharedConstants.TENANT_ID, SharedConstants.DEFAULT_TENANT);
             double totalRawScore = DataConversionUtils.toDouble(event.get("totalRawScore"));
 
             // Idempotency: skip if result already exists

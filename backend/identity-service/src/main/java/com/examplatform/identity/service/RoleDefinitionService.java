@@ -63,7 +63,7 @@ public class RoleDefinitionService {
      */
     public Page<RoleDefinitionResponse> listRoles(String tenantId, int page, int size, String search) {
         tenantBootstrapService.ensureTenantBootstrapped(tenantId);
-        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "name"));
+        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, SharedConstants.NAME));
         Page<RoleDefinition> roles = roleDefinitionRepository.findByTenantIdAndSearch(tenantId, search, pageRequest);
         return roles.map(this::toResponse);
     }
@@ -142,7 +142,7 @@ public class RoleDefinitionService {
                 actorId,
                 "identity:role-definitions/" + roleId,
                 null, null,
-                Map.of("action", "DELETE",
+                Map.of(SharedConstants.ACTION, "DELETE",
                         "roleCode", role.getCode(),
                     SharedConstants.TENANT_ID, tenantId)
         );
@@ -153,7 +153,7 @@ public class RoleDefinitionService {
      */
     public Page<PermissionResponse> listPermissions(String tenantId, int page, int size, String search) {
         tenantBootstrapService.ensureTenantBootstrapped(tenantId);
-        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "module", "name"));
+        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "module", SharedConstants.NAME));
         Page<Permission> permissions = permissionRepository.findByTenantIdAndSearch(tenantId, search, pageRequest);
         return permissions.map(this::toPermissionResponse);
     }
@@ -206,7 +206,7 @@ public class RoleDefinitionService {
                 actorId,
                 "identity:role-definitions/" + saved.getId(),
                 null, null,
-                Map.of("action", action,
+                Map.of(SharedConstants.ACTION, action,
                         "roleCode", saved.getCode(),
                     SharedConstants.TENANT_ID, tenantId)
         );

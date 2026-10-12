@@ -20,6 +20,7 @@
 package com.examplatform.candidate.client;
 
 import com.examplatform.candidate.dto.DigiLockerResponse;
+import com.examplatform.shared.constants.SharedConstants;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
@@ -86,7 +87,7 @@ public class DigiLockerClientImpl implements DigiLockerClient {
                 ? redirectUri : defaultRedirectUri;
 
         String authUrl = UriComponentsBuilder.fromUriString(effectiveAuthUrl)
-                .queryParam("response_type", "code")
+                .queryParam("response_type", SharedConstants.CODE)
                 .queryParam("client_id", clientId)
                 .queryParam("redirect_uri", effectiveRedirectUri)
                 .queryParam("state", state != null ? state : "")
@@ -109,7 +110,7 @@ public class DigiLockerClientImpl implements DigiLockerClient {
         try {
             MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
             formData.add("grant_type", "authorization_code");
-            formData.add("code", code != null ? code : "");
+            formData.add(SharedConstants.CODE, code != null ? code : "");
             formData.add("redirect_uri", effectiveRedirectUri);
             formData.add("client_id", clientId);
             formData.add("client_secret", clientSecret);
@@ -121,7 +122,7 @@ public class DigiLockerClientImpl implements DigiLockerClient {
                     .retrieve()
                     .body(MAP_TYPE);
 
-            if (response != null && response.containsKey("access_token")) {
+            if (response != null && response.containsKey(SharedConstants.ACCESS_TOKEN)) {
                 log.info("Successfully received OAuth2 access token from DigiLocker");
                 return response;
             }
@@ -132,7 +133,7 @@ public class DigiLockerClientImpl implements DigiLockerClient {
 
         // Fallback mock token for resilient testing/offline environments
         Map<String, Object> fallback = new HashMap<>();
-        fallback.put("access_token", "mock_dl_token_" + code);
+        fallback.put(SharedConstants.ACCESS_TOKEN, "mock_dl_token_" + code);
         fallback.put("token_type", "Bearer");
         fallback.put("expires_in", 3600);
         fallback.put("id_token", "mock_id_token");
@@ -148,7 +149,7 @@ public class DigiLockerClientImpl implements DigiLockerClient {
         try {
             Map<String, Object> userInfo = restClient.get()
                     .uri(effectiveUserinfoUrl)
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + (token != null ? token : ""))
+                    .header(HttpHeaders.AUTHORIZATION, SharedConstants.BEARER_PREFIX + (token != null ? token : ""))
                     .accept(MediaType.APPLICATION_JSON)
                     .retrieve()
                     .body(MAP_TYPE);
@@ -161,7 +162,7 @@ public class DigiLockerClientImpl implements DigiLockerClient {
         }
 
         return Map.of(
-                "name", "Aditya Sharma",
+            SharedConstants.NAME, "Aditya Sharma",
                 "dob", "1998-05-15",
                 "gender", "M",
                 "digilocker_id", "DL-IND-9012-2026",
@@ -178,7 +179,7 @@ public class DigiLockerClientImpl implements DigiLockerClient {
             try {
                 Map<String, Object> response = restClient.post()
                         .uri(effectiveVerifyUrl)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + (token != null ? token : ""))
+                        .header(HttpHeaders.AUTHORIZATION, SharedConstants.BEARER_PREFIX + (token != null ? token : ""))
                         .contentType(MediaType.APPLICATION_JSON)
                         .body(Map.of(
                                 "token", token != null ? token : "",
@@ -188,7 +189,7 @@ public class DigiLockerClientImpl implements DigiLockerClient {
                         .body(MAP_TYPE);
 
                 if (response != null) {
-                    String status = response.get("status") != null ? String.valueOf(response.get("status")) : "SUCCESS";
+                    String status = response.get(SharedConstants.STATUS) != null ? String.valueOf(response.get(SharedConstants.STATUS)) : "SUCCESS";
                     String docData = response.get("documentData") != null ? String.valueOf(response.get("documentData")) : "MOCK_DOC_DATA";
                     String issuerId = response.get("issuerId") != null ? String.valueOf(response.get("issuerId")) : (docType != null ? docType : "in.gov.uidai");
                     return new DigiLockerResponse(status, docData, issuerId);

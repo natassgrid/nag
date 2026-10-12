@@ -19,6 +19,7 @@
 
 package com.examplatform.examination.domain;
 
+import com.examplatform.shared.constants.SharedConstants;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -43,7 +44,7 @@ public class GeoState {
     @Column(name = "id")
     private Long id;
 
-    @Column(name = "name", nullable = false)
+    @Column(name = SharedConstants.NAME, nullable = false)
     private String name;
 
     @Column(name = "country_id", nullable = false)

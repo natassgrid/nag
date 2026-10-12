@@ -84,7 +84,7 @@ public class CandidateEducationService {
                 .orElseThrow(() -> new EducationNotFoundException(
                         "Educational record not found for id=" + educationId + " and userId=" + userId));
 
-        BeanUtils.copyProperties(request, education, "id", "userId", SharedConstants.TENANT_ID, "createdAt", "updatedAt");
+        BeanUtils.copyProperties(request, education, "id", "userId", SharedConstants.TENANT_ID, SharedConstants.CREATED_AT, "updatedAt");
 
         CandidateEducation updated = candidateEducationRepository.save(education);
         log.info("Updated education record id={} for candidate userId={} in tenant={}", educationId, userId, tenantId);

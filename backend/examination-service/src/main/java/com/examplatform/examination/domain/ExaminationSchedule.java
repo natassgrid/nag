@@ -19,6 +19,7 @@
 
 package com.examplatform.examination.domain;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -99,7 +100,7 @@ public class ExaminationSchedule extends BaseEntity {
      * DRAFT | SCHEDULER_REVIEW | CONTROLLER_APPROVED |
      * SECURITY_REVIEW | CHAIRMAN_APPROVED | PUBLISHED | CANCELLED
      */
-    @Column(name = "status", nullable = false, length = 30)
+    @Column(name = SharedConstants.STATUS, nullable = false, length = 30)
     private String status;
 
     /** Mandatory when amending a PUBLISHED schedule. */

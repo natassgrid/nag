@@ -64,8 +64,8 @@ public class QuestionExportService {
     static final List<String> CSV_HEADERS = List.of(
             "id", "subjectId", "topicId", "subtopicId",
         SharedConstants.SUBJECT, "topic", "subtopic", "chapter",
-            "difficulty", "cognitiveLevel", "questionType",
-            "content", "answerKey", "explanation", "references",
+        SharedConstants.DIFFICULTY, "cognitiveLevel", "questionType",
+        SharedConstants.CONTENT, "answerKey", "explanation", "references",
             "state", "optionsJson");
 
     private final QuestionService questionService;

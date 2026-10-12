@@ -19,6 +19,7 @@
 
 package com.examplatform.shared.security;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.tenant.TenantContext;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -78,7 +79,7 @@ public class UserContextFilter extends OncePerRequestFilter {
                 }
 
                 if (tenantId == null || tenantId.isBlank()) {
-                    tenantId = request.getHeader("X-Tenant-Id");
+                    tenantId = request.getHeader(SharedConstants.HEADER_TENANT_ID);
                 }
                 if (tenantId != null && !tenantId.isBlank()) {
                     TenantContext.set(tenantId);
@@ -95,7 +96,7 @@ public class UserContextFilter extends OncePerRequestFilter {
                         roles
                 ));
             } else {
-                String headerTenant = request.getHeader("X-Tenant-Id");
+                String headerTenant = request.getHeader(SharedConstants.HEADER_TENANT_ID);
                 if (headerTenant != null && !headerTenant.isBlank()) {
                     TenantContext.set(headerTenant);
                 }

@@ -23,6 +23,7 @@ import com.examplatform.questionbank.domain.QuestionVersion;
 import com.examplatform.questionbank.dto.*;
 import com.examplatform.questionbank.service.*;
 import com.examplatform.shared.api.ApiResponse;
+import com.examplatform.shared.constants.SharedConstants;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -74,7 +75,7 @@ public class QuestionController {
     public ResponseEntity<ApiResponse<QuestionResponse>> createQuestion(
             @Valid @RequestBody CreateQuestionRequest request,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
 
         UUID authorId = getActorId(jwt);
 
@@ -123,7 +124,7 @@ public class QuestionController {
             @RequestParam(defaultValue = "desc") String order,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
 
         log.info("Listing questions: tenant={}, subject={}, subjectId={}, topic={}, topicId={}, difficulty={}, state={}, targetLang={}, translationStatus={}, sort={}, order={}, page={}, size={}",
                 tenantId, subject, subjectId, topic, topicId, difficulty, state, targetLang, translationStatus, sort, order, page, size);
@@ -160,7 +161,7 @@ public class QuestionController {
     public ResponseEntity<ApiResponse<QuestionResponse>> submitForReview(
             @PathVariable UUID id,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
 
         UUID authorId = getActorId(jwt);
         log.info("Submitting question for review: id={}, author={}, tenant={}", id, authorId, tenantId);
@@ -185,7 +186,7 @@ public class QuestionController {
             @PathVariable UUID id,
             @Valid @RequestBody TransitionRequest request,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
 
         UUID actorId = getActorId(jwt);
         log.info("Transitioning question: id={}, targetState={}, actor={}, tenant={}",
@@ -209,7 +210,7 @@ public class QuestionController {
     public ResponseEntity<ApiResponse<BulkTransitionResponse>> bulkTransition(
             @Valid @RequestBody BulkTransitionRequest request,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
 
         UUID actorId = getActorId(jwt);
         log.info("Bulk transitioning {} questions to {} by actor={}, tenant={}",
@@ -236,7 +237,7 @@ public class QuestionController {
     public ResponseEntity<ApiResponse<QuestionResponse>> approve(
             @PathVariable UUID id,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
 
         UUID reviewerId = getActorId(jwt);
         log.info("Approving question: id={}, reviewer={}, tenant={}", id, reviewerId, tenantId);
@@ -262,7 +263,7 @@ public class QuestionController {
     public ResponseEntity<ApiResponse<QuestionResponse>> publish(
             @PathVariable UUID id,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
 
         UUID publisherId = getActorId(jwt);
         log.info("Publishing question: id={}, publisher={}, tenant={}", id, publisherId, tenantId);
@@ -289,7 +290,7 @@ public class QuestionController {
             @PathVariable UUID id,
             @RequestBody java.util.Map<String, String> payload,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
 
         UUID reviewerId = getActorId(jwt);
         String comments = payload.get("comments");
@@ -323,7 +324,7 @@ public class QuestionController {
             @PathVariable UUID id,
             @Valid @RequestBody CreateQuestionRequest request,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
 
         UUID authorId = getActorId(jwt);
         log.info("Updating question: id={}, author={}, tenant={}", id, authorId, tenantId);
@@ -348,7 +349,7 @@ public class QuestionController {
     public ResponseEntity<ApiResponse<Void>> deleteQuestion(
             @PathVariable UUID id,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader(value = "X-Tenant-Id", required = false) String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, required = false) String tenantId) {
 
         UUID actorId = (jwt != null && jwt.getSubject() != null) ? getActorId(jwt) : null;
         log.info("Deleting question: id={}, actor={}, tenant={}", id, actorId, tenantId);
@@ -395,7 +396,7 @@ public class QuestionController {
             @RequestParam(required = false) String state,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
 
         log.info("Searching questions: query='{}', tenant={}, difficulty={}, state={}, page={}, size={}",
                 query, tenantId, difficulty, state, page, size);
@@ -435,7 +436,7 @@ public class QuestionController {
     @PreAuthorize("permitAll() or hasAnyRole('EXAM_CONTROLLER', 'ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<List<QuestionResponse>>> matchBlueprint(
             @Valid @RequestBody BlueprintMatchRequest request,
-            @RequestHeader(value = "X-Tenant-Id", required = false) String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, required = false) String tenantId) {
 
         List<QuestionResponse> questions = questionService.findBlueprintQuestions(
                 request.getSubject(),
@@ -460,7 +461,7 @@ public class QuestionController {
     @PreAuthorize("permitAll() or hasAnyRole('EXAM_CONTROLLER', 'ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<List<QuestionResponse>>> getQuestionsByIds(
             @RequestBody List<UUID> ids,
-            @RequestHeader(value = "X-Tenant-Id", required = false) String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, required = false) String tenantId) {
 
         List<QuestionResponse> questions = questionService.findQuestionsByIds(ids, tenantId);
         return ResponseEntity.ok(ApiResponse.success(questions, "Questions retrieved successfully"));

@@ -21,6 +21,7 @@ package com.examplatform.notification.controller;
 
 import com.examplatform.notification.domain.Notification;
 import com.examplatform.notification.service.InAppNotificationService;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -70,7 +71,7 @@ public class InAppNotificationController {
             @PageableDefault(size = 20) Pageable pageable,
             @AuthenticationPrincipal Jwt jwt) {
         UUID userId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
-        String tenantId = TenantContext.get() != null ? TenantContext.get() : "default";
+        String tenantId = TenantContext.get() != null ? TenantContext.get() : SharedConstants.DEFAULT_TENANT;
 
         Page<Notification> notifications = inAppNotificationService.getNotifications(
                 userId, tenantId, pageable);
@@ -127,7 +128,7 @@ public class InAppNotificationController {
             @PathVariable UUID id,
             @AuthenticationPrincipal Jwt jwt) {
         UUID userId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
-        String tenantId = TenantContext.get() != null ? TenantContext.get() : "default";
+        String tenantId = TenantContext.get() != null ? TenantContext.get() : SharedConstants.DEFAULT_TENANT;
 
         Notification notification = inAppNotificationService.markAsRead(id, userId, tenantId);
         return ResponseEntity.ok(notification);

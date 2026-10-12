@@ -19,6 +19,7 @@
 
 package com.examplatform.identity.domain;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -53,7 +54,7 @@ public class AdminInvitation extends BaseEntity {
     private String tokenHash;
 
     @Builder.Default
-    @Column(name = "status", nullable = false)
+    @Column(name = SharedConstants.STATUS, nullable = false)
     private String status = "PENDING"; // PENDING, ACCEPTED, EXPIRED, REVOKED
 
     @Column(name = "expires_at", nullable = false)

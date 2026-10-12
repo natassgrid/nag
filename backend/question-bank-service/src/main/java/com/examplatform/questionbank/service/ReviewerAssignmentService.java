@@ -22,6 +22,7 @@ package com.examplatform.questionbank.service;
 import com.examplatform.questionbank.client.ReviewerPoolClient;
 import com.examplatform.questionbank.dto.ReviewerAssignment;
 import com.examplatform.questionbank.dto.ReviewerDto;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -85,7 +86,7 @@ public class ReviewerAssignmentService {
      * @return populated ReviewerAssignment
      */
     public ReviewerAssignment assignReviewers(String subject, UUID authorId, String tenantId, boolean dualReviewRequired) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         List<ReviewerDto> pool = getCachedReviewerPool(subject, effectiveTenant);
 
         if (pool.isEmpty()) {
@@ -172,7 +173,7 @@ public class ReviewerAssignmentService {
      */
     public void releaseReviewerLoad(UUID reviewerId, String tenantId) {
         if (reviewerId == null) return;
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         String key = REDIS_KEY_LOAD_PREFIX + effectiveTenant + ":" + reviewerId;
 
         StringRedisTemplate redis = getRedisTemplate();

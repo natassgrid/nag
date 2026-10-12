@@ -154,12 +154,12 @@ public class ResponseSaveService {
             if (Boolean.TRUE.equals(wasAbsent)) {
                 // No audit event published for this candidate in last 60s — publish now
                 Map<String, Object> auditEvent = Map.of(
-                        "eventType", "RESPONSE_SAVED",
+                    SharedConstants.EVENT_TYPE, "RESPONSE_SAVED",
                         "sessionId", sessionId.toString(),
                         "candidateId", candidateId.toString(),
                     SharedConstants.QUESTION_ID, questionId.toString(),
                     SharedConstants.TENANT_ID, tenantId,
-                        "occurredAt", Instant.now().toString()
+                    SharedConstants.OCCURRED_AT, Instant.now().toString()
                 );
                 eventPublisher.publish(AUDIT_EVENTS_TOPIC, candidateId.toString(), auditEvent);
             }

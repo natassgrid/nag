@@ -7,6 +7,7 @@ import com.examplatform.questionbank.microlesson.dto.MicroLessonResponse;
 import com.examplatform.questionbank.microlesson.dto.ReviewMicroLessonRequest;
 import com.examplatform.questionbank.microlesson.service.MicroLessonBatchRunner;
 import com.examplatform.questionbank.microlesson.service.MicroLessonService;
+import com.examplatform.shared.constants.SharedConstants;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -38,7 +39,7 @@ public class AdminMicroLessonController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
 
-        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, SharedConstants.CREATED_AT));
         Page<MicroLessonResponse> result = microLessonService.listForReview(status, subjectId, pageRequest);
         return ResponseEntity.ok(result);
     }

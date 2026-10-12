@@ -20,6 +20,7 @@
 package com.examplatform.identity.service;
 
 import com.examplatform.shared.config.DynamicConfigService;
+import com.examplatform.shared.constants.SharedConstants;
 import com.maxmind.geoip2.DatabaseReader;
 import com.maxmind.geoip2.model.CountryResponse;
 import jakarta.annotation.PostConstruct;
@@ -173,7 +174,7 @@ public class DefaultGeoIpService implements GeoIpService {
 
         // 2. Check dynamic threat list from DynamicConfigService
         if (dynamicConfigService != null) {
-            String threatList = dynamicConfigService.getString("auth.risk.ip.threat-list", "default", "");
+            String threatList = dynamicConfigService.getString("auth.risk.ip.threat-list", SharedConstants.DEFAULT_TENANT, "");
             if (threatList != null && !threatList.isBlank()) {
                 Set<String> threatIps = new HashSet<>(Arrays.asList(threatList.split(",")));
                 return threatIps.contains(cleanIp);

@@ -18,6 +18,7 @@
 
 package com.examplatform.papergenerator.service;
 
+import com.examplatform.shared.constants.SharedConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -70,7 +71,7 @@ public class ExaminationLookupService {
                 }
             }, rs -> {
                 UUID id = (UUID) rs.getObject("id");
-                String name = rs.getString("name");
+                String name = rs.getString(SharedConstants.NAME);
                 if (id != null && name != null) {
                     result.put(id, name);
                 }

@@ -24,6 +24,7 @@ import com.examplatform.result.dto.ScorecardUrlResponse;
 import com.examplatform.result.service.ScorecardPdfService;
 import com.examplatform.result.storage.ScorecardStorageProperties;
 import com.examplatform.result.storage.ScorecardStorageProvider;
+import com.examplatform.shared.constants.SharedConstants;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -78,7 +79,7 @@ public class ScorecardController {
             @PathVariable UUID id,
             @RequestParam(value = "download", defaultValue = "false") boolean download,
             @RequestHeader(value = HttpHeaders.ACCEPT, required = false) String acceptHeader,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId,
             Authentication auth) {
 
         Result result = scorecardPdfService.findResult(id, tenantId);
@@ -110,7 +111,7 @@ public class ScorecardController {
     @PreAuthorize("hasAnyRole('CANDIDATE', 'ADMIN', 'SUPER_ADMIN', 'EXAM_CONTROLLER')")
     public ResponseEntity<ScorecardUrlResponse> getPresignedUrl(
             @PathVariable UUID id,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId,
             Authentication auth) {
 
         Result result = scorecardPdfService.findResult(id, tenantId);
@@ -135,7 +136,7 @@ public class ScorecardController {
     @PreAuthorize("hasAnyRole('CANDIDATE', 'ADMIN', 'SUPER_ADMIN', 'EXAM_CONTROLLER')")
     public ResponseEntity<Resource> downloadDirect(
             @PathVariable UUID id,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId,
             Authentication auth) {
 
         Result result = scorecardPdfService.findResult(id, tenantId);

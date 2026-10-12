@@ -19,6 +19,7 @@
 
 package com.examplatform.shared.messaging;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -137,7 +138,7 @@ public final class MessagePayloadExtractor {
         }
         try {
             Map<String, Object> event = objectMapper.readValue(payload, new TypeReference<>() {});
-            String eventType = (String) event.get("eventType");
+            String eventType = (String) event.get(SharedConstants.EVENT_TYPE);
             if (expectedEventType.equals(eventType)) {
                 return Optional.of(event);
             }

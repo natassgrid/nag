@@ -22,6 +22,7 @@ package com.examplatform.questionbank.translation.service;
 import com.examplatform.questionbank.translation.domain.BatchTranslationJob;
 import com.examplatform.questionbank.translation.domain.BatchTranslationJobStatus;
 import com.examplatform.questionbank.translation.repository.BatchTranslationJobRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -70,7 +71,7 @@ public class BatchTranslationRecoveryManager {
 
             log.info("Found {} interrupted batch translation job(s) to auto-resume.", stuckJobs.size());
             for (BatchTranslationJob job : stuckJobs) {
-                String tenantId = job.getTenantId() != null ? job.getTenantId() : "default";
+                String tenantId = job.getTenantId() != null ? job.getTenantId() : SharedConstants.DEFAULT_TENANT;
                 log.info("Auto-resuming batch translation job {} (tenant: {}, status: {}, targetLang: {})",
                         job.getId(), tenantId, job.getStatus(), job.getTargetLanguage());
                 asyncWorker.processBatchTranslationJob(job.getId(), tenantId);

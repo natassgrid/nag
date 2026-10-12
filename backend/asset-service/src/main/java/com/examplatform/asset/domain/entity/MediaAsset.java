@@ -21,6 +21,7 @@ package com.examplatform.asset.domain.entity;
 
 import com.examplatform.asset.domain.enums.AssetStatus;
 import com.examplatform.asset.domain.enums.AssetType;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -66,7 +67,7 @@ public class MediaAsset extends BaseEntity {
     private AssetType assetType;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 20)
+    @Column(name = SharedConstants.STATUS, nullable = false, length = 20)
     private AssetStatus status;
 
     // ── Media-specific metadata ──────────────────────────────────────────────

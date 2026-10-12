@@ -69,7 +69,7 @@ public class PaperApprovalService {
      * @return the updated Paper entity in ENCRYPTED status with public ledger proofs
      */
     public Paper approvePaper(UUID paperId, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
 
         Paper paper = paperRepository.findByIdAndTenantId(paperId, effectiveTenant)
                 .or(() -> paperRepository.findById(paperId))
@@ -113,7 +113,7 @@ public class PaperApprovalService {
     private void publishPaperApprovedEvent(Paper paper, String tenantId) {
         try {
             Map<String, Object> event = Map.of(
-                    "eventType", "PAPER_APPROVED",
+                SharedConstants.EVENT_TYPE, "PAPER_APPROVED",
                     "paperId", paper.getId().toString(),
                     "examId", paper.getExamId().toString(),
                     "shiftId", paper.getShiftId(),
@@ -121,7 +121,7 @@ public class PaperApprovalService {
                     "ledgerTxHash", paper.getLedgerTxHash() != null ? paper.getLedgerTxHash() : "",
                     "encryptionKeyId", paper.getEncryptionKeyId() != null ? paper.getEncryptionKeyId() : "",
                 SharedConstants.TENANT_ID, tenantId,
-                    "occurredAt", Instant.now().toString()
+                SharedConstants.OCCURRED_AT, Instant.now().toString()
             );
             eventPublisher.publish(AUDIT_EVENTS_TOPIC, paper.getId().toString(), event);
         } catch (Exception e) {

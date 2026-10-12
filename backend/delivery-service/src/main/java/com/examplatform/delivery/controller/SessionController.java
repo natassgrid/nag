@@ -101,7 +101,7 @@ public class SessionController {
     public ResponseEntity<List<QuestionDeliveryDto>> getPaperQuestions(
             @PathVariable UUID paperId,
             @AuthenticationPrincipal Jwt jwt) {
-        String tenantId = jwt != null ? jwt.getClaimAsString("tenant_id") : "default";
+        String tenantId = jwt != null ? jwt.getClaimAsString("tenant_id") : SharedConstants.DEFAULT_TENANT;
         String preferredLanguage = jwt != null ? jwt.getClaimAsString("preferred_language") : null;
         List<QuestionDeliveryDto> questions = (preferredLanguage != null && !preferredLanguage.isBlank())
                 ? examQuestionDeliveryService.getQuestionsForPaper(paperId, tenantId, preferredLanguage)
@@ -121,7 +121,7 @@ public class SessionController {
         String tenantId = jwt.getClaimAsString("tenant_id");
         int count = sessionStartService.terminateActiveSessionsForCandidate(candidateId, tenantId);
         return ResponseEntity.ok(Map.of(
-                "status", "success",
+            SharedConstants.STATUS, "success",
                 "terminatedCount", count,
             SharedConstants.MESSAGE, "Active exam session(s) terminated successfully."
         ));

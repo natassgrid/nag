@@ -19,6 +19,7 @@
 
 package com.examplatform.shared.entity;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.tenant.TenantContext;
 import com.examplatform.shared.util.UuidV7Generator;
 import jakarta.persistence.*;
@@ -135,7 +136,7 @@ public abstract class BaseEntity {
         this.updatedAt = now;
         if (this.tenantId == null) {
             String contextTenant = TenantContext.get();
-            this.tenantId = (contextTenant != null) ? contextTenant : "default";
+            this.tenantId = (contextTenant != null) ? contextTenant : SharedConstants.DEFAULT_TENANT;
         }
     }
 

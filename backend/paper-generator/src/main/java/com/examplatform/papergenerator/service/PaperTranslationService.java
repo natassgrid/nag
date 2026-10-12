@@ -25,6 +25,7 @@ import com.examplatform.papergenerator.dto.BatchTranslationJobResponseDto;
 import com.examplatform.papergenerator.dto.PaperTranslateRequest;
 import com.examplatform.papergenerator.dto.PaperTranslateResponse;
 import com.examplatform.papergenerator.repository.PaperRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -56,7 +57,7 @@ public class PaperTranslationService {
             UUID initiatedBy,
             String tenantId) {
 
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
 
         Paper paper = paperRepository.findByIdAndTenantId(paperId, effectiveTenant)
                 .or(() -> paperRepository.findById(paperId))
@@ -84,13 +85,13 @@ public class PaperTranslationService {
     }
 
     public PaperTranslateResponse getTranslationStatus(UUID paperId, UUID jobId, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         BatchTranslationJobResponseDto jobResponse = questionBankClient.getBatchTranslationStatus(jobId, effectiveTenant);
         return mapToPaperTranslateResponse(paperId, jobResponse, jobResponse != null ? jobResponse.getTotalQuestions() : 0);
     }
 
     public PaperTranslateResponse getLatestTranslationStatus(UUID paperId, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         List<BatchTranslationJobResponseDto> jobs = questionBankClient.listBatchJobsByPaper(paperId, effectiveTenant);
         if (jobs != null && !jobs.isEmpty()) {
             BatchTranslationJobResponseDto latest = jobs.getFirst();

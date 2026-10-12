@@ -12,6 +12,7 @@
 package com.examplatform.candidate.grpc;
 
 import com.examplatform.candidate.service.CandidateProfileService;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.grpc.CandidateMetricsGrpcRequest;
 import com.examplatform.shared.grpc.CandidateMetricsGrpcResponse;
 import com.examplatform.shared.grpc.CandidateMetricsGrpcServiceGrpc;
@@ -38,7 +39,7 @@ public class CandidateMetricsGrpcServiceImpl extends CandidateMetricsGrpcService
         request.getTenantId();
         String tenantId = !request.getTenantId().isBlank()
                 ? request.getTenantId()
-                : "default";
+                : SharedConstants.DEFAULT_TENANT;
         log.info("gRPC getCandidateMetrics request for tenant={}", tenantId);
 
         try {

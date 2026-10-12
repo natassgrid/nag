@@ -73,7 +73,7 @@ public class Notification extends BaseEntity {
     private String body;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 15)
+    @Column(name = SharedConstants.STATUS, nullable = false, length = 15)
     private NotificationStatus status;
 
     @Column(name = "retry_count", nullable = false)

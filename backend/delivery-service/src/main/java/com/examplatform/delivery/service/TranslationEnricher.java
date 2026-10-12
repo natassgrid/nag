@@ -22,6 +22,7 @@ package com.examplatform.delivery.service;
 import com.examplatform.delivery.dto.QuestionDeliveryDto;
 import com.examplatform.delivery.dto.QuestionOptionDeliveryDto;
 import com.examplatform.delivery.dto.TranslatedQuestionDeliveryDto;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -80,7 +81,7 @@ public class TranslationEnricher {
                 """, inSql);
 
             List<Object> params = new ArrayList<>();
-            params.add(tenantId != null ? tenantId : "default");
+            params.add(tenantId != null ? tenantId : SharedConstants.DEFAULT_TENANT);
             params.addAll(questionUuids);
 
             jdbcTemplate.query(sql, rs -> {
@@ -100,7 +101,7 @@ public class TranslationEnricher {
                 if (qDto != null && payload != null && !payload.isBlank()) {
                     try {
                         JsonNode node = objectMapper.readTree(payload);
-                        String transContent = node.path("content").asText(null);
+                        String transContent = node.path(SharedConstants.CONTENT).asText(null);
                         String transExplanation = node.path("explanation").asText(null);
                         String transImageUrl = node.has("imageUrl") && !node.get("imageUrl").isNull()
                                 ? node.get("imageUrl").asText(null)

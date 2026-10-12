@@ -45,7 +45,7 @@ public class Passage extends BaseEntity {
     private String title;
 
     @Convert(converter = EncryptedFieldConverter.class)
-    @Column(name = "content", columnDefinition = "TEXT")
+    @Column(name = SharedConstants.CONTENT, columnDefinition = "TEXT")
     private String content;
 
     @Column(name = "content_format", nullable = false, length = 20)

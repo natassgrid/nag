@@ -20,6 +20,7 @@
 package com.examplatform.notification.consumer;
 
 import com.examplatform.notification.service.NotificationProcessingService;
+import com.examplatform.shared.constants.MessagingConstants;
 import com.examplatform.shared.messaging.GenericDomainEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -45,7 +46,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class NotificationEventConsumer {
 
-    public static final String NOTIFICATION_TOPIC = "exam.notifications.outbound";
+    public static final String NOTIFICATION_TOPIC = MessagingConstants.NOTIFICATIONS_OUTBOUND_TOPIC;
 
     private final NotificationProcessingService notificationProcessingService;
     private final ObjectMapper objectMapper;
@@ -69,7 +70,7 @@ public class NotificationEventConsumer {
     @RabbitListener(
             bindings = @QueueBinding(
                     value = @Queue(value = "notification.events.queue", durable = "true"),
-                    exchange = @Exchange(value = "exam.events", type = ExchangeTypes.TOPIC),
+                    exchange = @Exchange(value = MessagingConstants.EXAM_EVENTS_TOPIC, type = ExchangeTypes.TOPIC),
                     key = NOTIFICATION_TOPIC
             )
     )

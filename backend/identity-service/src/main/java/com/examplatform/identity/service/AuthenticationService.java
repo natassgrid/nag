@@ -101,7 +101,7 @@ public class AuthenticationService {
      * @throws MfaRequiredException    if MFA is required but OTP was not supplied
      */
     public AuthTokenResponse authenticate(AuthTokenRequest request, String tenantId, String ipAddress, LocalDateTime loginTime) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
 
         // 1. Find account by email hash, mobile hash, or username strictly within tenant
         String rawInput = request.getUsername().trim();
@@ -311,7 +311,7 @@ public class AuthenticationService {
      * @throws AuthenticationException if the refresh token is invalid or expired
      */
     public AuthTokenResponse refreshToken(RefreshTokenRequest request, String tenantId, String ipAddress) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         log.debug("Refreshing token for tenant [{}]", effectiveTenant);
         try {
             AuthTokenResponse tokens = keycloakService.refreshToken(request.getRefreshToken());
@@ -348,7 +348,7 @@ public class AuthenticationService {
      * Terminate active session and log out user.
      */
     public void logout(String userIdStr, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         try {
             UUID userId = UUID.fromString(userIdStr);
             activeSessionRepository.deleteByUserIdAndTenantId(userId, effectiveTenant);
@@ -369,7 +369,7 @@ public class AuthenticationService {
      * Change password for the user.
      */
     public void changePassword(String userIdStr, String currentPassword, String newPassword, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         UUID userId;
         try {
             userId = UUID.fromString(userIdStr);
@@ -406,7 +406,7 @@ public class AuthenticationService {
                         "identity:auth/token",
                         ipAddress,
                         deviceFingerprint,
-                        Map.of(SharedConstants.TENANT_ID, tenantId != null ? tenantId : "default")
+                        Map.of(SharedConstants.TENANT_ID, tenantId != null ? tenantId : SharedConstants.DEFAULT_TENANT)
                 );
             }
         } catch (Exception e) {

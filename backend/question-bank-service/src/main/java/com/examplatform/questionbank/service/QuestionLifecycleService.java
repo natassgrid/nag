@@ -218,13 +218,13 @@ public class QuestionLifecycleService {
                                     String fromState, String toState) {
         try {
             Map<String, Object> event = new HashMap<>();
-            event.put("eventType", "QUESTION_STATE_TRANSITION");
+            event.put(SharedConstants.EVENT_TYPE, "QUESTION_STATE_TRANSITION");
             event.put(SharedConstants.QUESTION_ID, questionId.toString());
             event.put("actorId", actorId.toString());
             event.put(SharedConstants.TENANT_ID, tenantId);
             event.put("fromState", fromState);
             event.put("toState", toState);
-            event.put("occurredAt", Instant.now().toString());
+            event.put(SharedConstants.OCCURRED_AT, Instant.now().toString());
 
             eventPublisher.publish(AUDIT_EVENTS_TOPIC, questionId.toString(), event);
         } catch (Exception e) {

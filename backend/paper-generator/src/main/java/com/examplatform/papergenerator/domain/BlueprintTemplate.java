@@ -19,6 +19,7 @@
 
 package com.examplatform.papergenerator.domain;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -49,7 +50,7 @@ import java.util.UUID;
 public class BlueprintTemplate extends BaseEntity {
 
     /** Human-readable name, unique per tenant. */
-    @Column(name = "name", nullable = false)
+    @Column(name = SharedConstants.NAME, nullable = false)
     private String name;
 
     /** Optional longer description of what this template is for. */

@@ -23,6 +23,7 @@ import com.examplatform.questionbank.io.ImportResult;
 import com.examplatform.questionbank.io.QuestionExportService;
 import com.examplatform.questionbank.io.QuestionImportService;
 import com.examplatform.shared.api.ApiResponse;
+import com.examplatform.shared.constants.SharedConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
@@ -82,7 +83,7 @@ public class QuestionIOController {
             @RequestParam(required = false) String difficulty,
             @RequestParam(required = false) String state,
             @RequestParam(required = false) String search,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
 
         String fileName = String.format("questions-export-%s-%s.zip",
                 format.toLowerCase(), LocalDate.now());
@@ -118,7 +119,7 @@ public class QuestionIOController {
     public ResponseEntity<ApiResponse<ImportResult>> importQuestions(
             @RequestParam("file") MultipartFile file,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader("X-Tenant-Id") String tenantId) throws IOException {
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) throws IOException {
 
         if (file == null || file.isEmpty()) {
             return ResponseEntity.badRequest()

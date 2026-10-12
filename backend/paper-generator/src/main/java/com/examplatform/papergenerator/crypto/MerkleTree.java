@@ -19,6 +19,7 @@
 
 package com.examplatform.papergenerator.crypto;
 
+import com.examplatform.shared.constants.SharedConstants;
 import lombok.*;
 
 import java.nio.charset.StandardCharsets;
@@ -173,7 +174,7 @@ public class MerkleTree {
 
     public static String sha256Hex(byte[] input) {
         try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            MessageDigest digest = MessageDigest.getInstance(SharedConstants.SHA_256);
             byte[] hash = digest.digest(input);
             return HexFormat.of().formatHex(hash);
         } catch (NoSuchAlgorithmException e) {

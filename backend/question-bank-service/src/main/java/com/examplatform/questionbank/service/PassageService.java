@@ -219,7 +219,7 @@ public class PassageService {
     public Page<PassageResponse> listPassages(
             Long subjectId, String state, String search, int page, int size, String tenantId) {
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Pageable pageable = PageRequest.of(page, size, Sort.by(SharedConstants.CREATED_AT).descending());
 
         Specification<Passage> spec = Specification.where((root, query, cb) -> cb.equal(root.get(
             SharedConstants.TENANT_ID), tenantId));
@@ -234,7 +234,7 @@ public class PassageService {
             String pattern = "%" + search.toLowerCase() + "%";
             spec = spec.and((root, query, cb) -> cb.or(
                     cb.like(cb.lower(root.get("title")), pattern),
-                    cb.like(cb.lower(root.get("content")), pattern),
+                    cb.like(cb.lower(root.get(SharedConstants.CONTENT)), pattern),
                     cb.like(cb.lower(root.get(SharedConstants.SUBJECT)), pattern)
             ));
         }

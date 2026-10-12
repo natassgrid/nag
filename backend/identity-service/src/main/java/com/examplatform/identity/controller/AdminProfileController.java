@@ -21,6 +21,7 @@ package com.examplatform.identity.controller;
 
 import com.examplatform.identity.dto.*;
 import com.examplatform.identity.service.*;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.response.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -62,7 +63,7 @@ public class AdminProfileController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<UserAccountResponse>> getProfile(
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
         String userIdStr = extractUserId(jwt);
         UserAccountResponse profile = roleManagementService.getUserProfile(userIdStr, tenantId);
         return ResponseEntity.ok(ApiResponse.success(profile, "Admin profile retrieved successfully."));
@@ -76,7 +77,7 @@ public class AdminProfileController {
     public ResponseEntity<ApiResponse<UserAccountResponse>> updateProfile(
             @Valid @RequestBody AdminUpdateUserRequest request,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
         String userIdStr = extractUserId(jwt);
         UserAccountResponse updated = roleManagementService.updateUserProfile(userIdStr, request, tenantId);
         return ResponseEntity.ok(ApiResponse.success(updated, "Admin profile updated successfully."));
@@ -93,7 +94,7 @@ public class AdminProfileController {
     public ResponseEntity<ApiResponse<Void>> changePassword(
             @Valid @RequestBody ChangePasswordRequest request,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
         String userIdStr = extractUserId(jwt);
         authenticationService.changePassword(userIdStr, request.getCurrentPassword(), request.getNewPassword(), tenantId);
         return ResponseEntity.ok(ApiResponse.success(null, "Password changed successfully."));
@@ -122,7 +123,7 @@ public class AdminProfileController {
     public ResponseEntity<ApiResponse<Void>> verifyMfa(
             @Valid @RequestBody TotpVerifySetupRequest request,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
         adminInvitationService.verifyAndEnableTotp(resolveUserUuid(jwt, tenantId), request, tenantId);
         return ResponseEntity.ok(ApiResponse.success(null, "2FA TOTP activated successfully."));
     }
@@ -134,7 +135,7 @@ public class AdminProfileController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getMfaStatus(
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
         UUID userId = resolveUserUuid(jwt, tenantId);
         boolean mfaActive = adminInvitationService.isTotpEnabled(userId);
         return ResponseEntity.ok(ApiResponse.success(Map.of("mfaEnabled", mfaActive, "userId", userId.toString())));
@@ -147,7 +148,7 @@ public class AdminProfileController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<Void>> disableMfa(
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
         adminInvitationService.disableTotp(resolveUserUuid(jwt, tenantId), tenantId);
         return ResponseEntity.ok(ApiResponse.success(null, "2FA TOTP has been disabled."));
     }
@@ -159,7 +160,7 @@ public class AdminProfileController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<ActiveSessionResponse>>> getSessions(
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
         String userIdStr = extractUserId(jwt);
         List<ActiveSessionResponse> sessions = roleManagementService.getActiveSessions(userIdStr, tenantId);
         return ResponseEntity.ok(ApiResponse.success(sessions, "Active sessions retrieved successfully."));
@@ -173,7 +174,7 @@ public class AdminProfileController {
     public ResponseEntity<ApiResponse<Void>> revokeSession(
             @PathVariable UUID sessionId,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
         String userIdStr = extractUserId(jwt);
         roleManagementService.revokeSession(userIdStr, sessionId, tenantId);
         return ResponseEntity.ok(ApiResponse.success(null, "Session terminated successfully."));
@@ -186,7 +187,7 @@ public class AdminProfileController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<Void>> revokeOtherSessions(
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
         String userIdStr = extractUserId(jwt);
         roleManagementService.revokeOtherSessions(userIdStr, tenantId);
         return ResponseEntity.ok(ApiResponse.success(null, "Other active sessions terminated successfully."));
@@ -199,7 +200,7 @@ public class AdminProfileController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<PersonalAccessTokenResponse>>> listTokens(
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
         List<PersonalAccessTokenResponse> tokens = tokenService.listTokens(resolveUserUuid(jwt, tenantId), tenantId);
         return ResponseEntity.ok(ApiResponse.success(tokens, "Personal access tokens retrieved successfully."));
     }
@@ -212,7 +213,7 @@ public class AdminProfileController {
     public ResponseEntity<ApiResponse<PersonalAccessTokenResponse>> createToken(
             @Valid @RequestBody CreatePersonalAccessTokenRequest request,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
         PersonalAccessTokenResponse token = tokenService.createToken(resolveUserUuid(jwt, tenantId), request, tenantId);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(token, "Personal access token created successfully. Store secret securely."));
@@ -226,7 +227,7 @@ public class AdminProfileController {
     public ResponseEntity<ApiResponse<Void>> revokeToken(
             @PathVariable UUID tokenId,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
         tokenService.revokeToken(tokenId, resolveUserUuid(jwt, tenantId), tenantId);
         return ResponseEntity.ok(ApiResponse.success(null, "Personal access token revoked successfully."));
     }
@@ -241,7 +242,7 @@ public class AdminProfileController {
             @RequestParam(required = false, defaultValue = "0") int page,
             @RequestParam(required = false, defaultValue = "20") int size,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
         List<AdminActivityLogResponse> activity = activityService.getActivityLogs(resolveUserUuid(jwt, tenantId), category, page, size, tenantId);
         return ResponseEntity.ok(ApiResponse.success(activity, "Admin activity logs retrieved successfully."));
     }
@@ -254,7 +255,7 @@ public class AdminProfileController {
     public ResponseEntity<String> exportActivity(
             @RequestParam(required = false, defaultValue = "csv") String format,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
         UUID userId = resolveUserUuid(jwt, tenantId);
         String exportedContent = activityService.exportActivityLogs(userId, format, tenantId);
 
@@ -274,7 +275,7 @@ public class AdminProfileController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<AdminPermissionDetailResponse>>> getPermissions(
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
         List<AdminPermissionDetailResponse> perms = activityService.getEffectivePermissions(resolveUserUuid(jwt, tenantId), tenantId);
         return ResponseEntity.ok(ApiResponse.success(perms, "Effective permissions retrieved successfully."));
     }

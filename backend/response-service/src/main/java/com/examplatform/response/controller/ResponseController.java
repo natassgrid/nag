@@ -28,6 +28,7 @@ import com.examplatform.response.service.ResponseHistoryService;
 import com.examplatform.response.service.ResponseSaveService;
 import com.examplatform.response.service.SessionFinalizationService;
 import com.examplatform.shared.api.ApiResponse;
+import com.examplatform.shared.constants.SharedConstants;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -75,14 +76,14 @@ public class ResponseController {
             @PathVariable UUID sessionId,
             @Valid @RequestBody SaveResponseRequest request,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader(value = "X-Tenant-Id", required = false) String tenantId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, required = false) String tenantId,
             @RequestHeader(value = "X-Forwarded-For", required = false) String xForwardedFor,
             @RequestHeader(value = "User-Agent", required = false) String userAgent) {
 
         long startTime = System.currentTimeMillis();
 
         UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
 
         String clientIp = (xForwardedFor != null && !xForwardedFor.isBlank())
             ? xForwardedFor.split(",")[0].trim()
@@ -120,10 +121,10 @@ public class ResponseController {
             @PathVariable UUID sessionId,
             @Valid @RequestBody BulkSaveRequest request,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader(value = "X-Tenant-Id", required = false) String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, required = false) String tenantId) {
 
         UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
 
         log.debug("Bulk-saving responses: sessionId={}, candidate={}, count={}, tenant={}",
                 sessionId, candidateId, request.getResponses().size(), effectiveTenant);
@@ -148,10 +149,10 @@ public class ResponseController {
     public ResponseEntity<ApiResponse<Void>> submitSession(
             @PathVariable UUID sessionId,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader(value = "X-Tenant-Id", required = false) String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, required = false) String tenantId) {
 
         UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
 
         log.debug("Submitting session: sessionId={}, candidate={}, tenant={}",
                 sessionId, candidateId, effectiveTenant);
@@ -174,9 +175,9 @@ public class ResponseController {
     @PreAuthorize("hasAnyRole('EVALUATOR', 'AUDITOR', 'CANDIDATE')")
     public ResponseEntity<ApiResponse<List<Response>>> getSessionResponses(
             @PathVariable UUID sessionId,
-            @RequestHeader(value = "X-Tenant-Id", required = false) String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, required = false) String tenantId) {
 
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         log.debug("Retrieving session responses: sessionId={}, tenant={}", sessionId, effectiveTenant);
 
         List<Response> responses = responseHistoryService.getSessionResponses(sessionId, effectiveTenant);

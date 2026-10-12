@@ -20,6 +20,7 @@
 package com.examplatform.admin.service;
 
 import com.examplatform.admin.dto.*;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.grpc.*;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -123,7 +124,7 @@ public class AdminDashboardService {
      * Executes gRPC queries first with fallback to REST calls.
      */
     public DashboardSummaryResponse getDashboardSummary(String tenantId) {
-        String effectiveTenant = tenantId != null && !tenantId.isBlank() ? tenantId : "default";
+        String effectiveTenant = tenantId != null && !tenantId.isBlank() ? tenantId : SharedConstants.DEFAULT_TENANT;
 
         long activeSessions = countActiveSessionsFromRedis();
 
@@ -309,7 +310,7 @@ public class AdminDashboardService {
                                     item.path("id").asText(null),
                                     item.path("timestamp").asText(null),
                                     item.path("performedBy").asText(null),
-                                    item.path("action").asText(null),
+                                    item.path(SharedConstants.ACTION).asText(null),
                                     item.path("entityType").asText(null)));
                         }
                         return list;

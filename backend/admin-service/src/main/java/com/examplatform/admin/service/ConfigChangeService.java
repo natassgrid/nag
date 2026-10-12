@@ -65,7 +65,7 @@ public class ConfigChangeService {
      */
     @Transactional
     public List<SystemConfig> getConfigs(String tenantId) {
-        String effectiveTenant = (tenantId == null || tenantId.isBlank()) ? "default" : tenantId;
+        String effectiveTenant = (tenantId == null || tenantId.isBlank()) ? SharedConstants.DEFAULT_TENANT : tenantId;
         List<SystemConfig> existing = systemConfigRepository.findByTenantId(effectiveTenant);
         if (existing.isEmpty()) {
             log.info("No configs found for tenant {}. Initializing standard defaults.", effectiveTenant);
@@ -92,7 +92,7 @@ public class ConfigChangeService {
      */
     @Transactional(readOnly = true)
     public Map<String, String> getConfigMap(String tenantId) {
-        String effectiveTenant = (tenantId == null || tenantId.isBlank()) ? "default" : tenantId;
+        String effectiveTenant = (tenantId == null || tenantId.isBlank()) ? SharedConstants.DEFAULT_TENANT : tenantId;
         List<SystemConfig> configs = systemConfigRepository.findByTenantId(effectiveTenant);
         if (configs.isEmpty()) {
             return new LinkedHashMap<>(DEFAULT_CONFIGS);
@@ -107,7 +107,7 @@ public class ConfigChangeService {
      */
     @Transactional
     public SystemConfig updateConfig(String paramName, String newValue, UUID actorId, String tenantId) {
-        String effectiveTenant = (tenantId == null || tenantId.isBlank()) ? "default" : tenantId;
+        String effectiveTenant = (tenantId == null || tenantId.isBlank()) ? SharedConstants.DEFAULT_TENANT : tenantId;
         log.info("Updating config '{}' in tenant {} by actor {}", paramName, effectiveTenant, actorId);
 
         Optional<SystemConfig> opt = systemConfigRepository.findByParamNameAndTenantId(paramName, effectiveTenant);
@@ -152,7 +152,7 @@ public class ConfigChangeService {
      */
     @Transactional
     public Map<String, String> updateBulkConfigs(Map<String, String> updates, UUID actorId, String tenantId) {
-        String effectiveTenant = (tenantId == null || tenantId.isBlank()) ? "default" : tenantId;
+        String effectiveTenant = (tenantId == null || tenantId.isBlank()) ? SharedConstants.DEFAULT_TENANT : tenantId;
         log.info("Bulk updating {} configs in tenant {} by actor {}", updates.size(), effectiveTenant, actorId);
 
         Map<String, SystemConfig> existingMap = systemConfigRepository.findByTenantId(effectiveTenant)
@@ -199,7 +199,7 @@ public class ConfigChangeService {
      */
     @Transactional
     public Map<String, String> resetToDefaults(UUID actorId, String tenantId) {
-        String effectiveTenant = (tenantId == null || tenantId.isBlank()) ? "default" : tenantId;
+        String effectiveTenant = (tenantId == null || tenantId.isBlank()) ? SharedConstants.DEFAULT_TENANT : tenantId;
         log.info("Resetting system configs to defaults for tenant {} by actor {}", effectiveTenant, actorId);
         return updateBulkConfigs(DEFAULT_CONFIGS, actorId, effectiveTenant);
     }
@@ -243,7 +243,7 @@ public class ConfigChangeService {
                                                 UUID actorId, String tenantId) {
         try {
             Map<String, Object> auditEvent = Map.of(
-                    "eventType", AuditEventType.CONFIG_CHANGED.name(),
+                SharedConstants.EVENT_TYPE, AuditEventType.CONFIG_CHANGED.name(),
                     "paramName", paramName,
                     "oldValue", oldValue != null ? oldValue : "",
                     "newValue", newValue != null ? newValue : "",

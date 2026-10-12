@@ -19,6 +19,7 @@
 
 package com.examplatform.questionbank.translation.domain;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -87,7 +88,7 @@ public class Translation extends BaseEntity {
     private long sourceVersion = 0L;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 20)
+    @Column(name = SharedConstants.STATUS, nullable = false, length = 20)
     private TranslationStatus status;
 
     @Column(name = "translator_id", nullable = false, columnDefinition = "uuid")

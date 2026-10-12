@@ -249,7 +249,7 @@ public class PaperAnchoringService {
     private void publishPaperAnchoredAuditEvent(Paper paper, LedgerAttestationReceipt receipt, String tenantId) {
         try {
             Map<String, Object> event = Map.of(
-                    "eventType", "PAPER_LEDGER_ANCHORED",
+                SharedConstants.EVENT_TYPE, "PAPER_LEDGER_ANCHORED",
                     "paperId", paper.getId().toString(),
                     "examId", paper.getExamId().toString(),
                     "paperRootHash", paper.getPaperRootHash() != null ? paper.getPaperRootHash() : "",
@@ -257,8 +257,8 @@ public class PaperAnchoringService {
                     "txHash", receipt.getTxHash(),
                     "consensusTimestamp", receipt.getConsensusTimestamp(),
                     "ledgerNetwork", receipt.getNetwork(),
-                SharedConstants.TENANT_ID, tenantId != null ? tenantId : "default",
-                    "occurredAt", Instant.now().toString()
+                SharedConstants.TENANT_ID, tenantId != null ? tenantId : SharedConstants.DEFAULT_TENANT,
+                SharedConstants.OCCURRED_AT, Instant.now().toString()
             );
             eventPublisher.publish(AUDIT_EVENTS_TOPIC, paper.getId().toString(), event);
         } catch (Exception e) {

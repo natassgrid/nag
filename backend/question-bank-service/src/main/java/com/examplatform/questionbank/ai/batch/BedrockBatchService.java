@@ -513,12 +513,12 @@ public class BedrockBatchService {
 
     private List<RawQuestion> parseModelOutput(JsonNode modelOutput) {
         try {
-            JsonNode output = modelOutput.path("output").path(SharedConstants.MESSAGE).path("content");
+            JsonNode output = modelOutput.path("output").path(SharedConstants.MESSAGE).path(SharedConstants.CONTENT);
             if (output.isArray() && !output.isEmpty()) {
                 return parseJsonArray(extractTextFromBlocks(output));
             }
 
-            JsonNode content = modelOutput.get("content");
+            JsonNode content = modelOutput.get(SharedConstants.CONTENT);
             if (content != null && content.isArray()) {
                 return parseJsonArray(extractTextFromBlocks(content));
             }

@@ -20,6 +20,7 @@
 package com.examplatform.questionbank.translation.domain;
 
 import com.examplatform.shared.constants.QuestionStateConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -45,7 +46,7 @@ import java.util.UUID;
 public class BatchTranslationJob extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 30)
+    @Column(name = SharedConstants.STATUS, nullable = false, length = 30)
     @Builder.Default
     private BatchTranslationJobStatus status = BatchTranslationJobStatus.PENDING;
 

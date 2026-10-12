@@ -111,7 +111,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
     @Override
     public List<QuestionSummary> findAvailableQuestions(String subject, String topic,
                                                         String difficulty, String cognitiveLevel, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         String cleanSubject = (subject != null) ? subject.trim() : "";
         String cleanTopic = (topic != null) ? topic.trim() : "";
         String cleanDifficulty = (difficulty != null && !difficulty.isBlank()) ? difficulty.trim() : null;
@@ -155,7 +155,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
             Map<String, String> requestBody = new HashMap<>();
             requestBody.put(SharedConstants.SUBJECT, cleanSubject);
             requestBody.put("topic", cleanTopic);
-            if (cleanDifficulty != null) requestBody.put("difficulty", cleanDifficulty);
+            if (cleanDifficulty != null) requestBody.put(SharedConstants.DIFFICULTY, cleanDifficulty);
             if (cleanCognitiveLevel != null) requestBody.put("cognitiveLevel", cleanCognitiveLevel);
 
             List<QuestionSummary> questions = fetchQuestionsViaRest(url, effectiveTenant, requestBody);
@@ -227,7 +227,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
         if (questionIds == null || questionIds.isEmpty()) {
             return Collections.emptyList();
         }
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
 
         // 1. Try gRPC first if enabled
         if (grpcEnabled) {
@@ -334,7 +334,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
             UUID initiatedBy,
             String tenantId) {
 
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         String url = questionBankServiceUrl + "/api/v1/translations/batch/auto-translate";
 
         Map<String, Object> body = new HashMap<>();
@@ -355,7 +355,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
         try {
             RestClient.RequestBodySpec spec = restClient.post()
                     .uri(url)
-                    .header("X-Tenant-Id", effectiveTenant)
+                    .header(SharedConstants.HEADER_TENANT_ID, effectiveTenant)
                     .contentType(MediaType.APPLICATION_JSON);
             attachAuthHeader(spec);
 
@@ -372,13 +372,13 @@ public class QuestionBankClientImpl implements QuestionBankClient {
 
     @Override
     public BatchTranslationJobResponseDto getBatchTranslationStatus(UUID jobId, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         String url = questionBankServiceUrl + "/api/v1/translations/batch/" + jobId;
 
         try {
             RestClient.RequestHeadersSpec<?> spec = restClient.get()
                     .uri(url)
-                    .header("X-Tenant-Id", effectiveTenant);
+                    .header(SharedConstants.HEADER_TENANT_ID, effectiveTenant);
             attachAuthHeader(spec);
 
             return spec
@@ -392,13 +392,13 @@ public class QuestionBankClientImpl implements QuestionBankClient {
 
     @Override
     public List<BatchTranslationJobResponseDto> listBatchJobsByPaper(UUID paperId, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         String url = questionBankServiceUrl + "/api/v1/translations/batch/paper/" + paperId;
 
         try {
             RestClient.RequestHeadersSpec<?> spec = restClient.get()
                     .uri(url)
-                    .header("X-Tenant-Id", effectiveTenant);
+                    .header(SharedConstants.HEADER_TENANT_ID, effectiveTenant);
             attachAuthHeader(spec);
 
             List<BatchTranslationJobResponseDto> res = spec
@@ -424,12 +424,12 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                 .questionId(rs.getObject("id", UUID.class))
                 .subject(rs.getString(SharedConstants.SUBJECT))
                 .topic(rs.getString("topic"))
-                .difficulty(rs.getString("difficulty"))
+                .difficulty(rs.getString(SharedConstants.DIFFICULTY))
                 .cognitiveLevel(rs.getString("cognitive_level"))
                 .usageCount(rs.getInt("usage_count"))
                 .lastUsedAt(lastUsedAt)
                 .reusePolicy("1_YEAR")
-                .content(rs.getString("content"))
+                .content(rs.getString(SharedConstants.CONTENT))
                 .passageId(passageId)
                 .passageOrderIndex(passageOrderIndex)
                 .build();
@@ -438,7 +438,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
     private List<QuestionSummary> fetchQuestionsViaRest(String url, String effectiveTenant, Object requestBody) {
         RestClient.RequestBodySpec spec = restClient.post()
                 .uri(url)
-                .header("X-Tenant-Id", effectiveTenant)
+                .header(SharedConstants.HEADER_TENANT_ID, effectiveTenant)
                 .contentType(MediaType.APPLICATION_JSON);
         attachAuthHeader(spec);
 

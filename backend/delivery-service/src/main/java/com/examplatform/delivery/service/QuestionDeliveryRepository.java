@@ -71,7 +71,7 @@ public class QuestionDeliveryRepository {
                 if (sectionsArr.isArray() && !sectionsArr.isEmpty()) {
                     int secIdx = 1;
                     for (JsonNode secNode : sectionsArr) {
-                        String secName = secNode.path("name").asText("Section " + secIdx);
+                        String secName = secNode.path(SharedConstants.NAME).asText("Section " + secIdx);
                         String subject = secNode.path(SharedConstants.SUBJECT).asText("");
                         int count = secNode.path("questionCount").asInt(25);
                         double marks = secNode.path("marksPerQuestion").asDouble(2.0);
@@ -195,7 +195,7 @@ public class QuestionDeliveryRepository {
                 UUID id = rs.getObject("id", UUID.class);
                 String subject = rs.getString(SharedConstants.SUBJECT);
                 String topic = rs.getString("topic");
-                String content = rs.getString("content");
+                String content = rs.getString(SharedConstants.CONTENT);
                 String questionType = rs.getString("question_type");
                 String optionsJson = rs.getString("options");
                 String answerKey = rs.getString("answer_key");

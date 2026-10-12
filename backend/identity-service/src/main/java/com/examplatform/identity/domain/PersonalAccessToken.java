@@ -19,6 +19,7 @@
 
 package com.examplatform.identity.domain;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -40,7 +41,7 @@ public class PersonalAccessToken extends BaseEntity {
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
-    @Column(name = "name", nullable = false, length = 150)
+    @Column(name = SharedConstants.NAME, nullable = false, length = 150)
     private String name;
 
     @Column(name = "token_hash", nullable = false, length = 64)

@@ -19,6 +19,7 @@
 
 package com.examplatform.evaluation.domain;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -68,7 +69,7 @@ public class Evaluation extends BaseEntity {
     private String comments;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 20)
+    @Column(name = SharedConstants.STATUS, nullable = false, length = 20)
     private EvaluationStatus status;
 
     /**

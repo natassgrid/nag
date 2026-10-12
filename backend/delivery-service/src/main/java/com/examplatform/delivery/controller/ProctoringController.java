@@ -21,6 +21,7 @@ package com.examplatform.delivery.controller;
 
 import com.examplatform.delivery.service.ProctoringService;
 import com.examplatform.shared.api.ApiResponse;
+import com.examplatform.shared.constants.SharedConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -55,7 +56,7 @@ public class ProctoringController {
     public ResponseEntity<ApiResponse<Void>> captureSnapshot(
             @PathVariable UUID sessionId,
             @RequestBody(required = false) byte[] imageData,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
 
         log.debug("Snapshot capture request for session={}", sessionId);
         proctoringService.captureSnapshot(sessionId, imageData, tenantId);

@@ -20,6 +20,7 @@
 package com.examplatform.delivery.controller;
 
 import com.examplatform.delivery.service.OfflineDeliveryService;
+import com.examplatform.shared.constants.SharedConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -68,8 +69,8 @@ public class OfflineDeliveryController {
 
         return ResponseEntity.ok(Map.of(
                 "sessionId", sessionId.toString(),
-                "status", "PRELOADED",
-                "content", decryptedPackage
+            SharedConstants.STATUS, "PRELOADED",
+            SharedConstants.CONTENT, decryptedPackage
         ));
     }
 
@@ -93,12 +94,12 @@ public class OfflineDeliveryController {
 
         return ResponseEntity.ok(Map.of(
                 "sessionId", sessionId.toString(),
-                "status", "RECONCILED"
+            SharedConstants.STATUS, "RECONCILED"
         ));
     }
 
     private String extractTenantId(Jwt jwt) {
         String tenantId = jwt.getClaimAsString("tenant_id");
-        return tenantId != null ? tenantId : "default";
+        return tenantId != null ? tenantId : SharedConstants.DEFAULT_TENANT;
     }
 }

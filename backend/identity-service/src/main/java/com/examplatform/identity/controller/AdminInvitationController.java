@@ -21,6 +21,7 @@ package com.examplatform.identity.controller;
 
 import com.examplatform.identity.dto.*;
 import com.examplatform.identity.service.AdminInvitationService;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.response.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -49,7 +50,7 @@ public class AdminInvitationController {
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SECURITY_ADMIN', 'TENANT_ADMIN')")
     public ResponseEntity<ApiResponse<AdminInviteResponse>> inviteAdmin(
             @Valid @RequestBody AdminInviteRequest request,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId,
             Authentication authentication) {
 
         UUID actorId = null;
@@ -82,7 +83,7 @@ public class AdminInvitationController {
     @PostMapping("/accept")
     public ResponseEntity<ApiResponse<AuthTokenResponse>> acceptInvite(
             @Valid @RequestBody AcceptInviteRequest request,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
         log.info("Accepting admin invitation");
         AuthTokenResponse tokens = adminInvitationService.acceptInvitation(request, tenantId);
         return ResponseEntity.ok(ApiResponse.success(tokens, "Account activated successfully with 2FA enabled."));

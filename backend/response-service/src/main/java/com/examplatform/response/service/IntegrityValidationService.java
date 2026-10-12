@@ -113,13 +113,13 @@ public class IntegrityValidationService {
                                        String reason, String tenantId) {
         try {
             Map<String, Object> alert = Map.of(
-                    "eventType", "INTEGRITY_ALERT",
+                SharedConstants.EVENT_TYPE, "INTEGRITY_ALERT",
                     "sessionId", sessionId.toString(),
                     "candidateId", candidateId.toString(),
                 SharedConstants.QUESTION_ID, questionId.toString(),
                     "reason", reason,
                 SharedConstants.TENANT_ID, tenantId,
-                    "occurredAt", Instant.now().toString()
+                SharedConstants.OCCURRED_AT, Instant.now().toString()
             );
             eventPublisher.publish(AUDIT_EVENTS_TOPIC, sessionId.toString(), alert);
         } catch (Exception ex) {

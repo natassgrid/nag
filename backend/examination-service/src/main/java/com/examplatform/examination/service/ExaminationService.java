@@ -124,7 +124,7 @@ public class ExaminationService {
      */
     public Page<ExaminationResponse> listPublishedPaged(
             String tenantId, String search, String category, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, SharedConstants.CREATED_AT));
 
         boolean hasCategory = category != null && !category.isBlank() && !"ALL".equalsIgnoreCase(category);
         boolean hasSearch = search != null && !search.isBlank();
@@ -194,7 +194,7 @@ public class ExaminationService {
 
         publishAuditEvent("EXAM_CREATED", saved.getId().toString(), tenantId, Map.of(
                 "examId", saved.getId().toString(),
-                "name", saved.getName(),
+            SharedConstants.NAME, saved.getName(),
                 "totalMarks", saved.getTotalMarks()
         ));
 
@@ -288,7 +288,7 @@ public class ExaminationService {
         if (auditEventType != null) {
             publishAuditEvent(auditEventType, saved.getId().toString(), tenantId, Map.of(
                     "examId", saved.getId().toString(),
-                    "name", saved.getName()
+                SharedConstants.NAME, saved.getName()
             ));
         }
 
@@ -361,16 +361,16 @@ public class ExaminationService {
 
     private String resolveExamSortProperty(String sort) {
         if (sort == null || sort.isBlank()) {
-            return "createdAt";
+            return SharedConstants.CREATED_AT;
         }
         return switch (sort.toLowerCase()) {
-            case "name" -> "name";
-            case "code" -> "code";
+            case SharedConstants.NAME -> SharedConstants.NAME;
+            case SharedConstants.CODE -> SharedConstants.CODE;
             case "duration", "durationminutes" -> "durationMinutes";
             case "marks", "totalmarks" -> "totalMarks";
-            case "status" -> "status";
+            case SharedConstants.STATUS -> SharedConstants.STATUS;
             case "category" -> "category";
-            default -> "createdAt";
+            default -> SharedConstants.CREATED_AT;
         };
     }
 
@@ -381,7 +381,7 @@ public class ExaminationService {
     private void publishAuditEvent(String eventType, String entityId, String tenantId, Map<String, Object> details) {
         try {
             Map<String, Object> payload = new HashMap<>(details);
-            payload.put("eventType", eventType);
+            payload.put(SharedConstants.EVENT_TYPE, eventType);
             payload.put("entityId", entityId);
             payload.put(SharedConstants.TENANT_ID, tenantId);
             payload.put("timestamp", LocalDateTime.ofInstant(Instant.now(), ZoneOffset.UTC).toString());

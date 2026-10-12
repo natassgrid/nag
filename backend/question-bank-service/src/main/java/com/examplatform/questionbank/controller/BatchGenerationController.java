@@ -20,6 +20,7 @@ package com.examplatform.questionbank.controller;
 
 import com.examplatform.questionbank.ai.batch.*;
 import com.examplatform.shared.api.ApiResponse;
+import com.examplatform.shared.constants.SharedConstants;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -64,7 +65,7 @@ public class BatchGenerationController {
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'QUESTION_AUTHOR')")
     public ResponseEntity<ApiResponse<BatchJobResponse>> submitBatchJob(
             @Valid @RequestBody BatchGenerationRequest request,
-            @RequestHeader("X-Tenant-Id") String tenantId,
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
             @AuthenticationPrincipal Jwt jwt) {
 
         UUID authorId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
@@ -88,7 +89,7 @@ public class BatchGenerationController {
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'QUESTION_AUTHOR')")
     public ResponseEntity<ApiResponse<BatchJobResponse>> getJobStatus(
             @PathVariable UUID jobId,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
 
         BatchGenerationJob job = jobRepository.findById(jobId)
                 .orElseThrow(() -> new EntityNotFoundException("Batch job not found: " + jobId));
@@ -113,7 +114,7 @@ public class BatchGenerationController {
     public ResponseEntity<ApiResponse<Page<BatchJobResponse>>> listJobs(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
 
         Page<BatchJobResponse> jobs = jobRepository
                 .findByTenantIdOrderByCreatedAtDesc(tenantId, PageRequest.of(page, size))
@@ -133,7 +134,7 @@ public class BatchGenerationController {
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'QUESTION_AUTHOR')")
     public ResponseEntity<ApiResponse<BatchJobResponse>> cancelJob(
             @PathVariable UUID jobId,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
 
         BatchJobResponse response = bedrockBatchService.cancelJob(jobId, tenantId);
         return ResponseEntity.ok(ApiResponse.success(response, "Batch job cancelled."));

@@ -326,11 +326,11 @@ public class QuestionService {
         org.springframework.data.domain.Sort sortSpec;
         if (sort == null || sort.isBlank() || "updatedat".equalsIgnoreCase(sort.trim())) {
             sortSpec = org.springframework.data.domain.Sort.by(direction, "updatedAt")
-                    .and(org.springframework.data.domain.Sort.by(direction, "createdAt"));
+                    .and(org.springframework.data.domain.Sort.by(direction, SharedConstants.CREATED_AT));
         } else {
             String sortProperty = resolveQuestionSortProperty(sort);
             sortSpec = org.springframework.data.domain.Sort.by(direction, sortProperty)
-                    .and(Sort.by(Sort.Direction.DESC, "createdAt"));
+                    .and(Sort.by(Sort.Direction.DESC, SharedConstants.CREATED_AT));
         }
         org.springframework.data.domain.Pageable pageable =
                 org.springframework.data.domain.PageRequest.of(page, size, sortSpec);
@@ -361,7 +361,7 @@ public class QuestionService {
         }
 
         if (difficulty != null && !difficulty.isBlank()) {
-            spec = spec.and(fieldEquals("difficulty", difficulty));
+            spec = spec.and(fieldEquals(SharedConstants.DIFFICULTY, difficulty));
         }
         if (state != null && !state.isBlank()) {
             spec = spec.and(fieldEquals("state", state));
@@ -425,11 +425,11 @@ public class QuestionService {
             case "topic", "topicname" -> "topic";
             case "subtopic" -> "subtopic";
             case "chapter" -> "chapter";
-            case "difficulty" -> "difficulty";
+            case SharedConstants.DIFFICULTY -> SharedConstants.DIFFICULTY;
             case "cognitivelevel" -> "cognitiveLevel";
             case "questiontype" -> "questionType";
-            case "state", "status" -> "state";
-            case "createdat", "created" -> "createdAt";
+            case "state", SharedConstants.STATUS -> "state";
+            case "createdat", "created" -> SharedConstants.CREATED_AT;
             case "id" -> "id";
             default -> "updatedAt";
         };
@@ -484,8 +484,8 @@ public class QuestionService {
     }
 
     private static final List<String> SEARCHABLE_QUESTION_FIELDS = List.of(
-        SharedConstants.SUBJECT, "topic", "subtopic", "chapter", "difficulty",
-            "cognitiveLevel", "questionType", "content", "explanation", "state", "sourceReferences"
+        SharedConstants.SUBJECT, "topic", "subtopic", "chapter", SharedConstants.DIFFICULTY,
+            "cognitiveLevel", "questionType", SharedConstants.CONTENT, "explanation", "state", "sourceReferences"
     );
 
     private jakarta.persistence.criteria.Predicate matchAnyField(
@@ -514,7 +514,7 @@ public class QuestionService {
             if (tenantId != null && !tenantId.isBlank()) {
                 predicates.add(cb.or(
                         cb.equal(tRoot.get(SharedConstants.TENANT_ID), tenantId),
-                        cb.equal(tRoot.get(SharedConstants.TENANT_ID), "default")
+                        cb.equal(tRoot.get(SharedConstants.TENANT_ID), SharedConstants.DEFAULT_TENANT)
                 ));
             }
 
@@ -535,35 +535,35 @@ public class QuestionService {
                         // Existence check already covered by questionId + languageCode
                         break;
                     case QuestionStateConstants.APPROVED:
-                        predicates.add(cb.equal(tRoot.get("status"), Translation.TranslationStatus.APPROVED));
+                        predicates.add(cb.equal(tRoot.get(SharedConstants.STATUS), Translation.TranslationStatus.APPROVED));
                         break;
                     case QuestionStateConstants.PUBLISHED:
-                        predicates.add(cb.equal(tRoot.get("status"), Translation.TranslationStatus.PUBLISHED));
+                        predicates.add(cb.equal(tRoot.get(SharedConstants.STATUS), Translation.TranslationStatus.PUBLISHED));
                         break;
                     case "APPROVED_PUBLISHED":
                     case "APPROVED_OR_PUBLISHED":
-                        predicates.add(tRoot.get("status").in(Translation.TranslationStatus.APPROVED, Translation.TranslationStatus.PUBLISHED));
+                        predicates.add(tRoot.get(SharedConstants.STATUS).in(Translation.TranslationStatus.APPROVED, Translation.TranslationStatus.PUBLISHED));
                         break;
                     case QuestionStateConstants.DRAFT, "IN_REVIEW", "PENDING_REVIEW":
-                        predicates.add(cb.equal(tRoot.get("status"), Translation.TranslationStatus.DRAFT));
+                        predicates.add(cb.equal(tRoot.get(SharedConstants.STATUS), Translation.TranslationStatus.DRAFT));
                         break;
                     case "STALE":
-                        predicates.add(cb.equal(tRoot.get("status"), Translation.TranslationStatus.STALE));
+                        predicates.add(cb.equal(tRoot.get(SharedConstants.STATUS), Translation.TranslationStatus.STALE));
                         break;
                     case "REJECTED":
                     case "NEEDS_REWORK":
                         jakarta.persistence.criteria.Predicate rejPred = cb.and(
-                                cb.equal(tRoot.get("status"), Translation.TranslationStatus.DRAFT),
+                                cb.equal(tRoot.get(SharedConstants.STATUS), Translation.TranslationStatus.DRAFT),
                                 cb.isNotNull(tRoot.get("reviewComments")),
                                 cb.notEqual(tRoot.get("reviewComments"), "")
                         );
-                        jakarta.persistence.criteria.Predicate stalePred = cb.equal(tRoot.get("status"), Translation.TranslationStatus.STALE);
+                        jakarta.persistence.criteria.Predicate stalePred = cb.equal(tRoot.get(SharedConstants.STATUS), Translation.TranslationStatus.STALE);
                         predicates.add(cb.or(rejPred, stalePred));
                         break;
                     default:
                         try {
                             Translation.TranslationStatus enumStatus = Translation.TranslationStatus.valueOf(status);
-                            predicates.add(cb.equal(tRoot.get("status"), enumStatus));
+                            predicates.add(cb.equal(tRoot.get(SharedConstants.STATUS), enumStatus));
                         } catch (IllegalArgumentException ignored) {}
                         break;
                 }
@@ -628,7 +628,7 @@ public class QuestionService {
         Question question = questionRepository.findById(questionId)
                 .orElseThrow(() -> new EntityNotFoundException("Question not found: " + questionId));
 
-        if (tenantId != null && !tenantId.isBlank() && !"default".equals(tenantId)) {
+        if (tenantId != null && !tenantId.isBlank() && !SharedConstants.DEFAULT_TENANT.equals(tenantId)) {
             if (!tenantId.equals(question.getTenantId())) {
                 throw new EntityNotFoundException("Question not found: " + questionId);
             }
@@ -675,7 +675,7 @@ public class QuestionService {
      */
     @Transactional(readOnly = true)
     public List<QuestionResponse> findBlueprintQuestions(String subject, String topic, String difficulty, String cognitiveLevel, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         List<Question> questions = questionRepository.findBlueprintQuestions(
                 subject != null ? subject.trim() : "",
                 topic != null ? topic.trim() : "",
@@ -704,7 +704,7 @@ public class QuestionService {
         if (questionIds == null || questionIds.isEmpty()) {
             return List.of();
         }
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         List<Question> questions = questionRepository.findQuestionsByIdsIn(questionIds, effectiveTenant);
         return questions.stream().map(this::toResponse).toList();
     }

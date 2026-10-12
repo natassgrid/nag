@@ -24,6 +24,7 @@ import com.examplatform.candidate.service.CandidateEducationService;
 import com.examplatform.candidate.service.CandidateProfileService;
 import com.examplatform.candidate.service.DigiLockerService;
 import com.examplatform.candidate.service.FaceVerificationService;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.tenant.TenantContext;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -236,7 +237,7 @@ public class CandidateProfileController {
     @PostMapping("/digilocker/callback")
     public ResponseEntity<DigiLockerCallbackResult> handleDigiLockerCallbackPost(
             @RequestBody Map<String, String> body) {
-        String code = body != null ? body.get("code") : "";
+        String code = body != null ? body.get(SharedConstants.CODE) : "";
         String state = body != null ? body.get("state") : "";
         String redirectUri = body != null ? body.get("redirectUri") : null;
         DigiLockerCallbackResult result = digiLockerService.handleCallback(code, state, redirectUri);
@@ -258,7 +259,7 @@ public class CandidateProfileController {
         String tenantId = getTenantId();
         String token = (body != null && body.containsKey("token")) ? body.get("token") : null;
         String status = digiLockerService.verifyDocument(userId, token, tenantId);
-        return ResponseEntity.ok(Map.of("status", status));
+        return ResponseEntity.ok(Map.of(SharedConstants.STATUS, status));
     }
 
     /**
@@ -275,11 +276,11 @@ public class CandidateProfileController {
         enforceOwnership(userId, jwt);
         String tenantId = getTenantId();
         String status = faceVerificationService.verifyFace(userId, request, tenantId);
-        return ResponseEntity.ok(Map.of("status", status));
+        return ResponseEntity.ok(Map.of(SharedConstants.STATUS, status));
     }
 
     private String getTenantId() {
-        return TenantContext.get() != null ? TenantContext.get() : "default";
+        return TenantContext.get() != null ? TenantContext.get() : SharedConstants.DEFAULT_TENANT;
     }
 
     // ── Private helpers ──────────────────────────────────────────────────

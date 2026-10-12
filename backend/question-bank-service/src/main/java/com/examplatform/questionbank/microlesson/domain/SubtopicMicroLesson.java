@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.examplatform.questionbank.microlesson.domain;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -57,7 +58,7 @@ public class SubtopicMicroLesson extends BaseEntity {
     @Column(name = "step_by_step_breakdown", nullable = false, columnDefinition = "jsonb")
     private String stepByStepBreakdownJson;
 
-    @Column(name = "status", nullable = false, length = 30)
+    @Column(name = SharedConstants.STATUS, nullable = false, length = 30)
     @Builder.Default
     private String status = "AI_GENERATED";
 

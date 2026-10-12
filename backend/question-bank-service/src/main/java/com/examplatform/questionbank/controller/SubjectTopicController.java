@@ -28,6 +28,7 @@ import com.examplatform.questionbank.dto.CreateTopicRequest;
 import com.examplatform.questionbank.dto.SubjectHierarchyResponse;
 import com.examplatform.questionbank.service.SubjectTopicService;
 import com.examplatform.shared.api.ApiResponse;
+import com.examplatform.shared.constants.SharedConstants;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -60,7 +61,7 @@ public class SubjectTopicController {
     @GetMapping
     @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<List<Subject>>> listSubjects(
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
 
         List<Subject> subjects = subjectTopicService.listSubjects(tenantId);
         return ResponseEntity.ok(ApiResponse.success(subjects, "Subjects retrieved successfully"));
@@ -73,7 +74,7 @@ public class SubjectTopicController {
     @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<Subject>> createSubject(
             @Valid @RequestBody CreateSubjectRequest request,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
 
         log.info("Creating subject: name={}, tenant={}", request.getName(), tenantId);
 
@@ -96,7 +97,7 @@ public class SubjectTopicController {
     @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<List<Topic>>> listTopics(
             @PathVariable Long subjectId,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
 
         List<Topic> topics = subjectTopicService.listTopics(subjectId, tenantId);
         return ResponseEntity.ok(ApiResponse.success(topics, "Topics retrieved successfully"));
@@ -110,7 +111,7 @@ public class SubjectTopicController {
     public ResponseEntity<ApiResponse<Topic>> createTopic(
             @PathVariable Long subjectId,
             @Valid @RequestBody CreateTopicRequest request,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
 
         log.info("Creating topic: name={}, subjectId={}, tenant={}", request.getName(), subjectId, tenantId);
 
@@ -132,7 +133,7 @@ public class SubjectTopicController {
     public ResponseEntity<ApiResponse<List<Subtopic>>> listSubtopics(
             @PathVariable Long subjectId,
             @PathVariable Long topicId,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
 
         List<Subtopic> subtopics = subjectTopicService.listSubtopics(topicId, tenantId);
         return ResponseEntity.ok(ApiResponse.success(subtopics, "Subtopics retrieved successfully"));
@@ -147,7 +148,7 @@ public class SubjectTopicController {
             @PathVariable Long subjectId,
             @PathVariable Long topicId,
             @Valid @RequestBody CreateSubtopicRequest request,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
 
         log.info("Creating subtopic: name={}, topicId={}, tenant={}", request.getName(), topicId, tenantId);
         Subtopic subtopic = subjectTopicService.createSubtopic(
@@ -165,7 +166,7 @@ public class SubjectTopicController {
     @GetMapping("/hierarchy")
     @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<List<SubjectHierarchyResponse>>> getHierarchy(
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
 
         List<SubjectHierarchyResponse> hierarchy = subjectTopicService.getHierarchy(tenantId);
         return ResponseEntity.ok(ApiResponse.success(hierarchy, "Hierarchy retrieved successfully"));

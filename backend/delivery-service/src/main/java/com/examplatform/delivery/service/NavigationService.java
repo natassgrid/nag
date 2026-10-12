@@ -27,6 +27,7 @@ import com.examplatform.delivery.dto.NavigationResponse.NavigationPolicy;
 import com.examplatform.delivery.dto.QuestionDeliveryDto;
 import com.examplatform.delivery.exception.NavigationPolicyViolationException;
 import com.examplatform.delivery.repository.ExamSessionRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -251,7 +252,7 @@ public class NavigationService {
     private int getSectionForQuestion(int questionIndex, ExamSession session) {
         if (examQuestionDeliveryService != null && session != null) {
             try {
-                String tenant = session.getTenantId() != null ? session.getTenantId() : "default";
+                String tenant = session.getTenantId() != null ? session.getTenantId() : SharedConstants.DEFAULT_TENANT;
                 List<QuestionDeliveryDto> questions = examQuestionDeliveryService.getQuestionsForSession(
                         session.getSessionId(), tenant);
                 if (questions != null && questionIndex >= 0 && questionIndex < questions.size()) {
@@ -281,7 +282,7 @@ public class NavigationService {
     private int getTotalQuestions(ExamSession session) {
         if (examQuestionDeliveryService != null && session != null) {
             try {
-                String tenant = session.getTenantId() != null ? session.getTenantId() : "default";
+                String tenant = session.getTenantId() != null ? session.getTenantId() : SharedConstants.DEFAULT_TENANT;
                 List<QuestionDeliveryDto> questions = examQuestionDeliveryService.getQuestionsForSession(
                         session.getSessionId(), tenant);
                 if (questions != null && !questions.isEmpty()) {

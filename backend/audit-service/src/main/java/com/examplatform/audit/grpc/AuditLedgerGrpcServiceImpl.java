@@ -12,6 +12,7 @@
 package com.examplatform.audit.grpc;
 
 import com.examplatform.audit.service.AuditQueryService;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.grpc.AuditLedgerEventGrpc;
 import com.examplatform.shared.grpc.AuditLedgerGrpcRequest;
 import com.examplatform.shared.grpc.AuditLedgerGrpcResponse;
@@ -40,7 +41,7 @@ public class AuditLedgerGrpcServiceImpl extends AuditLedgerGrpcServiceGrpc.Audit
         request.getTenantId();
         String tenantId = !request.getTenantId().isBlank()
                 ? request.getTenantId()
-                : "default";
+                : SharedConstants.DEFAULT_TENANT;
         int limit = request.getLimit() > 0 ? request.getLimit() : 10;
         log.info("gRPC getRecentLedgerEvents request: tenantId={}, limit={}", tenantId, limit);
 
@@ -51,11 +52,11 @@ public class AuditLedgerGrpcServiceImpl extends AuditLedgerGrpcServiceGrpc.Audit
             for (Map<String, Object> ev : events) {
                 AuditLedgerEventGrpc eventGrpc = AuditLedgerEventGrpc.newBuilder()
                         .setId(String.valueOf(ev.getOrDefault("id", "")))
-                        .setAction(String.valueOf(ev.getOrDefault("action", "")))
+                        .setAction(String.valueOf(ev.getOrDefault(SharedConstants.ACTION, "")))
                         .setEntityType(String.valueOf(ev.getOrDefault("entityType", "")))
                         .setPerformedBy(String.valueOf(ev.getOrDefault("performedBy", "")))
                         .setTimestamp(String.valueOf(ev.getOrDefault("timestamp", "")))
-                        .setStatus(String.valueOf(ev.getOrDefault("status", "SUCCESS")))
+                        .setStatus(String.valueOf(ev.getOrDefault(SharedConstants.STATUS, "SUCCESS")))
                         .build();
                 builder.addEvents(eventGrpc);
             }

@@ -25,6 +25,7 @@ import com.examplatform.result.dto.CandidateExamResponseDto;
 import com.examplatform.result.dto.QuestionAnalyticsResult;
 import com.examplatform.result.dto.QuestionDetailDto;
 import com.examplatform.result.dto.ReviewOptionDto;
+import com.examplatform.shared.constants.SharedConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -52,7 +53,7 @@ public class QuestionAnalyticsService {
     /**
      * Computes analytics for all questions in an exam with real cross-service data.\n     *\n     * Psychometric Formulas:\n     * - Difficulty index (P) = correct responses / total attempted responses\n     * - Discrimination index (D) = (top 27% correct rate) - (bottom 27% correct rate)\n     * - Response distribution = count per option selected\n     *\n     * @param examId   the exam identifier\n     * @param tenantId the tenant identifier\n     * @return list of per-question analytics results\n     */
     public List<QuestionAnalyticsResult> computeAnalytics(UUID examId, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         String cacheKey = effectiveTenant + ":" + examId;
 
         // 1. Check cache
