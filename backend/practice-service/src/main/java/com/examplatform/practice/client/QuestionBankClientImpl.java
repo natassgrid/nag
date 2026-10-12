@@ -152,4 +152,60 @@ public class QuestionBankClientImpl implements QuestionBankClient {
             return Collections.emptyList();
         }
     }
+
+    @Override
+    public List<UUID> findQuestionsForAdaptiveQuiz(List<String> subtopics, String difficulty, int limit) {
+        if (jdbcTemplate == null || limit <= 0) {
+            return Collections.emptyList();
+        }
+        try {
+            if (subtopics != null && !subtopics.isEmpty()) {
+                String inSql = String.join(",", Collections.nCopies(subtopics.size(), "?"));
+                String sql;
+                Object[] params;
+                if (difficulty != null && !difficulty.isBlank()) {
+                    sql = String.format("""
+                        SELECT id FROM question_service.question
+                        WHERE state = 'PUBLISHED'
+                          AND UPPER(difficulty) = ?
+                          AND LOWER(subtopic) IN (%s)
+                        ORDER BY created_at DESC
+                        LIMIT ?
+                        """, inSql);
+                    List<Object> pList = new ArrayList<>();
+                    pList.add(difficulty.trim().toUpperCase());
+                    for (String s : subtopics) pList.add(s.trim().toLowerCase());
+                    pList.add(limit);
+                    params = pList.toArray();
+                } else {
+                    sql = String.format("""
+                        SELECT id FROM question_service.question
+                        WHERE state = 'PUBLISHED'
+                          AND LOWER(subtopic) IN (%s)
+                        ORDER BY created_at DESC
+                        LIMIT ?
+                        """, inSql);
+                    List<Object> pList = new ArrayList<>();
+                    for (String s : subtopics) pList.add(s.trim().toLowerCase());
+                    pList.add(limit);
+                    params = pList.toArray();
+                }
+                List<UUID> result = jdbcTemplate.query(sql, (rs, rowNum) -> rs.getObject("id", UUID.class), params);
+                if (!result.isEmpty()) return result;
+            }
+
+            // Fallback: select questions by difficulty
+            String fallbackSql = (difficulty != null && !difficulty.isBlank())
+                    ? "SELECT id FROM question_service.question WHERE state = 'PUBLISHED' AND UPPER(difficulty) = ? ORDER BY created_at DESC LIMIT ?"
+                    : "SELECT id FROM question_service.question WHERE state = 'PUBLISHED' ORDER BY created_at DESC LIMIT ?";
+            Object[] fallbackParams = (difficulty != null && !difficulty.isBlank())
+                    ? new Object[]{difficulty.trim().toUpperCase(), limit}
+                    : new Object[]{limit};
+
+            return jdbcTemplate.query(fallbackSql, (rs, rowNum) -> rs.getObject("id", UUID.class), fallbackParams);
+        } catch (Exception e) {
+            log.warn("Failed to query questions for adaptive quiz: {}", e.getMessage());
+            return Collections.emptyList();
+        }
+    }
 }

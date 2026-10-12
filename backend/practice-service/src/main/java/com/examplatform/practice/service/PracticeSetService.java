@@ -32,7 +32,7 @@ public class PracticeSetService {
                 .orElseThrow(() -> new com.examplatform.practice.exception.PracticeSetNotFoundException(id));
     }
 
-    private PracticeSetDto toDto(PracticeSet ps) {
+    public PracticeSetDto toDto(PracticeSet ps) {
         return new PracticeSetDto(
                 ps.getId(), ps.getName(), ps.getDescription(), ps.getSource(),
                 ps.getDurationMinutes(), ps.getSubjectSlug(), ps.isPublished(), ps.getTotalQuestions()

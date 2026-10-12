@@ -5,10 +5,13 @@ import com.examplatform.recommendation.domain.PerformanceBracket;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 import java.io.Serializable;
+import java.time.Instant;
+import java.util.UUID;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record MilestoneItemDto(
         String id,
+        Long subtopicId,
         String subtopicName,
         String topicName,
         String subjectName,
@@ -17,5 +20,36 @@ public record MilestoneItemDto(
         String title,
         String description,
         Integer estimatedMinutes,
-        boolean completed
-) implements Serializable {}
+        boolean completed,
+        Instant completedAt,
+        UUID microLessonId
+) implements Serializable {
+
+    public MilestoneItemDto(
+            String id,
+            String subtopicName,
+            String topicName,
+            String subjectName,
+            PerformanceBracket bracket,
+            String actionType,
+            String title,
+            String description,
+            Integer estimatedMinutes,
+            boolean completed) {
+        this(
+                id,
+                null,
+                subtopicName,
+                topicName,
+                subjectName,
+                bracket,
+                actionType,
+                title,
+                description,
+                estimatedMinutes,
+                completed,
+                completed ? Instant.now() : null,
+                null
+        );
+    }
+}

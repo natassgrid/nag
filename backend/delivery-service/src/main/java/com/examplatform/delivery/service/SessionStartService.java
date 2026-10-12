@@ -73,6 +73,7 @@ public class SessionStartService {
     private final ObjectMapper objectMapper;
     private final DynamicConfigService dynamicConfigService;
     private final ObjectProvider<JdbcTemplate> jdbcTemplateProvider;
+    private final MockExamAccessValidator mockExamAccessValidator;
 
     public SessionStartService(
             ExamSessionRepository examSessionRepository,
@@ -85,7 +86,22 @@ public class SessionStartService {
             ObjectMapper objectMapper,
             DynamicConfigService dynamicConfigService) {
         this(examSessionRepository, shiftAssignmentClient, disabilityExtensionService, vaultCryptoService,
-                examQuestionDeliveryService, redisTemplate, eventPublisher, objectMapper, dynamicConfigService, null);
+                examQuestionDeliveryService, redisTemplate, eventPublisher, objectMapper, dynamicConfigService, null, null);
+    }
+
+    public SessionStartService(
+            ExamSessionRepository examSessionRepository,
+            ShiftAssignmentClient shiftAssignmentClient,
+            DisabilityExtensionService disabilityExtensionService,
+            VaultCryptoService vaultCryptoService,
+            ExamQuestionDeliveryService examQuestionDeliveryService,
+            RedisTemplate<String, Object> redisTemplate,
+            EventPublisher eventPublisher,
+            ObjectMapper objectMapper,
+            DynamicConfigService dynamicConfigService,
+            ObjectProvider<JdbcTemplate> jdbcTemplateProvider) {
+        this(examSessionRepository, shiftAssignmentClient, disabilityExtensionService, vaultCryptoService,
+                examQuestionDeliveryService, redisTemplate, eventPublisher, objectMapper, dynamicConfigService, jdbcTemplateProvider, null);
     }
 
     @Autowired
@@ -99,7 +115,8 @@ public class SessionStartService {
             EventPublisher eventPublisher,
             ObjectMapper objectMapper,
             DynamicConfigService dynamicConfigService,
-            ObjectProvider<JdbcTemplate> jdbcTemplateProvider) {
+            ObjectProvider<JdbcTemplate> jdbcTemplateProvider,
+            @Autowired(required = false) MockExamAccessValidator mockExamAccessValidator) {
         this.examSessionRepository = examSessionRepository;
         this.shiftAssignmentClient = shiftAssignmentClient;
         this.disabilityExtensionService = disabilityExtensionService;
@@ -110,6 +127,7 @@ public class SessionStartService {
         this.objectMapper = objectMapper;
         this.dynamicConfigService = dynamicConfigService;
         this.jdbcTemplateProvider = jdbcTemplateProvider;
+        this.mockExamAccessValidator = mockExamAccessValidator;
     }
 
     private static final String SESSION_CACHE_PREFIX = "session:";
@@ -132,6 +150,10 @@ public class SessionStartService {
      * @return the session start/resume response including questions with randomized options
      */
     public SessionStartResponse startSession(SessionStartRequest request, UUID candidateId, String tenantId) {
+        if (mockExamAccessValidator != null) {
+            mockExamAccessValidator.validateCandidateAccess(candidateId, request.getExamId());
+        }
+
         String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
         Instant now = Instant.now();
 
