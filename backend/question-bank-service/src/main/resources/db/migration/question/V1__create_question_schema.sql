@@ -333,6 +333,38 @@ CREATE INDEX IF NOT EXISTS idx_batch_trans_job_paper_id
     ON question_service.batch_translation_job (paper_id) WHERE paper_id IS NOT NULL;
 
 -- ============================================================
+-- Table: subtopic_micro_lesson (Remedial Micro-Lessons - Issue #343)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS question_service.subtopic_micro_lesson (
+    id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id               VARCHAR(255) NOT NULL DEFAULT 'default',
+    subject_id              BIGINT NOT NULL,
+    topic_id                BIGINT NOT NULL,
+    subtopic_id             BIGINT NOT NULL,
+    subject                 VARCHAR(100) NOT NULL,
+    topic                   VARCHAR(200) NOT NULL,
+    subtopic                VARCHAR(200) NOT NULL,
+    target_exam             VARCHAR(50) NOT NULL DEFAULT 'JEE_MAIN',
+    core_concept            TEXT NOT NULL,
+    trap                    TEXT NOT NULL,
+    cheat_sheet             JSONB NOT NULL,
+    step_by_step_breakdown  JSONB NOT NULL,
+    status                  VARCHAR(30) NOT NULL DEFAULT 'AI_GENERATED',
+    reviewed_by             UUID,
+    reviewed_at             TIMESTAMP WITH TIME ZONE,
+    review_comments         TEXT,
+    content_version         INTEGER NOT NULL DEFAULT 1,
+    created_at              TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at              TIMESTAMP NOT NULL DEFAULT NOW(),
+    version                 BIGINT NOT NULL DEFAULT 0,
+    CONSTRAINT uq_subtopic_exam UNIQUE (subtopic_id, target_exam, content_version)
+);
+
+CREATE INDEX IF NOT EXISTS idx_micro_lesson_lookup ON question_service.subtopic_micro_lesson(subtopic_id, status);
+CREATE INDEX IF NOT EXISTS idx_micro_lesson_review ON question_service.subtopic_micro_lesson(status, subject_id);
+
+-- ============================================================
+-- ============================================================
 -- Seed Data
 -- ------------------------------------------------------------
 -- Numeric ids are assigned by the BIGINT IDENTITY columns. Child rows
