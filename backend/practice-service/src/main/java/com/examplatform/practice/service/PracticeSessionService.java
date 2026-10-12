@@ -15,8 +15,8 @@ import com.examplatform.practice.repository.PracticeSessionRepository;
 import com.examplatform.practice.repository.PracticeSetRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -28,7 +28,6 @@ import java.util.*;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class PracticeSessionService {
 
     private final PracticeSessionRepository practiceSessionRepository;
@@ -39,6 +38,43 @@ public class PracticeSessionService {
     private final QuestionBankClient questionBankClient;
     private final ApplicationEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
+    private final MockExamAccessValidator mockExamAccessValidator;
+
+    public PracticeSessionService(
+            PracticeSessionRepository practiceSessionRepository,
+            PracticeSetRepository practiceSetRepository,
+            PracticeResponseRepository practiceResponseRepository,
+            PracticeEvaluationService practiceEvaluationService,
+            PracticeResultService practiceResultService,
+            QuestionBankClient questionBankClient,
+            ApplicationEventPublisher eventPublisher,
+            ObjectMapper objectMapper) {
+        this(practiceSessionRepository, practiceSetRepository, practiceResponseRepository,
+                practiceEvaluationService, practiceResultService, questionBankClient,
+                eventPublisher, objectMapper, null);
+    }
+
+    @Autowired
+    public PracticeSessionService(
+            PracticeSessionRepository practiceSessionRepository,
+            PracticeSetRepository practiceSetRepository,
+            PracticeResponseRepository practiceResponseRepository,
+            PracticeEvaluationService practiceEvaluationService,
+            PracticeResultService practiceResultService,
+            QuestionBankClient questionBankClient,
+            ApplicationEventPublisher eventPublisher,
+            ObjectMapper objectMapper,
+            @Autowired(required = false) MockExamAccessValidator mockExamAccessValidator) {
+        this.practiceSessionRepository = practiceSessionRepository;
+        this.practiceSetRepository = practiceSetRepository;
+        this.practiceResponseRepository = practiceResponseRepository;
+        this.practiceEvaluationService = practiceEvaluationService;
+        this.practiceResultService = practiceResultService;
+        this.questionBankClient = questionBankClient;
+        this.eventPublisher = eventPublisher;
+        this.objectMapper = objectMapper;
+        this.mockExamAccessValidator = mockExamAccessValidator;
+    }
 
     @Transactional
     public PracticeSessionDto startSession(UUID candidateId, StartSessionRequest req) {
@@ -47,6 +83,14 @@ public class PracticeSessionService {
                 .orElseThrow(() -> new PracticeSetNotFoundException(req.practiceSetId()));
 
         String mode = req.mode() != null ? req.mode().toUpperCase() : "TIMED";
+
+        if ("FULL_MOCK".equalsIgnoreCase(practiceSet.getSource())
+                || "FULL_MOCK".equalsIgnoreCase(mode)) {
+            if (mockExamAccessValidator != null) {
+                mockExamAccessValidator.validateCandidateAccess(candidateId);
+            }
+        }
+
         String preferredLanguage = (req.preferredLanguage() != null && !req.preferredLanguage().isBlank())
                 ? req.preferredLanguage().trim().toLowerCase()
                 : "en";

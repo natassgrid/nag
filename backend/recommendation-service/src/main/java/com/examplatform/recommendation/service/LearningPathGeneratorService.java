@@ -80,7 +80,22 @@ public class LearningPathGeneratorService {
         // Assemble phased milestone schedule
         List<MilestonePhaseDto> phases = assembleMilestonePhases(conceptualGaps, applicationGaps, proficientTopics);
 
+        String currentPhase;
+        if (!conceptualGaps.isEmpty()) {
+            currentPhase = "PHASE_1_REMEDIATION";
+        } else if (!applicationGaps.isEmpty()) {
+            currentPhase = "PHASE_2_ADAPTIVE_QUIZ";
+        } else if (!proficientTopics.isEmpty()) {
+            currentPhase = "PHASE_3_GATEKEEPER";
+        } else {
+            currentPhase = "COMPLETED";
+        }
+        boolean gatekeeperPassed = conceptualGaps.isEmpty() && applicationGaps.isEmpty();
+
         MilestoneGraphDto milestoneGraph = new MilestoneGraphDto(
+                currentPhase,
+                resolvedTarget,
+                gatekeeperPassed,
                 phases,
                 conceptualGaps,
                 applicationGaps,
@@ -125,6 +140,7 @@ public class LearningPathGeneratorService {
             List<SubtopicClassificationResult> proficientTopics) {
 
         List<MilestonePhaseDto> phases = new ArrayList<>();
+        boolean gatekeeperPassed = conceptualGaps.isEmpty() && applicationGaps.isEmpty();
 
         // Phase 1: Remediation (Study Micro-Lessons)
         List<MilestoneItemDto> phase1Items = new ArrayList<>();
@@ -132,6 +148,7 @@ public class LearningPathGeneratorService {
         for (SubtopicClassificationResult item : conceptualGaps) {
             phase1Items.add(new MilestoneItemDto(
                     "P1-" + (itemIdx++),
+                    item.subtopicId(),
                     item.subtopicName(),
                     item.topicName(),
                     item.subjectName(),
@@ -140,7 +157,9 @@ public class LearningPathGeneratorService {
                     "Remedial Micro-Lesson: " + item.subtopicName(),
                     item.recommendationNote(),
                     20,
-                    false
+                    false,
+                    null,
+                    null
             ));
         }
         String p1Status = conceptualGaps.isEmpty() ? "COMPLETED" : "IN_PROGRESS";
@@ -148,16 +167,24 @@ public class LearningPathGeneratorService {
                 1,
                 "Phase 1: Remediation (Micro-Lessons)",
                 "Review core concept derivations, formula cheat sheets, and trap warnings for conceptual gaps.",
+                2,
                 p1Status,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
                 phase1Items
         ));
 
-        // Phase 2: Adaptive Practice (Medium Practice Sets)
+        // Phase 2: Adaptive Practice (Worksheets & Mini-Quiz)
         List<MilestoneItemDto> phase2Items = new ArrayList<>();
         itemIdx = 1;
         for (SubtopicClassificationResult item : applicationGaps) {
             phase2Items.add(new MilestoneItemDto(
                     "P2-" + (itemIdx++),
+                    item.subtopicId(),
                     item.subtopicName(),
                     item.topicName(),
                     item.subjectName(),
@@ -166,7 +193,9 @@ public class LearningPathGeneratorService {
                     "Targeted Medium Practice: " + item.subtopicName(),
                     item.recommendationNote(),
                     30,
-                    false
+                    false,
+                    null,
+                    null
             ));
         }
         String p2Status;
@@ -181,11 +210,18 @@ public class LearningPathGeneratorService {
                 2,
                 "Phase 2: Adaptive Practice (Worksheets)",
                 "Practice application sets with varied edge cases, elimination shortcuts, and time management.",
+                1,
                 p2Status,
+                70.0,
+                null,
+                null,
+                null,
+                null,
+                null,
                 phase2Items
         ));
 
-        // Phase 3: Speed Mastery & Gatekeeper (Sprints / Advanced Multi-Correct)
+        // Phase 3: Speed Mastery & Gatekeeper (Sprints / Gatekeeper Test)
         List<MilestoneItemDto> phase3Items = new ArrayList<>();
         itemIdx = 1;
         for (SubtopicClassificationResult item : proficientTopics) {
@@ -193,6 +229,7 @@ public class LearningPathGeneratorService {
             String title = (item.slowPace() ? "Timed Sprint: " : "Advanced Tier: ") + item.subtopicName();
             phase3Items.add(new MilestoneItemDto(
                     "P3-" + (itemIdx++),
+                    item.subtopicId(),
                     item.subtopicName(),
                     item.topicName(),
                     item.subjectName(),
@@ -201,7 +238,9 @@ public class LearningPathGeneratorService {
                     title,
                     item.recommendationNote(),
                     25,
-                    false
+                    false,
+                    null,
+                    null
             ));
         }
         String p3Status;
@@ -215,8 +254,15 @@ public class LearningPathGeneratorService {
         phases.add(new MilestonePhaseDto(
                 3,
                 "Phase 3: Speed Mastery & Gatekeeper",
-                "Execute timed sprint drills to accelerate pacing and tackle multi-assertion advanced questions.",
+                "Execute timed sprint drills to accelerate pacing and pass Gatekeeper test before mock unlock.",
+                1,
                 p3Status,
+                null,
+                null,
+                null,
+                75.0,
+                null,
+                gatekeeperPassed,
                 phase3Items
         ));
 
@@ -298,13 +344,13 @@ public class LearningPathGeneratorService {
         );
     }
 
-    public DynamicLearningPathResponse toResponse(DynamicLearningPath dlp) {
+    public DynamicLearningPathResponse toResponse(DynamicLearningPath entity) {
         MilestoneGraphDto graph = null;
-        if (dlp.getMilestoneGraphJson() != null && !dlp.getMilestoneGraphJson().isBlank()) {
+        if (entity.getMilestoneGraphJson() != null && !entity.getMilestoneGraphJson().isBlank()) {
             try {
-                graph = objectMapper.readValue(dlp.getMilestoneGraphJson(), MilestoneGraphDto.class);
+                graph = objectMapper.readValue(entity.getMilestoneGraphJson(), MilestoneGraphDto.class);
             } catch (JsonProcessingException e) {
-                log.warn("Failed to deserialize milestone graph for DLP {}: {}", dlp.getId(), e.getMessage());
+                log.warn("Failed to parse milestoneGraphJson for DLP {}: {}", entity.getId(), e.getMessage());
             }
         }
 
@@ -320,17 +366,17 @@ public class LearningPathGeneratorService {
         }
 
         return new DynamicLearningPathResponse(
-                dlp.getId(),
-                dlp.getCandidateId(),
-                dlp.getSourceSessionId(),
-                dlp.getExamTarget(),
-                dlp.getStatus(),
-                dlp.getConceptualGapsCount(),
-                dlp.getApplicationGapsCount(),
-                dlp.getProficientCount(),
+                entity.getId(),
+                entity.getCandidateId(),
+                entity.getSourceSessionId(),
+                entity.getExamTarget(),
+                entity.getStatus(),
+                entity.getConceptualGapsCount(),
+                entity.getApplicationGapsCount(),
+                entity.getProficientCount(),
                 graph,
-                dlp.getCreatedAt(),
-                dlp.getUpdatedAt()
+                entity.getCreatedAt(),
+                entity.getUpdatedAt()
         );
     }
 }

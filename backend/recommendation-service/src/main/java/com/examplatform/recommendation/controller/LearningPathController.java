@@ -3,15 +3,22 @@ package com.examplatform.recommendation.controller;
 
 import com.examplatform.recommendation.domain.DynamicLearningPath;
 import com.examplatform.recommendation.dto.DynamicLearningPathResponse;
+import com.examplatform.recommendation.dto.GatekeeperStatusResponse;
 import com.examplatform.recommendation.dto.LearningPathSummaryResponse;
 import com.examplatform.recommendation.dto.RecalculateLearningPathRequest;
+import com.examplatform.recommendation.dto.StartAdaptiveQuizResponse;
+import com.examplatform.recommendation.dto.StartGatekeeperResponse;
+import com.examplatform.recommendation.dto.SubmitGatekeeperScoreRequest;
+import com.examplatform.recommendation.dto.SubmitQuizScoreRequest;
 import com.examplatform.recommendation.service.LearningPathGeneratorService;
+import com.examplatform.recommendation.service.MilestoneProgressionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -25,6 +32,7 @@ import java.util.UUID;
 public class LearningPathController {
 
     private final LearningPathGeneratorService learningPathGeneratorService;
+    private final MilestoneProgressionService milestoneProgressionService;
 
     /**
      * Retrieves the candidate's currently active Dynamic Learning Path (DLP).
@@ -36,7 +44,6 @@ public class LearningPathController {
         return learningPathGeneratorService.getCurrentActivePath(candidateId)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> {
-                    // Auto-generate initial path on the fly if candidate has performance data
                     DynamicLearningPath path = learningPathGeneratorService.generateOrRecalculate(candidateId, null, null);
                     return ResponseEntity.ok(learningPathGeneratorService.toResponse(path));
                 });
@@ -66,5 +73,88 @@ public class LearningPathController {
     public ResponseEntity<LearningPathSummaryResponse> getSummary(@AuthenticationPrincipal Jwt jwt) {
         UUID candidateId = UUID.fromString(jwt.getSubject());
         return ResponseEntity.ok(learningPathGeneratorService.getSummary(candidateId));
+    }
+
+    /**
+     * Marks a Phase 1 remedial micro-lesson milestone as completed.
+     */
+    @PostMapping("/milestones/{milestoneId}/complete")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<DynamicLearningPathResponse> completeMilestone(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable String milestoneId) {
+        UUID candidateId = UUID.fromString(jwt.getSubject());
+        DynamicLearningPathResponse response = milestoneProgressionService.completeMilestone(candidateId, milestoneId);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Spawns Phase 2 adaptive mini-quiz once Phase 1 remediation is complete.
+     */
+    @PostMapping("/adaptive-quiz/start")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<StartAdaptiveQuizResponse> startAdaptiveQuiz(@AuthenticationPrincipal Jwt jwt) {
+        UUID candidateId = UUID.fromString(jwt.getSubject());
+        StartAdaptiveQuizResponse response = milestoneProgressionService.startAdaptiveQuiz(candidateId);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Evaluates Phase 2 adaptive quiz score (promotes to Phase 3 if score >= 70%).
+     */
+    @PostMapping("/adaptive-quiz/submit")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<DynamicLearningPathResponse> submitAdaptiveQuiz(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestBody SubmitQuizScoreRequest request) {
+        UUID candidateId = UUID.fromString(jwt.getSubject());
+        DynamicLearningPathResponse response = milestoneProgressionService.submitAdaptiveQuiz(candidateId, request);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Spawns Phase 3 Gatekeeper test once Phase 2 is complete.
+     */
+    @PostMapping("/gatekeeper/start")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<StartGatekeeperResponse> startGatekeeperTest(@AuthenticationPrincipal Jwt jwt) {
+        UUID candidateId = UUID.fromString(jwt.getSubject());
+        StartGatekeeperResponse response = milestoneProgressionService.startGatekeeperTest(candidateId);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Evaluates Phase 3 Gatekeeper test score (unlocks full mock exam access if score >= 75%).
+     */
+    @PostMapping("/gatekeeper/submit")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<DynamicLearningPathResponse> submitGatekeeperTest(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestBody SubmitGatekeeperScoreRequest request) {
+        UUID candidateId = UUID.fromString(jwt.getSubject());
+        DynamicLearningPathResponse response = milestoneProgressionService.submitGatekeeperTest(candidateId, request);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Checks if candidate is cleared for full mock exams or blocked by a pending Gatekeeper test.
+     */
+    @GetMapping("/gatekeeper/status")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<GatekeeperStatusResponse> getGatekeeperStatus(@AuthenticationPrincipal Jwt jwt) {
+        UUID candidateId = UUID.fromString(jwt.getSubject());
+        GatekeeperStatusResponse response = milestoneProgressionService.getGatekeeperStatus(candidateId);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Internal/admin lookup of candidate Gatekeeper clearance status.
+     */
+    @GetMapping("/gatekeeper/status/{candidateId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<GatekeeperStatusResponse> getGatekeeperStatusByCandidateId(
+            @PathVariable UUID candidateId) {
+        GatekeeperStatusResponse response = milestoneProgressionService.getGatekeeperStatus(candidateId);
+        return ResponseEntity.ok(response);
     }
 }

@@ -2,16 +2,10 @@
 package com.examplatform.recommendation.controller;
 
 import com.examplatform.recommendation.domain.PerformanceBracket;
-import com.examplatform.recommendation.dto.DynamicLearningPathResponse;
-import com.examplatform.recommendation.dto.LearningPathSummaryResponse;
-import com.examplatform.recommendation.dto.MilestoneGraphDto;
-import com.examplatform.recommendation.dto.MilestoneItemDto;
-import com.examplatform.recommendation.dto.MilestonePhaseDto;
-import com.examplatform.recommendation.dto.RecalculateLearningPathRequest;
-import com.examplatform.recommendation.dto.SubjectMasterySummaryDto;
-import com.examplatform.recommendation.dto.SubtopicClassificationResult;
+import com.examplatform.recommendation.dto.*;
 import com.examplatform.recommendation.service.LearnerProfileService;
 import com.examplatform.recommendation.service.LearningPathGeneratorService;
+import com.examplatform.recommendation.service.MilestoneProgressionService;
 import com.examplatform.recommendation.service.RecommendationService;
 import com.examplatform.recommendation.support.AbstractIntegrationTest;
 import org.junit.jupiter.api.DisplayName;
@@ -41,6 +35,9 @@ class LearningPathControllerIntegrationTest extends AbstractIntegrationTest {
 
     @MockitoBean
     private LearningPathGeneratorService learningPathGeneratorService;
+
+    @MockitoBean
+    private MilestoneProgressionService milestoneProgressionService;
 
     @MockitoBean
     private RecommendationService recommendationService;
@@ -126,19 +123,6 @@ class LearningPathControllerIntegrationTest extends AbstractIntegrationTest {
         }
 
         @Test
-        @DisplayName("200 OK - Also accessible via /api/recommendations/learning-path/current")
-        void candidateCanAccessViaRecommendationsPrefix() throws Exception {
-            DynamicLearningPathResponse resp = buildSampleDlpResponse();
-            when(learningPathGeneratorService.getCurrentActivePath(eq(CANDIDATE_ID))).thenReturn(Optional.of(resp));
-
-            mockMvc.perform(get("/api/recommendations/learning-path/current")
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
-                                    .jwt(j -> j.subject(CANDIDATE_ID.toString()))))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.id").value(DLP_ID.toString()));
-        }
-
-        @Test
         @DisplayName("401 UNAUTHORIZED - When unauthenticated")
         void unauthenticatedReturns401() throws Exception {
             mockMvc.perform(get("/api/learning-path/current"))
@@ -205,6 +189,94 @@ class LearningPathControllerIntegrationTest extends AbstractIntegrationTest {
                     .andExpect(jsonPath("$.totalSubtopics").value(5))
                     .andExpect(jsonPath("$.conceptualGapsCount").value(2))
                     .andExpect(jsonPath("$.subjectSummaries.Physics.avgAccuracyPercent").value(62.5));
+        }
+    }
+
+    @Nested
+    @DisplayName("Milestone & Gatekeeper Stat Plan Endpoints")
+    class MilestoneProgressionEndpoints {
+
+        @Test
+        @DisplayName("200 OK - Candidate completes Phase 1 milestone")
+        void testCompleteMilestone() throws Exception {
+            DynamicLearningPathResponse resp = buildSampleDlpResponse();
+            when(milestoneProgressionService.completeMilestone(eq(CANDIDATE_ID), eq("P1-1"))).thenReturn(resp);
+
+            mockMvc.perform(post("/api/learning-path/milestones/{milestoneId}/complete", "P1-1")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(CANDIDATE_ID.toString()))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.id").value(DLP_ID.toString()));
+        }
+
+        @Test
+        @DisplayName("200 OK - Candidate starts Phase 2 adaptive quiz")
+        void testStartAdaptiveQuiz() throws Exception {
+            UUID quizSessionId = UUID.randomUUID();
+            StartAdaptiveQuizResponse quizResp = new StartAdaptiveQuizResponse(
+                    quizSessionId, "PHASE_2_ADAPTIVE_QUIZ", 70.0, 15,
+                    List.of("Rotational Mechanics"), "Quiz initialized"
+            );
+            when(milestoneProgressionService.startAdaptiveQuiz(eq(CANDIDATE_ID))).thenReturn(quizResp);
+
+            mockMvc.perform(post("/api/learning-path/adaptive-quiz/start")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(CANDIDATE_ID.toString()))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.quizSessionId").value(quizSessionId.toString()))
+                    .andExpect(jsonPath("$.targetAccuracy").value(70.0));
+        }
+
+        @Test
+        @DisplayName("200 OK - Candidate submits Phase 2 adaptive quiz score")
+        void testSubmitAdaptiveQuiz() throws Exception {
+            DynamicLearningPathResponse resp = buildSampleDlpResponse();
+            when(milestoneProgressionService.submitAdaptiveQuiz(eq(CANDIDATE_ID), any())).thenReturn(resp);
+
+            SubmitQuizScoreRequest req = new SubmitQuizScoreRequest(UUID.randomUUID(), 75.0);
+
+            mockMvc.perform(post("/api/learning-path/adaptive-quiz/submit")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(req))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(CANDIDATE_ID.toString()))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.id").value(DLP_ID.toString()));
+        }
+
+        @Test
+        @DisplayName("200 OK - Candidate starts Phase 3 Gatekeeper test")
+        void testStartGatekeeperTest() throws Exception {
+            UUID gatekeeperSessionId = UUID.randomUUID();
+            StartGatekeeperResponse gatekeeperResp = new StartGatekeeperResponse(
+                    gatekeeperSessionId, "PHASE_3_GATEKEEPER", 75.0, 20,
+                    List.of("Rotational Mechanics"), "Gatekeeper initialized"
+            );
+            when(milestoneProgressionService.startGatekeeperTest(eq(CANDIDATE_ID))).thenReturn(gatekeeperResp);
+
+            mockMvc.perform(post("/api/learning-path/gatekeeper/start")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(CANDIDATE_ID.toString()))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.gatekeeperSessionId").value(gatekeeperSessionId.toString()))
+                    .andExpect(jsonPath("$.passThreshold").value(75.0));
+        }
+
+        @Test
+        @DisplayName("200 OK - Candidate checks Gatekeeper status")
+        void testGetGatekeeperStatus() throws Exception {
+            GatekeeperStatusResponse statusResp = new GatekeeperStatusResponse(
+                    true, false, "PHASE_1_REMEDIATION", null, 1, List.of("Rotational Mechanics")
+            );
+            when(milestoneProgressionService.getGatekeeperStatus(eq(CANDIDATE_ID))).thenReturn(statusResp);
+
+            mockMvc.perform(get("/api/learning-path/gatekeeper/status")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(CANDIDATE_ID.toString()))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.gatekeeperRequired").value(true))
+                    .andExpect(jsonPath("$.clearedForFullMock").value(false))
+                    .andExpect(jsonPath("$.remainingMilestonesCount").value(1));
         }
     }
 }

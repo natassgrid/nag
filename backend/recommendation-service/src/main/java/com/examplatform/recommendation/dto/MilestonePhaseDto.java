@@ -5,12 +5,43 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 
 import java.io.Serializable;
 import java.util.List;
+import java.util.UUID;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record MilestonePhaseDto(
         int phaseNumber,
         String phaseName,
         String targetDescription,
+        int durationWeeks,
         String status, // IN_PROGRESS, LOCKED, COMPLETED
+        Double targetAccuracy,
+        Double achievedAccuracy,
+        UUID quizSessionId,
+        Double passThreshold,
+        UUID gatekeeperSessionId,
+        Boolean passed,
         List<MilestoneItemDto> items
-) implements Serializable {}
+) implements Serializable {
+
+    public MilestonePhaseDto(
+            int phaseNumber,
+            String phaseName,
+            String targetDescription,
+            String status,
+            List<MilestoneItemDto> items) {
+        this(
+                phaseNumber,
+                phaseName,
+                targetDescription,
+                phaseNumber == 1 ? 2 : 1,
+                status,
+                phaseNumber == 2 ? 70.0 : null,
+                null,
+                null,
+                phaseNumber == 3 ? 75.0 : null,
+                null,
+                phaseNumber == 3 ? false : null,
+                items
+        );
+    }
+}
