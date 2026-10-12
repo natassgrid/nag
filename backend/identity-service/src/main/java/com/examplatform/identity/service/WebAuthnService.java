@@ -41,6 +41,7 @@ import java.security.PublicKey;
 import java.security.Signature;
 import java.util.Base64;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Server-side WebAuthn / FIDO2 assertion verification.
@@ -152,14 +153,14 @@ public class WebAuthnService {
 
             // Parse COSE public key
             COSEKey coseKey = objectConverter.getCborConverter().readValue(publicKeyCose, COSEKey.class);
-            PublicKey publicKey = coseKey.getPublicKey();
+            PublicKey publicKey = Objects.requireNonNull(coseKey).getPublicKey();
             if (publicKey == null) {
                 log.error("WebAuthn verification failed: Unable to extract PublicKey from COSEKey");
                 return false;
             }
 
             COSEAlgorithmIdentifier alg = coseKey.getAlgorithm();
-            String jcaName = (alg != null && alg.toSignatureAlgorithm() != null)
+            String jcaName = alg != null
                     ? alg.toSignatureAlgorithm().getJcaName()
                     : "SHA256withECDSA";
 

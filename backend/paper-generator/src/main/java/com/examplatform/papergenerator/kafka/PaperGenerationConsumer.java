@@ -50,11 +50,7 @@ import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
@@ -246,7 +242,8 @@ public class PaperGenerationConsumer {
             List<BlueprintRule> blueprintRules = null;
             if (rootNode.has("blueprintRules") && rootNode.get("blueprintRules").isArray()) {
                 blueprintRules = objectMapper.convertValue(
-                        rootNode.get("blueprintRules"), new TypeReference<List<BlueprintRule>>() {});
+                        rootNode.get("blueprintRules"), new TypeReference<>() {
+                    });
             }
 
             if ((blueprintRules == null || blueprintRules.isEmpty()) && rootNode.has("blueprintTemplateId")) {
@@ -256,7 +253,8 @@ public class PaperGenerationConsumer {
                     if (templateOpt.isPresent()) {
                         String rulesJson = templateOpt.get().getRulesJson();
                         if (rulesJson != null && !rulesJson.isBlank()) {
-                            blueprintRules = objectMapper.readValue(rulesJson, new TypeReference<List<BlueprintRule>>() {});
+                            blueprintRules = objectMapper.readValue(rulesJson, new TypeReference<>() {
+                            });
                         }
                     } else {
                         throw new IllegalArgumentException("Blueprint template not found for id: " + templateId);
@@ -363,19 +361,25 @@ public class PaperGenerationConsumer {
     }
 
     private String extractPayloadString(Object message) {
-        if (message == null) return null;
-        if (message instanceof ConsumerRecord<?, ?> record) {
-            Object val = record.value();
-            return val != null ? val.toString() : null;
-        }
-        if (message instanceof Message amqpMsg) {
-            return new String(amqpMsg.getBody(), StandardCharsets.UTF_8);
-        }
-        if (message instanceof byte[] bytes) {
-            return new String(bytes, StandardCharsets.UTF_8);
-        }
-        if (message instanceof String s) {
-            return s;
+        switch (message) {
+            case null -> {
+                return null;
+            }
+            case ConsumerRecord<?, ?> record -> {
+                Object val = record.value();
+                return val != null ? val.toString() : null;
+            }
+            case Message amqpMsg -> {
+                return new String(amqpMsg.getBody(), StandardCharsets.UTF_8);
+            }
+            case byte[] bytes -> {
+                return new String(bytes, StandardCharsets.UTF_8);
+            }
+            case String s -> {
+                return s;
+            }
+            default -> {
+            }
         }
         try {
             return objectMapper.writeValueAsString(message);

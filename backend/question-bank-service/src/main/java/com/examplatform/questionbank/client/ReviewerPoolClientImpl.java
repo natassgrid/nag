@@ -97,7 +97,8 @@ public class ReviewerPoolClientImpl implements ReviewerPoolClient {
 
             ApiResponseDto<List<ReviewerDto>> apiResponse = spec
                     .retrieve()
-                    .body(new ParameterizedTypeReference<ApiResponseDto<List<ReviewerDto>>>() {});
+                    .body(new ParameterizedTypeReference<>() {
+                    });
 
             if (apiResponse != null && apiResponse.getData() != null && !apiResponse.getData().isEmpty()) {
                 log.info("Retrieved {} reviewers from identity-service via REST for subject='{}'",

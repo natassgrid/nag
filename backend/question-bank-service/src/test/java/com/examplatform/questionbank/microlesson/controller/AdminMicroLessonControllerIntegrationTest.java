@@ -1,13 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.examplatform.questionbank.microlesson.controller;
 
-import com.examplatform.questionbank.microlesson.domain.MicroLessonStatus;
 import com.examplatform.questionbank.microlesson.domain.SubtopicMicroLesson;
-import com.examplatform.questionbank.microlesson.dto.BatchGenerateMicroLessonsRequest;
-import com.examplatform.questionbank.microlesson.dto.BatchGenerateResponse;
-import com.examplatform.questionbank.microlesson.dto.MicroLessonResponse;
-import com.examplatform.questionbank.microlesson.dto.ReviewMicroLessonRequest;
-import com.examplatform.questionbank.microlesson.dto.StepByStepBreakdownDto;
+import com.examplatform.questionbank.microlesson.dto.*;
 import com.examplatform.questionbank.microlesson.repository.SubtopicMicroLessonRepository;
 import com.examplatform.questionbank.microlesson.service.MicroLessonBatchRunner;
 import com.examplatform.questionbank.microlesson.service.MicroLessonCacheService;
@@ -32,9 +27,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 

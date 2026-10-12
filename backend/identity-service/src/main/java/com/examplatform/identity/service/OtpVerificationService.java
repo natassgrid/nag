@@ -19,9 +19,6 @@
 
 package com.examplatform.identity.service;
 
-import com.examplatform.shared.constants.SharedConstants;
-import com.examplatform.shared.crypto.HashingService;
-
 import com.examplatform.identity.domain.UserAccount;
 import com.examplatform.identity.domain.enums.AccountStatus;
 import com.examplatform.identity.dto.AuthTokenResponse;
@@ -30,6 +27,8 @@ import com.examplatform.identity.exception.AccountNotFoundException;
 import com.examplatform.identity.exception.InvalidOtpException;
 import com.examplatform.identity.repository.UserAccountRepository;
 import com.examplatform.shared.audit.AuditEventType;
+import com.examplatform.shared.constants.SharedConstants;
+import com.examplatform.shared.crypto.HashingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

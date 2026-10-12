@@ -22,6 +22,7 @@ package com.examplatform.gateway.filter;
 import com.examplatform.gateway.config.DDoSProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
@@ -59,7 +60,7 @@ public class DDosMitigationFilter implements GlobalFilter, Ordered {
     private final DDoSProperties ddosProperties;
 
     @Override
-    public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+    public Mono<Void> filter(@NonNull ServerWebExchange exchange, @NonNull GatewayFilterChain chain) {
         String ipAddress = extractIpAddress(exchange);
         if (ipAddress == null) {
             return chain.filter(exchange);

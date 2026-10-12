@@ -20,7 +20,6 @@
 package com.examplatform.notification.dto;
 
 import com.examplatform.notification.domain.Notification.NotificationType;
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

@@ -32,13 +32,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * Service to perform machine translation of questions and options using
@@ -216,7 +210,7 @@ public class IndicTrans2Service {
         TranslationPayload payload = preparePayload(question);
 
         List<String> translatedList = translateBatch(payload.texts(), indicLang);
-        String translatedContent = translatedList.isEmpty() ? question.getContent() : translatedList.get(0);
+        String translatedContent = translatedList.isEmpty() ? question.getContent() : translatedList.getFirst();
 
         int[] cursor = new int[]{1};
         List<TranslatedOptionDto> translatedOptions = reconstructOptions(

@@ -32,17 +32,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -127,7 +120,7 @@ public class ExaminationCentreController {
             @AuthenticationPrincipal Jwt jwt) {
 
         return ResponseEntity.ok(ApiResponse.success(
-                centreService.upsertAllocation(shiftId, request, UUID.fromString(jwt.getSubject()), tenantId),
+                centreService.upsertAllocation(shiftId, request, UUID.fromString(Objects.requireNonNull(jwt.getSubject())), tenantId),
                 "Seat allocation updated successfully"));
     }
 

@@ -32,13 +32,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -144,7 +138,7 @@ public class ReviewerAssignmentService {
         scored.sort(Comparator.comparingInt(ScoredReviewer::load)
                 .thenComparingInt(ScoredReviewer::tieBreaker));
 
-        ReviewerDto primary = scored.get(0).reviewer();
+        ReviewerDto primary = scored.getFirst().reviewer();
         incrementReviewerLoad(primary.getId(), effectiveTenant);
 
         UUID secondaryId = null;
@@ -212,7 +206,8 @@ public class ReviewerAssignmentService {
             try {
                 String cachedJson = redis.opsForValue().get(redisKey);
                 if (cachedJson != null && !cachedJson.isBlank()) {
-                    return objectMapper.readValue(cachedJson, new TypeReference<List<ReviewerDto>>() {});
+                    return objectMapper.readValue(cachedJson, new TypeReference<>() {
+                    });
                 }
             } catch (Exception e) {
                 log.warn("Redis reviewer pool cache read failed: {}", e.getMessage());

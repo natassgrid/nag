@@ -23,10 +23,9 @@ import com.examplatform.delivery.domain.ExamSession.ExamSessionStatus;
 import com.examplatform.delivery.repository.ExamSessionRepository;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
-
-import jakarta.annotation.PostConstruct;
 
 /**
  * Registers custom Micrometer metrics for HPA auto-scaling.

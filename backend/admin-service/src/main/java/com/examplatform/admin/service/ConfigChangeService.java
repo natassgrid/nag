@@ -19,8 +19,6 @@
 
 package com.examplatform.admin.service;
 
-import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
-
 import com.examplatform.admin.domain.SystemConfig;
 import com.examplatform.admin.dto.SystemConfigResponse;
 import com.examplatform.admin.repository.SystemConfigRepository;
@@ -39,14 +37,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
+
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
 
 /**
  * Service responsible for managing system configuration changes with full audit trail

@@ -10,7 +10,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableJpaRepositories(basePackages = "com.examplatform.practice.repository")
 @EnableScheduling
 public class PracticeServiceApplication {
-    public static void main(String[] args) {
+    static void main(String[] args) {
         SpringApplication.run(PracticeServiceApplication.class, args);
     }
 }

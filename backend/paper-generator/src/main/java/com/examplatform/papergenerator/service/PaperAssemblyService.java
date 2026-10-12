@@ -19,19 +19,11 @@
 
 package com.examplatform.papergenerator.service;
 
-import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
-
 import com.examplatform.papergenerator.client.QuestionBankClient;
 import com.examplatform.papergenerator.crypto.CanonicalPaperManifest;
 import com.examplatform.papergenerator.crypto.MerkleTree;
 import com.examplatform.papergenerator.domain.Paper;
-import com.examplatform.papergenerator.dto.BlueprintFeasibilityResponse;
-import com.examplatform.papergenerator.dto.BlueprintRule;
-import com.examplatform.papergenerator.dto.GapDetail;
-import com.examplatform.papergenerator.dto.PaperGenerationRequest;
-import com.examplatform.papergenerator.dto.QuestionGroup;
-import com.examplatform.papergenerator.dto.QuestionSummary;
-import com.examplatform.papergenerator.dto.RuleFeasibilityDetail;
+import com.examplatform.papergenerator.dto.*;
 import com.examplatform.papergenerator.exception.InsufficientQuestionsException;
 import com.examplatform.papergenerator.repository.PaperRepository;
 import com.examplatform.shared.constants.QuestionStateConstants;
@@ -50,14 +42,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
+
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
 
 /**
  * Service responsible for blueprint-driven paper assembly and feasibility verification.
@@ -487,7 +475,6 @@ public class PaperAssemblyService {
 
         return switch (question.getDifficulty().toUpperCase()) {
             case QuestionTaxonomyConstants.Difficulty.EASY -> 1.0;
-            case QuestionTaxonomyConstants.Difficulty.MEDIUM -> 2.0;
             case QuestionTaxonomyConstants.Difficulty.HARD -> 3.0;
             default -> 2.0;
         };

@@ -187,7 +187,8 @@ public class BlueprintTemplateService {
 
     private List<BlueprintRule> fromJson(String json) {
         try {
-            return objectMapper.readValue(json, new TypeReference<List<BlueprintRule>>() {});
+            return objectMapper.readValue(json, new TypeReference<>() {
+            });
         } catch (JsonProcessingException e) {
             log.error("Failed to deserialise blueprint rules: {}", e.getMessage());
             return List.of();

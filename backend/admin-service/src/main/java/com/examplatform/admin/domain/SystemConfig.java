@@ -23,11 +23,7 @@ import com.examplatform.shared.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -45,7 +41,7 @@ import java.util.UUID;
 @Builder
 public class SystemConfig extends BaseEntity {
 
-    @Column(name = "param_name", nullable = false, length = 255)
+    @Column(name = "param_name", nullable = false)
     private String paramName;
 
     @Column(name = "param_value", nullable = false, columnDefinition = "TEXT")

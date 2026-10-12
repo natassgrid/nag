@@ -19,8 +19,6 @@
 
 package com.examplatform.admin.service;
 
-import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
-
 import com.examplatform.admin.client.KeycloakAdminClient;
 import com.examplatform.shared.audit.AuditEventType;
 import com.examplatform.shared.constants.SharedConstants;
@@ -34,6 +32,8 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
 
 /**
  * Service responsible for deactivating user accounts.

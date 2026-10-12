@@ -97,24 +97,30 @@ public class SessionEventConsumer {
 
     private void dispatchSessionEventMessage(Object payload, String source) {
         try {
-            if (payload instanceof Message amqpMsg) {
-                String s = new String(amqpMsg.getBody(), StandardCharsets.UTF_8);
-                JsonNode node = objectMapper.readTree(s);
-                processJsonNode(node);
-            } else if (payload instanceof byte[] bytes) {
-                String s = new String(bytes, StandardCharsets.UTF_8);
-                JsonNode node = objectMapper.readTree(s);
-                processJsonNode(node);
-            } else if (payload instanceof Map<?, ?> map) {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> eventMap = (Map<String, Object>) map;
-                processEventMap(eventMap);
-            } else if (payload instanceof String s) {
-                JsonNode node = objectMapper.readTree(s);
-                processJsonNode(node);
-            } else {
-                JsonNode node = objectMapper.valueToTree(payload);
-                processJsonNode(node);
+            switch (payload) {
+                case Message amqpMsg -> {
+                    String s = new String(amqpMsg.getBody(), StandardCharsets.UTF_8);
+                    JsonNode node = objectMapper.readTree(s);
+                    processJsonNode(node);
+                }
+                case byte[] bytes -> {
+                    String s = new String(bytes, StandardCharsets.UTF_8);
+                    JsonNode node = objectMapper.readTree(s);
+                    processJsonNode(node);
+                }
+                case Map<?, ?> map -> {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> eventMap = (Map<String, Object>) map;
+                    processEventMap(eventMap);
+                }
+                case String s -> {
+                    JsonNode node = objectMapper.readTree(s);
+                    processJsonNode(node);
+                }
+                case null, default -> {
+                    JsonNode node = objectMapper.valueToTree(payload);
+                    processJsonNode(node);
+                }
             }
         } catch (Exception e) {
             log.error("Failed to process {} session event: {}", source, e.getMessage(), e);

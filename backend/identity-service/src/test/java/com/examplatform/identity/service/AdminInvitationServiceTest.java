@@ -19,8 +19,6 @@
 
 package com.examplatform.identity.service;
 
-import com.examplatform.shared.crypto.HashingService;
-
 import com.examplatform.identity.domain.AdminInvitation;
 import com.examplatform.identity.domain.UserAccount;
 import com.examplatform.identity.domain.enums.AccountStatus;
@@ -33,6 +31,7 @@ import com.examplatform.identity.exception.DuplicateIdentityException;
 import com.examplatform.identity.repository.AdminInvitationRepository;
 import com.examplatform.identity.repository.UserAccountRepository;
 import com.examplatform.identity.repository.UserRoleAssignmentRepository;
+import com.examplatform.shared.crypto.HashingService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -48,9 +47,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 

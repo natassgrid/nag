@@ -19,13 +19,10 @@
 
 package com.examplatform.identity.service;
 
+import com.examplatform.identity.domain.OtpVerification;
+import com.examplatform.identity.repository.OtpVerificationRepository;
 import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.crypto.HashingService;
-
-import com.examplatform.identity.config.SmsProperties;
-import com.examplatform.identity.domain.OtpVerification;
-import com.examplatform.identity.exception.RateLimitExceededException;
-import com.examplatform.identity.repository.OtpVerificationRepository;
 import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

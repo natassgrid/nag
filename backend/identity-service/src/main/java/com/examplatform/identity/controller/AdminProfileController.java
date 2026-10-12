@@ -19,22 +19,8 @@
 
 package com.examplatform.identity.controller;
 
-import com.examplatform.identity.dto.ActiveSessionResponse;
-import com.examplatform.identity.dto.AdminActivityLogResponse;
-import com.examplatform.identity.dto.AdminPermissionDetailResponse;
-import com.examplatform.identity.dto.AdminUpdateUserRequest;
-import com.examplatform.identity.dto.ChangePasswordRequest;
-import com.examplatform.identity.dto.CreatePersonalAccessTokenRequest;
-import com.examplatform.identity.dto.PersonalAccessTokenResponse;
-import com.examplatform.identity.dto.TotpSetupResponse;
-import com.examplatform.identity.dto.TotpVerifySetupRequest;
-import com.examplatform.identity.dto.UserAccountResponse;
-import com.examplatform.identity.exception.AccountNotFoundException;
-import com.examplatform.identity.service.AdminActivityService;
-import com.examplatform.identity.service.AdminInvitationService;
-import com.examplatform.identity.service.AuthenticationService;
-import com.examplatform.identity.service.PersonalAccessTokenService;
-import com.examplatform.identity.service.RoleManagementService;
+import com.examplatform.identity.dto.*;
+import com.examplatform.identity.service.*;
 import com.examplatform.shared.response.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -46,17 +32,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;

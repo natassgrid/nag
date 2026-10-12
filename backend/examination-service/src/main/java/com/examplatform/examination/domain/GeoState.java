@@ -43,7 +43,7 @@ public class GeoState {
     @Column(name = "id")
     private Long id;
 
-    @Column(name = "name", nullable = false, length = 255)
+    @Column(name = "name", nullable = false)
     private String name;
 
     @Column(name = "country_id", nullable = false)

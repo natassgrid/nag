@@ -19,8 +19,6 @@
 
 package com.examplatform.examination.service;
 
-import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
-
 import com.examplatform.examination.domain.Examination;
 import com.examplatform.examination.domain.Section;
 import com.examplatform.examination.domain.enums.CalculatorPolicy;
@@ -53,6 +51,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
 
 /**
  * Service layer for examination CRUD operations with section marks validation.
@@ -351,7 +351,8 @@ public class ExaminationService {
             return List.of();
         }
         try {
-            return objectMapper.readValue(sectionsJson, new TypeReference<List<Section>>() {});
+            return objectMapper.readValue(sectionsJson, new TypeReference<>() {
+            });
         } catch (JsonProcessingException e) {
             log.warn("Failed to deserialize sectionsJson: {}", e.getMessage());
             return List.of();

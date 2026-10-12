@@ -19,29 +19,8 @@
 
 package com.examplatform.admin.service;
 
-import com.examplatform.admin.dto.DashboardKpiResponse;
-import com.examplatform.admin.dto.DashboardSummaryResponse;
-import com.examplatform.admin.dto.EvaluationQueueBreakdownResponse;
-import com.examplatform.admin.dto.ExamStatusBreakdownResponse;
-import com.examplatform.admin.dto.QuestionBankBreakdownResponse;
-import com.examplatform.admin.dto.SecurityAuditEventResponse;
-import com.examplatform.admin.dto.SystemServiceHealthResponse;
-import com.examplatform.shared.grpc.AuditLedgerGrpcRequest;
-import com.examplatform.shared.grpc.AuditLedgerGrpcResponse;
-import com.examplatform.shared.grpc.AuditLedgerGrpcServiceGrpc;
-import com.examplatform.shared.grpc.CandidateMetricsGrpcRequest;
-import com.examplatform.shared.grpc.CandidateMetricsGrpcResponse;
-import com.examplatform.shared.grpc.CandidateMetricsGrpcServiceGrpc;
-import com.examplatform.shared.grpc.EvaluationMetricsGrpcRequest;
-import com.examplatform.shared.grpc.EvaluationMetricsGrpcResponse;
-import com.examplatform.shared.grpc.EvaluationMetricsGrpcServiceGrpc;
-import com.examplatform.shared.grpc.ExamBreakdownGrpcRequest;
-import com.examplatform.shared.grpc.ExamBreakdownGrpcResponse;
-import com.examplatform.shared.grpc.ExaminationMetricsGrpcServiceGrpc;
-import com.examplatform.shared.grpc.GrpcChannelFactory;
-import com.examplatform.shared.grpc.QuestionBankMetricsGrpcRequest;
-import com.examplatform.shared.grpc.QuestionBankMetricsGrpcResponse;
-import com.examplatform.shared.grpc.QuestionBankMetricsGrpcServiceGrpc;
+import com.examplatform.admin.dto.*;
+import com.examplatform.shared.grpc.*;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.grpc.ManagedChannel;
@@ -59,10 +38,7 @@ import java.net.Socket;
 import java.sql.Connection;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
@@ -475,7 +451,7 @@ public class AdminDashboardService {
         }
         long start = System.currentTimeMillis();
         try {
-            String pingResult = redisTemplate.getConnectionFactory().getConnection().ping();
+            String pingResult = Objects.requireNonNull(redisTemplate.getConnectionFactory()).getConnection().ping();
             long latency = Math.max(1, System.currentTimeMillis() - start);
             boolean up = "PONG".equalsIgnoreCase(pingResult);
             return buildHealthResponse("Redis Cache & Sessions", up, latency,

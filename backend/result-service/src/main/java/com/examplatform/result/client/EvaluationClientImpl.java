@@ -24,7 +24,6 @@ import com.examplatform.result.dto.CandidateExamResponseDto;
 import com.examplatform.shared.auth.ClientAuthTokenResolver;
 import com.examplatform.shared.auth.ServiceAccountTokenProvider;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -33,28 +32,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
-import org.springframework.web.context.request.RequestAttributes;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * REST-first implementation of EvaluationClient querying evaluation-service and response-service.
@@ -107,14 +90,15 @@ public class EvaluationClientImpl implements EvaluationClient {
 
             List<RemoteEvaluationDto> evaluations = spec
                     .retrieve()
-                    .body(new ParameterizedTypeReference<List<RemoteEvaluationDto>>() {});
+                    .body(new ParameterizedTypeReference<>() {
+                    });
 
             if (evaluations != null && !evaluations.isEmpty()) {
                 log.info("Retrieved {} evaluations from evaluation-service via REST for candidate={}",
                         evaluations.size(), candidateId);
 
                 // Fetch candidate response options if session ID is present
-                UUID sessionId = evaluations.get(0).getSessionId();
+                UUID sessionId = evaluations.getFirst().getSessionId();
                 Map<UUID, CandidateResponseMetadata> responseMetaMap = fetchResponseMetadataViaRest(sessionId, effectiveTenant);
 
                 return evaluations.stream()
@@ -334,7 +318,8 @@ public class EvaluationClientImpl implements EvaluationClient {
 
             ApiResponseDto<List<RemoteResponseDto>> resp = spec
                     .retrieve()
-                    .body(new ParameterizedTypeReference<ApiResponseDto<List<RemoteResponseDto>>>() {});
+                    .body(new ParameterizedTypeReference<>() {
+                    });
 
             if (resp != null && resp.getData() != null) {
                 Map<UUID, CandidateResponseMetadata> map = new HashMap<>();

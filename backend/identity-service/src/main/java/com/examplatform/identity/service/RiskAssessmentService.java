@@ -126,10 +126,14 @@ public class RiskAssessmentService {
         }
 
         // Risk signal 2: unusual time (before 6 AM or after 11 PM)
-        int hour = loginTime.getHour();
-        if (hour < 6 || hour >= 23) {
-            log.info("Risk signal: unusual login time ({}) for user {}", hour, account != null ? account.getId() : "unknown");
-            return true;
+        boolean timeRiskEnabled = dynamicConfigService == null
+                || dynamicConfigService.getBoolean("auth.risk.time.enabled", tenantId, true);
+        if (timeRiskEnabled && loginTime != null) {
+            int hour = loginTime.getHour();
+            if (hour < 6 || hour >= 23) {
+                log.info("Risk signal: unusual login time ({}) for user {}", hour, account != null ? account.getId() : "unknown");
+                return true;
+            }
         }
 
         // Risk signal 3: IP/Geo change & Threat Intelligence

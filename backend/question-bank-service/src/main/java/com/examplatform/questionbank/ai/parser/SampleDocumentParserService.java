@@ -32,8 +32,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.imageio.ImageIO;
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
+import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -120,7 +119,7 @@ public class SampleDocumentParserService {
             // Collect embedded images across pages (Tier 1)
             List<BufferedImage> embeddedImages = extractEmbeddedImages(document);
 
-            if (!cleanText.isEmpty() && cleanText.length() >= 25) {
+            if (cleanText.length() >= 25) {
                 if (embeddedImages.isEmpty()) {
                     // Tier 0: Pure Text PDF — Zero vision tokens!
                     log.info("Tier 0 Local Extraction: Pure text PDF (length={}), zero vision tokens", cleanText.length());

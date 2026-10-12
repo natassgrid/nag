@@ -35,7 +35,8 @@ public class QuestionBankMetricsGrpcServiceImpl extends QuestionBankMetricsGrpcS
     @Override
     public void getQuestionBankMetrics(QuestionBankMetricsGrpcRequest request,
                                        StreamObserver<QuestionBankMetricsGrpcResponse> responseObserver) {
-        String tenantId = (request.getTenantId() != null && !request.getTenantId().isBlank())
+        request.getTenantId();
+        String tenantId = !request.getTenantId().isBlank()
                 ? request.getTenantId()
                 : "default";
         log.info("gRPC getQuestionBankMetrics request for tenant={}", tenantId);

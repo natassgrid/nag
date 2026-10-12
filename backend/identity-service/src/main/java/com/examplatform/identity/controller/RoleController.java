@@ -20,12 +20,7 @@
 package com.examplatform.identity.controller;
 
 import com.examplatform.identity.domain.enums.UserRole;
-import com.examplatform.identity.dto.CreateRoleRequest;
-import com.examplatform.identity.dto.PermissionResponse;
-import com.examplatform.identity.dto.RoleAssignmentRequest;
-import com.examplatform.identity.dto.RoleAssignmentResponse;
-import com.examplatform.identity.dto.RoleDefinitionResponse;
-import com.examplatform.identity.dto.UpdateRoleRequest;
+import com.examplatform.identity.dto.*;
 import com.examplatform.identity.service.RoleDefinitionService;
 import com.examplatform.identity.service.RoleManagementService;
 import com.examplatform.shared.response.ApiResponse;
@@ -37,16 +32,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;

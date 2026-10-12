@@ -19,8 +19,6 @@
 
 package com.examplatform.delivery.consumer;
 
-import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
-
 import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.event.ProctoringEvents;
 import com.examplatform.shared.messaging.EventPublisher;
@@ -40,6 +38,8 @@ import org.springframework.stereotype.Component;
 
 import java.util.Map;
 import java.util.Random;
+
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
 
 /**
  * Consumer that processes proctoring frames/snapshots for AI analysis.
@@ -158,22 +158,15 @@ public class ProctoringAnalysisConsumer {
     private ProctoringEvents.SnapshotCaptured parseSnapshot(Object payload) {
         if (payload == null) return null;
         try {
-            if (payload instanceof ProctoringEvents.SnapshotCaptured sc) {
-                return sc;
-            }
-            if (payload instanceof Map<?, ?> map) {
-                return objectMapper.convertValue(map, ProctoringEvents.SnapshotCaptured.class);
-            }
-            if (payload instanceof Message amqpMsg) {
-                return objectMapper.readValue(amqpMsg.getBody(), ProctoringEvents.SnapshotCaptured.class);
-            }
-            if (payload instanceof byte[] bytes) {
-                return objectMapper.readValue(bytes, ProctoringEvents.SnapshotCaptured.class);
-            }
-            if (payload instanceof String s) {
-                return objectMapper.readValue(s, ProctoringEvents.SnapshotCaptured.class);
-            }
-            return objectMapper.convertValue(payload, ProctoringEvents.SnapshotCaptured.class);
+            return switch (payload) {
+                case ProctoringEvents.SnapshotCaptured sc -> sc;
+                case Map<?, ?> map -> objectMapper.convertValue(map, ProctoringEvents.SnapshotCaptured.class);
+                case Message amqpMsg ->
+                    objectMapper.readValue(amqpMsg.getBody(), ProctoringEvents.SnapshotCaptured.class);
+                case byte[] bytes -> objectMapper.readValue(bytes, ProctoringEvents.SnapshotCaptured.class);
+                case String s -> objectMapper.readValue(s, ProctoringEvents.SnapshotCaptured.class);
+                default -> objectMapper.convertValue(payload, ProctoringEvents.SnapshotCaptured.class);
+            };
         } catch (Exception e) {
             log.error("Failed to parse proctoring snapshot event: {}", e.getMessage());
             return null;

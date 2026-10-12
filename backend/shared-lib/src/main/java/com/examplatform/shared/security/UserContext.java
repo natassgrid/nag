@@ -132,7 +132,7 @@ public final class UserContext {
      * Checks if the current user holds any of the specified roles.
      */
     public static boolean hasAnyRole(String... roles) {
-        if (roles == null || roles.length == 0) {
+        if (roles == null) {
             return false;
         }
         for (String role : roles) {

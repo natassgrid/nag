@@ -546,7 +546,7 @@ public class SessionStartService {
         String firstQuestionContent = extractFirstQuestion(decryptedPaper);
         if (firstQuestionContent == null && questions != null && !questions.isEmpty()) {
             try {
-                firstQuestionContent = objectMapper.writeValueAsString(questions.get(0));
+                firstQuestionContent = objectMapper.writeValueAsString(questions.getFirst());
             } catch (JsonProcessingException ignored) {}
         }
         int totalQuestions = (questions != null && !questions.isEmpty()) ? questions.size() : countQuestions(decryptedPaper);

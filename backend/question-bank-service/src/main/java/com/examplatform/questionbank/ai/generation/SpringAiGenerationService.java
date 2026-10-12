@@ -15,22 +15,14 @@
  */
 package com.examplatform.questionbank.ai.generation;
 
-import com.examplatform.questionbank.exception.QuestionGenerationException;
-
 import com.examplatform.questionbank.ai.embedding.EmbeddingService;
-import com.examplatform.questionbank.ai.generation.multiagent.ComplexityEvaluationResult;
-import com.examplatform.questionbank.ai.generation.multiagent.ComplexityEvaluator;
-import com.examplatform.questionbank.ai.generation.multiagent.CriticReviewResult;
-import com.examplatform.questionbank.ai.generation.multiagent.PsychometricCriticAgent;
-import com.examplatform.questionbank.ai.generation.multiagent.QuestionAuthorAgent;
-import com.examplatform.questionbank.ai.generation.multiagent.RefinementAgent;
-import com.examplatform.questionbank.ai.generation.multiagent.RequirementAnalystAgent;
-import com.examplatform.questionbank.ai.generation.multiagent.SimilarityAuditorAgent;
+import com.examplatform.questionbank.ai.generation.multiagent.*;
 import com.examplatform.questionbank.ai.parser.NormalizedSampleQuestion;
 import com.examplatform.questionbank.ai.parser.SampleDocumentParserService;
 import com.examplatform.questionbank.ai.similarity.SimilarityCheckResult;
 import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.dto.QuestionOption;
+import com.examplatform.questionbank.exception.QuestionGenerationException;
 import com.examplatform.questionbank.repository.QuestionRepository;
 import com.examplatform.questionbank.repository.SimilarityResult;
 import com.examplatform.questionbank.service.SimilarityDetectionService;
@@ -49,12 +41,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -542,7 +529,8 @@ public class SpringAiGenerationService implements QuestionGenerationService {
 
         try {
             List<RawGeneratedQuestion> parsed =
-                    objectMapper.readValue(json, new TypeReference<List<RawGeneratedQuestion>>() {});
+                    objectMapper.readValue(json, new TypeReference<>() {
+                    });
             return parsed.stream().map(this::normalizeLatexDelimiters).toList();
         } catch (JsonProcessingException e) {
             log.error("Failed to parse LLM response as JSON: {}", e.getMessage());

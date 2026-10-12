@@ -19,13 +19,7 @@
 package com.examplatform.asset.controller;
 
 import com.examplatform.asset.domain.entity.MediaAsset;
-import com.examplatform.asset.domain.enums.AssetStatus;
-import com.examplatform.asset.domain.enums.AssetType;
-import com.examplatform.asset.dto.AssetMetadataUpdateRequest;
-import com.examplatform.asset.dto.AssetReferenceRequest;
-import com.examplatform.asset.dto.AssetReferenceResponse;
-import com.examplatform.asset.dto.AssetSearchRequest;
-import com.examplatform.asset.dto.AssetUploadResponse;
+import com.examplatform.asset.dto.*;
 import com.examplatform.asset.service.AssetService;
 import com.examplatform.asset.service.ReferenceService;
 import com.examplatform.shared.api.ApiResponse;
@@ -42,23 +36,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -84,7 +68,7 @@ public class AssetController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) throws IOException {
 
-        UUID userId = UUID.fromString(jwt.getSubject());
+        UUID userId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         AssetUploadResponse response = assetService.upload(file, userId, tenantId);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(response, "Asset uploaded successfully"));
@@ -101,7 +85,7 @@ public class AssetController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) throws IOException {
 
-        UUID userId = UUID.fromString(jwt.getSubject());
+        UUID userId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         AssetUploadResponse response = assetService.replaceContent(id, file, userId, tenantId);
         return ResponseEntity.ok(ApiResponse.success(response, "Asset content replaced successfully"));
     }
@@ -156,7 +140,7 @@ public class AssetController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
 
-        UUID userId = UUID.fromString(jwt.getSubject());
+        UUID userId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         AssetUploadResponse response = assetService.updateMetadata(id, request, userId, tenantId);
         return ResponseEntity.ok(ApiResponse.success(response, "Asset metadata updated successfully"));
     }
@@ -171,7 +155,7 @@ public class AssetController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
 
-        UUID userId = UUID.fromString(jwt.getSubject());
+        UUID userId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         AssetReferenceResponse response = referenceService.addReference(request, userId, tenantId);
         return ResponseEntity
                 .status(HttpStatus.CREATED)
@@ -208,7 +192,7 @@ public class AssetController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader("X-Tenant-Id") String tenantId) {
 
-        UUID userId = UUID.fromString(jwt.getSubject());
+        UUID userId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         assetService.deleteAsset(id, userId, tenantId);
         return ResponseEntity.ok(ApiResponse.success("Asset deleted successfully"));
     }
@@ -296,6 +280,6 @@ public class AssetController {
     }
 
     private UUID getSubjectUserId(Jwt jwt) {
-        return UUID.fromString(jwt.getSubject());
+        return UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
     }
 }

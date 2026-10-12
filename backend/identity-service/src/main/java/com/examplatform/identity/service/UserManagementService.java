@@ -19,13 +19,9 @@
 
 package com.examplatform.identity.service;
 
-import com.examplatform.shared.constants.SharedConstants;
-import com.examplatform.shared.crypto.HashingService;
-
 import com.examplatform.identity.domain.UserAccount;
 import com.examplatform.identity.domain.UserRoleAssignment;
 import com.examplatform.identity.domain.enums.AccountStatus;
-import com.examplatform.identity.domain.enums.UserRole;
 import com.examplatform.identity.dto.AdminCreateUserRequest;
 import com.examplatform.identity.dto.AdminUpdateUserRequest;
 import com.examplatform.identity.dto.UserAccountResponse;
@@ -34,6 +30,8 @@ import com.examplatform.identity.exception.DuplicateIdentityException;
 import com.examplatform.identity.repository.UserAccountRepository;
 import com.examplatform.identity.repository.UserRoleAssignmentRepository;
 import com.examplatform.shared.audit.AuditEventType;
+import com.examplatform.shared.constants.SharedConstants;
+import com.examplatform.shared.crypto.HashingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -44,7 +42,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 /**
  * Service for admin-initiated user management operations:

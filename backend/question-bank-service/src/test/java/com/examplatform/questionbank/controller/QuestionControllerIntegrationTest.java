@@ -29,11 +29,7 @@ import com.examplatform.questionbank.dto.QuestionResponse;
 import com.examplatform.questionbank.dto.TransitionRequest;
 import com.examplatform.questionbank.exception.FourEyesPrincipleViolationException;
 import com.examplatform.questionbank.exception.InvalidTransitionException;
-import com.examplatform.questionbank.service.QuestionLifecycleService;
-import com.examplatform.questionbank.service.QuestionSearchService;
-import com.examplatform.questionbank.service.QuestionService;
-import com.examplatform.questionbank.service.QuestionUpdateService;
-import com.examplatform.questionbank.service.QuestionVersioningService;
+import com.examplatform.questionbank.service.*;
 import com.examplatform.questionbank.support.AbstractIntegrationTest;
 import com.examplatform.shared.constants.QuestionStateConstants;
 import com.examplatform.shared.constants.QuestionTaxonomyConstants;
@@ -54,12 +50,11 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * QuestionController REST endpoint integration tests (MockMvc).

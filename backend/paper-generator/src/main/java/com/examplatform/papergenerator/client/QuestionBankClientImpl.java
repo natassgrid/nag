@@ -22,12 +22,7 @@ package com.examplatform.papergenerator.client;
 import com.examplatform.papergenerator.dto.BatchTranslationJobResponseDto;
 import com.examplatform.papergenerator.dto.PaperTranslateRequest;
 import com.examplatform.papergenerator.dto.QuestionSummary;
-import com.examplatform.questionbank.grpc.BatchFindQuestionsGrpcRequest;
-import com.examplatform.questionbank.grpc.BatchFindQuestionsGrpcResponse;
-import com.examplatform.questionbank.grpc.BlueprintMatchGrpcRequest;
-import com.examplatform.questionbank.grpc.BlueprintMatchGrpcResponse;
-import com.examplatform.questionbank.grpc.QuestionBankGrpcServiceGrpc;
-import com.examplatform.questionbank.grpc.QuestionSummaryGrpc;
+import com.examplatform.questionbank.grpc.*;
 import com.examplatform.shared.auth.ClientAuthTokenResolver;
 import com.examplatform.shared.auth.ServiceAccountTokenProvider;
 import com.examplatform.shared.constants.QuestionStateConstants;
@@ -42,32 +37,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
-import org.springframework.web.context.request.RequestAttributes;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
-import java.nio.charset.StandardCharsets;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -231,10 +210,8 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                     ORDER BY RANDOM()
                     """;
 
-                List<QuestionSummary> fallbackQuestions = jdbcTemplate.query(fallbackSql, QuestionBankClientImpl::mapQuestionSummary,
+                return jdbcTemplate.query(fallbackSql, QuestionBankClientImpl::mapQuestionSummary,
                         effectiveTenant, cleanSubject, cleanTopic, cleanDifficulty, cleanDifficulty);
-
-                return fallbackQuestions;
             }
 
             return questions;
@@ -426,7 +403,8 @@ public class QuestionBankClientImpl implements QuestionBankClient {
 
             List<BatchTranslationJobResponseDto> res = spec
                     .retrieve()
-                    .body(new ParameterizedTypeReference<List<BatchTranslationJobResponseDto>>() {});
+                    .body(new ParameterizedTypeReference<>() {
+                    });
             return res != null ? res : Collections.emptyList();
         } catch (Exception e) {
             log.warn("Failed to get batch translation jobs for paperId={} from {}: {}", paperId, url, e.getMessage());
@@ -467,7 +445,8 @@ public class QuestionBankClientImpl implements QuestionBankClient {
         ApiResponseDto<List<QuestionResponseDto>> apiResponse = spec
                 .body(requestBody)
                 .retrieve()
-                .body(new ParameterizedTypeReference<ApiResponseDto<List<QuestionResponseDto>>>() {});
+                .body(new ParameterizedTypeReference<>() {
+                });
 
         if (apiResponse != null && apiResponse.getData() != null) {
             log.info("Retrieved {} questions from question-bank-service via REST", apiResponse.getData().size());
@@ -503,7 +482,8 @@ public class QuestionBankClientImpl implements QuestionBankClient {
 
     private QuestionSummary toSummaryFromGrpc(QuestionSummaryGrpc grpc) {
         UUID passageId = null;
-        if (grpc.getPassageId() != null && !grpc.getPassageId().isBlank()) {
+        grpc.getPassageId();
+        if (!grpc.getPassageId().isBlank()) {
             try {
                 passageId = UUID.fromString(grpc.getPassageId());
             } catch (IllegalArgumentException ignored) {

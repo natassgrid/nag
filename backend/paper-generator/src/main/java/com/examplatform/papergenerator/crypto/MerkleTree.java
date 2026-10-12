@@ -19,10 +19,7 @@
 
 package com.examplatform.papergenerator.crypto;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -44,8 +41,10 @@ public class MerkleTree {
     public static final String LEAF_PREFIX = "NAG_LEAF_V1:";
     public static final String NODE_PREFIX = "NAG_NODE_V1:";
 
+    @Getter
     private final List<String> leafHashes;
     private final List<List<String>> levels;
+    @Getter
     private final String rootHash;
 
     public MerkleTree(List<String> rawLeafPayloads) {
@@ -97,15 +96,7 @@ public class MerkleTree {
         }
 
         this.levels = Collections.unmodifiableList(treeLevels);
-        this.rootHash = treeLevels.get(treeLevels.size() - 1).get(0);
-    }
-
-    public String getRootHash() {
-        return rootHash;
-    }
-
-    public List<String> getLeafHashes() {
-        return leafHashes;
+        this.rootHash = treeLevels.getLast().getFirst();
     }
 
     public int getLeafCount() {

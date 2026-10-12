@@ -35,15 +35,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -86,7 +81,7 @@ public class ResponseController {
 
         long startTime = System.currentTimeMillis();
 
-        UUID candidateId = UUID.fromString(jwt.getSubject());
+        UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
 
         String clientIp = (xForwardedFor != null && !xForwardedFor.isBlank())
@@ -127,7 +122,7 @@ public class ResponseController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader(value = "X-Tenant-Id", required = false) String tenantId) {
 
-        UUID candidateId = UUID.fromString(jwt.getSubject());
+        UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
 
         log.debug("Bulk-saving responses: sessionId={}, candidate={}, count={}, tenant={}",
@@ -155,7 +150,7 @@ public class ResponseController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader(value = "X-Tenant-Id", required = false) String tenantId) {
 
-        UUID candidateId = UUID.fromString(jwt.getSubject());
+        UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
 
         log.debug("Submitting session: sessionId={}, candidate={}, tenant={}",

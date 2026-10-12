@@ -155,12 +155,11 @@ public class PracticeEvaluationService {
                     } catch (NumberFormatException ignored) {}
                     a.topicName = ak.topicName() != null ? ak.topicName() : "General";
                     a.subtopicId = ak.subtopicId();
-                    a.subtopicName = subKey;
                 } else {
                     a.subjectName = "General";
                     a.topicName = "General";
-                    a.subtopicName = subKey;
                 }
+                a.subtopicName = subKey;
                 return a;
             });
 
@@ -274,14 +273,13 @@ public class PracticeEvaluationService {
 
             if (QuestionTypeConstants.MULTI_MCQ.equals(qType) || correctSet.size() > 1) {
                 // Multi-select MCQ: candidate's selected set must exactly match correct set
-                return selectedSet.equals(correctSet);
             } else {
                 // Single-select MCQ: candidate must have chosen exactly 1 option and it must match
                 if (selectedSet.size() != 1) {
                     return false;
                 }
-                return selectedSet.equals(correctSet);
             }
+            return selectedSet.equals(correctSet);
         }
 
         return false;

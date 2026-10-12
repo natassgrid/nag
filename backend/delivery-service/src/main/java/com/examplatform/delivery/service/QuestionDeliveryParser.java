@@ -97,7 +97,7 @@ public class QuestionDeliveryParser {
                     (qNode.has("passage_id") ? qNode.get("passage_id").asText() : null);
             String passageContent = qNode.has("passageContent") ? qNode.get("passageContent").asText() :
                     (qNode.has("passage_content") ? qNode.get("passage_content").asText() : null);
-            Integer passageOrderIndex = qNode.has("passageOrderIndex") ? qNode.get("passageOrderIndex").asInt() :
+            Integer passageOrderIndex = qNode.has("passageOrderIndex") ? Integer.valueOf(qNode.get("passageOrderIndex").asInt()) :
                     (qNode.has("passage_order_index") ? qNode.get("passage_order_index").asInt() : null);
 
             ParsedOptions parsedOptions = parseOptions(qNode.get("options"), answerKey);
@@ -151,7 +151,7 @@ public class QuestionDeliveryParser {
             for (int i = 0; i < optionsNode.size(); i++) {
                 JsonNode optNode = optionsNode.get(i);
                 String optText;
-                String optId = "";
+                String optId;
                 String optImageUrl = null;
                 String optImageAltText = null;
                 boolean isCorrect = false;

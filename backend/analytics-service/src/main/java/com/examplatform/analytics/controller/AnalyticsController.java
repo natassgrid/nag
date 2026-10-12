@@ -73,15 +73,12 @@ public class AnalyticsController {
         byte[] data = analyticsService.exportAnalytics(id, format);
 
         HttpHeaders headers = new HttpHeaders();
-        switch (format.toLowerCase()) {
-            case "pdf" -> {
-                headers.setContentType(MediaType.APPLICATION_PDF);
-                headers.set(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=analytics_" + id + ".pdf");
-            }
-            default -> {
-                headers.setContentType(MediaType.parseMediaType("text/csv"));
-                headers.set(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=analytics_" + id + ".csv");
-            }
+        if (format.toLowerCase().equals("pdf")) {
+            headers.setContentType(MediaType.APPLICATION_PDF);
+            headers.set(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=analytics_" + id + ".pdf");
+        } else {
+            headers.setContentType(MediaType.parseMediaType("text/csv"));
+            headers.set(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=analytics_" + id + ".csv");
         }
 
         return ResponseEntity.ok().headers(headers).body(data);

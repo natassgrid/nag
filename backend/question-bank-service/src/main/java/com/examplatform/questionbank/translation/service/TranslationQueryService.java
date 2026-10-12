@@ -19,8 +19,8 @@
 
 package com.examplatform.questionbank.translation.service;
 
-import com.examplatform.questionbank.translation.domain.Translation;
 import com.examplatform.questionbank.translation.domain.TranslatedQuestionPayload;
+import com.examplatform.questionbank.translation.domain.Translation;
 import com.examplatform.questionbank.translation.dto.TranslatedOptionDto;
 import com.examplatform.questionbank.translation.dto.TranslationResponse;
 import com.examplatform.questionbank.translation.repository.TranslationRepository;

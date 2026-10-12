@@ -8,11 +8,7 @@
 package com.examplatform.identity.controller;
 
 import com.examplatform.identity.dto.*;
-import com.examplatform.identity.service.AdminActivityService;
-import com.examplatform.identity.service.AdminInvitationService;
-import com.examplatform.identity.service.AuthenticationService;
-import com.examplatform.identity.service.PersonalAccessTokenService;
-import com.examplatform.identity.service.RoleManagementService;
+import com.examplatform.identity.service.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

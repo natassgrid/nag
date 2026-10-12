@@ -108,7 +108,7 @@ public class PsychometricCriticAgent {
             score -= 0.1;
         }
 
-        score = Math.max(0.0, Math.min(1.0, score));
+        score = Math.clamp(score, 0.0, 1.0);
         boolean approved = issues.isEmpty() || score >= 0.85;
 
         log.debug("Critic review completed: approved={}, score={}, issuesCount={}",

@@ -23,11 +23,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.RestController;
 
-import static com.examplatform.shared.archunit.ArchitectureConstants.CONFIG_PACKAGE;
-import static com.examplatform.shared.archunit.ArchitectureConstants.CONTROLLER_PACKAGE;
-import static com.examplatform.shared.archunit.ArchitectureConstants.ERROR_PACKAGE;
-import static com.examplatform.shared.archunit.ArchitectureConstants.REPOSITORY_PACKAGE;
-import static com.examplatform.shared.archunit.ArchitectureConstants.SERVICE_PACKAGE;
+import static com.examplatform.shared.archunit.ArchitectureConstants.*;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 
 /**
@@ -59,7 +55,7 @@ public final class NamingConventionRules {
                     .and().areNotEnums()
                     .and().areNotInterfaces()
                     .and().haveSimpleNameNotEndingWith("Builder")
-                    .should(new com.tngtech.archunit.lang.ArchCondition<com.tngtech.archunit.core.domain.JavaClass>("have valid controller-layer suffix") {
+                    .should(new com.tngtech.archunit.lang.ArchCondition<>("have valid controller-layer suffix") {
                         @Override
                         public void check(com.tngtech.archunit.core.domain.JavaClass item, com.tngtech.archunit.lang.ConditionEvents events) {
                             String name = item.getSimpleName();

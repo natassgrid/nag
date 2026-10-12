@@ -47,11 +47,7 @@ import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * Consumer that listens for session-submitted events on the
@@ -126,18 +122,24 @@ public class SessionEventConsumer {
     }
 
     private JsonNode parseMessageToJsonNode(Object message) throws Exception {
-        if (message instanceof Message amqpMsg) {
-            String s = new String(amqpMsg.getBody(), StandardCharsets.UTF_8);
-            return objectMapper.readTree(s);
-        } else if (message instanceof byte[] bytes) {
-            String s = new String(bytes, StandardCharsets.UTF_8);
-            return objectMapper.readTree(s);
-        } else if (message instanceof String s) {
-            return objectMapper.readTree(s);
-        } else if (message instanceof JsonNode jn) {
-            return jn;
-        } else {
-            return objectMapper.valueToTree(message);
+        switch (message) {
+            case Message amqpMsg -> {
+                String s = new String(amqpMsg.getBody(), StandardCharsets.UTF_8);
+                return objectMapper.readTree(s);
+            }
+            case byte[] bytes -> {
+                String s = new String(bytes, StandardCharsets.UTF_8);
+                return objectMapper.readTree(s);
+            }
+            case String s -> {
+                return objectMapper.readTree(s);
+            }
+            case JsonNode jn -> {
+                return jn;
+            }
+            case null, default -> {
+                return objectMapper.valueToTree(message);
+            }
         }
     }
 
@@ -212,7 +214,8 @@ public class SessionEventConsumer {
             try {
                 return objectMapper.readValue(
                         event.get("responses").toString(),
-                        new TypeReference<List<CandidateResponse>>() {});
+                    new TypeReference<>() {
+                    });
             } catch (Exception e) {
                 log.warn("Failed to parse candidate responses from event payload: {}", e.getMessage());
             }
@@ -229,7 +232,8 @@ public class SessionEventConsumer {
             try {
                 return objectMapper.readValue(
                         event.get("answerKeys").toString(),
-                        new TypeReference<List<AnswerKey>>() {});
+                        new TypeReference<>() {
+                        });
             } catch (Exception e) {
                 log.warn("Failed to parse answer keys from event payload: {}", e.getMessage());
             }

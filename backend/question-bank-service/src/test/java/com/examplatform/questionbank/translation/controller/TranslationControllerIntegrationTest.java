@@ -24,18 +24,8 @@ import com.examplatform.questionbank.service.QuestionService;
 import com.examplatform.questionbank.support.AbstractIntegrationTest;
 import com.examplatform.questionbank.translation.domain.BatchTranslationJobStatus;
 import com.examplatform.questionbank.translation.domain.Translation;
-import com.examplatform.questionbank.translation.dto.AutoTranslateResponse;
-import com.examplatform.questionbank.translation.dto.BatchTranslationJobResponse;
-import com.examplatform.questionbank.translation.dto.BatchTranslationRequest;
-import com.examplatform.questionbank.translation.dto.TranslatedOptionDto;
-import com.examplatform.questionbank.translation.dto.TranslationRequest;
-import com.examplatform.questionbank.translation.dto.TranslationResponse;
-import com.examplatform.questionbank.translation.dto.TranslationReviewRequest;
-import com.examplatform.questionbank.translation.service.BatchTranslationService;
-import com.examplatform.questionbank.translation.service.IndicTrans2Service;
-import com.examplatform.questionbank.translation.service.TranslationQueryService;
-import com.examplatform.questionbank.translation.service.TranslationReviewService;
-import com.examplatform.questionbank.translation.service.TranslationWorkflowService;
+import com.examplatform.questionbank.translation.dto.*;
+import com.examplatform.questionbank.translation.service.*;
 import com.examplatform.shared.constants.QuestionStateConstants;
 import com.examplatform.shared.constants.SharedConstants;
 import org.junit.jupiter.api.DisplayName;
@@ -61,8 +51,10 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @DisplayName("TranslationController REST Endpoints E2E Tests (MockMvc)")
 class TranslationControllerIntegrationTest extends AbstractIntegrationTest {

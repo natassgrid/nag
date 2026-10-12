@@ -125,7 +125,7 @@ public class NotificationProcessingService {
         if (token == null || token.isBlank()) {
             List<DeviceToken> activeTokens = deviceTokenService.getActiveTokens(userId);
             if (!activeTokens.isEmpty()) {
-                token = activeTokens.get(0).getToken();
+                token = activeTokens.getFirst().getToken();
             }
         }
 

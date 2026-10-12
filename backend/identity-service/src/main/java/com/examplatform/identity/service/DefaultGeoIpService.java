@@ -176,9 +176,7 @@ public class DefaultGeoIpService implements GeoIpService {
             String threatList = dynamicConfigService.getString("auth.risk.ip.threat-list", "default", "");
             if (threatList != null && !threatList.isBlank()) {
                 Set<String> threatIps = new HashSet<>(Arrays.asList(threatList.split(",")));
-                if (threatIps.contains(cleanIp)) {
-                    return true;
-                }
+                return threatIps.contains(cleanIp);
             }
         }
 

@@ -93,8 +93,8 @@ public class MockExamAccessValidator {
                         if (!gatekeeperPassed) {
                             JsonNode conceptualGaps = root.get("conceptualGaps");
                             JsonNode applicationGaps = root.get("applicationGaps");
-                            boolean hasGaps = (conceptualGaps != null && conceptualGaps.size() > 0)
-                                    || (applicationGaps != null && applicationGaps.size() > 0);
+                            boolean hasGaps = (conceptualGaps != null && !conceptualGaps.isEmpty())
+                                    || (applicationGaps != null && !applicationGaps.isEmpty());
 
                             if (hasGaps) {
                                 throw new ResponseStatusException(

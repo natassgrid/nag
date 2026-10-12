@@ -93,7 +93,7 @@ public class PaperTranslationService {
         String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
         List<BatchTranslationJobResponseDto> jobs = questionBankClient.listBatchJobsByPaper(paperId, effectiveTenant);
         if (jobs != null && !jobs.isEmpty()) {
-            BatchTranslationJobResponseDto latest = jobs.get(0);
+            BatchTranslationJobResponseDto latest = jobs.getFirst();
             return mapToPaperTranslateResponse(paperId, latest, latest.getTotalQuestions());
         }
         return PaperTranslateResponse.builder()

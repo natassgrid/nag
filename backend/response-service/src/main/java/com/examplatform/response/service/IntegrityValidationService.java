@@ -19,8 +19,6 @@
 
 package com.examplatform.response.service;
 
-import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
-
 import com.examplatform.response.exception.ResponseIntegrityException;
 import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
@@ -34,6 +32,8 @@ import org.springframework.web.client.RestTemplate;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
+
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
 
 /**
  * Validates response integrity by calling delivery-service.

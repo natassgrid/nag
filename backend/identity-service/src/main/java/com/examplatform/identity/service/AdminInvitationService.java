@@ -19,31 +19,20 @@
 
 package com.examplatform.identity.service;
 
-import com.examplatform.shared.constants.SharedConstants;
-import com.examplatform.shared.crypto.HashingService;
-
 import com.examplatform.identity.domain.AdminInvitation;
 import com.examplatform.identity.domain.UserAccount;
 import com.examplatform.identity.domain.UserRoleAssignment;
 import com.examplatform.identity.domain.enums.AccountStatus;
 import com.examplatform.identity.domain.enums.InvitationStatus;
 import com.examplatform.identity.domain.enums.UserRole;
-import com.examplatform.identity.dto.AcceptInviteRequest;
-import com.examplatform.identity.dto.AdminInviteRequest;
-import com.examplatform.identity.dto.AdminInviteResponse;
-import com.examplatform.identity.dto.AuthTokenResponse;
-import com.examplatform.identity.dto.TotpSetupResponse;
-import com.examplatform.identity.dto.TotpVerifySetupRequest;
-import com.examplatform.identity.dto.ValidateInviteResponse;
-import com.examplatform.identity.exception.AccountNotFoundException;
-import com.examplatform.identity.exception.DuplicateIdentityException;
-import com.examplatform.identity.exception.InvalidTotpException;
-import com.examplatform.identity.exception.InvitationExpiredException;
-import com.examplatform.identity.exception.InvitationNotFoundException;
+import com.examplatform.identity.dto.*;
+import com.examplatform.identity.exception.*;
 import com.examplatform.identity.repository.AdminInvitationRepository;
 import com.examplatform.identity.repository.UserAccountRepository;
 import com.examplatform.identity.repository.UserRoleAssignmentRepository;
 import com.examplatform.shared.audit.AuditEventType;
+import com.examplatform.shared.constants.SharedConstants;
+import com.examplatform.shared.crypto.HashingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -54,14 +43,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.HexFormat;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.stream.Collectors;
+import java.util.*;
 
 @Slf4j
 @Service

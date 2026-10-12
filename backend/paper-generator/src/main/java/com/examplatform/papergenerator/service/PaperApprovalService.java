@@ -19,8 +19,6 @@
 
 package com.examplatform.papergenerator.service;
 
-import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
-
 import com.examplatform.papergenerator.domain.Paper;
 import com.examplatform.papergenerator.repository.PaperRepository;
 import com.examplatform.shared.constants.QuestionStateConstants;
@@ -36,6 +34,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
+
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
 
 /**
  * Manages paper approval workflow: DRAFT → APPROVED → ENCRYPTED.

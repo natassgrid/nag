@@ -22,11 +22,7 @@ import com.examplatform.shared.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -56,7 +52,7 @@ public class Examination extends BaseEntity {
     private String code;
 
     /** Authority that conducts this examination (e.g. "NTA", "UPSC"). */
-    @Column(name = "conducting_authority", length = 255)
+    @Column(name = "conducting_authority")
     private String conductingAuthority;
 
     /** RECRUITMENT / ENTRANCE / CERTIFICATION / DEPARTMENTAL */

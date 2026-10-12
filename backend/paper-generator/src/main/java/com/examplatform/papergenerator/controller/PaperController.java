@@ -22,24 +22,8 @@ package com.examplatform.papergenerator.controller;
 import com.examplatform.papergenerator.client.QuestionBankClient;
 import com.examplatform.papergenerator.crypto.MerkleTree;
 import com.examplatform.papergenerator.domain.Paper;
-import com.examplatform.papergenerator.dto.BlueprintFeasibilityRequest;
-import com.examplatform.papergenerator.dto.BlueprintFeasibilityResponse;
-import com.examplatform.papergenerator.dto.MerkleLeafVerifyRequest;
-import com.examplatform.papergenerator.dto.PaperAcceptedResponse;
-import com.examplatform.papergenerator.dto.PaperApprovalResponse;
-import com.examplatform.papergenerator.dto.PaperGenerationRequest;
-import com.examplatform.papergenerator.dto.PaperResponse;
-import com.examplatform.papergenerator.dto.PaperSummaryResponse;
-import com.examplatform.papergenerator.dto.PaperTranslateRequest;
-import com.examplatform.papergenerator.dto.PaperTranslateResponse;
-import com.examplatform.papergenerator.dto.PaperValidationResponse;
-import com.examplatform.papergenerator.dto.QuestionSummary;
-import com.examplatform.papergenerator.service.ExaminationLookupService;
-import com.examplatform.papergenerator.service.PaperAnchoringService;
-import com.examplatform.papergenerator.service.PaperApprovalService;
-import com.examplatform.papergenerator.service.PaperAssemblyService;
-import com.examplatform.papergenerator.service.PaperSerializer;
-import com.examplatform.papergenerator.service.PaperTranslationService;
+import com.examplatform.papergenerator.dto.*;
+import com.examplatform.papergenerator.service.*;
 import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.tenant.TenantContext;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -55,24 +39,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -270,7 +239,7 @@ public class PaperController {
             @Valid @RequestBody PaperGenerationRequest request,
             @AuthenticationPrincipal Jwt jwt) {
 
-        UUID generatedBy = UUID.fromString(jwt.getSubject());
+        UUID generatedBy = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         String tenantId = getEffectiveTenantId();
 
         log.info("Paper generation requested by user={}, examId={}, shiftId={}, isPractice={}",

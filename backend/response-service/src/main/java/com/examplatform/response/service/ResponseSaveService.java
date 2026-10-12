@@ -19,17 +19,15 @@
 
 package com.examplatform.response.service;
 
-import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
-
 import com.examplatform.response.config.MetricsConfig;
 import com.examplatform.response.domain.Response;
 import com.examplatform.response.dto.SaveResponseRequest;
 import com.examplatform.response.dto.SaveResponseResponse;
 import com.examplatform.response.repository.ResponseRepository;
 import com.examplatform.shared.constants.SharedConstants;
+import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import com.examplatform.shared.messaging.EventPublisher;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,6 +37,8 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
 
 /**
  * Service responsible for persisting candidate responses and publishing save events.
@@ -84,7 +84,7 @@ public class ResponseSaveService {
         List<Response> previousResponses = responseRepository
                 .findBySessionIdAndQuestionIdOrderByRevisionSequenceDesc(sessionId, request.getQuestionId());
 
-        int newRevision = previousResponses.isEmpty() ? 1 : previousResponses.get(0).getRevisionSequence() + 1;
+        int newRevision = previousResponses.isEmpty() ? 1 : previousResponses.getFirst().getRevisionSequence() + 1;
 
         // 2. Build Response entity
         Response response = Response.builder()

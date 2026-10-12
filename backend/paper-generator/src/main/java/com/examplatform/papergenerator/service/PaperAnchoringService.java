@@ -19,8 +19,6 @@
 
 package com.examplatform.papergenerator.service;
 
-import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
-
 import com.examplatform.papergenerator.crypto.CanonicalPaperManifest;
 import com.examplatform.papergenerator.crypto.MerkleTree;
 import com.examplatform.papergenerator.domain.Paper;
@@ -41,13 +39,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
+
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
 
 /**
  * Service orchestrating Merkle Tree generation, canonical manifest computation,
@@ -243,7 +237,8 @@ public class PaperAnchoringService {
         try {
             Map<String, MerkleTree.MerkleProof> proofMap = objectMapper.readValue(
                     paper.getMerkleProofJson(),
-                    new TypeReference<Map<String, MerkleTree.MerkleProof>>() {});
+                new TypeReference<>() {
+                });
             return Optional.ofNullable(proofMap.get(questionId.toString()));
         } catch (Exception e) {
             log.warn("Failed to parse MerkleProofJson for paper {}: {}", paperId, e.getMessage());
@@ -298,7 +293,8 @@ public class PaperAnchoringService {
             return Collections.emptyMap();
         }
         try {
-            return objectMapper.readValue(topicDistributionJson, new TypeReference<Map<String, Integer>>() {});
+            return objectMapper.readValue(topicDistributionJson, new TypeReference<>() {
+            });
         } catch (Exception e) {
             return Collections.emptyMap();
         }

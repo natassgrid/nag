@@ -40,6 +40,7 @@ import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * HSM/Vault-backed implementation of {@link VaultCryptoService}.
@@ -100,7 +101,7 @@ public class VaultCryptoServiceImpl implements VaultCryptoService {
             return fallbackDecrypt(keyName, ciphertext);
         }
         try {
-            Plaintext plaintext = transit().decrypt(keyName, Ciphertext.of(ciphertext));
+            Plaintext plaintext = transit().decrypt(keyName, Ciphertext.of(Objects.requireNonNull(ciphertext)));
             return plaintext.asString();
         } catch (Exception e) {
             log.warn("Vault Transit decrypt failed for key [{}]: {}. Trying local fallback decryption.", keyName, e.getMessage());
@@ -126,7 +127,7 @@ public class VaultCryptoServiceImpl implements VaultCryptoService {
             return true;
         }
         try {
-            return transit().verify(keyName, Plaintext.of(payload), Signature.of(signature));
+            return transit().verify(keyName, Plaintext.of(payload), Signature.of(Objects.requireNonNull(signature)));
         } catch (Exception e) {
             log.error("Vault verify failed for key [{}]: {}", keyName, e.getMessage());
             return false;

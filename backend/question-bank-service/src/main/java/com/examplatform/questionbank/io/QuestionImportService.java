@@ -19,11 +19,11 @@
 
 package com.examplatform.questionbank.io;
 
-import com.examplatform.questionbank.dto.CreateQuestionRequest;
-import com.examplatform.questionbank.dto.QuestionOption;
 import com.examplatform.questionbank.domain.enums.CognitiveLevel;
 import com.examplatform.questionbank.domain.enums.DifficultyLevel;
 import com.examplatform.questionbank.domain.enums.QuestionType;
+import com.examplatform.questionbank.dto.CreateQuestionRequest;
+import com.examplatform.questionbank.dto.QuestionOption;
 import com.examplatform.questionbank.service.QuestionService;
 import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -35,7 +35,6 @@ import org.springframework.stereotype.Service;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -113,7 +112,8 @@ public class QuestionImportService {
                                 String tenantId, ImportResult result) {
         List<Map<String, Object>> records;
         try {
-            records = objectMapper.readValue(content, new TypeReference<List<Map<String, Object>>>() {});
+            records = objectMapper.readValue(content, new TypeReference<>() {
+            });
         } catch (Exception e) {
             // whole-file parse failure — record one failure for the file
             recordFailure(result, file, -1, "Failed to parse JSON: " + e.getMessage());
@@ -137,7 +137,7 @@ public class QuestionImportService {
         if (rows.isEmpty()) {
             return;
         }
-        List<String> header = rows.get(0);
+        List<String> header = rows.getFirst();
         for (int r = 1; r < rows.size(); r++) {
             result.setTotalRecords(result.getTotalRecords() + 1);
             try {
@@ -158,7 +158,8 @@ public class QuestionImportService {
         List<QuestionOption> options = null;
         Object rawOptions = rec.get("options");
         if (rawOptions != null) {
-            options = objectMapper.convertValue(rawOptions, new TypeReference<List<QuestionOption>>() {});
+            options = objectMapper.convertValue(rawOptions, new TypeReference<>() {
+            });
         }
         return CreateQuestionRequest.builder()
                 .subjectId(asLong(rec.get("subjectId")))
@@ -183,7 +184,8 @@ public class QuestionImportService {
         String optionsJson = value(header, row, "optionsJson");
         List<QuestionOption> options = null;
         if (optionsJson != null && !optionsJson.isBlank()) {
-            options = objectMapper.readValue(optionsJson, new TypeReference<List<QuestionOption>>() {});
+            options = objectMapper.readValue(optionsJson, new TypeReference<>() {
+            });
         }
         return CreateQuestionRequest.builder()
                 .subjectId(asLong(value(header, row, "subjectId")))

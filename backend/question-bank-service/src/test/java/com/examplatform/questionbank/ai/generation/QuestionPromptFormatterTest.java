@@ -15,12 +15,12 @@
  */
 package com.examplatform.questionbank.ai.generation;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import com.examplatform.shared.constants.QuestionTypeConstants;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("QuestionPromptFormatter Unit Tests")
 class QuestionPromptFormatterTest {

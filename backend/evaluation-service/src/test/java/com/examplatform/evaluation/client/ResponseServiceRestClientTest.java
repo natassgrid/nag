@@ -19,17 +19,14 @@
 
 package com.examplatform.evaluation.client;
 
-import com.examplatform.evaluation.dto.CandidateResponse;
 import com.examplatform.evaluation.exception.UpstreamServiceUnavailableException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
 import java.util.UUID;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ResponseServiceRestClientTest {

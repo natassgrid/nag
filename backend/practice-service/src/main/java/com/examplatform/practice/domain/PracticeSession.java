@@ -2,10 +2,13 @@
 package com.examplatform.practice.domain;
 
 import com.examplatform.shared.entity.BaseEntity;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+
 import java.time.Instant;
 import java.util.UUID;
 

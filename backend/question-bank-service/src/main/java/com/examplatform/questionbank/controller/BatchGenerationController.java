@@ -18,11 +18,7 @@
  */
 package com.examplatform.questionbank.controller;
 
-import com.examplatform.questionbank.ai.batch.BatchGenerationJob;
-import com.examplatform.questionbank.ai.batch.BatchGenerationJobRepository;
-import com.examplatform.questionbank.ai.batch.BatchGenerationRequest;
-import com.examplatform.questionbank.ai.batch.BatchJobResponse;
-import com.examplatform.questionbank.ai.batch.BedrockBatchService;
+import com.examplatform.questionbank.ai.batch.*;
 import com.examplatform.shared.api.ApiResponse;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
@@ -30,20 +26,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -78,7 +67,7 @@ public class BatchGenerationController {
             @RequestHeader("X-Tenant-Id") String tenantId,
             @AuthenticationPrincipal Jwt jwt) {
 
-        UUID authorId = UUID.fromString(jwt.getSubject());
+        UUID authorId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         log.info("Batch generation job submitted: items={}, tenant={}",
                 request.getItems().size(), tenantId);
 

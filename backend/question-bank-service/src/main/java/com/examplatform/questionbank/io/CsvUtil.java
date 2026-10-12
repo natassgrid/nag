@@ -113,11 +113,10 @@ public final class CsvUtil {
                     return;
                 }
                 inQuotes = false;
-                index++;
             } else {
                 field.append(c);
-                index++;
             }
+            index++;
         }
 
         private void processUnquotedChar() {

@@ -32,6 +32,7 @@ import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.tenant.TenantContext;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
@@ -42,12 +43,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -81,9 +77,11 @@ public class AsyncBatchTranslationWorker {
 
     private final Set<UUID> activeJobIds = ConcurrentHashMap.newKeySet();
 
+    @Setter
     @Value("${translation.batch.chunk-pause-interval-questions:15}")
     private int chunkPauseIntervalQuestions = 15;
 
+    @Setter
     @Value("${translation.batch.chunk-pause-duration-seconds:60}")
     private int chunkPauseDurationSeconds = 60;
 
@@ -260,7 +258,7 @@ public class AsyncBatchTranslationWorker {
                 continue;
             }
 
-            if (!executeThrottledQuestion(question, context)) {
+            if (executeThrottledQuestion(question, context)) {
                 return -1;
             }
 
@@ -318,7 +316,7 @@ public class AsyncBatchTranslationWorker {
                 return -1;
             }
 
-            if (!executeThrottledQuestion(question, context)) {
+            if (executeThrottledQuestion(question, context)) {
                 return -1;
             }
 
@@ -483,14 +481,6 @@ public class AsyncBatchTranslationWorker {
         return activeJobIds.contains(jobId);
     }
 
-    public void setChunkPauseIntervalQuestions(int chunkPauseIntervalQuestions) {
-        this.chunkPauseIntervalQuestions = chunkPauseIntervalQuestions;
-    }
-
-    public void setChunkPauseDurationSeconds(int chunkPauseDurationSeconds) {
-        this.chunkPauseDurationSeconds = chunkPauseDurationSeconds;
-    }
-
     private boolean executeThrottledQuestion(Question question, TranslationExecutionContext context) {
         try {
             context.concurrencyLimiter().acquire();
@@ -498,7 +488,7 @@ public class AsyncBatchTranslationWorker {
         } catch (InterruptedException _) {
             Thread.currentThread().interrupt();
             log.warn("Batch worker interrupted while acquiring semaphore for job {}", context.jobId());
-            return false;
+            return true;
         } finally {
             context.concurrencyLimiter().release();
         }
@@ -509,10 +499,10 @@ public class AsyncBatchTranslationWorker {
             } catch (InterruptedException _) {
                 Thread.currentThread().interrupt();
                 log.warn("Throttle sleep interrupted for job {}", context.jobId());
-                return false;
+                return true;
             }
         }
-        return true;
+        return false;
     }
 
     private boolean pauseChunkIntervalIfDue(UUID jobId, int chunkPauseDurationSeconds) {

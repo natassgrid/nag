@@ -23,11 +23,7 @@ import com.examplatform.shared.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -56,7 +52,7 @@ public class PersonalAccessToken extends BaseEntity {
     @Column(name = "scopes", nullable = false, length = 500)
     private String scopes;
 
-    @Column(name = "ip_whitelist", length = 255)
+    @Column(name = "ip_whitelist")
     private String ipWhitelist;
 
     @Column(name = "expires_at")

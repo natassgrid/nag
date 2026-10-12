@@ -7,11 +7,7 @@
 
 package com.examplatform.examination.controller;
 
-import com.examplatform.examination.dto.AdmitCardResponse;
-import com.examplatform.examination.dto.ExamApplicationRequest;
-import com.examplatform.examination.dto.ExamApplicationResponse;
-import com.examplatform.examination.dto.ExaminationResponse;
-import com.examplatform.examination.dto.PublicCentreResponse;
+import com.examplatform.examination.dto.*;
 import com.examplatform.examination.service.ExamApplicationService;
 import com.examplatform.examination.service.ExaminationService;
 import com.examplatform.shared.api.ApiResponse;
@@ -25,15 +21,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -117,7 +108,7 @@ public class PublicExaminationController {
             @RequestBody(required = false) ExamApplicationRequest request,
             @AuthenticationPrincipal Jwt jwt) {
 
-        UUID candidateId = UUID.fromString(jwt.getSubject());
+        UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         String tenantId = TenantContext.get() != null ? TenantContext.get() : "default";
 
         log.info("Candidate {} applying for exam {} with center preferences", candidateId, examId);
@@ -145,7 +136,7 @@ public class PublicExaminationController {
     public ResponseEntity<ApiResponse<List<ExamApplicationResponse>>> getMyApplications(
             @AuthenticationPrincipal Jwt jwt) {
 
-        UUID candidateId = UUID.fromString(jwt.getSubject());
+        UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         String tenantId = TenantContext.get() != null ? TenantContext.get() : "default";
 
         List<ExamApplicationResponse> responses = examApplicationService.getMyApplications(candidateId, tenantId);
@@ -161,7 +152,7 @@ public class PublicExaminationController {
             @PathVariable UUID examId,
             @AuthenticationPrincipal Jwt jwt) {
 
-        UUID candidateId = UUID.fromString(jwt.getSubject());
+        UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         String tenantId = TenantContext.get() != null ? TenantContext.get() : "default";
 
         ExamApplicationResponse response = examApplicationService.getMyApplication(examId, candidateId, tenantId);
@@ -180,7 +171,7 @@ public class PublicExaminationController {
             @PathVariable UUID examId,
             @AuthenticationPrincipal Jwt jwt) {
 
-        UUID candidateId = UUID.fromString(jwt.getSubject());
+        UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         String tenantId = TenantContext.get() != null ? TenantContext.get() : "default";
 
         log.info("Candidate {} requesting admit card for exam {}", candidateId, examId);
@@ -198,7 +189,7 @@ public class PublicExaminationController {
             @PathVariable UUID applicationId,
             @AuthenticationPrincipal Jwt jwt) {
 
-        UUID userId = UUID.fromString(jwt.getSubject());
+        UUID userId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         String tenantId = TenantContext.get() != null ? TenantContext.get() : "default";
 
         log.info("User {} requesting admit card for application {}", userId, applicationId);

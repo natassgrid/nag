@@ -35,7 +35,8 @@ public class CandidateMetricsGrpcServiceImpl extends CandidateMetricsGrpcService
     @Override
     public void getCandidateMetrics(CandidateMetricsGrpcRequest request,
                                     StreamObserver<CandidateMetricsGrpcResponse> responseObserver) {
-        String tenantId = (request.getTenantId() != null && !request.getTenantId().isBlank())
+        request.getTenantId();
+        String tenantId = !request.getTenantId().isBlank()
                 ? request.getTenantId()
                 : "default";
         log.info("gRPC getCandidateMetrics request for tenant={}", tenantId);

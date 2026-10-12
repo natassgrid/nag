@@ -34,28 +34,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
-import org.springframework.web.context.request.RequestAttributes;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * REST-first implementation of QuestionBankClient querying question-bank-service.
@@ -106,7 +90,8 @@ public class QuestionBankClientImpl implements QuestionBankClient {
             ApiResponseDto<List<RemoteQuestionDto>> apiResponse = spec
                     .body(questionIds)
                     .retrieve()
-                    .body(new ParameterizedTypeReference<ApiResponseDto<List<RemoteQuestionDto>>>() {});
+                    .body(new ParameterizedTypeReference<>() {
+                    });
 
             if (apiResponse != null && apiResponse.getData() != null && !apiResponse.getData().isEmpty()) {
                 log.info("Retrieved {} questions from question-bank-service via REST", apiResponse.getData().size());
@@ -177,7 +162,8 @@ public class QuestionBankClientImpl implements QuestionBankClient {
             return Collections.emptyList();
         }
         try {
-            return objectMapper.readValue(optionsJson, new TypeReference<List<ReviewOptionDto>>() {});
+            return objectMapper.readValue(optionsJson, new TypeReference<>() {
+            });
         } catch (Exception e) {
             log.warn("Failed to parse options JSON: {}", e.getMessage());
             return Collections.emptyList();

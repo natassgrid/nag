@@ -4,13 +4,7 @@ package com.examplatform.recommendation.service;
 import com.examplatform.recommendation.domain.DynamicLearningPath;
 import com.examplatform.recommendation.domain.LearnerSubtopicPerformance;
 import com.examplatform.recommendation.domain.PerformanceBracket;
-import com.examplatform.recommendation.dto.DynamicLearningPathResponse;
-import com.examplatform.recommendation.dto.LearningPathSummaryResponse;
-import com.examplatform.recommendation.dto.MilestoneGraphDto;
-import com.examplatform.recommendation.dto.MilestoneItemDto;
-import com.examplatform.recommendation.dto.MilestonePhaseDto;
-import com.examplatform.recommendation.dto.SubjectMasterySummaryDto;
-import com.examplatform.recommendation.dto.SubtopicClassificationResult;
+import com.examplatform.recommendation.dto.*;
 import com.examplatform.recommendation.repository.DynamicLearningPathRepository;
 import com.examplatform.recommendation.repository.LearnerSubtopicPerformanceRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -21,13 +15,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor

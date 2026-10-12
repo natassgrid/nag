@@ -33,10 +33,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * Service for handling question navigation within exam sessions.
@@ -297,7 +294,7 @@ public class NavigationService {
         }
         // Fallback: Support standard competitive exam sizes up to 200 questions,
         // and always at least current question index + 1 to prevent false out-of-bounds
-        return Math.max(session.getCurrentQuestionIndex() + 1, 200);
+        return Math.max(Objects.requireNonNull(session).getCurrentQuestionIndex() + 1, 200);
     }
 
     private void updateSessionCache(ExamSession session) {

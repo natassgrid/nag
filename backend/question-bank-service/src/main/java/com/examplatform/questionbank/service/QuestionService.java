@@ -19,50 +19,31 @@
 
 package com.examplatform.questionbank.service;
 
-import com.examplatform.shared.constants.QuestionStateConstants;
-import com.examplatform.shared.constants.QuestionTypeConstants;
-import com.examplatform.shared.constants.SharedConstants;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-
 import com.examplatform.questionbank.ai.embedding.EmbeddingService;
 import com.examplatform.questionbank.ai.similarity.SimilarityCheckResult;
-import com.examplatform.questionbank.domain.Question;
-import com.examplatform.questionbank.domain.Subject;
-import com.examplatform.questionbank.domain.Subtopic;
-import com.examplatform.questionbank.domain.Topic;
+import com.examplatform.questionbank.domain.*;
 import com.examplatform.questionbank.domain.enums.DifficultyLevel;
 import com.examplatform.questionbank.domain.enums.QuestionType;
 import com.examplatform.questionbank.dto.CreateQuestionRequest;
 import com.examplatform.questionbank.dto.QuestionResponse;
 import com.examplatform.questionbank.exception.SimilarQuestionException;
-import com.examplatform.questionbank.repository.QuestionRepository;
-import com.examplatform.questionbank.repository.SubjectRepository;
-import com.examplatform.questionbank.repository.SubtopicRepository;
-import com.examplatform.questionbank.repository.TopicRepository;
+import com.examplatform.questionbank.repository.*;
 import com.examplatform.questionbank.translation.domain.Translation;
 import com.examplatform.questionbank.translation.repository.TranslationRepository;
-import com.examplatform.questionbank.domain.QuestionVersion;
-import com.examplatform.questionbank.repository.QuestionVersionRepository;
 import com.examplatform.questionbank.util.EmbeddingUtils;
+import com.examplatform.shared.constants.QuestionStateConstants;
+import com.examplatform.shared.constants.QuestionTypeConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.time.Instant;
-import java.time.ZoneOffset;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -448,7 +429,6 @@ public class QuestionService {
             case "cognitivelevel" -> "cognitiveLevel";
             case "questiontype" -> "questionType";
             case "state", "status" -> "state";
-            case "updatedat" -> "updatedAt";
             case "createdat", "created" -> "createdAt";
             case "id" -> "id";
             default -> "updatedAt";
@@ -564,11 +544,7 @@ public class QuestionService {
                     case "APPROVED_OR_PUBLISHED":
                         predicates.add(tRoot.get("status").in(Translation.TranslationStatus.APPROVED, Translation.TranslationStatus.PUBLISHED));
                         break;
-                    case QuestionStateConstants.DRAFT:
-                        predicates.add(cb.equal(tRoot.get("status"), Translation.TranslationStatus.DRAFT));
-                        break;
-                    case "IN_REVIEW":
-                    case "PENDING_REVIEW":
+                    case QuestionStateConstants.DRAFT, "IN_REVIEW", "PENDING_REVIEW":
                         predicates.add(cb.equal(tRoot.get("status"), Translation.TranslationStatus.DRAFT));
                         break;
                     case "STALE":
@@ -755,8 +731,8 @@ public class QuestionService {
                     && question.getAnswerKey() != null && question.getAnswerKey().startsWith("[")) {
                 try {
                     options = MAPPER.readValue(question.getAnswerKey(),
-                            new com.fasterxml.jackson.core.type.TypeReference<
-                                    java.util.List<com.examplatform.questionbank.dto.QuestionOption>>() {});
+                            new com.fasterxml.jackson.core.type.TypeReference<>() {
+                            });
                 } catch (Exception ignored) {}
             }
         }

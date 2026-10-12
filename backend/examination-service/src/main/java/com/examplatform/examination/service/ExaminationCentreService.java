@@ -19,8 +19,6 @@
 
 package com.examplatform.examination.service;
 
-import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
-
 import com.examplatform.examination.domain.ExaminationCentre;
 import com.examplatform.examination.domain.ShiftSeatAllocation;
 import com.examplatform.examination.dto.schedule.CentreResponse;
@@ -30,8 +28,8 @@ import com.examplatform.examination.dto.schedule.SeatAllocationResponse;
 import com.examplatform.examination.exception.CentreNotFoundException;
 import com.examplatform.examination.exception.SeatAllocationException;
 import com.examplatform.examination.exception.ShiftNotFoundException;
-import com.examplatform.examination.repository.ExaminationCentreRepository;
 import com.examplatform.examination.repository.ExamShiftRepository;
+import com.examplatform.examination.repository.ExaminationCentreRepository;
 import com.examplatform.examination.repository.ShiftSeatAllocationRepository;
 import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
@@ -49,6 +47,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
 
 /**
  * Service for examination centre management and shift seat allocation.
@@ -133,7 +133,6 @@ public class ExaminationCentreService {
             case "district" -> "district";
             case "totalcapacity", "capacity" -> "totalCapacity";
             case "active" -> "active";
-            case "createdat", "created" -> "createdAt";
             case "updatedat" -> "updatedAt";
             default -> "createdAt";
         };

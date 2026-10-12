@@ -35,7 +35,8 @@ public class EvaluationMetricsGrpcServiceImpl extends EvaluationMetricsGrpcServi
     @Override
     public void getEvaluationQueueMetrics(EvaluationMetricsGrpcRequest request,
                                          StreamObserver<EvaluationMetricsGrpcResponse> responseObserver) {
-        String tenantId = (request.getTenantId() != null && !request.getTenantId().isBlank())
+        request.getTenantId();
+        String tenantId = !request.getTenantId().isBlank()
                 ? request.getTenantId()
                 : "default";
         log.info("gRPC getEvaluationQueueMetrics request for tenant={}", tenantId);

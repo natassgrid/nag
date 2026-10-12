@@ -24,13 +24,7 @@ import com.examplatform.identity.domain.UserAccount;
 import com.examplatform.identity.domain.UserRoleAssignment;
 import com.examplatform.identity.domain.enums.AccountStatus;
 import com.examplatform.identity.domain.enums.UserRole;
-import com.examplatform.identity.dto.ActiveSessionResponse;
-import com.examplatform.identity.dto.AdminUpdateUserRequest;
-import com.examplatform.identity.dto.ReviewerResponse;
-import com.examplatform.identity.dto.RoleAction;
-import com.examplatform.identity.dto.RoleAssignmentRequest;
-import com.examplatform.identity.dto.RoleAssignmentResponse;
-import com.examplatform.identity.dto.UserAccountResponse;
+import com.examplatform.identity.dto.*;
 import com.examplatform.identity.exception.AccountNotFoundException;
 import com.examplatform.identity.repository.ActiveSessionRepository;
 import com.examplatform.identity.repository.UserAccountRepository;
@@ -43,12 +37,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -180,7 +169,7 @@ public class RoleManagementService {
                 ? account.getEmail()
                 : (account.getUsername() != null && account.getUsername().contains("@")
                         ? account.getUsername()
-                        : account.getUsername().toLowerCase().replace(" ", ".") + "@assessmentgrid.gov.in");
+                        : Objects.requireNonNull(account.getUsername()).toLowerCase().replace(" ", ".") + "@assessmentgrid.gov.in");
         String phone = (account.getPhoneNumber() != null && !account.getPhoneNumber().isBlank())
                 ? account.getPhoneNumber()
                 : "+91 98765 43210";
@@ -329,7 +318,7 @@ public class RoleManagementService {
                     .findFirst()
                     .orElseGet(() -> {
                         List<UserAccount> all = userAccountRepository.findAll();
-                        return all.isEmpty() ? null : all.get(0);
+                        return all.isEmpty() ? null : all.getFirst();
                     });
         }
         try {

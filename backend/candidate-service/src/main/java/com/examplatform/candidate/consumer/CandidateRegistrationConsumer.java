@@ -19,8 +19,6 @@
 
 package com.examplatform.candidate.consumer;
 
-import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
-
 import com.examplatform.candidate.domain.CandidateProfile;
 import com.examplatform.candidate.repository.CandidateProfileRepository;
 import com.examplatform.shared.constants.SharedConstants;
@@ -29,8 +27,6 @@ import com.examplatform.shared.messaging.GenericDomainEvent;
 import com.examplatform.shared.messaging.MessagePayloadExtractor;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.util.Optional;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.ExchangeTypes;
@@ -41,6 +37,11 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.context.event.EventListener;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
+
+import java.util.Optional;
+import java.util.UUID;
+
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
 
 /**
  * Listens for candidate registration audit/domain events across Kafka, RabbitMQ,

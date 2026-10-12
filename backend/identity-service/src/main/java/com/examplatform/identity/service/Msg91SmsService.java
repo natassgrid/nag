@@ -20,7 +20,6 @@
 package com.examplatform.identity.service;
 
 import com.examplatform.identity.config.SmsProperties;
-import com.examplatform.identity.domain.OtpVerification;
 import com.examplatform.identity.domain.enums.OtpChannel;
 import com.examplatform.identity.exception.SmsRateLimitExceededException;
 import com.examplatform.identity.repository.OtpVerificationRepository;

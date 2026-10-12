@@ -30,14 +30,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * Data access repository for querying examination questions, sections, and papers from PostgreSQL.
@@ -156,7 +149,7 @@ public class QuestionDeliveryRepository {
               AND q.state = 'APPROVED'
                 ORDER BY (t.id IS NOT NULL) DESC, q.id
                 LIMIT 200
-                """;
+              """;
             List<QuestionDeliveryDto> extra = queryQuestions(fallbackSql, new Object[]{tenantId}, secId, secName, marks, negMarks);
             for (QuestionDeliveryDto q : extra) {
                 try {
@@ -312,8 +305,8 @@ public class QuestionDeliveryRepository {
                     (rs, rowNum) -> rs.getString("paper_definition_json"),
                     targetId, tenantId
             );
-            if (!defJsons.isEmpty() && defJsons.get(0) != null && !defJsons.get(0).isBlank()) {
-                uids = parser.extractQuestionUuidsFromJson(defJsons.get(0));
+            if (!defJsons.isEmpty() && defJsons.getFirst() != null && !defJsons.getFirst().isBlank()) {
+                uids = parser.extractQuestionUuidsFromJson(defJsons.getFirst());
             }
         } catch (Exception e) {
             log.debug("Paper lookup error for {}: {}", targetId, e.getMessage());
@@ -332,8 +325,8 @@ public class QuestionDeliveryRepository {
                         (rs, rowNum) -> rs.getObject("practice_set_id", UUID.class),
                         targetId, tenantId
                 );
-                if (!practiceSetIds.isEmpty() && practiceSetIds.get(0) != null) {
-                    uids = resolvePracticeSetUuids(practiceSetIds.get(0), tenantId);
+                if (!practiceSetIds.isEmpty() && practiceSetIds.getFirst() != null) {
+                    uids = resolvePracticeSetUuids(practiceSetIds.getFirst(), tenantId);
                 }
             } catch (Exception e) {
                 log.debug("Practice session lookup error for {}: {}", targetId, e.getMessage());
@@ -348,8 +341,8 @@ public class QuestionDeliveryRepository {
                         (rs, rowNum) -> rs.getObject("paper_id", UUID.class),
                         targetId, tenantId
                 );
-                if (!sessionPaperIds.isEmpty() && sessionPaperIds.get(0) != null) {
-                    uids = resolveQuestionUuids(sessionPaperIds.get(0), tenantId);
+                if (!sessionPaperIds.isEmpty() && sessionPaperIds.getFirst() != null) {
+                    uids = resolveQuestionUuids(sessionPaperIds.getFirst(), tenantId);
                 }
             } catch (Exception e) {
                 log.debug("Exam session lookup error for {}: {}", targetId, e.getMessage());
@@ -367,8 +360,8 @@ public class QuestionDeliveryRepository {
                     practiceSetId, tenantId
             );
             List<UUID> uids = Collections.emptyList();
-            if (!practiceQuestionIds.isEmpty() && practiceQuestionIds.get(0) != null && !practiceQuestionIds.get(0).isBlank()) {
-                uids = parser.extractQuestionUuidsFromJsonOrString(practiceQuestionIds.get(0));
+            if (!practiceQuestionIds.isEmpty() && practiceQuestionIds.getFirst() != null && !practiceQuestionIds.getFirst().isBlank()) {
+                uids = parser.extractQuestionUuidsFromJsonOrString(practiceQuestionIds.getFirst());
             }
             // Fallback: if practice set question_ids was empty or "[]", resolve by subject_slug
             if (uids.isEmpty() && !practiceQuestionIds.isEmpty()) {
@@ -381,8 +374,8 @@ public class QuestionDeliveryRepository {
                         practiceSetId, tenantId
                 );
                 if (!metaList.isEmpty()) {
-                    String subjectSlug = (String) metaList.get(0).get("subject_slug");
-                    Integer totalQ = (Integer) metaList.get(0).get("total_questions");
+                    String subjectSlug = (String) metaList.getFirst().get("subject_slug");
+                    Integer totalQ = (Integer) metaList.getFirst().get("total_questions");
                     int limit = (totalQ != null && totalQ > 0) ? totalQ : 25;
                     if (subjectSlug != null && !subjectSlug.isBlank()) {
                         uids = resolveQuestionUuidsBySubject(subjectSlug, limit);

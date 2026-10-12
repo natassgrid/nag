@@ -21,12 +21,9 @@ package com.examplatform.shared.entity;
 
 import com.examplatform.shared.tenant.TenantContext;
 import com.examplatform.shared.util.UuidV7Generator;
-import jakarta.persistence.Column;
-import jakarta.persistence.Id;
-import jakarta.persistence.MappedSuperclass;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
-import jakarta.persistence.Version;
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -52,6 +49,7 @@ import java.util.UUID;
  * the tenant value is available on virtual threads spawned from the
  * request-handling thread.
  */
+@Getter
 @MappedSuperclass
 public abstract class BaseEntity {
 
@@ -88,7 +86,16 @@ public abstract class BaseEntity {
      * Sourced from {@link TenantContext#get()} at persist time.
      * Marked {@code updatable = false} — tenant ownership must not change
      * after creation.
+     * -- SETTER --
+     *  Allows explicit tenant assignment before the entity is persisted —
+     *  useful when creating entities in background jobs where
+     *
+     *  is not populated.
+     *
+     * @param tenantId the examination authority identifier
+
      */
+    @Setter
     @Column(name = "tenant_id", updatable = false, nullable = false, columnDefinition = "varchar(255)")
     private String tenantId;
 
@@ -147,10 +154,6 @@ public abstract class BaseEntity {
     // Accessors
     // -----------------------------------------------------------------------
 
-    public UUID getId() {
-        return id;
-    }
-
     /**
      * Protected setter allows subclasses to assign a predetermined UUID
      * (e.g. when reconstructing an entity from an event or a test fixture).
@@ -159,33 +162,6 @@ public abstract class BaseEntity {
      */
     protected void setId(UUID id) {
         this.id = id;
-    }
-
-    public Instant getCreatedAt() {
-        return createdAt;
-    }
-
-    public Instant getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public String getTenantId() {
-        return tenantId;
-    }
-
-    /**
-     * Allows explicit tenant assignment before the entity is persisted —
-     * useful when creating entities in background jobs where
-     * {@link TenantContext} is not populated.
-     *
-     * @param tenantId the examination authority identifier
-     */
-    public void setTenantId(String tenantId) {
-        this.tenantId = tenantId;
-    }
-
-    public Long getVersion() {
-        return version;
     }
 
     // -----------------------------------------------------------------------

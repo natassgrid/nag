@@ -37,7 +37,8 @@ public class AuditLedgerGrpcServiceImpl extends AuditLedgerGrpcServiceGrpc.Audit
     @Override
     public void getRecentLedgerEvents(AuditLedgerGrpcRequest request,
                                       StreamObserver<AuditLedgerGrpcResponse> responseObserver) {
-        String tenantId = (request.getTenantId() != null && !request.getTenantId().isBlank())
+        request.getTenantId();
+        String tenantId = !request.getTenantId().isBlank()
                 ? request.getTenantId()
                 : "default";
         int limit = request.getLimit() > 0 ? request.getLimit() : 10;
