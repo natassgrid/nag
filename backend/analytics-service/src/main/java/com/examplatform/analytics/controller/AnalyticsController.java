@@ -73,7 +73,7 @@ public class AnalyticsController {
         byte[] data = analyticsService.exportAnalytics(id, format);
 
         HttpHeaders headers = new HttpHeaders();
-        if (format.toLowerCase().equals("pdf")) {
+        if (format.equalsIgnoreCase("pdf")) {
             headers.setContentType(MediaType.APPLICATION_PDF);
             headers.set(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=analytics_" + id + ".pdf");
         } else {
