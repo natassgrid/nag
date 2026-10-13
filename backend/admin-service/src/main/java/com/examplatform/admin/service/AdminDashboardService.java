@@ -42,6 +42,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * Service for aggregating operational dashboard metrics across microservices.
@@ -51,6 +52,11 @@ import java.util.function.Function;
 @Slf4j
 @Service
 public class AdminDashboardService {
+
+    private static final String SERVICE_POSTGRESQL = "PostgreSQL Database";
+    private static final String SERVICE_REDIS = "Redis Cache & Sessions";
+    private static final String SERVICE_OFFLINE = "Service offline";
+    private static final String GRPC_SERVICE_OPERATIONAL = "gRPC microservice operational";
 
     private final ObjectMapper objectMapper;
     private final RestClient restClient;
@@ -332,20 +338,15 @@ public class AdminDashboardService {
                 .build();
     }
 
-    @FunctionalInterface
-    private interface GrpcAction<T> {
-        T call() throws Exception;
-    }
-
     private <T> T fetchWithGrpcFallback(
             String serviceName,
-            GrpcAction<T> grpcAction,
+            Supplier<T> grpcAction,
             String restUrl,
             Function<JsonNode, T> restMapper,
             T defaultFallback) {
 
         try {
-            T result = grpcAction.call();
+            T result = grpcAction.get();
             if (result != null) {
                 return result;
             }
@@ -356,12 +357,12 @@ public class AdminDashboardService {
         return fetchRestBackup(restUrl, serviceName, restMapper, defaultFallback);
     }
 
-    private <S extends AbstractBlockingStub<S>, Res> Res executeGrpc(
+    private <S extends AbstractBlockingStub<S>, R> R executeGrpc(
             String host,
             int port,
             long timeoutMs,
             Function<ManagedChannel, S> stubFactory,
-            Function<S, Res> call) {
+            Function<S, R> call) {
         ManagedChannel channel = GrpcChannelFactory.getChannel(host, port);
         S stub = stubFactory.apply(channel).withDeadlineAfter(timeoutMs, TimeUnit.MILLISECONDS);
         return call.apply(stub);
@@ -399,23 +400,23 @@ public class AdminDashboardService {
 
         // Question Bank
         healthList.add(probeService("Question Bank Service", questionBankGrpcHost, questionBankGrpcPort,
-                "gRPC microservice operational", "Service offline"));
+                GRPC_SERVICE_OPERATIONAL, SERVICE_OFFLINE));
 
         // Examination Service
         healthList.add(probeService("Examination Service", examinationGrpcHost, examinationGrpcPort,
-                "gRPC microservice operational", "Service offline"));
+                GRPC_SERVICE_OPERATIONAL, SERVICE_OFFLINE));
 
         // Evaluation Service
         healthList.add(probeService("Evaluation Service", evaluationGrpcHost, evaluationGrpcPort,
-                "gRPC microservice operational", "Service offline"));
+                GRPC_SERVICE_OPERATIONAL, SERVICE_OFFLINE));
 
         // Candidate Service
         healthList.add(probeService("Candidate Service", candidateGrpcHost, candidateGrpcPort,
-                "gRPC microservice operational", "Service offline"));
+                GRPC_SERVICE_OPERATIONAL, SERVICE_OFFLINE));
 
         // Audit Service
         healthList.add(probeService("Audit Service", auditGrpcHost, auditGrpcPort,
-                "gRPC microservice operational", "Service offline"));
+                GRPC_SERVICE_OPERATIONAL, SERVICE_OFFLINE));
 
         return healthList;
     }
@@ -432,34 +433,34 @@ public class AdminDashboardService {
 
     private SystemServiceHealthResponse checkDatabaseHealth() {
         if (dataSource == null) {
-            return buildHealthResponse("PostgreSQL Database", false, 0, "Data source not configured");
+            return buildHealthResponse(SERVICE_POSTGRESQL, false, 0, "Data source not configured");
         }
         long start = System.currentTimeMillis();
         try (Connection conn = dataSource.getConnection()) {
             boolean valid = conn.isValid(1);
             long latency = Math.max(1, System.currentTimeMillis() - start);
-            return buildHealthResponse("PostgreSQL Database", valid, latency,
+            return buildHealthResponse(SERVICE_POSTGRESQL, valid, latency,
                     valid ? "PostgreSQL primary pool connected" : "Connection invalid");
         } catch (Exception e) {
             long latency = Math.max(1, System.currentTimeMillis() - start);
-            return buildHealthResponse("PostgreSQL Database", false, latency, "Database error: " + e.getMessage());
+            return buildHealthResponse(SERVICE_POSTGRESQL, false, latency, "Database error: " + e.getMessage());
         }
     }
 
     private SystemServiceHealthResponse checkRedisHealth() {
         if (redisTemplate == null) {
-            return buildHealthResponse("Redis Cache & Sessions", false, 0, "Redis template not configured");
+            return buildHealthResponse(SERVICE_REDIS, false, 0, "Redis template not configured");
         }
         long start = System.currentTimeMillis();
         try {
             String pingResult = Objects.requireNonNull(redisTemplate.getConnectionFactory()).getConnection().ping();
             long latency = Math.max(1, System.currentTimeMillis() - start);
             boolean up = "PONG".equalsIgnoreCase(pingResult);
-            return buildHealthResponse("Redis Cache & Sessions", up, latency,
+            return buildHealthResponse(SERVICE_REDIS, up, latency,
                     up ? "Redis cluster responding" : "Unexpected ping response: " + pingResult);
         } catch (Exception e) {
             long latency = Math.max(1, System.currentTimeMillis() - start);
-            return buildHealthResponse("Redis Cache & Sessions", false, latency, "Redis connection failed: " + e.getMessage());
+            return buildHealthResponse(SERVICE_REDIS, false, latency, "Redis connection failed: " + e.getMessage());
         }
     }
 

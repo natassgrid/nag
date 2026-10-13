@@ -387,7 +387,7 @@ public class IdentityController {
         String userId = jwt.getSubject();
         log.info("Change password request for user [{}], tenant [{}]", userId, tenantId);
 
-        authenticationService.changePassword(userId, request.getCurrentPassword(), request.getNewPassword(), tenantId);
+        authenticationService.changePassword(userId, request.getNewPassword(), tenantId);
 
         return ResponseEntity.ok(ApiResponse.success(null, "Password changed successfully."));
     }

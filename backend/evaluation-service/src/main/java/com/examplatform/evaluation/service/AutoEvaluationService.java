@@ -202,7 +202,7 @@ public class AutoEvaluationService {
             double expected = Double.parseDouble(correctAnswer.trim());
             double actual = Double.parseDouble(enteredValue.trim());
             return Math.abs(expected - actual) < 1e-6;
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException _) {
             log.debug("Failed to parse numerical answer: expected='{}', actual='{}'", correctAnswer, enteredValue);
             return false;
         }
@@ -263,7 +263,7 @@ public class AutoEvaluationService {
             List<String> list = objectMapper.readValue(json, new TypeReference<>() {
             });
             return new TreeSet<>(list);
-        } catch (Exception e) {
+        } catch (Exception _) {
             log.debug("Could not parse JSON array for options: '{}'", json);
             return Collections.emptySet();
         }
@@ -273,7 +273,7 @@ public class AutoEvaluationService {
         Set<String> set = parseOptionSet(json);
         try {
             return objectMapper.writeValueAsString(set);
-        } catch (Exception e) {
+        } catch (Exception _) {
             return json.trim();
         }
     }

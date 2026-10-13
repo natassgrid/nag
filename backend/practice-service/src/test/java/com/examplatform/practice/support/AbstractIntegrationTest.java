@@ -52,6 +52,8 @@ import org.testcontainers.utility.DockerImageName;
 import java.time.Duration;
 import java.util.List;
 
+import static org.mockito.Mockito.*;
+
 /**
  * Production-grade base class for practice-service MockMvc integration tests using Testcontainers.
  */
@@ -155,26 +157,26 @@ public abstract class AbstractIntegrationTest {
         @Bean
         @Primary
         public JwtDecoder mockJwtDecoder() {
-            return Mockito.mock(JwtDecoder.class);
+            return mock(JwtDecoder.class);
         }
 
         @Bean
         @Primary
         public StringRedisTemplate mockStringRedisTemplate() {
-            return Mockito.mock(StringRedisTemplate.class);
+            return mock(StringRedisTemplate.class);
         }
 
         @Bean
         @Primary
         @SuppressWarnings("unchecked")
         public KafkaTemplate<String, Object> mockKafkaTemplate() {
-            return Mockito.mock(KafkaTemplate.class);
+            return mock(KafkaTemplate.class);
         }
 
         @Bean
         @Primary
         public QuestionBankClient mockQuestionBankClient() {
-            return Mockito.mock(QuestionBankClient.class);
+            return mock(QuestionBankClient.class);
         }
     }
 }

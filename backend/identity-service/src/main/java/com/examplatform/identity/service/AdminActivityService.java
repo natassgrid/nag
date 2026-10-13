@@ -40,6 +40,10 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AdminActivityService {
 
+    private static final String CATEGORY_QUESTIONS = "QUESTIONS";
+    private static final String CATEGORY_EXAMINATIONS = "EXAMINATIONS";
+    private static final String CATEGORY_SECURITY = "SECURITY";
+
     private final RoleManagementService roleManagementService;
     private final ObjectMapper objectMapper;
 
@@ -49,7 +53,7 @@ public class AdminActivityService {
     public List<AdminActivityLogResponse> getActivityLogs(
             UUID userId, String category, int page, int size, String tenantId) {
 
-        List<AdminActivityLogResponse> all = generateHistoricalActivity(userId, tenantId);
+        List<AdminActivityLogResponse> all = generateHistoricalActivity(tenantId);
 
         if (category != null && !category.isBlank() && !"ALL".equalsIgnoreCase(category.trim())) {
             String cat = category.trim().toUpperCase();
@@ -67,7 +71,7 @@ public class AdminActivityService {
      * Export admin audit trail as CSV or JSON formatted content.
      */
     public String exportActivityLogs(UUID userId, String format, String tenantId) {
-        List<AdminActivityLogResponse> logs = generateHistoricalActivity(userId, tenantId);
+        List<AdminActivityLogResponse> logs = generateHistoricalActivity(tenantId);
 
         if ("csv".equalsIgnoreCase(format)) {
             StringBuilder sb = new StringBuilder();
@@ -104,40 +108,60 @@ public class AdminActivityService {
         boolean isAuthor = roles.contains(UserRole.QUESTION_AUTHOR) || isSuper;
         boolean isReviewer = roles.contains(UserRole.REVIEWER) || roles.contains(UserRole.SUBJECT_MATTER_EXPERT) || isSuper;
 
+        List<AdminPermissionDetailResponse> permissions = new ArrayList<>();
+        permissions.addAll(getQuestionBankPermissions(isController, isAuthor, isReviewer));
+        permissions.addAll(getExaminationPermissions(isController));
+        permissions.addAll(getDeliveryAndEvaluationPermissions(isController, isSec));
+        permissions.addAll(getIdentityAndSecurityPermissions(isSuper, isSec));
+        return List.copyOf(permissions);
+    }
+
+    private List<AdminPermissionDetailResponse> getQuestionBankPermissions(
+            boolean isController, boolean isAuthor, boolean isReviewer) {
         return List.of(
-                // Question Bank Permissions
-                buildPermissionDetail("QUESTION_VIEW", "View Question Bank Repository", "QUESTIONS",
-                        "Browse, search, and inspect questions across subjects and taxonomy.", isSuper || isController || isAuthor || isReviewer),
-                buildPermissionDetail("QUESTION_CREATE", "Author & Create Questions", "QUESTIONS",
-                        "Draft new MCQs, passages, mathematical formulas, and diagrams.", isSuper || isAuthor),
-                buildPermissionDetail("QUESTION_APPROVE", "Review & Approve Questions", "QUESTIONS",
-                        "Approve drafted questions, certify translations, and publish to active bank.", isSuper || isReviewer),
-                buildPermissionDetail("QUESTION_TRANSLATE", "Indic AI Translation Workers", "QUESTIONS",
-                        "Execute automated translations across 22+ Scheduled Indian Languages.", isSuper || isAuthor || isReviewer),
+                buildPermissionDetail("QUESTION_VIEW", "View Question Bank Repository", CATEGORY_QUESTIONS,
+                        "Browse, search, and inspect questions across subjects and taxonomy.", isController || isAuthor || isReviewer),
+                buildPermissionDetail("QUESTION_CREATE", "Author & Create Questions", CATEGORY_QUESTIONS,
+                        "Draft new MCQs, passages, mathematical formulas, and diagrams.", isAuthor),
+                buildPermissionDetail("QUESTION_APPROVE", "Review & Approve Questions", CATEGORY_QUESTIONS,
+                        "Approve drafted questions, certify translations, and publish to active bank.", isReviewer),
+                buildPermissionDetail("QUESTION_TRANSLATE", "Indic AI Translation Workers", CATEGORY_QUESTIONS,
+                        "Execute automated translations across 22+ Scheduled Indian Languages.", isAuthor || isReviewer)
+        );
+    }
 
-                // Examination Permissions
-                buildPermissionDetail("EXAM_CREATE", "Define Examination Blueprints", "EXAMINATIONS",
-                        "Configure syllabus distributions, time limits, and marking rules.", isSuper || isController),
-                buildPermissionDetail("EXAM_SCHEDULE", "Shift Scheduling & Centre Allocations", "EXAMINATIONS",
-                        "Manage session timing shifts, test centre venues, and student capacity.", isSuper || isController),
-                buildPermissionDetail("PAPER_GENERATE", "Algorithmic Paper Generation", "EXAMINATIONS",
-                        "Trigger deterministic question paper generation and encryption bundles.", isSuper || isController),
+    private List<AdminPermissionDetailResponse> getExaminationPermissions(boolean isController) {
+        return List.of(
+                buildPermissionDetail("EXAM_CREATE", "Define Examination Blueprints", CATEGORY_EXAMINATIONS,
+                        "Configure syllabus distributions, time limits, and marking rules.", isController),
+                buildPermissionDetail("EXAM_SCHEDULE", "Shift Scheduling & Centre Allocations", CATEGORY_EXAMINATIONS,
+                        "Manage session timing shifts, test centre venues, and student capacity.", isController),
+                buildPermissionDetail("PAPER_GENERATE", "Algorithmic Paper Generation", CATEGORY_EXAMINATIONS,
+                        "Trigger deterministic question paper generation and encryption bundles.", isController)
+        );
+    }
 
-                // Delivery & Evaluation Permissions
+    private List<AdminPermissionDetailResponse> getDeliveryAndEvaluationPermissions(
+            boolean isController, boolean isSec) {
+        return List.of(
                 buildPermissionDetail("DELIVERY_MONITOR", "Live Examination Delivery Monitoring", "DELIVERY",
-                        "Supervise real-time candidate check-in, heartbeat telemetry, and shift locks.", isSuper || isController || isSec),
+                        "Supervise real-time candidate check-in, heartbeat telemetry, and shift locks.", isController || isSec),
                 buildPermissionDetail("EVALUATION_GRADE", "Automated Evaluation & Score Normalization", "EVALUATION",
-                        "Execute response evaluation pipelines, equipercentile normalization, and merit ranking.", isSuper || isController),
+                        "Execute response evaluation pipelines, equipercentile normalization, and merit ranking.", isController)
+        );
+    }
 
-                // Identity, Security & Audit Permissions
+    private List<AdminPermissionDetailResponse> getIdentityAndSecurityPermissions(
+            boolean isSuper, boolean isSec) {
+        return List.of(
                 buildPermissionDetail("USER_MANAGE", "Admin User & Officer Provisioning", "IDENTITY",
-                        "Invite officers, assign roles, and manage administrative privileges.", isSuper || isSec),
+                        "Invite officers, assign roles, and manage administrative privileges.", isSec),
                 buildPermissionDetail("ROLE_MANAGE", "Role & Permission Matrix Configuration", "IDENTITY",
                         "Define custom role templates and calibrate system access rights.", isSuper),
                 buildPermissionDetail("AUDIT_VIEW", "Immutable DPI Audit Trail Inspection", "AUDIT",
-                        "Query cryptographic audit trails, DPI telemetry logs, and compliance records.", isSuper || isSec),
-                buildPermissionDetail("SECURITY_KEYS", "Cryptographic Keyring & Secret Vaults", "SECURITY",
-                        "Manage AES-256 / Ed25519 signing keys, HSM tokens, and tenant seals.", isSuper || isSec)
+                        "Query cryptographic audit trails, DPI telemetry logs, and compliance records.", isSec),
+                buildPermissionDetail("SECURITY_KEYS", "Cryptographic Keyring & Secret Vaults", CATEGORY_SECURITY,
+                        "Manage AES-256 / Ed25519 signing keys, HSM tokens, and tenant seals.", isSec)
         );
     }
 
@@ -152,7 +176,7 @@ public class AdminActivityService {
                 .build();
     }
 
-    private List<AdminActivityLogResponse> generateHistoricalActivity(UUID userId, String tenantId) {
+    private List<AdminActivityLogResponse> generateHistoricalActivity(String tenantId) {
         Instant now = Instant.now();
         List<AdminActivityLogResponse> list = new ArrayList<>();
 
@@ -166,7 +190,7 @@ public class AdminActivityService {
                 now.minus(2, ChronoUnit.HOURS),
                 Map.of(SharedConstants.TENANT_ID, tenantId, "timezone", "Asia/Kolkata")));
 
-        list.add(createHistoricalLog("PAT_TOKEN_CREATED", "SECURITY",
+        list.add(createHistoricalLog("PAT_TOKEN_CREATED", CATEGORY_SECURITY,
                 "Created Personal API Token 'CI-Pipeline-Ingest' with scope [questions:read, questions:write]",
                 now.minus(1, ChronoUnit.DAYS),
                 Map.of(SharedConstants.TENANT_ID, tenantId, "tokenPrefix", "nag_pat_a8f9...")));
@@ -181,7 +205,7 @@ public class AdminActivityService {
                 now.minus(3, ChronoUnit.DAYS),
                 Map.of(SharedConstants.TENANT_ID, tenantId, "algorithm", "Deterministic Knapsack")));
 
-        list.add(createHistoricalLog("SECURITY_KEY_ROTATION", "SECURITY",
+        list.add(createHistoricalLog("SECURITY_KEY_ROTATION", CATEGORY_SECURITY,
                 "Verified Ed25519 tenant cryptographic seal against HashiCorp Vault",
                 now.minus(5, ChronoUnit.DAYS),
                 Map.of(SharedConstants.TENANT_ID, tenantId, "keyType", "Ed25519")));

@@ -52,7 +52,7 @@ import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_
 public class ConfigChangeService {
     private static final String REDIS_CONFIG_KEY_PREFIX = "nag:config:";
 
-    public static final Map<String, String> DEFAULT_CONFIGS = DefaultPlatformConfigs.DEFAULTS;
+    protected static final Map<String, String> DEFAULT_CONFIGS = DefaultPlatformConfigs.DEFAULTS;
 
     private final SystemConfigRepository systemConfigRepository;
     private final EventPublisher eventPublisher;
@@ -93,6 +93,10 @@ public class ConfigChangeService {
     @Transactional(readOnly = true)
     public Map<String, String> getConfigMap(String tenantId) {
         String effectiveTenant = (tenantId == null || tenantId.isBlank()) ? SharedConstants.DEFAULT_TENANT : tenantId;
+        return loadConfigMap(effectiveTenant);
+    }
+
+    private Map<String, String> loadConfigMap(String effectiveTenant) {
         List<SystemConfig> configs = systemConfigRepository.findByTenantId(effectiveTenant);
         if (configs.isEmpty()) {
             return new LinkedHashMap<>(DEFAULT_CONFIGS);
@@ -154,7 +158,20 @@ public class ConfigChangeService {
     public Map<String, String> updateBulkConfigs(Map<String, String> updates, UUID actorId, String tenantId) {
         String effectiveTenant = (tenantId == null || tenantId.isBlank()) ? SharedConstants.DEFAULT_TENANT : tenantId;
         log.info("Bulk updating {} configs in tenant {} by actor {}", updates.size(), effectiveTenant, actorId);
+        return executeBulkUpdate(updates, actorId, effectiveTenant);
+    }
 
+    /**
+     * Resets all configurations to platform defaults for the tenant.
+     */
+    @Transactional
+    public Map<String, String> resetToDefaults(UUID actorId, String tenantId) {
+        String effectiveTenant = (tenantId == null || tenantId.isBlank()) ? SharedConstants.DEFAULT_TENANT : tenantId;
+        log.info("Resetting system configs to defaults for tenant {} by actor {}", effectiveTenant, actorId);
+        return executeBulkUpdate(DEFAULT_CONFIGS, actorId, effectiveTenant);
+    }
+
+    private Map<String, String> executeBulkUpdate(Map<String, String> updates, UUID actorId, String effectiveTenant) {
         Map<String, SystemConfig> existingMap = systemConfigRepository.findByTenantId(effectiveTenant)
                 .stream()
                 .collect(Collectors.toMap(SystemConfig::getParamName, c -> c));
@@ -191,17 +208,7 @@ public class ConfigChangeService {
             }
         });
 
-        return getConfigMap(effectiveTenant);
-    }
-
-    /**
-     * Resets all configurations to platform defaults for the tenant.
-     */
-    @Transactional
-    public Map<String, String> resetToDefaults(UUID actorId, String tenantId) {
-        String effectiveTenant = (tenantId == null || tenantId.isBlank()) ? SharedConstants.DEFAULT_TENANT : tenantId;
-        log.info("Resetting system configs to defaults for tenant {} by actor {}", effectiveTenant, actorId);
-        return updateBulkConfigs(DEFAULT_CONFIGS, actorId, effectiveTenant);
+        return loadConfigMap(effectiveTenant);
     }
 
     public SystemConfigResponse toResponse(SystemConfig entity) {

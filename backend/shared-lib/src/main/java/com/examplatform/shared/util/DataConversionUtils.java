@@ -50,7 +50,7 @@ public final class DataConversionUtils {
         }
         try {
             return UUID.fromString(str);
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException _) {
             return null;
         }
     }
@@ -71,7 +71,7 @@ public final class DataConversionUtils {
         }
         try {
             return Double.parseDouble(value.toString().trim());
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException _) {
             return 0.0;
         }
     }
@@ -92,7 +92,7 @@ public final class DataConversionUtils {
         }
         try {
             return Long.parseLong(value.toString().trim());
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException _) {
             return 0L;
         }
     }
@@ -113,7 +113,7 @@ public final class DataConversionUtils {
         }
         try {
             return Instant.parse(obj.toString().trim());
-        } catch (Exception e) {
+        } catch (Exception _) {
             return Instant.now();
         }
     }

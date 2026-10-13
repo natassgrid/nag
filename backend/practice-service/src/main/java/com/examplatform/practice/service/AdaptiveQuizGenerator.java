@@ -47,32 +47,49 @@ public class AdaptiveQuizGenerator {
         int easyMediumTarget = (int) Math.round(targetTotal * 0.70);
         int hardTarget = targetTotal - easyMediumTarget;
 
-        List<String> subtopics = (targetSubtopics != null && !targetSubtopics.isEmpty())
-                ? targetSubtopics
-                : Collections.emptyList();
+        List<String> subtopics = sanitizeSubtopics(targetSubtopics);
+        List<UUID> finalQuestionIds = collectQuestionIds(subtopics, targetTotal, easyMediumTarget, hardTarget);
+        String questionIdsJson = serializeQuestionIds(finalQuestionIds);
+
+        PracticeSet practiceSet = buildPracticeSet(
+                candidateId, subtopics, targetExam, isGatekeeper, finalQuestionIds.size(), questionIdsJson);
+
+        PracticeSet saved = practiceSetRepository.save(practiceSet);
+        log.info("Synthesized {} practice set {} with {} questions (Easy/Med: {}, Hard: {}) for candidate {}",
+                practiceSet.getSource(), saved.getId(), finalQuestionIds.size(), easyMediumTarget, hardTarget, candidateId);
+
+        return practiceSetService.toDto(saved);
+    }
+
+    private List<String> sanitizeSubtopics(List<String> targetSubtopics) {
+        if (targetSubtopics == null || targetSubtopics.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return targetSubtopics;
+    }
+
+    private List<UUID> collectQuestionIds(
+            List<String> subtopics,
+            int targetTotal,
+            int easyMediumTarget,
+            int hardTarget) {
 
         Set<UUID> selectedIds = new LinkedHashSet<>();
 
         // 1. Fetch Easy and Medium questions (70%)
         List<UUID> easyQuestions = questionBankClient.findQuestionsForAdaptiveQuiz(subtopics, "EASY", easyMediumTarget);
         List<UUID> mediumQuestions = questionBankClient.findQuestionsForAdaptiveQuiz(subtopics, "MEDIUM", easyMediumTarget);
-
-        for (UUID id : easyQuestions) {
-            if (selectedIds.size() < easyMediumTarget) selectedIds.add(id);
-        }
-        for (UUID id : mediumQuestions) {
-            if (selectedIds.size() < easyMediumTarget) selectedIds.add(id);
-        }
+        addQuestions(selectedIds, easyQuestions, easyMediumTarget);
+        addQuestions(selectedIds, mediumQuestions, easyMediumTarget);
 
         // 2. Fetch Hard questions (30%)
         List<UUID> hardQuestions = questionBankClient.findQuestionsForAdaptiveQuiz(subtopics, "HARD", hardTarget);
-        for (UUID id : hardQuestions) {
-            if (selectedIds.size() < targetTotal) selectedIds.add(id);
-        }
+        addQuestions(selectedIds, hardQuestions, targetTotal);
 
         // 3. Fallback fill if not enough questions found
         if (selectedIds.size() < targetTotal) {
-            List<UUID> anyQuestions = questionBankClient.findQuestionsForAdaptiveQuiz(subtopics, null, targetTotal - selectedIds.size());
+            List<UUID> anyQuestions = questionBankClient.findQuestionsForAdaptiveQuiz(
+                    subtopics, null, targetTotal - selectedIds.size());
             selectedIds.addAll(anyQuestions);
         }
 
@@ -83,20 +100,41 @@ public class AdaptiveQuizGenerator {
             }
         }
 
-        List<UUID> finalQuestionIds = new ArrayList<>(selectedIds);
-        String questionIdsJson;
+        return new ArrayList<>(selectedIds);
+    }
+
+    private void addQuestions(Set<UUID> target, List<UUID> candidates, int maxLimit) {
+        for (UUID id : candidates) {
+            if (target.size() >= maxLimit) {
+                break;
+            }
+            target.add(id);
+        }
+    }
+
+    private String serializeQuestionIds(List<UUID> questionIds) {
         try {
-            questionIdsJson = objectMapper.writeValueAsString(finalQuestionIds);
+            return objectMapper.writeValueAsString(questionIds);
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Failed to serialize question IDs", e);
         }
+    }
+
+    private PracticeSet buildPracticeSet(
+            UUID candidateId,
+            List<String> subtopics,
+            String targetExam,
+            boolean isGatekeeper,
+            int totalCount,
+            String questionIdsJson) {
 
         String typePrefix = isGatekeeper ? "Gatekeeper Test" : "Adaptive Remedial Drill";
         String subtopicLabel = subtopics.isEmpty() ? "Weak Areas" : subtopics.getFirst();
-        String setName = String.format("%s - %s (%s)", typePrefix, subtopicLabel, targetExam != null ? targetExam : "General");
+        String examLabel = targetExam != null ? targetExam : "General";
+        String setName = String.format("%s - %s (%s)", typePrefix, subtopicLabel, examLabel);
         String source = isGatekeeper ? "GATEKEEPER_TEST" : "ADAPTIVE_QUIZ";
 
-        PracticeSet practiceSet = PracticeSet.builder()
+        return PracticeSet.builder()
                 .name(setName)
                 .description(String.format("Targeted %s question set (70%% Easy/Medium, 30%% Hard) on subtopics: %s",
                         source, String.join(", ", subtopics)))
@@ -105,13 +143,7 @@ public class AdaptiveQuizGenerator {
                 .questionIds(questionIdsJson)
                 .durationMinutes(isGatekeeper ? 45 : 30)
                 .published(true)
-                .totalQuestions(finalQuestionIds.size())
+                .totalQuestions(totalCount)
                 .build();
-
-        PracticeSet saved = practiceSetRepository.save(practiceSet);
-        log.info("Synthesized {} practice set {} with {} questions (Easy/Med: {}, Hard: {}) for candidate {}",
-                source, saved.getId(), finalQuestionIds.size(), easyMediumTarget, hardTarget, candidateId);
-
-        return practiceSetService.toDto(saved);
     }
 }
