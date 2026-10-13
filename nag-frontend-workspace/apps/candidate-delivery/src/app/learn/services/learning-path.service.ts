@@ -69,4 +69,8 @@ export class LearningPathService {
       `${this.apiUrl}/gatekeeper/status`
     );
   }
+
+  checkGatekeeperStatus(): Observable<GatekeeperStatusResponse> {
+    return this.getGatekeeperStatus();
+  }
 }

@@ -61,7 +61,7 @@
         Part 1: The Core Concept & Mental Model
       </div>
       <div class="text-slate-800 text-base leading-relaxed pl-1">
-        <nag-math-renderer [content]="l.content?.coreConcept || ''"></nag-math-renderer>
+        <nag-math-renderer [content]="l.content.coreConcept || ''"></nag-math-renderer>
       </div>
     </div>
 
@@ -72,7 +72,7 @@
         Part 2: The Exam Trap (Where Most Candidates Lose Marks)
       </div>
       <div class="text-amber-950 text-sm md:text-base leading-relaxed pl-1">
-        <nag-math-renderer [content]="l.content?.trapAlert || ''"></nag-math-renderer>
+        <nag-math-renderer [content]="l.content.trapAlert || ''"></nag-math-renderer>
       </div>
     </div>
 
@@ -83,16 +83,31 @@
         Part 3: KaTeX Formula Cheat Sheet & Rapid Revision
       </div>
       <div class="bg-slate-950/80 rounded-xl p-4 border border-slate-800 text-sm md:text-base text-slate-200 overflow-x-auto">
-        <nag-math-renderer [content]="l.content?.formulaCheatSheet || ''"></nag-math-renderer>
+        <nag-math-renderer [content]="l.content.formulaCheatSheet || ''"></nag-math-renderer>
       </div>
     </div>
 
-    <!-- 4. STEP-BY-STEP BREAKDOWN STEPPER -->
-    @if (l.content?.stepByStepBreakdown; as breakdown) {
+    <!-- 4. STEP-BY-STEP BREAKDOWN STEPPER & INTERACTIVE AI PLAYER -->
+    @if (l.content.stepByStepBreakdown; as breakdown) {
       <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4">
-        <div class="flex items-center gap-2 text-indigo-700 font-bold text-sm uppercase tracking-wide">
-          <mat-icon class="!w-5 !h-5 !text-[20px]">checklist</mat-icon>
-          Part 4: Step-by-Step Problem Breakdown
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <div class="flex items-center gap-2 text-indigo-700 font-bold text-sm uppercase tracking-wide">
+            <mat-icon class="!w-5 !h-5 !text-[20px]">checklist</mat-icon>
+            Part 4: Step-by-Step Problem Breakdown
+          </div>
+
+          @if (interactiveExplanation()) {
+            <button
+              mat-stroked-button
+              color="primary"
+              type="button"
+              (click)="toggleInteractivePlayer()"
+              class="text-xs"
+            >
+              <mat-icon>{{ showInteractivePlayer() ? 'expand_less' : 'play_circle' }}</mat-icon>
+              {{ showInteractivePlayer() ? 'Hide Interactive Player' : 'Launch Interactive AI Player' }}
+            </button>
+          }
         </div>
 
         @if (breakdown.problemStatement) {
@@ -102,30 +117,36 @@
           </div>
         }
 
-        <mat-accordion multi="true" class="space-y-2 block">
-          @for (step of breakdown.steps; track step.stepNumber) {
-            <mat-expansion-panel [expanded]="true" class="!rounded-xl !border !border-slate-200 !shadow-none">
-              <mat-expansion-panel-header>
-                <mat-panel-title class="!font-bold !text-slate-800">
-                  <span class="w-6 h-6 rounded-full bg-indigo-100 text-indigo-800 text-xs font-bold flex items-center justify-center mr-2 shrink-0">
-                    {{ step.stepNumber }}
-                  </span>
-                  {{ step.title }}
-                </mat-panel-title>
-              </mat-expansion-panel-header>
+        @if (showInteractivePlayer() && interactiveExplanation()) {
+          <div class="pt-2 animate-fadeIn">
+            <nag-explanation-player [explanation]="interactiveExplanation()!"></nag-explanation-player>
+          </div>
+        } @else {
+          <mat-accordion multi="true" class="space-y-2 block">
+            @for (step of breakdown.steps; track step.stepNumber) {
+              <mat-expansion-panel [expanded]="true" class="!rounded-xl !border !border-slate-200 !shadow-none">
+                <mat-expansion-panel-header>
+                  <mat-panel-title class="!font-bold !text-slate-800">
+                    <span class="w-6 h-6 rounded-full bg-indigo-100 text-indigo-800 text-xs font-bold flex items-center justify-center mr-2 shrink-0">
+                      {{ step.stepNumber }}
+                    </span>
+                    {{ step.title }}
+                  </mat-panel-title>
+                </mat-expansion-panel-header>
 
-              <div class="space-y-3 pt-2 text-sm text-slate-700">
-                <nag-math-renderer [content]="step.explanation"></nag-math-renderer>
+                <div class="space-y-3 pt-2 text-sm text-slate-700">
+                  <nag-math-renderer [content]="step.explanation"></nag-math-renderer>
 
-                @if (step.formula) {
-                  <div class="p-3 bg-slate-50 rounded-lg border border-slate-200 overflow-x-auto">
-                    <nag-math-renderer [content]="step.formula"></nag-math-renderer>
-                  </div>
-                }
-              </div>
-            </mat-expansion-panel>
-          }
-        </mat-accordion>
+                  @if (step.formula) {
+                    <div class="p-3 bg-slate-50 rounded-lg border border-slate-200 overflow-x-auto">
+                      <nag-math-renderer [content]="step.formula"></nag-math-renderer>
+                    </div>
+                  }
+                </div>
+              </mat-expansion-panel>
+            }
+          </mat-accordion>
+        }
       </div>
     }
 
@@ -138,7 +159,7 @@
             Milestone Marked Completed!
           </span>
         } @else {
-          <span>Finish studying the 4 sections above before checking off this milestone.</span>
+          <span>Study all 4 parts to fulfill this remediation milestone.</span>
         }
       </div>
 
@@ -146,17 +167,16 @@
         <button
           mat-flat-button
           color="primary"
-          type="button"
           [disabled]="completing() || isCompleted()"
-          class="!bg-emerald-600 !text-white !font-bold !px-6 !py-2.5 !rounded-xl shadow-md hover:!bg-emerald-700 transition"
           (click)="onMarkCompleted()"
+          class="!px-6 !py-2.5 !rounded-xl !font-bold"
         >
           @if (completing()) {
-            Saving...
+            Updating Roadmap...
           } @else if (isCompleted()) {
-            Completed &#10003;
+            Completed
           } @else {
-            Mark as Completed
+            Mark Complete & Unlock Next Phase
           }
         </button>
       </div>
