@@ -19,8 +19,6 @@
 
 package com.examplatform.evaluation.service;
 
-import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
-
 import com.examplatform.evaluation.domain.Evaluation;
 import com.examplatform.evaluation.dto.AnswerKey;
 import com.examplatform.evaluation.dto.CandidateResponse;
@@ -39,16 +37,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
 
 /**
  * Auto-evaluation service for objective question types (Single_MCQ, Multi_MCQ, Numerical).
@@ -155,14 +148,14 @@ public class AutoEvaluationService {
                                               int evaluationCount, String tenantId, boolean anonymized) {
         try {
             Map<String, Object> event = Map.of(
-                    "eventType", "EVALUATION_CREATED",
+                SharedConstants.EVENT_TYPE, "EVALUATION_CREATED",
                     "sessionId", sessionId.toString(),
                     "candidateId", anonymized ? ("ANON-" + UUID.nameUUIDFromBytes(candidateId.toString().getBytes())) : candidateId.toString(),
                     "evaluationCount", evaluationCount,
                     "evaluationType", "AUTO",
                 SharedConstants.TENANT_ID, tenantId,
                     "anonymized", anonymized,
-                    "occurredAt", Instant.now().toString()
+                SharedConstants.OCCURRED_AT, Instant.now().toString()
             );
             eventPublisher.publish(AUDIT_EVENTS_TOPIC, sessionId.toString(), event);
         } catch (Exception e) {
@@ -267,7 +260,8 @@ public class AutoEvaluationService {
     private Set<String> parseOptionSet(String json) {
         if (json == null || json.isBlank()) return Collections.emptySet();
         try {
-            List<String> list = objectMapper.readValue(json, new TypeReference<List<String>>() {});
+            List<String> list = objectMapper.readValue(json, new TypeReference<>() {
+            });
             return new TreeSet<>(list);
         } catch (Exception e) {
             log.debug("Could not parse JSON array for options: '{}'", json);

@@ -22,6 +22,7 @@ package com.examplatform.delivery.service;
 import com.examplatform.delivery.domain.ExamSession;
 import com.examplatform.delivery.dto.QuestionDeliveryDto;
 import com.examplatform.delivery.repository.ExamSessionRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -62,7 +63,7 @@ public class ExamQuestionDeliveryService {
      * @return list of questions formatted for delivery interface
      */
     public List<QuestionDeliveryDto> getDeliveryQuestions(UUID examId, UUID paperId, String decryptedPaper, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
 
         // 1. First priority: parse questions embedded in the decrypted paper package
         if (decryptedPaper != null && !decryptedPaper.isBlank()) {
@@ -83,7 +84,7 @@ public class ExamQuestionDeliveryService {
         }
 
         // 3. Third priority: check Redis cache for this exam questions package
-        String cacheKey = REDIS_QUESTIONS_PREFIX + effectiveTenant + ":" + (examId != null ? examId : "default");
+        String cacheKey = REDIS_QUESTIONS_PREFIX + effectiveTenant + ":" + (examId != null ? examId : SharedConstants.DEFAULT_TENANT);
         try {
             Object cached = redisTemplate.opsForValue().get(cacheKey);
             if (cached instanceof List<?> list && !list.isEmpty()) {
@@ -145,7 +146,7 @@ public class ExamQuestionDeliveryService {
      * Retrieves questions for an ongoing exam session with candidate language preference.
      */
     public List<QuestionDeliveryDto> getQuestionsForSession(UUID sessionId, String tenantId, String preferredLanguage) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         ExamSession session = examSessionRepository.findBySessionIdAndTenantId(sessionId, effectiveTenant)
                 .orElse(null);
 
@@ -188,7 +189,7 @@ public class ExamQuestionDeliveryService {
      * Retrieves questions for a specific paper with preferred language.
      */
     public List<QuestionDeliveryDto> getQuestionsForPaper(UUID paperId, String tenantId, String preferredLanguage) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         List<QuestionDeliveryDto> questions = questionDeliveryRepository.fetchQuestionsForPaper(paperId, effectiveTenant);
         if (!questions.isEmpty()) {
             translationEnricher.enrichWithTranslations(questions, effectiveTenant);

@@ -19,9 +19,8 @@
 
 package com.examplatform.identity.service;
 
-import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
-
 import com.examplatform.shared.audit.AuditEventType;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +29,8 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
+
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
 
 /**
  * Publishes structured audit events to the {@code exam.audit.events} destination.
@@ -63,12 +64,12 @@ public class AuditEventPublisher {
 
         try {
             Map<String, Object> event = new HashMap<>();
-            event.put("eventType", type.name());
+            event.put(SharedConstants.EVENT_TYPE, type.name());
             event.put("actorId", actorId);
             event.put("resource", resource);
             event.put("ip", ip);
             event.put("deviceFingerprint", deviceFingerprint);
-            event.put("occurredAt", Instant.now().toString());
+            event.put(SharedConstants.OCCURRED_AT, Instant.now().toString());
             if (extra != null) {
                 event.putAll(extra);
             }

@@ -19,6 +19,7 @@
 
 package com.examplatform.shared.config;
 
+import com.examplatform.shared.constants.SharedConstants;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -53,7 +54,7 @@ public class NearCacheConfigService extends InMemoryDynamicConfigService {
 
     @Override
     public Map<String, String> getAllConfigs(String tenantId) {
-        String effectiveTenant = (tenantId == null || tenantId.isBlank()) ? "default" : tenantId;
+        String effectiveTenant = (tenantId == null || tenantId.isBlank()) ? SharedConstants.DEFAULT_TENANT : tenantId;
         Map<String, String> result = new LinkedHashMap<>(DefaultPlatformConfigs.DEFAULTS);
 
         // Overlay L2 from Redis if present
@@ -87,7 +88,7 @@ public class NearCacheConfigService extends InMemoryDynamicConfigService {
 
     @Override
     protected String getRawValue(String paramName, String tenantId) {
-        String effectiveTenant = (tenantId == null || tenantId.isBlank()) ? "default" : tenantId;
+        String effectiveTenant = (tenantId == null || tenantId.isBlank()) ? SharedConstants.DEFAULT_TENANT : tenantId;
         String cacheKey = makeCacheKey(effectiveTenant, paramName);
 
         // 1. L1 In-Memory Near Cache Hit

@@ -70,7 +70,7 @@ public interface MediaAssetRepository extends JpaRepository<MediaAsset, UUID> {
             @Param("assetType") AssetType assetType,
             @Param("contentType") String contentType,
             @Param("tags") String tags,
-            @Param("status") AssetStatus status,
+            @Param(SharedConstants.STATUS) AssetStatus status,
             @Param("storageProvider") String storageProvider,
             Pageable pageable);
 }

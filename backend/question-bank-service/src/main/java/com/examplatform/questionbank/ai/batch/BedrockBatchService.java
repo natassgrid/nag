@@ -19,15 +19,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityNotFoundException;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -40,6 +31,12 @@ import software.amazon.awssdk.services.bedrock.model.CreateModelInvocationJobRes
 import software.amazon.awssdk.services.bedrock.model.GetModelInvocationJobResponse;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.S3Object;
+
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.*;
 
 /**
  * Service for async batch question generation using AWS Bedrock Batch Inference.
@@ -87,7 +84,7 @@ public class BedrockBatchService {
         List<BatchGenerationRequest.BatchItem> itemsList = request.getItems();
         int totalRequested = itemsList.stream().mapToInt(BatchGenerationRequest.BatchItem::getCount).sum();
 
-        String modelId = modelRouter.selectBatchModelId(itemsList.get(0).getDifficulty());
+        String modelId = modelRouter.selectBatchModelId(itemsList.getFirst().getDifficulty());
 
         String itemsJson;
         try {
@@ -306,7 +303,8 @@ public class BedrockBatchService {
     private Optional<List<BatchGenerationRequest.BatchItem>> deserializeItems(BatchGenerationJob job) {
         try {
             return Optional.of(objectMapper.readValue(job.getItems(),
-                    new TypeReference<List<BatchGenerationRequest.BatchItem>>() {}));
+                new TypeReference<>() {
+                }));
         } catch (Exception _) {
             log.error("Failed to deserialize job items for job {}", job.getId());
             return Optional.empty();
@@ -515,12 +513,12 @@ public class BedrockBatchService {
 
     private List<RawQuestion> parseModelOutput(JsonNode modelOutput) {
         try {
-            JsonNode output = modelOutput.path("output").path(SharedConstants.MESSAGE).path("content");
+            JsonNode output = modelOutput.path("output").path(SharedConstants.MESSAGE).path(SharedConstants.CONTENT);
             if (output.isArray() && !output.isEmpty()) {
                 return parseJsonArray(extractTextFromBlocks(output));
             }
 
-            JsonNode content = modelOutput.get("content");
+            JsonNode content = modelOutput.get(SharedConstants.CONTENT);
             if (content != null && content.isArray()) {
                 return parseJsonArray(extractTextFromBlocks(content));
             }

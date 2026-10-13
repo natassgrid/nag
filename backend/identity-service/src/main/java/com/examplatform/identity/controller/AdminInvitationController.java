@@ -19,12 +19,9 @@
 
 package com.examplatform.identity.controller;
 
-import com.examplatform.identity.dto.AcceptInviteRequest;
-import com.examplatform.identity.dto.AdminInviteRequest;
-import com.examplatform.identity.dto.AdminInviteResponse;
-import com.examplatform.identity.dto.AuthTokenResponse;
-import com.examplatform.identity.dto.ValidateInviteResponse;
+import com.examplatform.identity.dto.*;
 import com.examplatform.identity.service.AdminInvitationService;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.response.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -33,13 +30,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
@@ -59,7 +50,7 @@ public class AdminInvitationController {
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SECURITY_ADMIN', 'TENANT_ADMIN')")
     public ResponseEntity<ApiResponse<AdminInviteResponse>> inviteAdmin(
             @Valid @RequestBody AdminInviteRequest request,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId,
             Authentication authentication) {
 
         UUID actorId = null;
@@ -92,7 +83,7 @@ public class AdminInvitationController {
     @PostMapping("/accept")
     public ResponseEntity<ApiResponse<AuthTokenResponse>> acceptInvite(
             @Valid @RequestBody AcceptInviteRequest request,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
         log.info("Accepting admin invitation");
         AuthTokenResponse tokens = adminInvitationService.acceptInvitation(request, tenantId);
         return ResponseEntity.ok(ApiResponse.success(tokens, "Account activated successfully with 2FA enabled."));

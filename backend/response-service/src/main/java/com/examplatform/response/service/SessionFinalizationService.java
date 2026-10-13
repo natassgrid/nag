@@ -101,7 +101,7 @@ public class SessionFinalizationService {
         // Publish SESSION_SUBMITTED event (fire-and-forget)
         try {
             Map<String, Object> event = Map.of(
-                    "eventType", "SESSION_SUBMITTED",
+                SharedConstants.EVENT_TYPE, "SESSION_SUBMITTED",
                     "sessionId", sessionId.toString(),
                     "candidateId", candidateId.toString(),
                     "responseCount", responses.size(),

@@ -19,6 +19,7 @@
 
 package com.examplatform.identity.config;
 
+import com.examplatform.shared.constants.MessagingConstants;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
@@ -41,7 +42,7 @@ public class KafkaConfig {
 
     @Bean
     public NewTopic notificationsTopic() {
-        return TopicBuilder.name("exam.notifications.outbound")
+        return TopicBuilder.name(MessagingConstants.NOTIFICATIONS_OUTBOUND_TOPIC)
                 .partitions(3).replicas(1).build();
     }
 }

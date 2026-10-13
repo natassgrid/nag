@@ -7,7 +7,6 @@ import com.examplatform.practice.domain.PracticeSession;
 import com.examplatform.practice.domain.PracticeSet;
 import com.examplatform.practice.dto.*;
 import com.examplatform.practice.event.PracticeSessionCompletedEvent;
-import com.examplatform.practice.exception.PracticeSessionNotFoundException;
 import com.examplatform.practice.exception.PracticeSetNotFoundException;
 import com.examplatform.practice.exception.SessionAlreadySubmittedException;
 import com.examplatform.practice.repository.PracticeResponseRepository;
@@ -20,7 +19,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
@@ -32,7 +30,8 @@ import java.util.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class PracticeSessionServiceTest {
@@ -258,7 +257,7 @@ class PracticeSessionServiceTest {
         PracticeQuestionDto q = questions.get(0);
         assertThat(q.primaryLanguage()).isEqualTo("ta");
         assertThat(q.fallbackToEnglish()).isTrue();
-        assertThat(q.primaryTranslation()).isNull();
+        assertThat(q.primaryTranslation()).isEmpty();
         assertThat(q.content()).isEqualTo("What is calculus?");
     }
 }

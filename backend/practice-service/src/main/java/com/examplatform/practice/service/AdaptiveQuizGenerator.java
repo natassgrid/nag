@@ -12,12 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 @Slf4j
 @Service
@@ -48,7 +43,7 @@ public class AdaptiveQuizGenerator {
             int totalQuestions,
             boolean isGatekeeper) {
 
-        int targetTotal = Math.max(10, Math.min(30, totalQuestions));
+        int targetTotal = Math.clamp(totalQuestions, 10, 30);
         int easyMediumTarget = (int) Math.round(targetTotal * 0.70);
         int hardTarget = targetTotal - easyMediumTarget;
 
@@ -97,7 +92,7 @@ public class AdaptiveQuizGenerator {
         }
 
         String typePrefix = isGatekeeper ? "Gatekeeper Test" : "Adaptive Remedial Drill";
-        String subtopicLabel = subtopics.isEmpty() ? "Weak Areas" : subtopics.get(0);
+        String subtopicLabel = subtopics.isEmpty() ? "Weak Areas" : subtopics.getFirst();
         String setName = String.format("%s - %s (%s)", typePrefix, subtopicLabel, targetExam != null ? targetExam : "General");
         String source = isGatekeeper ? "GATEKEEPER_TEST" : "ADAPTIVE_QUIZ";
 

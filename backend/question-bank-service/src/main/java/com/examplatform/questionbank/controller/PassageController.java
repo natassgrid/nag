@@ -17,6 +17,7 @@ import com.examplatform.questionbank.dto.TransitionRequest;
 import com.examplatform.questionbank.service.PassageLifecycleService;
 import com.examplatform.questionbank.service.PassageService;
 import com.examplatform.shared.api.ApiResponse;
+import com.examplatform.shared.constants.SharedConstants;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,18 +27,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -57,7 +50,7 @@ public class PassageController {
     public ResponseEntity<ApiResponse<PassageResponse>> createPassage(
             @Valid @RequestBody PassageRequest request,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
 
         UUID authorId = getPrincipalId(jwt);
         log.info("Creating passage: author={}, tenant={}, subjectId={}", authorId, tenantId, request.getSubjectId());
@@ -75,7 +68,7 @@ public class PassageController {
             @RequestParam(required = false) String search,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
 
         Page<PassageResponse> response = passageService.listPassages(subjectId, state, search, page, size, tenantId);
         return ResponseEntity.ok(ApiResponse.success(response, "Passages retrieved successfully"));
@@ -85,7 +78,7 @@ public class PassageController {
     @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER')")
     public ResponseEntity<ApiResponse<PassageResponse>> getPassage(
             @PathVariable UUID id,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
 
         PassageResponse response = passageService.getPassage(id, tenantId);
         return ResponseEntity.ok(ApiResponse.success(response, "Passage retrieved successfully"));
@@ -97,7 +90,7 @@ public class PassageController {
             @PathVariable UUID id,
             @Valid @RequestBody PassageRequest request,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
 
         UUID authorId = getPrincipalId(jwt);
         log.info("Updating passage id={}, author={}, tenant={}", id, authorId, tenantId);
@@ -111,7 +104,7 @@ public class PassageController {
     public ResponseEntity<ApiResponse<Void>> deletePassage(
             @PathVariable UUID id,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
 
         passageService.deletePassage(id, getPrincipalId(jwt), tenantId);
         return ResponseEntity.ok(ApiResponse.success(null, "Passage deleted successfully"));
@@ -122,7 +115,7 @@ public class PassageController {
     public ResponseEntity<ApiResponse<PassageResponse>> submitForReview(
             @PathVariable UUID id,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
 
         return ResponseEntity.ok(ApiResponse.success(
                 passageLifecycleService.submitForReview(id, getPrincipalId(jwt), tenantId),
@@ -134,7 +127,7 @@ public class PassageController {
     public ResponseEntity<ApiResponse<PassageResponse>> approve(
             @PathVariable UUID id,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
 
         return ResponseEntity.ok(ApiResponse.success(
                 passageLifecycleService.approve(id, getPrincipalId(jwt), tenantId),
@@ -147,7 +140,7 @@ public class PassageController {
             @PathVariable UUID id,
             @RequestBody(required = false) Map<String, String> body,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
 
         String comments = (body != null) ? body.get("comments") : null;
         PassageResponse response = passageLifecycleService.reject(id, getPrincipalId(jwt), comments, tenantId);
@@ -160,13 +153,13 @@ public class PassageController {
             @PathVariable UUID id,
             @Valid @RequestBody TransitionRequest request,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
 
         PassageResponse response = passageLifecycleService.transition(id, request, getPrincipalId(jwt), tenantId);
         return ResponseEntity.ok(ApiResponse.success(response, "Passage state transitioned"));
     }
 
     private UUID getPrincipalId(Jwt jwt) {
-        return UUID.fromString(jwt.getSubject());
+        return UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
     }
 }

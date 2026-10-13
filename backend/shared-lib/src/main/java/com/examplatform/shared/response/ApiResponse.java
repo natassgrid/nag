@@ -20,6 +20,7 @@
 package com.examplatform.shared.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import lombok.Getter;
 
 import java.time.LocalDateTime;
 
@@ -37,6 +38,7 @@ import java.time.LocalDateTime;
  *
  * @param <T> the type of the response payload
  */
+@Getter
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public final class ApiResponse<T> {
 
@@ -104,22 +106,6 @@ public final class ApiResponse<T> {
     // -----------------------------------------------------------------------
     // Accessors
     // -----------------------------------------------------------------------
-
-    public String getStatus() {
-        return status;
-    }
-
-    public String getMessage() {
-        return message;
-    }
-
-    public T getData() {
-        return data;
-    }
-
-    public LocalDateTime getTimestamp() {
-        return timestamp;
-    }
 
     @Override
     public String toString() {

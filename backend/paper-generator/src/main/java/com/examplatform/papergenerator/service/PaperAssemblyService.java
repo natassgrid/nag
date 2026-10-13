@@ -19,21 +19,14 @@
 
 package com.examplatform.papergenerator.service;
 
-import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
-
 import com.examplatform.papergenerator.client.QuestionBankClient;
 import com.examplatform.papergenerator.crypto.CanonicalPaperManifest;
 import com.examplatform.papergenerator.crypto.MerkleTree;
 import com.examplatform.papergenerator.domain.Paper;
-import com.examplatform.papergenerator.dto.BlueprintFeasibilityResponse;
-import com.examplatform.papergenerator.dto.BlueprintRule;
-import com.examplatform.papergenerator.dto.GapDetail;
-import com.examplatform.papergenerator.dto.PaperGenerationRequest;
-import com.examplatform.papergenerator.dto.QuestionGroup;
-import com.examplatform.papergenerator.dto.QuestionSummary;
-import com.examplatform.papergenerator.dto.RuleFeasibilityDetail;
+import com.examplatform.papergenerator.dto.*;
 import com.examplatform.papergenerator.exception.InsufficientQuestionsException;
 import com.examplatform.papergenerator.repository.PaperRepository;
+import com.examplatform.shared.constants.MessagingConstants;
 import com.examplatform.shared.constants.QuestionStateConstants;
 import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import com.examplatform.shared.constants.SharedConstants;
@@ -50,14 +43,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
+
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
 
 /**
  * Service responsible for blueprint-driven paper assembly and feasibility verification.
@@ -74,7 +63,7 @@ public class PaperAssemblyService {
 
     private static final String PAPER_EVENTS_TOPIC = "exam.paper.events";
 
-    private static final String NOTIFICATION_TOPIC = "exam.notifications.outbound";
+    private static final String NOTIFICATION_TOPIC = MessagingConstants.NOTIFICATIONS_OUTBOUND_TOPIC;
     private static final String STATUS_DRAFT = QuestionStateConstants.DRAFT;
 
     private static final String REUSE_POLICY_NEVER = "NEVER";
@@ -487,7 +476,6 @@ public class PaperAssemblyService {
 
         return switch (question.getDifficulty().toUpperCase()) {
             case QuestionTaxonomyConstants.Difficulty.EASY -> 1.0;
-            case QuestionTaxonomyConstants.Difficulty.MEDIUM -> 2.0;
             case QuestionTaxonomyConstants.Difficulty.HARD -> 3.0;
             default -> 2.0;
         };
@@ -513,12 +501,12 @@ public class PaperAssemblyService {
     private void publishAuditEvent(String eventType, Paper paper, String tenantId) {
         try {
             Map<String, Object> event = Map.of(
-                    "eventType", eventType,
+                SharedConstants.EVENT_TYPE, eventType,
                     "paperId", paper.getId().toString(),
                     "examId", paper.getExamId().toString(),
                     "shiftId", paper.getShiftId(),
                 SharedConstants.TENANT_ID, tenantId,
-                    "occurredAt", Instant.now().toString()
+                SharedConstants.OCCURRED_AT, Instant.now().toString()
             );
             eventPublisher.publish(AUDIT_EVENTS_TOPIC, paper.getId().toString(), event);
         } catch (Exception e) {
@@ -534,7 +522,7 @@ public class PaperAssemblyService {
 
     private void publishInsufficientQuestionsAuditEvent(
             List<GapDetail> gaps, @Nullable UUID examId, @Nullable String shiftId, String tenantId) {
-        publishDeficitPayload(AUDIT_EVENTS_TOPIC, "eventType", "BLUEPRINT_DEFICIT_DETECTED", gaps, examId, shiftId, tenantId);
+        publishDeficitPayload(AUDIT_EVENTS_TOPIC, SharedConstants.EVENT_TYPE, "BLUEPRINT_DEFICIT_DETECTED", gaps, examId, shiftId, tenantId);
     }
 
     private void publishDeficitPayload(
@@ -548,7 +536,7 @@ public class PaperAssemblyService {
                 SharedConstants.TENANT_ID, tenantId,
                     "deficitRuleCount", gaps.size(),
                     "gapDetails", gaps,
-                    "occurredAt", Instant.now().toString()
+                SharedConstants.OCCURRED_AT, Instant.now().toString()
             );
             eventPublisher.publish(topic, examId != null ? examId.toString() : "GLOBAL", payload);
             log.info("Dispatched {} to {} for examId={}, shiftId={}, deficitCount={}",

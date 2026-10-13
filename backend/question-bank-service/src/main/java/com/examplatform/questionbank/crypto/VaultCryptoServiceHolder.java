@@ -20,6 +20,7 @@
 package com.examplatform.questionbank.crypto;
 
 import com.examplatform.shared.crypto.VaultCryptoService;
+import lombok.Getter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -31,7 +32,9 @@ import org.springframework.stereotype.Component;
 @Component
 public class VaultCryptoServiceHolder {
 
+    @Getter
     private static VaultCryptoService instance;
+    @Getter
     private static boolean encryptionEnabled;
 
     public VaultCryptoServiceHolder(
@@ -41,11 +44,4 @@ public class VaultCryptoServiceHolder {
         VaultCryptoServiceHolder.encryptionEnabled = encryptionEnabled;
     }
 
-    public static VaultCryptoService getInstance() {
-        return instance;
-    }
-
-    public static boolean isEncryptionEnabled() {
-        return encryptionEnabled;
-    }
 }

@@ -19,15 +19,8 @@
 
 package com.examplatform.questionbank.service;
 
-import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
-
 import com.examplatform.questionbank.domain.Question;
-import com.examplatform.questionbank.dto.BulkTransitionItemResult;
-import com.examplatform.questionbank.dto.BulkTransitionRequest;
-import com.examplatform.questionbank.dto.BulkTransitionResponse;
-import com.examplatform.questionbank.dto.QuestionAnalytics;
-import com.examplatform.questionbank.dto.QuestionResponse;
-import com.examplatform.questionbank.dto.TransitionRequest;
+import com.examplatform.questionbank.dto.*;
 import com.examplatform.questionbank.exception.FourEyesPrincipleViolationException;
 import com.examplatform.questionbank.exception.InvalidTransitionException;
 import com.examplatform.questionbank.repository.QuestionRepository;
@@ -35,17 +28,15 @@ import com.examplatform.shared.constants.QuestionStateConstants;
 import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import jakarta.persistence.EntityNotFoundException;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
+import java.util.*;
+
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
 
 /**
  * Service implementing the question lifecycle finite state machine (FSM).
@@ -227,13 +218,13 @@ public class QuestionLifecycleService {
                                     String fromState, String toState) {
         try {
             Map<String, Object> event = new HashMap<>();
-            event.put("eventType", "QUESTION_STATE_TRANSITION");
+            event.put(SharedConstants.EVENT_TYPE, "QUESTION_STATE_TRANSITION");
             event.put(SharedConstants.QUESTION_ID, questionId.toString());
             event.put("actorId", actorId.toString());
             event.put(SharedConstants.TENANT_ID, tenantId);
             event.put("fromState", fromState);
             event.put("toState", toState);
-            event.put("occurredAt", Instant.now().toString());
+            event.put(SharedConstants.OCCURRED_AT, Instant.now().toString());
 
             eventPublisher.publish(AUDIT_EVENTS_TOPIC, questionId.toString(), event);
         } catch (Exception e) {

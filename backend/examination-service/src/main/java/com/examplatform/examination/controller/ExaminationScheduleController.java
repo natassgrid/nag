@@ -19,14 +19,10 @@
 
 package com.examplatform.examination.controller;
 
-import com.examplatform.examination.dto.schedule.AmendScheduleRequest;
-import com.examplatform.examination.dto.schedule.CreateScheduleRequest;
-import com.examplatform.examination.dto.schedule.CreateShiftRequest;
-import com.examplatform.examination.dto.schedule.ScheduleResponse;
-import com.examplatform.examination.dto.schedule.ScheduleTransitionRequest;
-import com.examplatform.examination.dto.schedule.ShiftResponse;
+import com.examplatform.examination.dto.schedule.*;
 import com.examplatform.examination.service.ExaminationScheduleService;
 import com.examplatform.shared.api.ApiResponse;
+import com.examplatform.shared.constants.SharedConstants;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,20 +31,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 /**
  * REST controller for examination schedule and shift management.
@@ -70,11 +58,11 @@ public class ExaminationScheduleController {
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<ScheduleResponse>> create(
             @PathVariable UUID examId,
-            @RequestHeader("X-Tenant-Id") String tenantId,
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
             @Valid @RequestBody CreateScheduleRequest request,
             @AuthenticationPrincipal Jwt jwt) {
 
-        UUID actorId = UUID.fromString(jwt.getSubject());
+        UUID actorId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         ScheduleResponse response = scheduleService.createSchedule(examId, request, actorId, tenantId);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(response, "Schedule created successfully"));
@@ -84,7 +72,7 @@ public class ExaminationScheduleController {
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN','SECURITY_ADMIN')")
     public ResponseEntity<ApiResponse<org.springframework.data.domain.Page<ScheduleResponse>>> list(
             @PathVariable UUID examId,
-            @RequestHeader("X-Tenant-Id") String tenantId,
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @AuthenticationPrincipal Jwt jwt) {
@@ -99,7 +87,7 @@ public class ExaminationScheduleController {
     public ResponseEntity<ApiResponse<ScheduleResponse>> getById(
             @PathVariable UUID examId,
             @PathVariable UUID scheduleId,
-            @RequestHeader("X-Tenant-Id") String tenantId,
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
             @AuthenticationPrincipal Jwt jwt) {
 
         ScheduleResponse response = scheduleService.getSchedule(scheduleId, tenantId);
@@ -115,11 +103,11 @@ public class ExaminationScheduleController {
     public ResponseEntity<ApiResponse<ScheduleResponse>> transition(
             @PathVariable UUID examId,
             @PathVariable UUID scheduleId,
-            @RequestHeader("X-Tenant-Id") String tenantId,
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
             @Valid @RequestBody ScheduleTransitionRequest request,
             @AuthenticationPrincipal Jwt jwt) {
 
-        UUID actorId = UUID.fromString(jwt.getSubject());
+        UUID actorId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         Set<String> actorRoles = extractRoles(jwt);
         ScheduleResponse response = scheduleService.transitionSchedule(
                 scheduleId, request, actorId, actorRoles, tenantId);
@@ -134,11 +122,11 @@ public class ExaminationScheduleController {
     public ResponseEntity<ApiResponse<ScheduleResponse>> amend(
             @PathVariable UUID examId,
             @PathVariable UUID scheduleId,
-            @RequestHeader("X-Tenant-Id") String tenantId,
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
             @Valid @RequestBody AmendScheduleRequest request,
             @AuthenticationPrincipal Jwt jwt) {
 
-        UUID actorId = UUID.fromString(jwt.getSubject());
+        UUID actorId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         ScheduleResponse response = scheduleService.amendSchedule(scheduleId, request, actorId, tenantId);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(response, "Schedule amendment created as version " + response.getScheduleVersion()));
@@ -151,12 +139,12 @@ public class ExaminationScheduleController {
     public ResponseEntity<ApiResponse<ShiftResponse>> addShift(
             @PathVariable UUID examId,
             @PathVariable UUID scheduleId,
-            @RequestHeader("X-Tenant-Id") String tenantId,
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
             @Valid @RequestBody CreateShiftRequest request,
             @AuthenticationPrincipal Jwt jwt) {
 
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(
-                scheduleService.addShift(scheduleId, request, UUID.fromString(jwt.getSubject()), tenantId),
+                scheduleService.addShift(scheduleId, request, UUID.fromString(Objects.requireNonNull(jwt.getSubject())), tenantId),
                 "Shift created successfully"));
     }
 
@@ -166,12 +154,12 @@ public class ExaminationScheduleController {
             @PathVariable UUID examId,
             @PathVariable UUID scheduleId,
             @PathVariable UUID shiftId,
-            @RequestHeader("X-Tenant-Id") String tenantId,
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
             @Valid @RequestBody CreateShiftRequest request,
             @AuthenticationPrincipal Jwt jwt) {
 
         return ResponseEntity.ok(ApiResponse.success(
-                scheduleService.updateShift(scheduleId, shiftId, request, UUID.fromString(jwt.getSubject()), tenantId),
+                scheduleService.updateShift(scheduleId, shiftId, request, UUID.fromString(Objects.requireNonNull(jwt.getSubject())), tenantId),
                 "Shift updated successfully"));
     }
 
@@ -180,7 +168,7 @@ public class ExaminationScheduleController {
     public ResponseEntity<ApiResponse<List<ShiftResponse>>> listShifts(
             @PathVariable UUID examId,
             @PathVariable UUID scheduleId,
-            @RequestHeader("X-Tenant-Id") String tenantId,
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
             @AuthenticationPrincipal Jwt jwt) {
 
         List<ShiftResponse> shifts = scheduleService.listShifts(scheduleId, tenantId);

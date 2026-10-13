@@ -22,6 +22,7 @@ package com.examplatform.delivery.service;
 import com.examplatform.delivery.dto.QuestionDeliveryDto;
 import com.examplatform.delivery.dto.QuestionOptionDeliveryDto;
 import com.examplatform.delivery.dto.TranslatedQuestionDeliveryDto;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -29,12 +30,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * Component responsible for querying and attaching published/approved regional language translations
@@ -85,7 +81,7 @@ public class TranslationEnricher {
                 """, inSql);
 
             List<Object> params = new ArrayList<>();
-            params.add(tenantId != null ? tenantId : "default");
+            params.add(tenantId != null ? tenantId : SharedConstants.DEFAULT_TENANT);
             params.addAll(questionUuids);
 
             jdbcTemplate.query(sql, rs -> {
@@ -105,7 +101,7 @@ public class TranslationEnricher {
                 if (qDto != null && payload != null && !payload.isBlank()) {
                     try {
                         JsonNode node = objectMapper.readTree(payload);
-                        String transContent = node.path("content").asText(null);
+                        String transContent = node.path(SharedConstants.CONTENT).asText(null);
                         String transExplanation = node.path("explanation").asText(null);
                         String transImageUrl = node.has("imageUrl") && !node.get("imageUrl").isNull()
                                 ? node.get("imageUrl").asText(null)

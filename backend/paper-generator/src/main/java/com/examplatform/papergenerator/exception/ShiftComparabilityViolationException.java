@@ -19,6 +19,7 @@
 
 package com.examplatform.papergenerator.exception;
 
+import lombok.Getter;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
@@ -31,6 +32,7 @@ import java.util.UUID;
  *
  * Validates: Requirements 8.9
  */
+@Getter
 @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
 public class ShiftComparabilityViolationException extends RuntimeException {
 
@@ -43,11 +45,4 @@ public class ShiftComparabilityViolationException extends RuntimeException {
         this.violations = violations;
     }
 
-    public UUID getExamId() {
-        return examId;
-    }
-
-    public List<String> getViolations() {
-        return violations;
-    }
 }

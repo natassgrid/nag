@@ -19,6 +19,7 @@
 
 package com.examplatform.questionbank.exception;
 
+import lombok.Getter;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
@@ -30,6 +31,7 @@ import java.util.UUID;
  *
  * Validates: Requirement 4.7
  */
+@Getter
 @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
 public class SimilarQuestionException extends RuntimeException {
 
@@ -40,7 +42,4 @@ public class SimilarQuestionException extends RuntimeException {
         this.similarQuestionId = similarQuestionId;
     }
 
-    public UUID getSimilarQuestionId() {
-        return similarQuestionId;
-    }
 }

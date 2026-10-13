@@ -19,11 +19,6 @@
 
 package com.examplatform.questionbank.lifecycle;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-
 import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.domain.enums.CognitiveLevel;
 import com.examplatform.questionbank.domain.enums.DifficultyLevel;
@@ -37,14 +32,16 @@ import com.examplatform.questionbank.service.QuestionLifecycleService;
 import com.examplatform.questionbank.service.QuestionService;
 import com.examplatform.questionbank.support.AbstractIntegrationTest;
 import com.examplatform.shared.constants.QuestionStateConstants;
-import java.util.UUID;
-import org.junit.jupiter.api.Assumptions;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 
 /**
  * End-to-end lifecycle integration test for the Question Review & Approval Workflow.

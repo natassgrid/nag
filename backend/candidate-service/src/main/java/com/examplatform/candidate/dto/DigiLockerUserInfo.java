@@ -19,12 +19,13 @@
 
 package com.examplatform.candidate.dto;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record DigiLockerUserInfo(
-        @JsonProperty("name") String name,
+        @JsonProperty(SharedConstants.NAME) String name,
         @JsonProperty("dob") String dob,
         @JsonProperty("gender") String gender,
         @JsonProperty("mobile") String mobile,

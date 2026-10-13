@@ -7,12 +7,8 @@
 
 package com.examplatform.examination.domain;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import com.examplatform.shared.constants.SharedConstants;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -51,7 +47,7 @@ public class ExamApplication {
     private String tenantId;
 
     /** APPLIED | CONFIRMED | REJECTED */
-    @Column(name = "status", nullable = false, length = 20)
+    @Column(name = SharedConstants.STATUS, nullable = false, length = 20)
     private String status;
 
     @Column(name = "hall_ticket_number", length = 30)

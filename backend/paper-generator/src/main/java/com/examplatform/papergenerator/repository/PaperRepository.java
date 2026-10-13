@@ -68,6 +68,6 @@ public interface PaperRepository extends JpaRepository<Paper, UUID> {
     Page<Paper> findPapers(
             @Param(SharedConstants.TENANT_ID) String tenantId,
             @Param("examId") UUID examId,
-            @Param("status") String status,
+            @Param(SharedConstants.STATUS) String status,
             Pageable pageable);
 }

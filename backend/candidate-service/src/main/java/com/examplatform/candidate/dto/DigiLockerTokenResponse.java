@@ -19,12 +19,13 @@
 
 package com.examplatform.candidate.dto;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record DigiLockerTokenResponse(
-        @JsonProperty("access_token") String accessToken,
+        @JsonProperty(SharedConstants.ACCESS_TOKEN) String accessToken,
         @JsonProperty("token_type") String tokenType,
         @JsonProperty("expires_in") Integer expiresIn,
         @JsonProperty("id_token") String idToken,

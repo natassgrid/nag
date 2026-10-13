@@ -1,10 +1,12 @@
 package com.examplatform.candidate.config;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.tenant.TenantContext;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.jspecify.annotations.NonNull;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -21,11 +23,11 @@ import java.io.IOException;
 public class TenantFilter extends OncePerRequestFilter {
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+    protected void doFilterInternal(HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain)
             throws ServletException, IOException {
-        String tenantId = request.getHeader("X-Tenant-Id");
+        String tenantId = request.getHeader(SharedConstants.HEADER_TENANT_ID);
         if (tenantId == null || tenantId.isBlank()) {
-            tenantId = "default";
+            tenantId = SharedConstants.DEFAULT_TENANT;
         }
         TenantContext.set(tenantId);
         try {

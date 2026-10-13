@@ -1,15 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.examplatform.recommendation.domain;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -33,7 +30,7 @@ public class DynamicLearningPath extends BaseEntity {
     @Column(name = "exam_target", nullable = false, length = 50)
     private String examTarget;
 
-    @Column(name = "status", nullable = false, length = 30)
+    @Column(name = SharedConstants.STATUS, nullable = false, length = 30)
     @Builder.Default
     private String status = "ACTIVE"; // ACTIVE, PAUSED, COMPLETED, SUPERSEDED
 

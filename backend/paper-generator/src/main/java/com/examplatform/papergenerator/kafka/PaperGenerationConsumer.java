@@ -26,6 +26,7 @@ import com.examplatform.papergenerator.dto.PaperGenerationRequest;
 import com.examplatform.papergenerator.repository.BlueprintTemplateRepository;
 import com.examplatform.papergenerator.repository.PaperRepository;
 import com.examplatform.papergenerator.service.PaperAssemblyService;
+import com.examplatform.shared.constants.MessagingConstants;
 import com.examplatform.shared.constants.QuestionStateConstants;
 import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
@@ -50,11 +51,7 @@ import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
@@ -117,7 +114,7 @@ public class PaperGenerationConsumer {
     @RabbitListener(
             bindings = @QueueBinding(
                     value = @Queue(value = "paper.generation.queue", durable = "true"),
-                    exchange = @Exchange(value = "exam.events", type = ExchangeTypes.TOPIC),
+                    exchange = @Exchange(value = MessagingConstants.EXAM_EVENTS_TOPIC, type = ExchangeTypes.TOPIC),
                     key = PAPER_EVENTS_TOPIC
             )
     )
@@ -159,7 +156,7 @@ public class PaperGenerationConsumer {
             rootNode = objectMapper.readTree(payload);
         } catch (Exception e) {
             log.error("Failed to parse paper generation JSON payload: {}", e.getMessage());
-            publishDlqEvent(null, null, "default", "Invalid JSON payload: " + e.getMessage(), payload);
+            publishDlqEvent(null, null, SharedConstants.DEFAULT_TENANT, "Invalid JSON payload: " + e.getMessage(), payload);
             return;
         }
 
@@ -168,8 +165,8 @@ public class PaperGenerationConsumer {
         }
 
         // 1. Skip outbound/result/audit events to prevent loops
-        if (rootNode.has("eventType")) {
-            String eventType = rootNode.get("eventType").asText();
+        if (rootNode.has(SharedConstants.EVENT_TYPE)) {
+            String eventType = rootNode.get(SharedConstants.EVENT_TYPE).asText();
             if (EVENT_PAPER_GENERATION_COMPLETED.equalsIgnoreCase(eventType)
                     || EVENT_PAPER_GENERATION_FAILED.equalsIgnoreCase(eventType)
                     || "PAPER_GENERATED".equalsIgnoreCase(eventType)
@@ -191,7 +188,7 @@ public class PaperGenerationConsumer {
 
         // Skip direct Paper entity serialization events that lack eventType
         if (rootNode.has("paperRootHash") && (rootNode.has("paperDefinitionJson") || rootNode.has("manifestDigest"))) {
-            if (!rootNode.has("eventType") || !"PAPER_GENERATION_REQUEST".equalsIgnoreCase(rootNode.get("eventType").asText())) {
+            if (!rootNode.has(SharedConstants.EVENT_TYPE) || !"PAPER_GENERATION_REQUEST".equalsIgnoreCase(rootNode.get(SharedConstants.EVENT_TYPE).asText())) {
                 log.debug("Ignoring Paper entity serialization broadcast.");
                 return;
             }
@@ -207,7 +204,7 @@ public class PaperGenerationConsumer {
         String shiftId = getFieldText(rootNode, "shiftId");
         String tenantId = getFieldText(rootNode, SharedConstants.TENANT_ID);
         if (tenantId == null || tenantId.isBlank()) {
-            tenantId = "default";
+            tenantId = SharedConstants.DEFAULT_TENANT;
         }
 
         UUID requestedBy = parseUUID(getFieldText(rootNode, "requestedBy", "generatedBy", "userId"));
@@ -215,7 +212,7 @@ public class PaperGenerationConsumer {
             requestedBy = UUID.fromString("00000000-0000-0000-0000-000000000001");
         }
 
-        String name = getFieldText(rootNode, "name");
+        String name = getFieldText(rootNode, SharedConstants.NAME);
         Boolean isPractice = rootNode.has("isPractice") && rootNode.get("isPractice").asBoolean();
         Integer paragraphQuestionCount = rootNode.has("paragraphQuestionCount") && !rootNode.get("paragraphQuestionCount").isNull()
                 ? rootNode.get("paragraphQuestionCount").asInt() : null;
@@ -246,7 +243,8 @@ public class PaperGenerationConsumer {
             List<BlueprintRule> blueprintRules = null;
             if (rootNode.has("blueprintRules") && rootNode.get("blueprintRules").isArray()) {
                 blueprintRules = objectMapper.convertValue(
-                        rootNode.get("blueprintRules"), new TypeReference<List<BlueprintRule>>() {});
+                        rootNode.get("blueprintRules"), new TypeReference<>() {
+                    });
             }
 
             if ((blueprintRules == null || blueprintRules.isEmpty()) && rootNode.has("blueprintTemplateId")) {
@@ -256,7 +254,8 @@ public class PaperGenerationConsumer {
                     if (templateOpt.isPresent()) {
                         String rulesJson = templateOpt.get().getRulesJson();
                         if (rulesJson != null && !rulesJson.isBlank()) {
-                            blueprintRules = objectMapper.readValue(rulesJson, new TypeReference<List<BlueprintRule>>() {});
+                            blueprintRules = objectMapper.readValue(rulesJson, new TypeReference<>() {
+                            });
                         }
                     } else {
                         throw new IllegalArgumentException("Blueprint template not found for id: " + templateId);
@@ -304,19 +303,19 @@ public class PaperGenerationConsumer {
     private void publishPaperGenerationCompleted(Paper paper, String tenantId) {
         try {
             Map<String, Object> event = new LinkedHashMap<>();
-            event.put("eventType", EVENT_PAPER_GENERATION_COMPLETED);
+            event.put(SharedConstants.EVENT_TYPE, EVENT_PAPER_GENERATION_COMPLETED);
             event.put("paperId", paper.getId() != null ? paper.getId().toString() : "");
             event.put("examId", paper.getExamId() != null ? paper.getExamId().toString() : "");
             event.put("shiftId", paper.getShiftId() != null ? paper.getShiftId() : "");
-            event.put("name", paper.getName() != null ? paper.getName() : "");
+            event.put(SharedConstants.NAME, paper.getName() != null ? paper.getName() : "");
             event.put("variant", paper.getVariant() != null ? paper.getVariant() : "SET-A");
-            event.put("status", paper.getStatus() != null ? paper.getStatus() : QuestionStateConstants.DRAFT);
+            event.put(SharedConstants.STATUS, paper.getStatus() != null ? paper.getStatus() : QuestionStateConstants.DRAFT);
             event.put("paperRootHash", paper.getPaperRootHash() != null ? paper.getPaperRootHash() : "");
             event.put("manifestDigest", paper.getManifestDigest() != null ? paper.getManifestDigest() : "");
             event.put("difficultyScore", paper.getDifficultyScore());
             event.put("isPractice", paper.isPractice());
             event.put(SharedConstants.TENANT_ID, tenantId);
-            event.put("occurredAt", Instant.now().toString());
+            event.put(SharedConstants.OCCURRED_AT, Instant.now().toString());
 
             String key = paper.getId() != null ? paper.getId().toString() : (paper.getExamId() != null ? paper.getExamId().toString() : "GLOBAL");
             eventPublisher.publish(PAPER_EVENTS_TOPIC, key, event);
@@ -329,13 +328,13 @@ public class PaperGenerationConsumer {
             UUID examId, String shiftId, String tenantId, String errorMessage, String errorClass) {
         try {
             Map<String, Object> failEvent = new LinkedHashMap<>();
-            failEvent.put("eventType", EVENT_PAPER_GENERATION_FAILED);
+            failEvent.put(SharedConstants.EVENT_TYPE, EVENT_PAPER_GENERATION_FAILED);
             failEvent.put("examId", examId != null ? examId.toString() : "");
             failEvent.put("shiftId", shiftId != null ? shiftId : "");
             failEvent.put(SharedConstants.TENANT_ID, tenantId);
             failEvent.put("errorMessage", errorMessage != null ? errorMessage : "Unknown error");
             failEvent.put("errorClass", errorClass != null ? errorClass : "Exception");
-            failEvent.put("occurredAt", Instant.now().toString());
+            failEvent.put(SharedConstants.OCCURRED_AT, Instant.now().toString());
 
             String key = examId != null ? examId.toString() : "GLOBAL";
             eventPublisher.publish(PAPER_EVENTS_TOPIC, key, failEvent);
@@ -363,19 +362,25 @@ public class PaperGenerationConsumer {
     }
 
     private String extractPayloadString(Object message) {
-        if (message == null) return null;
-        if (message instanceof ConsumerRecord<?, ?> record) {
-            Object val = record.value();
-            return val != null ? val.toString() : null;
-        }
-        if (message instanceof Message amqpMsg) {
-            return new String(amqpMsg.getBody(), StandardCharsets.UTF_8);
-        }
-        if (message instanceof byte[] bytes) {
-            return new String(bytes, StandardCharsets.UTF_8);
-        }
-        if (message instanceof String s) {
-            return s;
+        switch (message) {
+            case null -> {
+                return null;
+            }
+            case ConsumerRecord<?, ?> record -> {
+                Object val = record.value();
+                return val != null ? val.toString() : null;
+            }
+            case Message amqpMsg -> {
+                return new String(amqpMsg.getBody(), StandardCharsets.UTF_8);
+            }
+            case byte[] bytes -> {
+                return new String(bytes, StandardCharsets.UTF_8);
+            }
+            case String s -> {
+                return s;
+            }
+            default -> {
+            }
         }
         try {
             return objectMapper.writeValueAsString(message);

@@ -11,10 +11,8 @@
 
 package com.examplatform.recommendation.controller;
 
-import com.examplatform.recommendation.domain.PerformanceBracket;
 import com.examplatform.recommendation.dto.DynamicLearningPathResponse;
 import com.examplatform.recommendation.dto.LearnerProfileDto;
-import com.examplatform.recommendation.dto.LearningPathSummaryResponse;
 import com.examplatform.recommendation.dto.MilestoneGraphDto;
 import com.examplatform.recommendation.dto.RecommendationDto;
 import com.examplatform.recommendation.service.LearnerProfileService;
@@ -32,7 +30,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 

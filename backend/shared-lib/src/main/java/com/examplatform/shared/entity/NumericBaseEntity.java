@@ -19,16 +19,11 @@
 
 package com.examplatform.shared.entity;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.tenant.TenantContext;
-import jakarta.persistence.Column;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.MappedSuperclass;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
-import jakarta.persistence.Version;
+import jakarta.persistence.*;
 import lombok.Getter;
+import lombok.Setter;
 
 import java.time.Instant;
 import java.util.Objects;
@@ -70,7 +65,13 @@ public abstract class NumericBaseEntity {
     /**
      * Examination authority (tenant) that owns this record.
      * Sourced from {@link TenantContext#get()} at persist time.
+     * -- SETTER --
+     *  Allows explicit tenant assignment before persist — useful in background
+     *  jobs where
+     *  is not populated.
+
      */
+    @Setter
     @Column(name = "tenant_id", updatable = false, nullable = false, columnDefinition = "varchar(255)")
     private String tenantId;
 
@@ -85,7 +86,7 @@ public abstract class NumericBaseEntity {
         this.createdAt = ts;
         this.updatedAt = ts;
         if (this.tenantId == null) {
-            this.tenantId = Objects.requireNonNullElse(TenantContext.get(), "default");
+            this.tenantId = Objects.requireNonNullElse(TenantContext.get(), SharedConstants.DEFAULT_TENANT);
         }
     }
 
@@ -100,14 +101,6 @@ public abstract class NumericBaseEntity {
      */
     protected void setId(Long id) {
         this.id = id;
-    }
-
-    /**
-     * Allows explicit tenant assignment before persist — useful in background
-     * jobs where {@link TenantContext} is not populated.
-     */
-    public void setTenantId(String tenantId) {
-        this.tenantId = tenantId;
     }
 
     protected void setVersion(Long version) {

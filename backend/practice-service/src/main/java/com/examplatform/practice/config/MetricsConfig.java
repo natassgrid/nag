@@ -4,10 +4,9 @@ package com.examplatform.practice.config;
 import com.examplatform.practice.repository.PracticeSessionRepository;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
-
-import jakarta.annotation.PostConstruct;
 
 @Configuration
 @RequiredArgsConstructor

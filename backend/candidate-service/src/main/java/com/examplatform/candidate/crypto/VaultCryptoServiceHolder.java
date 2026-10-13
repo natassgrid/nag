@@ -20,6 +20,7 @@
 package com.examplatform.candidate.crypto;
 
 import com.examplatform.shared.crypto.VaultCryptoService;
+import lombok.Getter;
 import org.springframework.stereotype.Component;
 
 /**
@@ -30,13 +31,11 @@ import org.springframework.stereotype.Component;
 @Component
 public class VaultCryptoServiceHolder {
 
+    @Getter
     private static VaultCryptoService instance;
 
     public VaultCryptoServiceHolder(VaultCryptoService service) {
         VaultCryptoServiceHolder.instance = service;
     }
 
-    public static VaultCryptoService getInstance() {
-        return instance;
-    }
 }

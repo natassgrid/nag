@@ -15,6 +15,7 @@ import com.examplatform.questionbank.domain.Passage;
 import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.repository.PassageRepository;
 import com.examplatform.questionbank.repository.QuestionRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.grpc.stub.StreamObserver;
@@ -22,11 +23,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -96,7 +93,7 @@ public class QuestionBankGrpcServiceImpl extends QuestionBankGrpcServiceGrpc.Que
             String topic = request.getTopic().isBlank() ? null : request.getTopic().trim();
             String difficulty = request.getDifficulty().isBlank() ? null : request.getDifficulty().trim();
             String cognitiveLevel = request.getCognitiveLevel().isBlank() ? null : request.getCognitiveLevel().trim();
-            String tenantId = request.getTenantId().isBlank() ? "default" : request.getTenantId().trim();
+            String tenantId = request.getTenantId().isBlank() ? SharedConstants.DEFAULT_TENANT : request.getTenantId().trim();
 
             List<Question> questions = questionRepository.findBlueprintQuestions(
                     subject != null ? subject : "",

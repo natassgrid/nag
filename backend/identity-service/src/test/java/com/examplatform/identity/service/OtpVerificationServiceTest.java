@@ -19,8 +19,6 @@
 
 package com.examplatform.identity.service;
 
-import com.examplatform.shared.crypto.HashingService;
-
 import com.examplatform.identity.domain.UserAccount;
 import com.examplatform.identity.domain.enums.AccountStatus;
 import com.examplatform.identity.dto.AuthTokenResponse;
@@ -28,6 +26,7 @@ import com.examplatform.identity.dto.OtpVerifyRequest;
 import com.examplatform.identity.exception.AccountNotFoundException;
 import com.examplatform.identity.exception.InvalidOtpException;
 import com.examplatform.identity.repository.UserAccountRepository;
+import com.examplatform.shared.crypto.HashingService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;

@@ -66,8 +66,8 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                             JsonNode node = objectMapper.readTree(payload);
                             Map<String, Object> transMap = new HashMap<>();
                             transMap.put("languageCode", langCode);
-                            if (node.has("content")) {
-                                transMap.put("content", node.get("content").asText());
+                            if (node.has(SharedConstants.CONTENT)) {
+                                transMap.put(SharedConstants.CONTENT, node.get(SharedConstants.CONTENT).asText());
                             }
                             if (node.has("explanation")) {
                                 transMap.put("explanation", node.get("explanation").asText());
@@ -105,8 +105,8 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                 String topicName = rs.getString("topic");
                 Long subtopicId = rs.getObject("subtopic_id", Long.class);
                 String subtopicName = rs.getString("subtopic");
-                String difficulty = rs.getString("difficulty");
-                String content = rs.getString("content");
+                String difficulty = rs.getString(SharedConstants.DIFFICULTY);
+                String content = rs.getString(SharedConstants.CONTENT);
                 String optionsJson = rs.getString("options");
                 String explanation = rs.getString("explanation");
                 Integer benchmarkTime = rs.getObject("benchmark_time_seconds", Integer.class);

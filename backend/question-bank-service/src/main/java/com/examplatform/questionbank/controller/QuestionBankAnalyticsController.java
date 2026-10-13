@@ -12,6 +12,7 @@
 package com.examplatform.questionbank.controller;
 
 import com.examplatform.questionbank.service.QuestionService;
+import com.examplatform.shared.constants.SharedConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -37,7 +38,7 @@ public class QuestionBankAnalyticsController {
      */
     @GetMapping("/api/v1/questions/analytics/summary")
     public ResponseEntity<Map<String, Object>> getAnalyticsSummary(
-            @RequestParam(required = false, defaultValue = "default") String tenantId) {
+            @RequestParam(required = false, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
         return ResponseEntity.ok(questionService.getQuestionBankMetrics(tenantId));
     }
 }

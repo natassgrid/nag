@@ -19,18 +19,12 @@
 
 package com.examplatform.candidate.controller;
 
-import com.examplatform.candidate.dto.CandidateEducationRequest;
-import com.examplatform.candidate.dto.CandidateEducationResponse;
-import com.examplatform.candidate.dto.CandidateProfileResponse;
-import com.examplatform.candidate.dto.ConsentRequest;
-import com.examplatform.candidate.dto.CreateCandidateProfileRequest;
-import com.examplatform.candidate.dto.DigiLockerCallbackResult;
-import com.examplatform.candidate.dto.FaceVerificationRequest;
-import com.examplatform.candidate.dto.UpdateCandidateProfileRequest;
+import com.examplatform.candidate.dto.*;
 import com.examplatform.candidate.service.CandidateEducationService;
 import com.examplatform.candidate.service.CandidateProfileService;
 import com.examplatform.candidate.service.DigiLockerService;
 import com.examplatform.candidate.service.FaceVerificationService;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.tenant.TenantContext;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -41,15 +35,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
@@ -251,7 +237,7 @@ public class CandidateProfileController {
     @PostMapping("/digilocker/callback")
     public ResponseEntity<DigiLockerCallbackResult> handleDigiLockerCallbackPost(
             @RequestBody Map<String, String> body) {
-        String code = body != null ? body.get("code") : "";
+        String code = body != null ? body.get(SharedConstants.CODE) : "";
         String state = body != null ? body.get("state") : "";
         String redirectUri = body != null ? body.get("redirectUri") : null;
         DigiLockerCallbackResult result = digiLockerService.handleCallback(code, state, redirectUri);
@@ -273,7 +259,7 @@ public class CandidateProfileController {
         String tenantId = getTenantId();
         String token = (body != null && body.containsKey("token")) ? body.get("token") : null;
         String status = digiLockerService.verifyDocument(userId, token, tenantId);
-        return ResponseEntity.ok(Map.of("status", status));
+        return ResponseEntity.ok(Map.of(SharedConstants.STATUS, status));
     }
 
     /**
@@ -290,11 +276,11 @@ public class CandidateProfileController {
         enforceOwnership(userId, jwt);
         String tenantId = getTenantId();
         String status = faceVerificationService.verifyFace(userId, request, tenantId);
-        return ResponseEntity.ok(Map.of("status", status));
+        return ResponseEntity.ok(Map.of(SharedConstants.STATUS, status));
     }
 
     private String getTenantId() {
-        return TenantContext.get() != null ? TenantContext.get() : "default";
+        return TenantContext.get() != null ? TenantContext.get() : SharedConstants.DEFAULT_TENANT;
     }
 
     // ── Private helpers ──────────────────────────────────────────────────

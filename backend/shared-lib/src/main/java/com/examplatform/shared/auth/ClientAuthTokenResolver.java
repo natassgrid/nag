@@ -19,6 +19,7 @@
 
 package com.examplatform.shared.auth;
 
+import com.examplatform.shared.constants.SharedConstants;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -92,9 +93,9 @@ public final class ClientAuthTokenResolver {
         // 2. Check SecurityContextHolder
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth instanceof JwtAuthenticationToken jwtAuth) {
-            return "Bearer " + jwtAuth.getToken().getTokenValue();
+            return SharedConstants.BEARER_PREFIX + jwtAuth.getToken().getTokenValue();
         } else if (auth != null && auth.getCredentials() instanceof String cred && !cred.isBlank()) {
-            return cred.startsWith("Bearer ") ? cred : "Bearer " + cred;
+            return cred.startsWith(SharedConstants.BEARER_PREFIX) ? cred : SharedConstants.BEARER_PREFIX + cred;
         }
 
         // 3. Service account token provider
@@ -102,7 +103,7 @@ public final class ClientAuthTokenResolver {
             try {
                 String token = tokenProvider.getServiceToken(serviceName);
                 if (token != null && !token.isBlank()) {
-                    return "Bearer " + token;
+                    return SharedConstants.BEARER_PREFIX + token;
                 }
             } catch (Exception ignored) {
             }
@@ -110,7 +111,7 @@ public final class ClientAuthTokenResolver {
 
         // 4. Generate signed dev JWT fallback
         if (jwtSecret != null && !jwtSecret.isBlank() && serviceName != null) {
-            return "Bearer " + generateDevToken(serviceName, jwtSecret, roles != null ? roles : DEFAULT_ROLES);
+            return SharedConstants.BEARER_PREFIX + generateDevToken(serviceName, jwtSecret, roles != null ? roles : DEFAULT_ROLES);
         }
 
         return null;

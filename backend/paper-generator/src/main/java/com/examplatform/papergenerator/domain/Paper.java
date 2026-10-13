@@ -19,15 +19,12 @@
 
 package com.examplatform.papergenerator.domain;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -52,7 +49,7 @@ import java.util.UUID;
 public class Paper extends BaseEntity {
 
     /** Meaningful human-readable name of the generated paper. */
-    @Column(name = "name", length = 255)
+    @Column(name = SharedConstants.NAME)
     private String name;
 
     @Column(name = "exam_id", nullable = false, columnDefinition = "uuid")
@@ -61,7 +58,7 @@ public class Paper extends BaseEntity {
     @Column(name = "shift_id", nullable = false)
     private String shiftId;
 
-    @Column(name = "status", nullable = false, length = 20)
+    @Column(name = SharedConstants.STATUS, nullable = false, length = 20)
     private String status;
 
     /** Indicates whether this paper is generated specifically for candidate practice and learning. */
@@ -103,7 +100,7 @@ public class Paper extends BaseEntity {
     private String manifestDigest;
 
     /** Public DLT / Blockchain transaction hash confirming immutable attestation. */
-    @Column(name = "ledger_tx_hash", length = 255)
+    @Column(name = "ledger_tx_hash")
     private String ledgerTxHash;
 
     /** Hedera Consensus Timestamp or DLT consensus time string. */

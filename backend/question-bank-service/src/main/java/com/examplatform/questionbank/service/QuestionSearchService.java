@@ -80,7 +80,7 @@ public class QuestionSearchService {
                         || difficulty.equalsIgnoreCase(q.getDifficulty()))
                 .filter(q -> lowerQuery.isBlank()
                         || matchesQuery(q, lowerQuery))
-                .collect(Collectors.toList());
+                .toList();
 
         // Paginate
         int start = page * size;

@@ -36,7 +36,7 @@ public class CandidateAnalyticsController {
 
     @GetMapping("/summary")
     public ResponseEntity<Map<String, Object>> getSummary(
-            @RequestParam(value = SharedConstants.TENANT_ID, defaultValue = "default") String tenantId) {
+            @RequestParam(value = SharedConstants.TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
         return ResponseEntity.ok(candidateProfileService.getCandidateMetrics(tenantId));
     }
 }

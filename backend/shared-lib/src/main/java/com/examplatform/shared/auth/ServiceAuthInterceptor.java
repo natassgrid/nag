@@ -19,7 +19,9 @@
 
 package com.examplatform.shared.auth;
 
+import com.examplatform.shared.constants.SharedConstants;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.NonNull;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpRequest;
 import org.springframework.http.client.ClientHttpRequestExecution;
@@ -50,10 +52,10 @@ public class ServiceAuthInterceptor implements ClientHttpRequestInterceptor {
     private static final String DEFAULT_SERVICE_ID = "platform-service";
 
     @Override
-    public ClientHttpResponse intercept(HttpRequest request, byte[] body,
+    public ClientHttpResponse intercept(HttpRequest request, byte @NonNull [] body,
                                         ClientHttpRequestExecution execution) throws IOException {
         String token = tokenProvider.getServiceToken(DEFAULT_SERVICE_ID);
-        request.getHeaders().set(HttpHeaders.AUTHORIZATION, "Bearer " + token);
+        request.getHeaders().set(HttpHeaders.AUTHORIZATION, SharedConstants.BEARER_PREFIX + token);
         return execution.execute(request, body);
     }
 }

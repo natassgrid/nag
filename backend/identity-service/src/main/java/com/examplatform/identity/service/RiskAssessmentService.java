@@ -21,6 +21,7 @@ package com.examplatform.identity.service;
 
 import com.examplatform.identity.domain.UserAccount;
 import com.examplatform.shared.config.DynamicConfigService;
+import com.examplatform.shared.constants.SharedConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -115,7 +116,7 @@ public class RiskAssessmentService {
      */
     public boolean isStepUpRequired(UserAccount account, String deviceFingerprint,
                                     String ipAddress, LocalDateTime loginTime) {
-        String tenantId = account != null && account.getTenantId() != null ? account.getTenantId() : "default";
+        String tenantId = account != null && account.getTenantId() != null ? account.getTenantId() : SharedConstants.DEFAULT_TENANT;
 
         // Risk signal 1: new device
         if (account != null && account.getDeviceFingerprint() != null
@@ -126,10 +127,14 @@ public class RiskAssessmentService {
         }
 
         // Risk signal 2: unusual time (before 6 AM or after 11 PM)
-        int hour = loginTime.getHour();
-        if (hour < 6 || hour >= 23) {
-            log.info("Risk signal: unusual login time ({}) for user {}", hour, account != null ? account.getId() : "unknown");
-            return true;
+        boolean timeRiskEnabled = dynamicConfigService == null
+                || dynamicConfigService.getBoolean("auth.risk.time.enabled", tenantId, true);
+        if (timeRiskEnabled && loginTime != null) {
+            int hour = loginTime.getHour();
+            if (hour < 6 || hour >= 23) {
+                log.info("Risk signal: unusual login time ({}) for user {}", hour, account != null ? account.getId() : "unknown");
+                return true;
+            }
         }
 
         // Risk signal 3: IP/Geo change & Threat Intelligence

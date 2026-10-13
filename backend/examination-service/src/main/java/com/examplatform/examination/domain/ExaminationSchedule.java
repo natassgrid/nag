@@ -19,16 +19,12 @@
 
 package com.examplatform.examination.domain;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
-import lombok.AllArgsConstructor;
-
-import lombok.Builder;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -68,7 +64,7 @@ public class ExaminationSchedule extends BaseEntity {
     @Column(name = "examination_id", nullable = false, columnDefinition = "uuid")
     private UUID examinationId;
 
-    @Column(name = "schedule_name", nullable = false, length = 255)
+    @Column(name = "schedule_name", nullable = false)
     private String scheduleName;
 
     /**
@@ -104,7 +100,7 @@ public class ExaminationSchedule extends BaseEntity {
      * DRAFT | SCHEDULER_REVIEW | CONTROLLER_APPROVED |
      * SECURITY_REVIEW | CHAIRMAN_APPROVED | PUBLISHED | CANCELLED
      */
-    @Column(name = "status", nullable = false, length = 30)
+    @Column(name = SharedConstants.STATUS, nullable = false, length = 30)
     private String status;
 
     /** Mandatory when amending a PUBLISHED schedule. */

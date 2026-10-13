@@ -19,6 +19,7 @@
 
 package com.examplatform.audit.controller;
 
+import com.examplatform.shared.constants.SharedConstants;
 import org.springframework.security.core.Authentication;
 
 import java.util.Map;
@@ -26,7 +27,7 @@ import java.util.Optional;
 
 final class AuditSecurityHelper {
 
-    static final String DEFAULT_TENANT_ID = "default";
+    static final String DEFAULT_TENANT_ID = SharedConstants.DEFAULT_TENANT;
 
     private AuditSecurityHelper() {}
 

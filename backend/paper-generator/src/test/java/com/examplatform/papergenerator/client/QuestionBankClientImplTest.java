@@ -19,13 +19,9 @@
 
 package com.examplatform.papergenerator.client;
 
+import com.examplatform.papergenerator.dto.BatchTranslationJobResponseDto;
 import com.examplatform.papergenerator.dto.QuestionSummary;
-import com.examplatform.questionbank.grpc.BatchFindQuestionsGrpcRequest;
-import com.examplatform.questionbank.grpc.BatchFindQuestionsGrpcResponse;
-import com.examplatform.questionbank.grpc.BlueprintMatchGrpcRequest;
-import com.examplatform.questionbank.grpc.BlueprintMatchGrpcResponse;
-import com.examplatform.questionbank.grpc.QuestionBankGrpcServiceGrpc;
-import com.examplatform.questionbank.grpc.QuestionSummaryGrpc;
+import com.examplatform.questionbank.grpc.*;
 import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
@@ -49,13 +45,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import com.examplatform.papergenerator.dto.BatchTranslationJobResponseDto;
 import static org.springframework.http.HttpMethod.GET;
 import static org.springframework.http.HttpMethod.POST;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
-import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
-import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.*;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 

@@ -63,7 +63,6 @@ public class ModelRouter {
 
         return switch (difficulty.toUpperCase().trim()) {
             case QuestionTaxonomyConstants.Difficulty.EASY -> easyModel;
-            case QuestionTaxonomyConstants.Difficulty.MEDIUM -> mediumModel;
             case QuestionTaxonomyConstants.Difficulty.HARD -> hardModel;
             default -> mediumModel;
         };
@@ -82,7 +81,6 @@ public class ModelRouter {
 
         return switch (difficulty.toUpperCase().trim()) {
             case QuestionTaxonomyConstants.Difficulty.EASY -> AMAZON_NOVA_MICRO_V_1_0;
-            case QuestionTaxonomyConstants.Difficulty.MEDIUM, QuestionTaxonomyConstants.Difficulty.HARD -> AMAZON_NOVA_LITE_V_1_0;
             default -> AMAZON_NOVA_LITE_V_1_0;
         };
     }

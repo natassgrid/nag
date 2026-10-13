@@ -27,16 +27,14 @@ import com.examplatform.delivery.dto.NavigationResponse.NavigationPolicy;
 import com.examplatform.delivery.dto.QuestionDeliveryDto;
 import com.examplatform.delivery.exception.NavigationPolicyViolationException;
 import com.examplatform.delivery.repository.ExamSessionRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * Service for handling question navigation within exam sessions.
@@ -254,7 +252,7 @@ public class NavigationService {
     private int getSectionForQuestion(int questionIndex, ExamSession session) {
         if (examQuestionDeliveryService != null && session != null) {
             try {
-                String tenant = session.getTenantId() != null ? session.getTenantId() : "default";
+                String tenant = session.getTenantId() != null ? session.getTenantId() : SharedConstants.DEFAULT_TENANT;
                 List<QuestionDeliveryDto> questions = examQuestionDeliveryService.getQuestionsForSession(
                         session.getSessionId(), tenant);
                 if (questions != null && questionIndex >= 0 && questionIndex < questions.size()) {
@@ -284,7 +282,7 @@ public class NavigationService {
     private int getTotalQuestions(ExamSession session) {
         if (examQuestionDeliveryService != null && session != null) {
             try {
-                String tenant = session.getTenantId() != null ? session.getTenantId() : "default";
+                String tenant = session.getTenantId() != null ? session.getTenantId() : SharedConstants.DEFAULT_TENANT;
                 List<QuestionDeliveryDto> questions = examQuestionDeliveryService.getQuestionsForSession(
                         session.getSessionId(), tenant);
                 if (questions != null && !questions.isEmpty()) {
@@ -297,7 +295,7 @@ public class NavigationService {
         }
         // Fallback: Support standard competitive exam sizes up to 200 questions,
         // and always at least current question index + 1 to prevent false out-of-bounds
-        return Math.max(session.getCurrentQuestionIndex() + 1, 200);
+        return Math.max(Objects.requireNonNull(session).getCurrentQuestionIndex() + 1, 200);
     }
 
     private void updateSessionCache(ExamSession session) {

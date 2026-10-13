@@ -130,14 +130,14 @@ public class TranslationReviewService {
                                         String comments, String tenantId) {
         try {
             Map<String, Object> event = Map.of(
-                    "eventType", "TRANSLATION_REJECTED",
+                SharedConstants.EVENT_TYPE, "TRANSLATION_REJECTED",
                     "translationId", translation.getId().toString(),
                     "translatorId", translation.getTranslatorId().toString(),
                 SharedConstants.REVIEWER_ID, reviewerId.toString(),
                     "languageCode", translation.getLanguageCode(),
                     "comments", comments,
                 SharedConstants.TENANT_ID, tenantId,
-                    "occurredAt", Instant.now().toString()
+                SharedConstants.OCCURRED_AT, Instant.now().toString()
             );
             eventPublisher.publish(TRANSLATION_EVENTS_TOPIC, translation.getId().toString(), event);
         } catch (Exception e) {
@@ -148,10 +148,10 @@ public class TranslationReviewService {
     private void publishStaleEvent(UUID questionId, int count) {
         try {
             Map<String, Object> event = Map.of(
-                    "eventType", "TRANSLATIONS_MARKED_STALE",
+                SharedConstants.EVENT_TYPE, "TRANSLATIONS_MARKED_STALE",
                 SharedConstants.QUESTION_ID, questionId.toString(),
                     "affectedCount", count,
-                    "occurredAt", Instant.now().toString()
+                SharedConstants.OCCURRED_AT, Instant.now().toString()
             );
             eventPublisher.publish(TRANSLATION_EVENTS_TOPIC, questionId.toString(), event);
         } catch (Exception e) {

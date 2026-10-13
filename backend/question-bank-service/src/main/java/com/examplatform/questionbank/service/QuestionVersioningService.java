@@ -32,11 +32,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * Manages question version history.
@@ -113,10 +109,10 @@ public class QuestionVersioningService {
         addIfChanged(diff, "topic", oldQuestion.getTopic(), newQuestion.getTopic());
         addIfChanged(diff, "subtopic", oldQuestion.getSubtopic(), newQuestion.getSubtopic());
         addIfChanged(diff, "chapter", oldQuestion.getChapter(), newQuestion.getChapter());
-        addIfChanged(diff, "difficulty", oldQuestion.getDifficulty(), newQuestion.getDifficulty());
+        addIfChanged(diff, SharedConstants.DIFFICULTY, oldQuestion.getDifficulty(), newQuestion.getDifficulty());
         addIfChanged(diff, "cognitiveLevel", oldQuestion.getCognitiveLevel(), newQuestion.getCognitiveLevel());
         addIfChanged(diff, "questionType", oldQuestion.getQuestionType(), newQuestion.getQuestionType());
-        addIfChanged(diff, "content", oldQuestion.getContent(), newQuestion.getContent());
+        addIfChanged(diff, SharedConstants.CONTENT, oldQuestion.getContent(), newQuestion.getContent());
         addIfChanged(diff, "answerKey", oldQuestion.getAnswerKey(), newQuestion.getAnswerKey());
 
         try {
@@ -147,10 +143,10 @@ public class QuestionVersioningService {
             node.put("topic", question.getTopic());
             node.put("subtopic", question.getSubtopic());
             node.put("chapter", question.getChapter());
-            node.put("difficulty", question.getDifficulty());
+            node.put(SharedConstants.DIFFICULTY, question.getDifficulty());
             node.put("cognitiveLevel", question.getCognitiveLevel());
             node.put("questionType", question.getQuestionType());
-            node.put("content", question.getContent());
+            node.put(SharedConstants.CONTENT, question.getContent());
             node.put("answerKey", question.getAnswerKey());
             node.put("state", question.getState());
             node.put(

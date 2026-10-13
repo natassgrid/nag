@@ -11,11 +11,7 @@
 
 package com.examplatform.identity.controller;
 
-import com.examplatform.identity.dto.AcceptInviteRequest;
-import com.examplatform.identity.dto.AdminInviteRequest;
-import com.examplatform.identity.dto.AdminInviteResponse;
-import com.examplatform.identity.dto.AuthTokenResponse;
-import com.examplatform.identity.dto.ValidateInviteResponse;
+import com.examplatform.identity.dto.*;
 import com.examplatform.identity.exception.InvitationExpiredException;
 import com.examplatform.identity.exception.InvitationNotFoundException;
 import com.examplatform.identity.service.AdminInvitationService;

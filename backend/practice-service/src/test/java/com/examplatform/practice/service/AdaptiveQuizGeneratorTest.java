@@ -3,7 +3,6 @@ package com.examplatform.practice.service;
 
 import com.examplatform.practice.client.QuestionBankClient;
 import com.examplatform.practice.domain.PracticeSet;
-import com.examplatform.practice.dto.PracticeSetDto;
 import com.examplatform.practice.repository.PracticeSetRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
