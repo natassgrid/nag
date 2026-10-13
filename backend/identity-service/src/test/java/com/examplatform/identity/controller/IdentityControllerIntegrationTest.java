@@ -436,7 +436,7 @@ class IdentityControllerIntegrationTest extends AbstractIntegrationTest {
                     .andExpect(jsonPath("$.message").value("Password changed successfully."));
 
             verify(authenticationService).changePassword(
-                    eq(TEST_USER_ID.toString()), eq("OldSecurePassword123#"), eq("NewSecurePassword123#"), eq(TENANT_ID));
+                    eq(TEST_USER_ID.toString()), eq("NewSecurePassword123#"), eq(TENANT_ID));
         }
 
         @Test
@@ -447,7 +447,7 @@ class IdentityControllerIntegrationTest extends AbstractIntegrationTest {
             request.setNewPassword("NewSecurePassword123#");
 
             doThrow(new AuthenticationException("Current password is incorrect."))
-                    .when(authenticationService).changePassword(any(), any(), any(), any());
+                    .when(authenticationService).changePassword(any(), any(), any());
 
             mockMvc.perform(post("/api/v1/identity/auth/change-password")
                             .header("X-Tenant-Id", TENANT_ID)

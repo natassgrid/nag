@@ -96,7 +96,7 @@ public class AdminProfileController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
         String userIdStr = extractUserId(jwt);
-        authenticationService.changePassword(userIdStr, request.getCurrentPassword(), request.getNewPassword(), tenantId);
+        authenticationService.changePassword(userIdStr, request.getNewPassword(), tenantId);
         return ResponseEntity.ok(ApiResponse.success(null, "Password changed successfully."));
     }
 

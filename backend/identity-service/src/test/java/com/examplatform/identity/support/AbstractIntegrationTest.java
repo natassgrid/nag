@@ -51,6 +51,8 @@ import org.testcontainers.utility.DockerImageName;
 import java.time.Duration;
 import java.util.List;
 
+import static org.mockito.Mockito.*;
+
 /**
  * Production-grade base class for Spring Boot integration and MockMvc REST tests utilizing Testcontainers.
  *
@@ -202,13 +204,13 @@ public abstract class AbstractIntegrationTest {
         @Bean
         @Primary
         public JwtDecoder jwtDecoder() {
-            return Mockito.mock(JwtDecoder.class);
+            return mock(JwtDecoder.class);
         }
 
         @Bean
         @Primary
         public VaultTemplate vaultTemplate() {
-            return Mockito.mock(VaultTemplate.class);
+            return mock(VaultTemplate.class);
         }
     }
 }

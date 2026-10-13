@@ -54,6 +54,11 @@ import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_
 public class CandidateRegistrationConsumer {
     private static final String HMAC_KEY_PREFIX = "candidate-doc-hmac-";
     private static final String DEK_PREFIX = "candidate-dek-";
+    private static final String FIELD_FULL_NAME = "fullName";
+    private static final String FIELD_EMAIL = "email";
+    private static final String FIELD_MOBILE = "mobile";
+    private static final String FIELD_IDENTITY_DOC_NUMBER = "identityDocNumber";
+    private static final String PENDING_PREFIX = "PENDING-";
 
     private final CandidateProfileRepository candidateProfileRepository;
     private final HashingService hashingService;
@@ -97,9 +102,7 @@ public class CandidateRegistrationConsumer {
         }
         try {
             JsonNode root = objectMapper.readTree(rawJson);
-            String eventType = root.path(SharedConstants.EVENT_TYPE).asText("");
-            String action = root.path(SharedConstants.ACTION).asText("");
-            if (!"CANDIDATE_PROFILE_CREATED".equals(eventType) && !"identity:registration".equals(action)) {
+            if (!isRegistrationEvent(root)) {
                 return;
             }
 
@@ -108,64 +111,122 @@ public class CandidateRegistrationConsumer {
                 return;
             }
 
-            UUID userId;
-            try {
-                userId = UUID.fromString(actorId);
-            } catch (IllegalArgumentException e) {
+            Optional<UUID> userIdOpt = parseUserId(actorId);
+            if (userIdOpt.isEmpty()) {
                 return;
             }
 
             JsonNode details = root.path("details");
-            String tenantId = root.hasNonNull(SharedConstants.TENANT_ID) ? root.path(SharedConstants.TENANT_ID).asText(SharedConstants.DEFAULT_TENANT) : details.path(
-                SharedConstants.TENANT_ID).asText(SharedConstants.DEFAULT_TENANT);
-            String fullName = root.hasNonNull("fullName") ? root.path("fullName").asText("") : details.path("fullName").asText("");
-            String email = root.hasNonNull("email") ? root.path("email").asText("") : details.path("email").asText("");
-            String mobile = root.hasNonNull("mobile") ? root.path("mobile").asText("") : details.path("mobile").asText("");
-            String docNumber = root.hasNonNull("identityDocNumber") ? root.path("identityDocNumber").asText("") : details.path("identityDocNumber").asText("");
+            RegistrationData data = new RegistrationData(
+                    userIdOpt.get(),
+                    extractField(root, details, SharedConstants.TENANT_ID, SharedConstants.DEFAULT_TENANT),
+                    extractField(root, details, FIELD_FULL_NAME, ""),
+                    extractField(root, details, FIELD_EMAIL, ""),
+                    extractField(root, details, FIELD_MOBILE, ""),
+                    extractField(root, details, FIELD_IDENTITY_DOC_NUMBER, "")
+            );
 
-            Optional<CandidateProfile> existingOpt = candidateProfileRepository.findByUserIdAndTenantId(userId, tenantId);
-            String dekKeyName = DEK_PREFIX + userId;
-            String mobileHash = !mobile.isBlank() ? hashingService.sha256(mobile.trim()) : "PENDING-" + userId;
-            String docHash = !docNumber.isBlank() ? hashingService.sha256(docNumber.trim().toUpperCase()) : "PENDING-" + userId;
-            String docHmac = !docNumber.isBlank() ? hashingService.hmac(docNumber.trim().toUpperCase(), HMAC_KEY_PREFIX + tenantId) : "PENDING-" + userId;
-
-            CandidateProfile profile;
-            if (existingOpt.isPresent()) {
-                profile = existingOpt.get();
-                if (!fullName.isBlank()) profile.setFullName(fullName);
-                if (!email.isBlank()) profile.setEmail(email);
-                if (!mobile.isBlank()) {
-                    profile.setMobile(mobile);
-                    profile.setMobileHash(mobileHash);
-                }
-                if (!docNumber.isBlank()) {
-                    profile.setIdentityDocNumber(docNumber);
-                    profile.setIdentityDocHash(docHash);
-                    profile.setIdentityDocHmac(docHmac);
-                }
-                if (profile.getEncryptionKeyId() == null) {
-                    profile.setEncryptionKeyId(dekKeyName);
-                }
-            } else {
-                profile = CandidateProfile.builder()
-                        .userId(userId)
-                        .fullName(!fullName.isBlank() ? fullName : null)
-                        .email(!email.isBlank() ? email : null)
-                        .mobile(!mobile.isBlank() ? mobile : null)
-                        .identityDocNumber(!docNumber.isBlank() ? docNumber : null)
-                        .encryptionKeyId(dekKeyName)
-                        .mobileHash(mobileHash)
-                        .identityDocHash(docHash)
-                        .identityDocHmac(docHmac)
-                        .consentRecorded(false)
-                        .build();
-                profile.setTenantId(tenantId);
-            }
-
-            candidateProfileRepository.save(profile);
-            log.info("Successfully provisioned / updated CandidateProfile from registration event for userId={} in tenant={}", userId, tenantId);
+            saveCandidateProfile(data);
         } catch (Exception e) {
             log.warn("Could not auto-provision candidate profile from registration event: {}", e.getMessage());
         }
     }
+
+    private boolean isRegistrationEvent(JsonNode root) {
+        String eventType = root.path(SharedConstants.EVENT_TYPE).asText("");
+        String action = root.path(SharedConstants.ACTION).asText("");
+        return "CANDIDATE_PROFILE_CREATED".equals(eventType) || "identity:registration".equals(action);
+    }
+
+    private Optional<UUID> parseUserId(String actorId) {
+        try {
+            return Optional.of(UUID.fromString(actorId));
+        } catch (IllegalArgumentException _) {
+            return Optional.empty();
+        }
+    }
+
+    private String extractField(JsonNode root, JsonNode details, String fieldName, String defaultValue) {
+        if (root.hasNonNull(fieldName)) {
+            return root.path(fieldName).asText(defaultValue);
+        }
+        return details.path(fieldName).asText(defaultValue);
+    }
+
+    private void saveCandidateProfile(RegistrationData data) {
+        Optional<CandidateProfile> existingOpt = candidateProfileRepository.findByUserIdAndTenantId(data.userId(), data.tenantId());
+        String dekKeyName = DEK_PREFIX + data.userId();
+        String mobileHash = !data.mobile().isBlank() ? hashingService.sha256(data.mobile().trim()) : PENDING_PREFIX + data.userId();
+        String docHash = !data.docNumber().isBlank() ? hashingService.sha256(data.docNumber().trim().toUpperCase()) : PENDING_PREFIX + data.userId();
+        String docHmac = !data.docNumber().isBlank() ? hashingService.hmac(data.docNumber().trim().toUpperCase(), HMAC_KEY_PREFIX + data.tenantId()) : PENDING_PREFIX + data.userId();
+
+        CandidateProfile profile;
+        if (existingOpt.isPresent()) {
+            profile = existingOpt.get();
+            updateExistingProfile(profile, data, mobileHash, docHash, docHmac, dekKeyName);
+        } else {
+            profile = createNewProfile(data, mobileHash, docHash, docHmac, dekKeyName);
+        }
+
+        candidateProfileRepository.save(profile);
+        log.info("Successfully provisioned / updated CandidateProfile from registration event for userId={} in tenant={}", data.userId(), data.tenantId());
+    }
+
+    private void updateExistingProfile(
+            CandidateProfile profile,
+            RegistrationData data,
+            String mobileHash,
+            String docHash,
+            String docHmac,
+            String dekKeyName) {
+        if (!data.fullName().isBlank()) {
+            profile.setFullName(data.fullName());
+        }
+        if (!data.email().isBlank()) {
+            profile.setEmail(data.email());
+        }
+        if (!data.mobile().isBlank()) {
+            profile.setMobile(data.mobile());
+            profile.setMobileHash(mobileHash);
+        }
+        if (!data.docNumber().isBlank()) {
+            profile.setIdentityDocNumber(data.docNumber());
+            profile.setIdentityDocHash(docHash);
+            profile.setIdentityDocHmac(docHmac);
+        }
+        if (profile.getEncryptionKeyId() == null) {
+            profile.setEncryptionKeyId(dekKeyName);
+        }
+    }
+
+    private CandidateProfile createNewProfile(
+            RegistrationData data,
+            String mobileHash,
+            String docHash,
+            String docHmac,
+            String dekKeyName) {
+        CandidateProfile profile = CandidateProfile.builder()
+                .userId(data.userId())
+                .fullName(!data.fullName().isBlank() ? data.fullName() : null)
+                .email(!data.email().isBlank() ? data.email() : null)
+                .mobile(!data.mobile().isBlank() ? data.mobile() : null)
+                .identityDocNumber(!data.docNumber().isBlank() ? data.docNumber() : null)
+                .encryptionKeyId(dekKeyName)
+                .mobileHash(mobileHash)
+                .identityDocHash(docHash)
+                .identityDocHmac(docHmac)
+                .consentRecorded(false)
+                .build();
+        profile.setTenantId(data.tenantId());
+        return profile;
+    }
+
+    private record RegistrationData(
+            UUID userId,
+            String tenantId,
+            String fullName,
+            String email,
+            String mobile,
+            String docNumber
+    ) {}
 }

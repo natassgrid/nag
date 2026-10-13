@@ -141,7 +141,7 @@ public class BlueprintTemplateController {
         try {
             String sub = jwt.getSubject();
             return sub != null ? UUID.fromString(sub) : null;
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException _) {
             log.debug("JWT subject is not a UUID: {}", jwt.getSubject());
             return null;
         }
