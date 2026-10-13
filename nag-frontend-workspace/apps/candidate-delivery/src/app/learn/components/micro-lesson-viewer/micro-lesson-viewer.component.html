@@ -1,0 +1,165 @@
+<div class="max-w-4xl mx-auto p-4 md:p-6 space-y-6">
+  <!-- Top Navigation & Breadcrumb -->
+  <div class="flex items-center justify-between gap-4">
+    <button
+      mat-button
+      type="button"
+      class="!text-slate-600 hover:!text-slate-900"
+      (click)="onBackToRoadmap()"
+    >
+      <mat-icon class="!w-4 !h-4 !text-[16px] mr-1">arrow_back</mat-icon>
+      Back to Roadmap
+    </button>
+
+    @if (lesson(); as l) {
+      <div class="flex items-center gap-2">
+        <span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+          {{ l.subjectName }} &bull; {{ l.topicName }}
+        </span>
+        <span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+          v{{ l.contentVersion }}
+        </span>
+      </div>
+    }
+  </div>
+
+  @if (loading()) {
+    <div class="py-16 text-center space-y-4">
+      <mat-progress-bar mode="indeterminate" class="max-w-md mx-auto"></mat-progress-bar>
+      <p class="text-sm text-slate-500">Loading pedagogical micro-lesson...</p>
+    </div>
+  } @else if (error()) {
+    <mat-card class="!p-8 !rounded-2xl !border !border-amber-200 !bg-amber-50/50 text-center">
+      <div class="w-12 h-12 mx-auto rounded-full bg-amber-100 text-amber-700 flex items-center justify-center mb-3">
+        <mat-icon>menu_book</mat-icon>
+      </div>
+      <h3 class="text-base font-bold text-slate-900 mb-1">Micro-Lesson Notice</h3>
+      <p class="text-sm text-slate-600 max-w-md mx-auto mb-4">{{ error() }}</p>
+      <button mat-stroked-button color="primary" (click)="onBackToRoadmap()">
+        Return to Roadmap
+      </button>
+    </mat-card>
+  } @else if (lesson(); as l) {
+    <!-- Lesson Title Header -->
+    <div class="bg-gradient-to-r from-slate-900 to-indigo-950 text-white rounded-3xl p-6 md:p-8 shadow-lg">
+      <div class="flex items-center gap-2 text-xs font-semibold tracking-wider uppercase text-indigo-300 mb-2">
+        <mat-icon class="!w-4 !h-4 !text-[16px]">school</mat-icon>
+        Remedial Micro-Lesson &bull; Rapid Mastery
+      </div>
+      <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight">
+        {{ l.subtopicName }}
+      </h1>
+      <p class="text-sm text-slate-300 mt-2 max-w-2xl">
+        Designed for {{ l.targetExam || 'Competitive Exam' }} candidates to bridge conceptual gaps in under 5 minutes.
+      </p>
+    </div>
+
+    <!-- 1. CORE CONCEPT SECTION -->
+    <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-3">
+      <div class="flex items-center gap-2 text-indigo-700 font-bold text-sm uppercase tracking-wide">
+        <mat-icon class="!w-5 !h-5 !text-[20px]">lightbulb</mat-icon>
+        Part 1: The Core Concept & Mental Model
+      </div>
+      <div class="text-slate-800 text-base leading-relaxed pl-1">
+        <nag-math-renderer [content]="l.content?.coreConcept || ''"></nag-math-renderer>
+      </div>
+    </div>
+
+    <!-- 2. THE TRAP ALERT (CLASSIC EXAM PITFALL) -->
+    <div class="bg-amber-50/90 rounded-2xl p-6 border-2 border-amber-300/80 shadow-sm space-y-3">
+      <div class="flex items-center gap-2 text-amber-800 font-bold text-sm uppercase tracking-wide">
+        <mat-icon class="!w-5 !h-5 !text-[20px] text-amber-600">warning</mat-icon>
+        Part 2: The Exam Trap (Where Most Candidates Lose Marks)
+      </div>
+      <div class="text-amber-950 text-sm md:text-base leading-relaxed pl-1">
+        <nag-math-renderer [content]="l.content?.trapAlert || ''"></nag-math-renderer>
+      </div>
+    </div>
+
+    <!-- 3. KATEX CHEAT SHEET (FORMULAS & SHORTCUTS) -->
+    <div class="bg-slate-900 text-slate-100 rounded-2xl p-6 shadow-sm space-y-3">
+      <div class="flex items-center gap-2 text-indigo-300 font-bold text-sm uppercase tracking-wide">
+        <mat-icon class="!w-5 !h-5 !text-[20px]">functions</mat-icon>
+        Part 3: KaTeX Formula Cheat Sheet & Rapid Revision
+      </div>
+      <div class="bg-slate-950/80 rounded-xl p-4 border border-slate-800 text-sm md:text-base text-slate-200 overflow-x-auto">
+        <nag-math-renderer [content]="l.content?.formulaCheatSheet || ''"></nag-math-renderer>
+      </div>
+    </div>
+
+    <!-- 4. STEP-BY-STEP BREAKDOWN STEPPER -->
+    @if (l.content?.stepByStepBreakdown; as breakdown) {
+      <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4">
+        <div class="flex items-center gap-2 text-indigo-700 font-bold text-sm uppercase tracking-wide">
+          <mat-icon class="!w-5 !h-5 !text-[20px]">checklist</mat-icon>
+          Part 4: Step-by-Step Problem Breakdown
+        </div>
+
+        @if (breakdown.problemStatement) {
+          <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 text-slate-800 text-sm">
+            <span class="font-bold text-slate-900 block mb-1">Standard Exam Problem:</span>
+            <nag-math-renderer [content]="breakdown.problemStatement"></nag-math-renderer>
+          </div>
+        }
+
+        <mat-accordion multi="true" class="space-y-2 block">
+          @for (step of breakdown.steps; track step.stepNumber) {
+            <mat-expansion-panel [expanded]="true" class="!rounded-xl !border !border-slate-200 !shadow-none">
+              <mat-expansion-panel-header>
+                <mat-panel-title class="!font-bold !text-slate-800">
+                  <span class="w-6 h-6 rounded-full bg-indigo-100 text-indigo-800 text-xs font-bold flex items-center justify-center mr-2 shrink-0">
+                    {{ step.stepNumber }}
+                  </span>
+                  {{ step.title }}
+                </mat-panel-title>
+              </mat-expansion-panel-header>
+
+              <div class="space-y-3 pt-2 text-sm text-slate-700">
+                <nag-math-renderer [content]="step.explanation"></nag-math-renderer>
+
+                @if (step.formula) {
+                  <div class="p-3 bg-slate-50 rounded-lg border border-slate-200 overflow-x-auto">
+                    <nag-math-renderer [content]="step.formula"></nag-math-renderer>
+                  </div>
+                }
+              </div>
+            </mat-expansion-panel>
+          }
+        </mat-accordion>
+      </div>
+    }
+
+    <!-- Completion Action Footer -->
+    <div class="sticky bottom-4 bg-white/95 backdrop-blur-md rounded-2xl p-4 border border-slate-200 shadow-xl flex items-center justify-between gap-4">
+      <div class="text-xs text-slate-600">
+        @if (isCompleted()) {
+          <span class="inline-flex items-center gap-1 text-emerald-700 font-semibold">
+            <mat-icon class="!w-4 !h-4 !text-[16px]">check_circle</mat-icon>
+            Milestone Marked Completed!
+          </span>
+        } @else {
+          <span>Finish studying the 4 sections above before checking off this milestone.</span>
+        }
+      </div>
+
+      <div class="flex items-center gap-3">
+        <button
+          mat-flat-button
+          color="primary"
+          type="button"
+          [disabled]="completing() || isCompleted()"
+          class="!bg-emerald-600 !text-white !font-bold !px-6 !py-2.5 !rounded-xl shadow-md hover:!bg-emerald-700 transition"
+          (click)="onMarkCompleted()"
+        >
+          @if (completing()) {
+            Saving...
+          } @else if (isCompleted()) {
+            Completed &#10003;
+          } @else {
+            Mark as Completed
+          }
+        </button>
+      </div>
+    </div>
+  }
+</div>

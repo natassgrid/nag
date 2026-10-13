@@ -6,12 +6,16 @@ import { of, throwError } from 'rxjs';
 import { PracticeHubComponent } from './practice-hub.component';
 import { PracticeService } from '../../services/practice.service';
 import { PracticeSet } from '../../models';
+import { LearningPathService } from '../../../learn/services/learning-path.service';
+import { GatekeeperDialogComponent } from '../../../learn/components/gatekeeper-dialog/gatekeeper-dialog.component';
+import { PracticeLaunchDialogComponent } from '../practice-launch-dialog/practice-launch-dialog.component';
 
 describe('PracticeHubComponent', () => {
   let component: PracticeHubComponent;
   let fixture: ComponentFixture<PracticeHubComponent>;
   let practiceServiceMock: any;
   let dialogMock: any;
+  let learningPathServiceMock: any;
 
   const mockSets: PracticeSet[] = [
     {
@@ -43,6 +47,15 @@ describe('PracticeHubComponent', () => {
     dialogMock = {
       open: jest.fn(),
     };
+    learningPathServiceMock = {
+      checkGatekeeperStatus: jest.fn().mockReturnValue(
+        of({
+          allowed: true,
+          conceptualGaps: [],
+          applicationGaps: [],
+        })
+      ),
+    };
 
     await TestBed.configureTestingModule({
       imports: [PracticeHubComponent, NoopAnimationsModule],
@@ -50,6 +63,7 @@ describe('PracticeHubComponent', () => {
         provideRouter([]),
         { provide: PracticeService, useValue: practiceServiceMock },
         { provide: MatDialog, useValue: dialogMock },
+        { provide: LearningPathService, useValue: learningPathServiceMock },
       ],
     }).compileComponents();
 
@@ -115,12 +129,51 @@ describe('PracticeHubComponent', () => {
     expect(component.isLoading()).toBe(false);
   });
 
-  it('should open launch dialog when practice set is clicked', () => {
+  it('should open launch dialog when practice set is clicked and gatekeeper allows', () => {
     component.openLaunch(mockSets[0]);
     expect(dialogMock.open).toHaveBeenCalledWith(
-      expect.anything(),
+      PracticeLaunchDialogComponent,
       expect.objectContaining({
         data: { set: mockSets[0] },
+      })
+    );
+  });
+
+  it('should open Gatekeeper dialog when gatekeeper blocks full mock attempt', () => {
+    learningPathServiceMock.checkGatekeeperStatus.mockReturnValue(
+      of({
+        allowed: false,
+        conceptualGaps: [
+          {
+            subtopicId: 101,
+            subtopicName: 'Bayes Theorem',
+            topicName: 'Probability',
+            subjectName: 'Math',
+            masteryScore: 0.35,
+            status: 'UNVERIFIED',
+          },
+        ],
+        applicationGaps: [],
+      })
+    );
+
+    component.openLaunch(mockSets[0]);
+    expect(dialogMock.open).toHaveBeenCalledWith(
+      GatekeeperDialogComponent,
+      expect.objectContaining({
+        data: expect.objectContaining({
+          mockExamTitle: mockSets[0].name,
+        }),
+      })
+    );
+  });
+
+  it('should open launch dialog directly for manual sets without gatekeeper check', () => {
+    component.openLaunch(mockSets[1]);
+    expect(dialogMock.open).toHaveBeenCalledWith(
+      PracticeLaunchDialogComponent,
+      expect.objectContaining({
+        data: { set: mockSets[1] },
       })
     );
   });
