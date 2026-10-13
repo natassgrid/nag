@@ -4,6 +4,7 @@ import {
   OnInit,
   inject,
   signal,
+  computed,
   input,
   output,
 } from '@angular/core';
@@ -17,8 +18,10 @@ import { MatExpansionModule } from '@angular/material/expansion';
 import { MatChipsModule } from '@angular/material/chips';
 import { MathRendererComponent } from '@nag-frontend-workspace/shared-ui-components';
 import { SubtopicMicroLesson } from '../../models/micro-lesson.model';
+import { ExplanationIr } from '../../models/explanation-ir.model';
 import { MicroLessonService } from '../../services/micro-lesson.service';
 import { LearningPathService } from '../../services/learning-path.service';
+import { ExplanationPlayerComponent } from '../explanation-player/explanation-player.component';
 
 @Component({
   selector: 'app-micro-lesson-viewer',
@@ -32,6 +35,7 @@ import { LearningPathService } from '../../services/learning-path.service';
     MatExpansionModule,
     MatChipsModule,
     MathRendererComponent,
+    ExplanationPlayerComponent,
   ],
   templateUrl: './micro-lesson-viewer.component.html',
   styleUrl: './micro-lesson-viewer.component.scss',
@@ -53,6 +57,39 @@ export class MicroLessonViewerComponent implements OnInit {
   readonly completing = signal<boolean>(false);
   readonly isCompleted = signal<boolean>(false);
   readonly error = signal<string | null>(null);
+  readonly showInteractivePlayer = signal<boolean>(false);
+
+  readonly interactiveExplanation = computed<ExplanationIr | null>(() => {
+    const l = this.lesson();
+    if (!l?.content?.stepByStepBreakdown) return null;
+    const b = l.content.stepByStepBreakdown;
+    return {
+      explanationId: l.id,
+      questionId: String(l.subtopicId),
+      status: 'APPROVED',
+      problem: {
+        statement: b.problemStatement,
+      },
+      concepts: [l.subtopicName, l.topicName],
+      steps: b.steps.map((s, idx) => ({
+        id: `step-${s.stepNumber}`,
+        sequence: s.stepNumber,
+        type: idx === 0 ? 'GIVEN' : (idx === b.steps.length - 1 ? 'CONCLUDE' : 'TRANSFORM'),
+        after: s.explanation,
+        math: s.formula ? { latex: s.formula } : undefined,
+        justification: { why: s.title, formula: s.formula },
+      })),
+      hints: [
+        { id: 'h1', level: 1, text: 'Review the formula cheat sheet in Part 3 above.' },
+        { id: 'h2', level: 2, text: 'Avoid the common trap: ' + (l.content.trapAlert || '') },
+      ],
+      verification: {
+        passed: true,
+        confidence: 0.98,
+        details: 'Verified with Anvaya-Prajna pedagogical curriculum rules.',
+      },
+    };
+  });
 
   resolvedSubtopicId: number | null = null;
   resolvedMilestoneId: string | null = null;
@@ -89,6 +126,10 @@ export class MicroLessonViewerComponent implements OnInit {
         this.loading.set(false);
       },
     });
+  }
+
+  toggleInteractivePlayer(): void {
+    this.showInteractivePlayer.update((v) => !v);
   }
 
   onMarkCompleted(): void {

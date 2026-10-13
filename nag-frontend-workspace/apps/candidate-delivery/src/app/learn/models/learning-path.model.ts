@@ -46,6 +46,7 @@ export interface DynamicLearningPath {
 }
 
 export interface GatekeeperStatusResponse {
+  allowed?: boolean;
   gatekeeperPassed: boolean;
   active: boolean;
   hasGaps: boolean;

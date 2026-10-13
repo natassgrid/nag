@@ -12,6 +12,7 @@ import { PracticeSetCardComponent } from '../practice-set-card/practice-set-card
 import { PracticeLaunchDialogComponent } from '../practice-launch-dialog/practice-launch-dialog.component';
 import { LearningPathService } from '../../../learn/services/learning-path.service';
 import { GatekeeperDialogComponent } from '../../../learn/components/gatekeeper-dialog/gatekeeper-dialog.component';
+import { GatekeeperStatusResponse } from '../../../learn/models/learning-path.model';
 
 export type SourceFilter = 'ALL' | 'EXAM_CLONE' | 'MANUAL';
 
@@ -129,7 +130,7 @@ export class PracticeHubComponent implements OnInit {
   openLaunch(set: PracticeSet): void {
     if (set.source === 'EXAM_CLONE' && this.learningPathService) {
       this.learningPathService.checkGatekeeperStatus().subscribe({
-        next: (status) => {
+        next: (status: GatekeeperStatusResponse) => {
           if (status && !status.allowed) {
             this.dialog.open(GatekeeperDialogComponent, {
               data: {

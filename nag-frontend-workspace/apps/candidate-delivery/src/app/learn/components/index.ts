@@ -7,3 +7,4 @@ export * from './recommendation-toast/recommendation-toast.component';
 export * from './dlp-roadmap/dlp-roadmap.component';
 export * from './micro-lesson-viewer/micro-lesson-viewer.component';
 export * from './gatekeeper-dialog/gatekeeper-dialog.component';
+export * from './explanation-player/explanation-player.component';
