@@ -19,25 +19,14 @@
 
 package com.examplatform.examination.service;
 
-import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
-
 import com.examplatform.examination.domain.ExamShift;
 import com.examplatform.examination.domain.ExaminationSchedule;
-import com.examplatform.examination.dto.schedule.AmendScheduleRequest;
-import com.examplatform.examination.dto.schedule.CreateScheduleRequest;
-import com.examplatform.examination.dto.schedule.CreateShiftRequest;
-import com.examplatform.examination.dto.schedule.ScheduleResponse;
-import com.examplatform.examination.dto.schedule.ScheduleTransitionRequest;
-import com.examplatform.examination.dto.schedule.ShiftResponse;
-import com.examplatform.examination.exception.ExaminationNotFoundException;
-import com.examplatform.examination.exception.ScheduleDateConflictException;
-import com.examplatform.examination.exception.ScheduleNotFoundException;
-import com.examplatform.examination.exception.ScheduleWorkflowException;
-import com.examplatform.examination.exception.ShiftNotFoundException;
-import com.examplatform.examination.exception.ShiftTimingViolationException;
+import com.examplatform.examination.dto.schedule.*;
+import com.examplatform.examination.exception.*;
+import com.examplatform.examination.repository.ExamShiftRepository;
 import com.examplatform.examination.repository.ExaminationRepository;
 import com.examplatform.examination.repository.ExaminationScheduleRepository;
-import com.examplatform.examination.repository.ExamShiftRepository;
+import com.examplatform.shared.constants.MessagingConstants;
 import com.examplatform.shared.constants.QuestionStateConstants;
 import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
@@ -50,11 +39,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
+
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
 
 /**
  * Core scheduling service: create, list, transition, amend schedules and manage shifts.
@@ -74,7 +61,7 @@ import java.util.UUID;
 @Transactional
 public class ExaminationScheduleService {
 
-    private static final String NOTIF_TOPIC = "exam.notifications.outbound";
+    private static final String NOTIF_TOPIC = MessagingConstants.NOTIFICATIONS_OUTBOUND_TOPIC;
 
     // Valid forward transitions (Req 7b.7)
     private static final Map<String, String> NEXT_STATUS = Map.of(
@@ -187,7 +174,6 @@ public class ExaminationScheduleService {
         // Validate transition legality
         validateTransition(current, target, actorRoles);
 
-        String prevStatus = current;
         schedule.setStatus(target);
         schedule.setModifiedBy(actorId);
 
@@ -197,9 +183,9 @@ public class ExaminationScheduleService {
         }
 
         ExaminationSchedule saved = scheduleRepository.save(schedule);
-        log.info("Schedule {} transitioned {} → {} by actor={}", scheduleId, prevStatus, target, actorId);
+        log.info("Schedule {} transitioned {} → {} by actor={}", scheduleId, current, target, actorId);
 
-        publishAudit("SCHEDULE_STATUS_CHANGED", saved, actorId, tenantId, prevStatus, target);
+        publishAudit("SCHEDULE_STATUS_CHANGED", saved, actorId, tenantId, current, target);
 
         // On publication, notify candidates (Req 7b.12)
         if (QuestionStateConstants.PUBLISHED.equals(target)) {
@@ -472,12 +458,12 @@ public class ExaminationScheduleService {
 
     private Map<String, Object> createBaseScheduleEvent(String eventType, ExaminationSchedule schedule, String tenantId) {
         Map<String, Object> event = new LinkedHashMap<>();
-        event.put("eventType", eventType);
+        event.put(SharedConstants.EVENT_TYPE, eventType);
         event.put("scheduleId", schedule.getId().toString());
         event.put("examinationId", schedule.getExaminationId().toString());
         event.put("scheduleVersion", schedule.getScheduleVersion());
         event.put(SharedConstants.TENANT_ID, tenantId);
-        event.put("occurredAt", Instant.now().toString());
+        event.put(SharedConstants.OCCURRED_AT, Instant.now().toString());
         return event;
     }
 
@@ -500,12 +486,12 @@ public class ExaminationScheduleService {
                                UUID actorId, String tenantId) {
         try {
             Map<String, Object> event = new LinkedHashMap<>();
-            event.put("eventType", eventType);
+            event.put(SharedConstants.EVENT_TYPE, eventType);
             event.put("shiftId", shiftId.toString());
             event.put("scheduleId", scheduleId.toString());
             event.put("actorId", actorId != null ? actorId.toString() : null);
             event.put(SharedConstants.TENANT_ID, tenantId);
-            event.put("occurredAt", Instant.now().toString());
+            event.put(SharedConstants.OCCURRED_AT, Instant.now().toString());
             eventPublisher.publish(AUDIT_EVENTS_TOPIC, shiftId.toString(), event);
         } catch (Exception e) {
             log.error("Unexpected error publishing shift audit event: {}", e.getMessage());

@@ -19,18 +19,11 @@
 
 package com.examplatform.app;
 
-import com.examplatform.shared.db.MultiSchemaFlywayRunner;
 import com.examplatform.shared.db.MultiSchemaFlywayRunner.SchemaMigrationSpec;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 
-import javax.sql.DataSource;
-import java.sql.Connection;
-import java.sql.DatabaseMetaData;
-import java.sql.SQLException;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

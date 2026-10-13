@@ -52,11 +52,11 @@ public final class AuditEventHelper {
     public static void publishAuditEvent(EventPublisher eventPublisher, Logger log, AuditEventParams params) {
         try {
             Map<String, Object> event = new HashMap<>();
-            event.put("eventType", params.eventType());
+            event.put(SharedConstants.EVENT_TYPE, params.eventType());
             event.put(params.entityKey(), params.entityId().toString());
             event.put("actorId", params.actorId().toString());
             event.put(SharedConstants.TENANT_ID, params.tenantId());
-            event.put("occurredAt", Instant.now().toString());
+            event.put(SharedConstants.OCCURRED_AT, Instant.now().toString());
             if (params.extra() != null) {
                 event.putAll(params.extra());
             }

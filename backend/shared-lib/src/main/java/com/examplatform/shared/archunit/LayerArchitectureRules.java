@@ -20,11 +20,7 @@ import com.tngtech.archunit.lang.ArchRule;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 
-import static com.examplatform.shared.archunit.ArchitectureConstants.CONTROLLER_PACKAGE;
-import static com.examplatform.shared.archunit.ArchitectureConstants.DOMAIN_PACKAGE;
-import static com.examplatform.shared.archunit.ArchitectureConstants.DTO_PACKAGE;
-import static com.examplatform.shared.archunit.ArchitectureConstants.REPOSITORY_PACKAGE;
-import static com.examplatform.shared.archunit.ArchitectureConstants.SERVICE_PACKAGE;
+import static com.examplatform.shared.archunit.ArchitectureConstants.*;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 

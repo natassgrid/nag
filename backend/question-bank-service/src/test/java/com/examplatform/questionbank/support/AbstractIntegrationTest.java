@@ -18,12 +18,8 @@
 
 package com.examplatform.questionbank.support;
 
-import static org.mockito.Mockito.mock;
-
 import com.examplatform.shared.tenant.TenantContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.time.Duration;
-import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestInstance;
@@ -48,6 +44,11 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.DockerImageName;
+
+import java.time.Duration;
+import java.util.List;
+
+import static org.mockito.Mockito.mock;
 
 /**
  * Production-grade base class for question-bank-service MockMvc integration tests using Testcontainers.

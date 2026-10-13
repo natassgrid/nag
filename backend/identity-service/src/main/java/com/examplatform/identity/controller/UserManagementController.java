@@ -23,6 +23,7 @@ import com.examplatform.identity.dto.AdminCreateUserRequest;
 import com.examplatform.identity.dto.AdminUpdateUserRequest;
 import com.examplatform.identity.dto.UserAccountResponse;
 import com.examplatform.identity.service.UserManagementService;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.response.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -31,14 +32,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
@@ -64,7 +58,7 @@ public class UserManagementController {
     @PostMapping
     public ResponseEntity<ApiResponse<UserAccountResponse>> createUser(
             @Valid @RequestBody AdminCreateUserRequest request,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId,
             Authentication authentication) {
         String actorId = authentication.getName();
         log.debug("Admin [{}] creating user [{}] in tenant [{}]", actorId, request.getEmail(), tenantId);
@@ -80,7 +74,7 @@ public class UserManagementController {
     public ResponseEntity<ApiResponse<UserAccountResponse>> updateUser(
             @PathVariable UUID userId,
             @Valid @RequestBody AdminUpdateUserRequest request,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId,
             Authentication authentication) {
         String actorId = authentication.getName();
         log.debug("Admin [{}] updating user [{}] in tenant [{}]", actorId, userId, tenantId);
@@ -94,7 +88,7 @@ public class UserManagementController {
     @DeleteMapping("/{userId}")
     public ResponseEntity<ApiResponse<Void>> deactivateUser(
             @PathVariable UUID userId,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId,
             Authentication authentication) {
         String actorId = authentication.getName();
         log.debug("Admin [{}] deactivating user [{}] in tenant [{}]", actorId, userId, tenantId);

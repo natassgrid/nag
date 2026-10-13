@@ -21,12 +21,7 @@ package com.examplatform.identity.controller;
 
 import com.examplatform.identity.domain.enums.IdentityDocType;
 import com.examplatform.identity.dto.*;
-import com.examplatform.identity.exception.AccountNotFoundException;
-import com.examplatform.identity.exception.AccountNotVerifiedException;
-import com.examplatform.identity.exception.AuthenticationException;
-import com.examplatform.identity.exception.DuplicateIdentityException;
-import com.examplatform.identity.exception.InvalidOtpException;
-import com.examplatform.identity.exception.MfaRequiredException;
+import com.examplatform.identity.exception.*;
 import com.examplatform.identity.service.*;
 import com.examplatform.identity.support.AbstractIntegrationTest;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,15 +36,12 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @DisplayName("IdentityController REST Endpoints E2E Tests (MockMvc)")
 class IdentityControllerIntegrationTest extends AbstractIntegrationTest {

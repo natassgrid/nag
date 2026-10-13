@@ -19,9 +19,6 @@
 
 package com.examplatform.identity.service;
 
-import com.examplatform.shared.constants.SharedConstants;
-import com.examplatform.shared.crypto.HashingService;
-
 import com.examplatform.identity.config.AppSecurityProperties;
 import com.examplatform.identity.domain.ActiveSession;
 import com.examplatform.identity.domain.UserAccount;
@@ -40,6 +37,8 @@ import com.examplatform.identity.repository.UserAccountRepository;
 import com.examplatform.identity.repository.UserRoleAssignmentRepository;
 import com.examplatform.shared.audit.AuditEventType;
 import com.examplatform.shared.config.DynamicConfigService;
+import com.examplatform.shared.constants.SharedConstants;
+import com.examplatform.shared.crypto.HashingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -87,7 +86,22 @@ public class AuthenticationService {
      * @throws MfaRequiredException    if MFA is required but OTP was not supplied
      */
     public AuthTokenResponse authenticate(AuthTokenRequest request, String tenantId, String ipAddress) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        return authenticate(request, tenantId, ipAddress, LocalDateTime.now());
+    }
+
+    /**
+     * Authenticate a user with username/password and optional MFA OTP / TOTP 2FA at a specific login timestamp.
+     *
+     * @param request   authentication credentials (username, password, optional OTP, optional device FP)
+     * @param tenantId  the tenant the request belongs to
+     * @param ipAddress the originating client IP address
+     * @param loginTime the timestamp of the login attempt (used for time-of-day risk assessment)
+     * @return JWT access and refresh tokens on success
+     * @throws AuthenticationException if any authentication check fails
+     * @throws MfaRequiredException    if MFA is required but OTP was not supplied
+     */
+    public AuthTokenResponse authenticate(AuthTokenRequest request, String tenantId, String ipAddress, LocalDateTime loginTime) {
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
 
         // 1. Find account by email hash, mobile hash, or username strictly within tenant
         String rawInput = request.getUsername().trim();
@@ -204,8 +218,9 @@ public class AuthenticationService {
         } else {
             // Risk-based step-up evaluation only when step-up is explicitly enabled in config
             boolean stepUpEnabled = dynamicConfigService.getBoolean("auth.stepup.enforced", effectiveTenant, false);
+            LocalDateTime effectiveLoginTime = loginTime != null ? loginTime : LocalDateTime.now();
             if (stepUpEnabled && riskAssessmentService != null && riskAssessmentService.isStepUpRequired(
-                    account, request.getDeviceFingerprint(), ipAddress, LocalDateTime.now())) {
+                    account, request.getDeviceFingerprint(), ipAddress, effectiveLoginTime)) {
                 String otpCode = request.getOtpCode();
                 String mobileHash = account.getMobileHash() != null ? account.getMobileHash() : hashingService.sha256(request.getUsername().toLowerCase().trim());
                 if (otpCode == null || otpCode.isBlank()) {
@@ -296,7 +311,7 @@ public class AuthenticationService {
      * @throws AuthenticationException if the refresh token is invalid or expired
      */
     public AuthTokenResponse refreshToken(RefreshTokenRequest request, String tenantId, String ipAddress) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         log.debug("Refreshing token for tenant [{}]", effectiveTenant);
         try {
             AuthTokenResponse tokens = keycloakService.refreshToken(request.getRefreshToken());
@@ -333,7 +348,7 @@ public class AuthenticationService {
      * Terminate active session and log out user.
      */
     public void logout(String userIdStr, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         try {
             UUID userId = UUID.fromString(userIdStr);
             activeSessionRepository.deleteByUserIdAndTenantId(userId, effectiveTenant);
@@ -354,7 +369,7 @@ public class AuthenticationService {
      * Change password for the user.
      */
     public void changePassword(String userIdStr, String currentPassword, String newPassword, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         UUID userId;
         try {
             userId = UUID.fromString(userIdStr);
@@ -391,7 +406,7 @@ public class AuthenticationService {
                         "identity:auth/token",
                         ipAddress,
                         deviceFingerprint,
-                        Map.of(SharedConstants.TENANT_ID, tenantId != null ? tenantId : "default")
+                        Map.of(SharedConstants.TENANT_ID, tenantId != null ? tenantId : SharedConstants.DEFAULT_TENANT)
                 );
             }
         } catch (Exception e) {

@@ -9,11 +9,7 @@ package com.examplatform.examination.controller;
 
 import com.examplatform.examination.domain.enums.CalculatorPolicy;
 import com.examplatform.examination.domain.enums.NavigationPolicy;
-import com.examplatform.examination.dto.AdmitCardResponse;
-import com.examplatform.examination.dto.ExamApplicationRequest;
-import com.examplatform.examination.dto.ExamApplicationResponse;
-import com.examplatform.examination.dto.ExaminationResponse;
-import com.examplatform.examination.dto.PublicCentreResponse;
+import com.examplatform.examination.dto.*;
 import com.examplatform.examination.exception.ExaminationNotFoundException;
 import com.examplatform.examination.service.ExamApplicationService;
 import com.examplatform.examination.service.ExaminationService;
@@ -34,9 +30,7 @@ import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;

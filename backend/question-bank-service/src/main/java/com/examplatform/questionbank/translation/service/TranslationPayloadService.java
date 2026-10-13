@@ -23,6 +23,7 @@ import com.examplatform.questionbank.crypto.VaultCryptoServiceHolder;
 import com.examplatform.questionbank.translation.domain.TranslatedQuestionPayload;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -52,6 +53,14 @@ public class TranslationPayloadService {
 
     private final ObjectMapper objectMapper;
 
+    /**
+     * -- GETTER --
+     *  Returns
+     *  when encryption is currently enabled.
+     *  Callers use this to set the
+     *  flag on new rows.
+     */
+    @Getter
     @Value("${app.translation.encryption.enabled:false}")
     private boolean encryptionEnabled;
 
@@ -98,11 +107,4 @@ public class TranslationPayloadService {
         }
     }
 
-    /**
-     * Returns {@code true} when encryption is currently enabled.
-     * Callers use this to set the {@code payload_encrypted} flag on new rows.
-     */
-    public boolean isEncryptionEnabled() {
-        return encryptionEnabled;
-    }
 }

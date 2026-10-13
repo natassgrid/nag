@@ -11,19 +11,13 @@
 
 package com.examplatform.questionbank.service;
 
-import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
-
 import com.examplatform.questionbank.ai.embedding.EmbeddingService;
 import com.examplatform.questionbank.domain.Passage;
 import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.domain.Subject;
 import com.examplatform.questionbank.domain.Topic;
 import com.examplatform.questionbank.domain.enums.QuestionType;
-import com.examplatform.questionbank.dto.PassageRequest;
-import com.examplatform.questionbank.dto.PassageResponse;
-import com.examplatform.questionbank.dto.QuestionOption;
-import com.examplatform.questionbank.dto.QuestionResponse;
-import com.examplatform.questionbank.dto.SubQuestionRequest;
+import com.examplatform.questionbank.dto.*;
 import com.examplatform.questionbank.repository.PassageRepository;
 import com.examplatform.questionbank.repository.QuestionRepository;
 import com.examplatform.questionbank.repository.SubjectRepository;
@@ -34,14 +28,6 @@ import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import jakarta.persistence.EntityNotFoundException;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -52,6 +38,13 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.*;
+import java.util.stream.Collectors;
+
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
 
 /**
  * Service managing Comprehension / Case Study passages and their associated sub-questions.
@@ -226,7 +219,7 @@ public class PassageService {
     public Page<PassageResponse> listPassages(
             Long subjectId, String state, String search, int page, int size, String tenantId) {
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Pageable pageable = PageRequest.of(page, size, Sort.by(SharedConstants.CREATED_AT).descending());
 
         Specification<Passage> spec = Specification.where((root, query, cb) -> cb.equal(root.get(
             SharedConstants.TENANT_ID), tenantId));
@@ -241,7 +234,7 @@ public class PassageService {
             String pattern = "%" + search.toLowerCase() + "%";
             spec = spec.and((root, query, cb) -> cb.or(
                     cb.like(cb.lower(root.get("title")), pattern),
-                    cb.like(cb.lower(root.get("content")), pattern),
+                    cb.like(cb.lower(root.get(SharedConstants.CONTENT)), pattern),
                     cb.like(cb.lower(root.get(SharedConstants.SUBJECT)), pattern)
             ));
         }

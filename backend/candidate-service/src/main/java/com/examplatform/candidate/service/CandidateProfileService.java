@@ -19,8 +19,6 @@
 
 package com.examplatform.candidate.service;
 
-import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
-
 import com.examplatform.candidate.domain.CandidateProfile;
 import com.examplatform.candidate.dto.CandidateProfileResponse;
 import com.examplatform.candidate.dto.CreateCandidateProfileRequest;
@@ -30,21 +28,25 @@ import com.examplatform.candidate.exception.ProfileNotFoundException;
 import com.examplatform.candidate.repository.CandidateEducationRepository;
 import com.examplatform.candidate.repository.CandidateProfileRepository;
 import com.examplatform.shared.audit.AuditEventType;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.crypto.HashingService;
 import com.examplatform.shared.crypto.VaultCryptoService;
 import com.examplatform.shared.event.UserAuditEvent;
 import com.examplatform.shared.messaging.EventPublisher;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.function.Consumer;
+
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
 
 /**
  * Service handling candidate profile CRUD operations with per-candidate DEK,
@@ -296,7 +298,7 @@ public class CandidateProfileService {
     @Transactional(readOnly = true)
     public Map<String, Object> getCandidateMetrics(String tenantId) {
         long total;
-        if (tenantId == null || "default".equalsIgnoreCase(tenantId) || tenantId.isBlank()) {
+        if (tenantId == null || SharedConstants.DEFAULT_TENANT.equalsIgnoreCase(tenantId) || tenantId.isBlank()) {
             total = candidateProfileRepository.count();
         } else {
             total = candidateProfileRepository.countByTenantId(tenantId);

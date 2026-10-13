@@ -57,7 +57,7 @@ public class CandidateVerificationService {
      */
     @Transactional
     public VerificationStatusResponse verifyEmailOtp(EmailVerifyRequest request, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         UUID userId = parseUserId(request.getUserId());
         UserAccount account = userAccountRepository.findByIdAndTenantId(userId, effectiveTenant)
                 .orElseThrow(() -> new AccountNotFoundException("Account not found for user: " + userId + " in tenant: " + effectiveTenant));
@@ -80,7 +80,7 @@ public class CandidateVerificationService {
      */
     @Transactional
     public VerificationStatusResponse verifyMobileOtp(MobileVerifyRequest request, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         UUID userId = parseUserId(request.getUserId());
         UserAccount account = userAccountRepository.findByIdAndTenantId(userId, effectiveTenant)
                 .orElseThrow(() -> new AccountNotFoundException("Account not found for user: " + userId + " in tenant: " + effectiveTenant));
@@ -102,7 +102,7 @@ public class CandidateVerificationService {
      */
     @Transactional(readOnly = true)
     public VerificationStatusResponse getVerificationStatus(UUID userId, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         UserAccount account = userAccountRepository.findByIdAndTenantId(userId, effectiveTenant)
                 .orElseThrow(() -> new AccountNotFoundException("Account not found for user: " + userId + " in tenant: " + effectiveTenant));
 

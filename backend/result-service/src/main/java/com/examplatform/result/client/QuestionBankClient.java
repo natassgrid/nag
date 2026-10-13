@@ -24,7 +24,6 @@ import com.examplatform.result.dto.QuestionDetailDto;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;

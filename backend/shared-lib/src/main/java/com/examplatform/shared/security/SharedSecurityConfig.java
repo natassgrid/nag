@@ -40,7 +40,7 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SharedSecurityConfig {
 
     @Bean
-    @Order(Ordered.LOWEST_PRECEDENCE)
+    @Order()
     @ConditionalOnMissingBean(name = "defaultFallbackSecurityFilterChain")
     public SecurityFilterChain defaultFallbackSecurityFilterChain(
             HttpSecurity http,

@@ -19,6 +19,8 @@
 
 package com.examplatform.response.exception;
 
+import lombok.Getter;
+
 /**
  * Thrown when a submitted response fails integrity validation:
  * - questionId not in candidate's paper
@@ -26,6 +28,7 @@ package com.examplatform.response.exception;
  * - invalid optionId
  * - checksum mismatch
  */
+@Getter
 public class ResponseIntegrityException extends RuntimeException {
 
     private final String errorCode;
@@ -35,7 +38,4 @@ public class ResponseIntegrityException extends RuntimeException {
         this.errorCode = errorCode;
     }
 
-    public String getErrorCode() {
-        return errorCode;
-    }
 }

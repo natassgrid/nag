@@ -76,7 +76,7 @@ public class DevKeycloakService extends KeycloakService {
             try {
                 lang = userAccountRepository.findById(UUID.fromString(userId))
                         .map(UserAccount::getPreferredLanguage)
-                        .filter(l -> l != null && !l.isBlank())
+                        .filter(l -> !l.isBlank())
                         .orElse("en");
             } catch (Exception ignored) {
             }

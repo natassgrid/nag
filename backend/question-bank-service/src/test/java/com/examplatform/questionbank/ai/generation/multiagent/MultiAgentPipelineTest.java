@@ -15,9 +15,6 @@
  */
 package com.examplatform.questionbank.ai.generation.multiagent;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.when;
-
 import com.examplatform.questionbank.ai.generation.ClarifyRequirementsRequest;
 import com.examplatform.questionbank.ai.generation.ClarifyRequirementsResponse;
 import com.examplatform.questionbank.ai.generation.QuestionGenerationRequest;
@@ -29,14 +26,18 @@ import com.examplatform.questionbank.repository.SimilarityResult;
 import com.examplatform.questionbank.service.SimilarityDetectionService;
 import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import com.examplatform.shared.constants.QuestionTypeConstants;
-import java.util.List;
-import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.List;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("Multi-Agent Specialized Agents Tests")

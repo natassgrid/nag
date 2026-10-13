@@ -26,6 +26,7 @@ import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityNotFoundException;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
@@ -62,6 +63,11 @@ import java.util.UUID;
 @Service
 public class ScorecardPdfService {
 
+    /**
+     * -- GETTER --
+     *  Returns the active storage provider.
+     */
+    @Getter
     private final ScorecardStorageProvider storageProvider;
     private final ObjectMapper objectMapper;
     private final ResultRepository resultRepository;
@@ -196,13 +202,6 @@ public class ScorecardPdfService {
     }
 
     /**
-     * Returns the active storage provider.
-     */
-    public ScorecardStorageProvider getStorageProvider() {
-        return storageProvider;
-    }
-
-    /**
      * Writes the scorecard content to the PDF document.
      */
     private void writeScorecardContent(PDDocument document, PDPage page, Result result, String candidateId) throws IOException {
@@ -274,8 +273,8 @@ public class ScorecardPdfService {
             contentStream.endText();
             yPosition -= 25;
 
-            yPosition = writeSectionScores(contentStream, fontRegular, leftMargin, yPosition,
-                    result.getSectionScoresJson());
+            writeSectionScores(contentStream, fontRegular, leftMargin, yPosition,
+                result.getSectionScoresJson());
         }
     }
 

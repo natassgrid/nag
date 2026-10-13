@@ -23,6 +23,7 @@ import com.examplatform.questionbank.io.ImportResult;
 import com.examplatform.questionbank.io.QuestionExportService;
 import com.examplatform.questionbank.io.QuestionImportService;
 import com.examplatform.shared.api.ApiResponse;
+import com.examplatform.shared.constants.SharedConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
@@ -31,17 +32,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import java.io.IOException;
 import java.time.LocalDate;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -86,7 +83,7 @@ public class QuestionIOController {
             @RequestParam(required = false) String difficulty,
             @RequestParam(required = false) String state,
             @RequestParam(required = false) String search,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
 
         String fileName = String.format("questions-export-%s-%s.zip",
                 format.toLowerCase(), LocalDate.now());
@@ -122,7 +119,7 @@ public class QuestionIOController {
     public ResponseEntity<ApiResponse<ImportResult>> importQuestions(
             @RequestParam("file") MultipartFile file,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader("X-Tenant-Id") String tenantId) throws IOException {
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) throws IOException {
 
         if (file == null || file.isEmpty()) {
             return ResponseEntity.badRequest()
@@ -133,7 +130,7 @@ public class QuestionIOController {
                     .body(ApiResponse.error("Upload exceeds the 50 MB limit"));
         }
 
-        UUID authorId = UUID.fromString(jwt.getSubject());
+        UUID authorId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         log.info("Importing questions: file={}, size={} bytes, author={}, tenant={}",
                 file.getOriginalFilename(), file.getSize(), authorId, tenantId);
 

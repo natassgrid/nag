@@ -19,19 +19,10 @@
 
 package com.examplatform.identity.domain;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.entity.BaseEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.ManyToMany;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.JoinTable;
-import jakarta.persistence.Table;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
+import jakarta.persistence.*;
+import lombok.*;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -50,10 +41,10 @@ import java.util.Set;
 @Table(name = "role_definition", schema = "identity_service")
 public class RoleDefinition extends BaseEntity {
 
-    @Column(name = "name", nullable = false, length = 100)
+    @Column(name = SharedConstants.NAME, nullable = false, length = 100)
     private String name;
 
-    @Column(name = "code", nullable = false, length = 50)
+    @Column(name = SharedConstants.CODE, nullable = false, length = 50)
     private String code;
 
     @Column(name = "description", length = 500)

@@ -21,13 +21,8 @@ package com.examplatform.asset.metadata;
 
 import com.examplatform.asset.domain.enums.AssetType;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.tika.io.TikaInputStream;
-import org.apache.tika.metadata.HttpHeaders;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.XMPDM;
-import org.apache.tika.parser.AutoDetectParser;
-import org.apache.tika.parser.ParseContext;
-import org.apache.tika.sax.BodyContentHandler;
 import org.springframework.stereotype.Component;
 
 import java.io.InputStream;

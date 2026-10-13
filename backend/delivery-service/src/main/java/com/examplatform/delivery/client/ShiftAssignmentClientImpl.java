@@ -66,7 +66,8 @@ public class ShiftAssignmentClientImpl implements ShiftAssignmentClient {
             ShiftAssignmentGrpcResponse response = stub.getShiftAssignment(request);
 
             UUID paperId = null;
-            if (response.getPaperId() != null && !response.getPaperId().isBlank()) {
+            response.getPaperId();
+            if (!response.getPaperId().isBlank()) {
                 try {
                     paperId = UUID.fromString(response.getPaperId());
                 } catch (IllegalArgumentException e) {

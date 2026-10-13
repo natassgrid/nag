@@ -22,12 +22,7 @@ package com.examplatform.evaluation.client;
 import com.examplatform.evaluation.dto.AnswerKey;
 import com.examplatform.evaluation.dto.MarkingScheme;
 import com.examplatform.evaluation.exception.UpstreamServiceUnavailableException;
-import com.examplatform.questionbank.grpc.BatchFindQuestionsGrpcRequest;
-import com.examplatform.questionbank.grpc.BatchFindQuestionsGrpcResponse;
-import com.examplatform.questionbank.grpc.PaperQuestionsGrpcRequest;
-import com.examplatform.questionbank.grpc.PaperQuestionsGrpcResponse;
-import com.examplatform.questionbank.grpc.QuestionBankGrpcServiceGrpc;
-import com.examplatform.questionbank.grpc.QuestionSummaryGrpc;
+import com.examplatform.questionbank.grpc.*;
 import com.examplatform.shared.constants.QuestionTypeConstants;
 import com.examplatform.shared.grpc.GrpcChannelFactory;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -148,13 +143,16 @@ public class QuestionBankGrpcAnswerKeyClient implements AnswerKeyClient {
         for (QuestionSummaryGrpc q : grpcQuestions) {
             try {
                 UUID questionId = UUID.fromString(q.getId());
-                String questionType = (q.getQuestionType() != null && !q.getQuestionType().isBlank())
+                q.getQuestionType();
+                String questionType = !q.getQuestionType().isBlank()
                         ? q.getQuestionType() : QuestionTypeConstants.SINGLE_MCQ;
 
                 String correctAnswer = q.getAnswerKey();
-                if ((correctAnswer == null || correctAnswer.isBlank())
-                        && q.getOptionsJson() != null && !q.getOptionsJson().isBlank()) {
-                    correctAnswer = extractCorrectAnswerFromOptions(q.getOptionsJson());
+                if (correctAnswer.isBlank()) {
+                    q.getOptionsJson();
+                    if (!q.getOptionsJson().isBlank()) {
+                        correctAnswer = extractCorrectAnswerFromOptions(q.getOptionsJson());
+                    }
                 }
 
                 double marks = q.getMarks() > 0 ? q.getMarks() : 1.0;

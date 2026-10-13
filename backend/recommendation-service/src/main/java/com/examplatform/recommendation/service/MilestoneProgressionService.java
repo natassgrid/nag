@@ -2,16 +2,7 @@
 package com.examplatform.recommendation.service;
 
 import com.examplatform.recommendation.domain.DynamicLearningPath;
-import com.examplatform.recommendation.dto.DynamicLearningPathResponse;
-import com.examplatform.recommendation.dto.GatekeeperStatusResponse;
-import com.examplatform.recommendation.dto.MilestoneGraphDto;
-import com.examplatform.recommendation.dto.MilestoneItemDto;
-import com.examplatform.recommendation.dto.MilestonePhaseDto;
-import com.examplatform.recommendation.dto.StartAdaptiveQuizResponse;
-import com.examplatform.recommendation.dto.StartGatekeeperResponse;
-import com.examplatform.recommendation.dto.SubmitGatekeeperScoreRequest;
-import com.examplatform.recommendation.dto.SubmitQuizScoreRequest;
-import com.examplatform.recommendation.dto.SubtopicClassificationResult;
+import com.examplatform.recommendation.dto.*;
 import com.examplatform.recommendation.repository.DynamicLearningPathRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;

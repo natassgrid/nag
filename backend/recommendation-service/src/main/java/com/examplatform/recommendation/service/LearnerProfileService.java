@@ -7,6 +7,7 @@ import com.examplatform.recommendation.dto.LearnerProfileDto;
 import com.examplatform.recommendation.event.PracticeSessionCompletedEvent;
 import com.examplatform.recommendation.repository.LearnerProfileRepository;
 import com.examplatform.recommendation.repository.LearnerSubtopicPerformanceRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.dto.SubtopicPerformanceDto;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -17,11 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -111,7 +108,8 @@ public class LearnerProfileService {
         if (subtopicBreakdownJson == null || subtopicBreakdownJson.isBlank()) return;
         try {
             List<SubtopicPerformanceDto> list = objectMapper.readValue(
-                    subtopicBreakdownJson, new TypeReference<List<SubtopicPerformanceDto>>() {});
+                    subtopicBreakdownJson, new TypeReference<>() {
+                });
 
             Map<String, Map<String, Object>> subtopicMap = profile.getSubtopicAccuracyMap() != null
                     ? objectMapper.readValue(profile.getSubtopicAccuracyMap(), new TypeReference<>() {})
@@ -132,7 +130,7 @@ public class LearnerProfileService {
                                     .subtopicId(dto.subtopicId())
                                     .subtopicName(dto.subtopicName())
                                     .build();
-                            p.setTenantId(profile.getTenantId() != null ? profile.getTenantId() : "default");
+                            p.setTenantId(profile.getTenantId() != null ? profile.getTenantId() : SharedConstants.DEFAULT_TENANT);
                             return p;
                         });
 

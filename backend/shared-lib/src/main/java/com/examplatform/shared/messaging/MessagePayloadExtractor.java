@@ -19,6 +19,7 @@
 
 package com.examplatform.shared.messaging;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -49,17 +50,21 @@ public final class MessagePayloadExtractor {
      * @return the string payload, or {@code null} if message is null
      */
     public static String extractPayload(Object message, ObjectMapper objectMapper) {
-        if (message == null) {
-            return null;
-        }
-        if (message instanceof Message amqpMsg) {
-            return new String(amqpMsg.getBody(), StandardCharsets.UTF_8);
-        }
-        if (message instanceof byte[] bytes) {
-            return new String(bytes, StandardCharsets.UTF_8);
-        }
-        if (message instanceof String s) {
-            return s;
+        switch (message) {
+            case null -> {
+                return null;
+            }
+            case Message amqpMsg -> {
+                return new String(amqpMsg.getBody(), StandardCharsets.UTF_8);
+            }
+            case byte[] bytes -> {
+                return new String(bytes, StandardCharsets.UTF_8);
+            }
+            case String s -> {
+                return s;
+            }
+            default -> {
+            }
         }
         try {
             return objectMapper.writeValueAsString(message);
@@ -133,7 +138,7 @@ public final class MessagePayloadExtractor {
         }
         try {
             Map<String, Object> event = objectMapper.readValue(payload, new TypeReference<>() {});
-            String eventType = (String) event.get("eventType");
+            String eventType = (String) event.get(SharedConstants.EVENT_TYPE);
             if (expectedEventType.equals(eventType)) {
                 return Optional.of(event);
             }

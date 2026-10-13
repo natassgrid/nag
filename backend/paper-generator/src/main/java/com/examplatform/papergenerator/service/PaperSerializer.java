@@ -32,11 +32,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * Service for serializing and deserializing Paper entities.
@@ -105,15 +101,13 @@ public class PaperSerializer {
                 defMap.put("questionGroups", document.getQuestionGroups());
             }
 
-            Paper paper = Paper.builder()
+            return Paper.builder()
                     .examId(document.getExamId())
                     .shiftId(document.getShiftId())
                     .paperDefinitionJson(objectMapper.writeValueAsString(defMap))
                     .difficultyScore(document.getDifficultyScore())
                     .status(QuestionStateConstants.DRAFT)
                     .build();
-
-            return paper;
         } catch (JsonProcessingException e) {
             log.error("Failed to parse paper JSON: {}", e.getMessage());
             throw new PaperSerializationException("Failed to parse paper JSON", e);
@@ -189,7 +183,8 @@ public class PaperSerializer {
         }
         try {
             Map<String, Object> definition = objectMapper.readValue(paperDefinitionJson,
-                    new TypeReference<Map<String, Object>>() {});
+                new TypeReference<>() {
+                });
 
             Object questionIdsObj = definition.get("questionIds");
             if (questionIdsObj instanceof List<?> list) {
@@ -233,7 +228,8 @@ public class PaperSerializer {
             JsonNode groupsNode = root.path("questionGroups");
             if (groupsNode.isArray() && !groupsNode.isEmpty()) {
                 return objectMapper.readValue(groupsNode.toString(),
-                        new TypeReference<List<QuestionGroup>>() {});
+                        new TypeReference<>() {
+                        });
             }
             return List.of();
         } catch (Exception e) {

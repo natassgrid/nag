@@ -19,8 +19,6 @@
 
 package com.examplatform.papergenerator.service;
 
-import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
-
 import com.examplatform.papergenerator.crypto.CanonicalPaperManifest;
 import com.examplatform.papergenerator.crypto.MerkleTree;
 import com.examplatform.papergenerator.domain.Paper;
@@ -41,13 +39,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
+
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
 
 /**
  * Service orchestrating Merkle Tree generation, canonical manifest computation,
@@ -243,7 +237,8 @@ public class PaperAnchoringService {
         try {
             Map<String, MerkleTree.MerkleProof> proofMap = objectMapper.readValue(
                     paper.getMerkleProofJson(),
-                    new TypeReference<Map<String, MerkleTree.MerkleProof>>() {});
+                new TypeReference<>() {
+                });
             return Optional.ofNullable(proofMap.get(questionId.toString()));
         } catch (Exception e) {
             log.warn("Failed to parse MerkleProofJson for paper {}: {}", paperId, e.getMessage());
@@ -254,7 +249,7 @@ public class PaperAnchoringService {
     private void publishPaperAnchoredAuditEvent(Paper paper, LedgerAttestationReceipt receipt, String tenantId) {
         try {
             Map<String, Object> event = Map.of(
-                    "eventType", "PAPER_LEDGER_ANCHORED",
+                SharedConstants.EVENT_TYPE, "PAPER_LEDGER_ANCHORED",
                     "paperId", paper.getId().toString(),
                     "examId", paper.getExamId().toString(),
                     "paperRootHash", paper.getPaperRootHash() != null ? paper.getPaperRootHash() : "",
@@ -262,8 +257,8 @@ public class PaperAnchoringService {
                     "txHash", receipt.getTxHash(),
                     "consensusTimestamp", receipt.getConsensusTimestamp(),
                     "ledgerNetwork", receipt.getNetwork(),
-                SharedConstants.TENANT_ID, tenantId != null ? tenantId : "default",
-                    "occurredAt", Instant.now().toString()
+                SharedConstants.TENANT_ID, tenantId != null ? tenantId : SharedConstants.DEFAULT_TENANT,
+                SharedConstants.OCCURRED_AT, Instant.now().toString()
             );
             eventPublisher.publish(AUDIT_EVENTS_TOPIC, paper.getId().toString(), event);
         } catch (Exception e) {
@@ -298,7 +293,8 @@ public class PaperAnchoringService {
             return Collections.emptyMap();
         }
         try {
-            return objectMapper.readValue(topicDistributionJson, new TypeReference<Map<String, Integer>>() {});
+            return objectMapper.readValue(topicDistributionJson, new TypeReference<>() {
+            });
         } catch (Exception e) {
             return Collections.emptyMap();
         }

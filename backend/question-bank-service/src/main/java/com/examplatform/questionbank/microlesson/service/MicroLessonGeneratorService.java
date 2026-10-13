@@ -17,11 +17,8 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -48,7 +45,7 @@ public class MicroLessonGeneratorService {
         String exam = (targetExam != null && !targetExam.isBlank()) ? targetExam : "JEE_MAIN";
         log.info("Generating remedial micro-lesson for subtopic: '{}' in topic: '{}' (Exam: {})", subtopic, topic, exam);
 
-        MicroLessonContentDto content = null;
+        MicroLessonContentDto content;
         try {
             String userPrompt = promptBuilder.buildUserPrompt(subject, topic, subtopic, exam);
             String rawResponse = chatClient.prompt()

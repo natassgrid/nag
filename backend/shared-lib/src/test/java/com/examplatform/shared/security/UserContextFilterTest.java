@@ -36,7 +36,6 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 

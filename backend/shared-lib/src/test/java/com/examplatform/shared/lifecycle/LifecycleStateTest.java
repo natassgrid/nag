@@ -22,7 +22,8 @@ package com.examplatform.shared.lifecycle;
 import com.examplatform.shared.constants.QuestionStateConstants;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class LifecycleStateTest {
 

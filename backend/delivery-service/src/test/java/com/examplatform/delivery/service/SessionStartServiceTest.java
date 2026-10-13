@@ -19,19 +19,14 @@
 
 package com.examplatform.delivery.service;
 
-import com.examplatform.shared.crypto.VaultCryptoService;
-
 import com.examplatform.delivery.client.ShiftAssignmentClient;
 import com.examplatform.delivery.domain.ExamSession;
 import com.examplatform.delivery.domain.ExamSession.ExamSessionStatus;
-import com.examplatform.delivery.dto.QuestionDeliveryDto;
-import com.examplatform.delivery.dto.QuestionOptionDeliveryDto;
-import com.examplatform.delivery.dto.SessionStartRequest;
-import com.examplatform.delivery.dto.SessionStartResponse;
-import com.examplatform.delivery.dto.ShiftAssignment;
+import com.examplatform.delivery.dto.*;
 import com.examplatform.delivery.exception.ConcurrentSessionException;
 import com.examplatform.delivery.repository.ExamSessionRepository;
 import com.examplatform.shared.config.DynamicConfigService;
+import com.examplatform.shared.crypto.VaultCryptoService;
 import com.examplatform.shared.messaging.EventPublisher;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -53,14 +48,8 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("SessionStartService")

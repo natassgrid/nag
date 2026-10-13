@@ -10,7 +10,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableJpaRepositories(basePackages = "com.examplatform.recommendation.repository")
 @EnableScheduling
 public class RecommendationServiceApplication {
-    public static void main(String[] args) {
+    static void main(String[] args) {
         SpringApplication.run(RecommendationServiceApplication.class, args);
     }
 }

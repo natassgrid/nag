@@ -19,18 +19,15 @@
 
 package com.examplatform.candidate.consumer;
 
-import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
-
 import com.examplatform.candidate.domain.CandidateProfile;
 import com.examplatform.candidate.repository.CandidateProfileRepository;
+import com.examplatform.shared.constants.MessagingConstants;
 import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.crypto.HashingService;
 import com.examplatform.shared.messaging.GenericDomainEvent;
 import com.examplatform.shared.messaging.MessagePayloadExtractor;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.util.Optional;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.ExchangeTypes;
@@ -41,6 +38,11 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.context.event.EventListener;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
+
+import java.util.Optional;
+import java.util.UUID;
+
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
 
 /**
  * Listens for candidate registration audit/domain events across Kafka, RabbitMQ,
@@ -65,7 +67,7 @@ public class CandidateRegistrationConsumer {
     @RabbitListener(
             bindings = @QueueBinding(
                     value = @Queue(value = "candidate.registration.provisioning.queue", durable = "true"),
-                    exchange = @Exchange(value = "exam.events", type = ExchangeTypes.TOPIC),
+                    exchange = @Exchange(value = MessagingConstants.EXAM_EVENTS_TOPIC, type = ExchangeTypes.TOPIC),
                     key = AUDIT_EVENTS_TOPIC
             )
     )
@@ -95,8 +97,8 @@ public class CandidateRegistrationConsumer {
         }
         try {
             JsonNode root = objectMapper.readTree(rawJson);
-            String eventType = root.path("eventType").asText("");
-            String action = root.path("action").asText("");
+            String eventType = root.path(SharedConstants.EVENT_TYPE).asText("");
+            String action = root.path(SharedConstants.ACTION).asText("");
             if (!"CANDIDATE_PROFILE_CREATED".equals(eventType) && !"identity:registration".equals(action)) {
                 return;
             }
@@ -114,8 +116,8 @@ public class CandidateRegistrationConsumer {
             }
 
             JsonNode details = root.path("details");
-            String tenantId = root.hasNonNull(SharedConstants.TENANT_ID) ? root.path(SharedConstants.TENANT_ID).asText("default") : details.path(
-                SharedConstants.TENANT_ID).asText("default");
+            String tenantId = root.hasNonNull(SharedConstants.TENANT_ID) ? root.path(SharedConstants.TENANT_ID).asText(SharedConstants.DEFAULT_TENANT) : details.path(
+                SharedConstants.TENANT_ID).asText(SharedConstants.DEFAULT_TENANT);
             String fullName = root.hasNonNull("fullName") ? root.path("fullName").asText("") : details.path("fullName").asText("");
             String email = root.hasNonNull("email") ? root.path("email").asText("") : details.path("email").asText("");
             String mobile = root.hasNonNull("mobile") ? root.path("mobile").asText("") : details.path("mobile").asText("");

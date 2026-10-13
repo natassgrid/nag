@@ -11,10 +11,10 @@ import com.examplatform.questionbank.microlesson.repository.SubtopicMicroLessonR
 import com.examplatform.questionbank.repository.SubjectRepository;
 import com.examplatform.questionbank.repository.SubtopicRepository;
 import com.examplatform.questionbank.repository.TopicRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -50,7 +50,7 @@ public class MicroLessonBatchRunner {
         if (request != null && request.subtopicIds() != null && !request.subtopicIds().isEmpty()) {
             candidates = subtopicRepository.findAllById(request.subtopicIds());
         } else if (request != null && request.topicId() != null) {
-            candidates = subtopicRepository.findByTopicIdAndTenantId(request.topicId(), "default");
+            candidates = subtopicRepository.findByTopicIdAndTenantId(request.topicId(), SharedConstants.DEFAULT_TENANT);
         } else {
             // Find all active subtopics up to max
             List<Subtopic> all = subtopicRepository.findAll();

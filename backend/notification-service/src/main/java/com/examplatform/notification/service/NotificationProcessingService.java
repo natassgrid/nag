@@ -70,14 +70,14 @@ public class NotificationProcessingService {
         try {
             JsonNode event = objectMapper.readTree(eventPayload);
 
-            String eventType = event.path("eventType").asText("UNKNOWN");
+            String eventType = event.path(SharedConstants.EVENT_TYPE).asText("UNKNOWN");
             String userIdStr = event.path("userId").asText(null);
             UUID userId = userIdStr != null ? UUID.fromString(userIdStr) : UUID.randomUUID();
             String recipientEmail = event.path("recipientEmail").asText(null);
             String recipientPhone = event.path("recipientPhone").asText(null);
             String fcmToken = event.path("fcmToken").asText(null);
             String channelStr = event.path("channel").asText(null);
-            String tenantId = event.path(SharedConstants.TENANT_ID).asText("default");
+            String tenantId = event.path(SharedConstants.TENANT_ID).asText(SharedConstants.DEFAULT_TENANT);
             String referenceId = event.path("referenceId").asText("");
             String actionLink = event.path("actionLink").asText("");
             String templateId = event.path("templateId").asText(null);
@@ -112,7 +112,7 @@ public class NotificationProcessingService {
     @Transactional
     public Notification sendNotification(NotificationSendRequest request) {
         UUID userId = request.getUserId() != null ? request.getUserId() : UUID.randomUUID();
-        String tenantId = request.getTenantId() != null ? request.getTenantId() : "default";
+        String tenantId = request.getTenantId() != null ? request.getTenantId() : SharedConstants.DEFAULT_TENANT;
 
         // Fetch candidate preferences for fallback & routing
         NotificationPreference preference = preferenceService.getPreferences(userId, tenantId);
@@ -125,7 +125,7 @@ public class NotificationProcessingService {
         if (token == null || token.isBlank()) {
             List<DeviceToken> activeTokens = deviceTokenService.getActiveTokens(userId);
             if (!activeTokens.isEmpty()) {
-                token = activeTokens.get(0).getToken();
+                token = activeTokens.getFirst().getToken();
             }
         }
 

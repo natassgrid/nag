@@ -19,6 +19,7 @@
 
 package com.examplatform.shared.config;
 
+import com.examplatform.shared.constants.MessagingConstants;
 import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -50,7 +51,7 @@ public class DynamicConfigRabbitInvalidationListener {
     @RabbitListener(
             bindings = @QueueBinding(
                     value = @Queue(value = "#{T(java.util.UUID).randomUUID().toString()}", autoDelete = "true", exclusive = "true"),
-                    exchange = @Exchange(value = "exam.events", type = ExchangeTypes.TOPIC),
+                    exchange = @Exchange(value = MessagingConstants.EXAM_EVENTS_TOPIC, type = ExchangeTypes.TOPIC),
                     key = CONFIG_EVENTS_TOPIC
             )
     )

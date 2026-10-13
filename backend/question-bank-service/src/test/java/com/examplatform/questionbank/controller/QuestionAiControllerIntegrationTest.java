@@ -20,12 +20,7 @@
 package com.examplatform.questionbank.controller;
 
 import com.examplatform.questionbank.ai.embedding.EmbeddingService;
-import com.examplatform.questionbank.ai.generation.ClarifyRequirementsRequest;
-import com.examplatform.questionbank.ai.generation.ClarifyRequirementsResponse;
-import com.examplatform.questionbank.ai.generation.ExecutionMode;
-import com.examplatform.questionbank.ai.generation.QuestionGenerationRequest;
-import com.examplatform.questionbank.ai.generation.QuestionGenerationResponse;
-import com.examplatform.questionbank.ai.generation.QuestionGenerationService;
+import com.examplatform.questionbank.ai.generation.*;
 import com.examplatform.questionbank.ai.parser.NormalizedSampleQuestion;
 import com.examplatform.questionbank.ai.parser.SampleDocumentParserService;
 import com.examplatform.questionbank.repository.QuestionRepository;
@@ -51,7 +46,8 @@ import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @DisplayName("QuestionAiController REST Endpoints E2E Tests (MockMvc)")
 class QuestionAiControllerIntegrationTest extends AbstractIntegrationTest {

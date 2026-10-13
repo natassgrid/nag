@@ -32,11 +32,10 @@ import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.springframework.stereotype.Service;
 
-import java.awt.Color;
+import java.awt.*;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
@@ -108,7 +107,7 @@ public class AnalyticsPdfService {
                 y = drawScoreDistributionChart(contentStream, fontBold, fontRegular, leftMargin, y, contentWidth, analytics);
 
                 // 4. Section and Topic Averages Table
-                y = drawSectionAveragesTable(contentStream, fontBold, fontRegular, leftMargin, y, contentWidth, analytics);
+                drawSectionAveragesTable(contentStream, fontBold, fontRegular, leftMargin, y, contentWidth, analytics);
 
                 // 5. Document Footer
                 drawFooter(contentStream, fontRegular, fontOblique, leftMargin, rightMargin);

@@ -169,7 +169,7 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
             @Param("queryVec") String queryVec,
             @Param(SharedConstants.SUBJECT) String subject,
             @Param("topic") String topic,
-            @Param("difficulty") String difficulty,
+            @Param(SharedConstants.DIFFICULTY) String difficulty,
             @Param("cognitiveLevel") String cognitiveLevel,
             @Param(SharedConstants.TENANT_ID) String tenantId,
             @Param("limit") int limit);
@@ -212,7 +212,7 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
     List<Question> findBlueprintQuestions(
             @Param(SharedConstants.SUBJECT) String subject,
             @Param("topic") String topic,
-            @Param("difficulty") String difficulty,
+            @Param(SharedConstants.DIFFICULTY) String difficulty,
             @Param("cognitiveLevel") String cognitiveLevel,
             @Param(SharedConstants.TENANT_ID) String tenantId);
 
@@ -232,7 +232,7 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
     List<Question> findBlueprintQuestionsFallback(
             @Param(SharedConstants.SUBJECT) String subject,
             @Param("topic") String topic,
-            @Param("difficulty") String difficulty,
+            @Param(SharedConstants.DIFFICULTY) String difficulty,
             @Param(SharedConstants.TENANT_ID) String tenantId);
 
     /**

@@ -21,6 +21,7 @@ package com.examplatform.notification.service;
 
 import com.examplatform.notification.domain.Notification;
 import com.examplatform.notification.repository.NotificationRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
@@ -97,8 +98,8 @@ public class WhatsAppDeliveryService {
                     payload.put("type", "template");
 
                     Map<String, Object> templateMap = new HashMap<>();
-                    templateMap.put("name", notification.getTemplateId() != null ? notification.getTemplateId() : "nag_generic_notification");
-                    templateMap.put("language", Map.of("code", "en"));
+                    templateMap.put(SharedConstants.NAME, notification.getTemplateId() != null ? notification.getTemplateId() : "nag_generic_notification");
+                    templateMap.put("language", Map.of(SharedConstants.CODE, "en"));
                     templateMap.put("components", List.of(
                             Map.of(
                                     "type", "body",

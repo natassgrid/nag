@@ -22,17 +22,8 @@ package com.examplatform.questionbank.translation.controller;
 import com.examplatform.questionbank.dto.QuestionResponse;
 import com.examplatform.questionbank.service.QuestionService;
 import com.examplatform.questionbank.translation.domain.Translation;
-import com.examplatform.questionbank.translation.dto.AutoTranslateResponse;
-import com.examplatform.questionbank.translation.dto.BatchTranslationJobResponse;
-import com.examplatform.questionbank.translation.dto.BatchTranslationRequest;
-import com.examplatform.questionbank.translation.dto.TranslationRequest;
-import com.examplatform.questionbank.translation.dto.TranslationResponse;
-import com.examplatform.questionbank.translation.dto.TranslationReviewRequest;
-import com.examplatform.questionbank.translation.service.BatchTranslationService;
-import com.examplatform.questionbank.translation.service.IndicTrans2Service;
-import com.examplatform.questionbank.translation.service.TranslationQueryService;
-import com.examplatform.questionbank.translation.service.TranslationReviewService;
-import com.examplatform.questionbank.translation.service.TranslationWorkflowService;
+import com.examplatform.questionbank.translation.dto.*;
+import com.examplatform.questionbank.translation.service.*;
 import com.examplatform.shared.api.ApiResponse;
 import com.examplatform.shared.constants.QuestionStateConstants;
 import com.examplatform.shared.constants.SharedConstants;
@@ -49,14 +40,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
@@ -163,7 +147,7 @@ public class TranslationController {
     @GetMapping("/batch")
     @PreAuthorize("hasAnyRole('ADMIN', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
     public ResponseEntity<Page<BatchTranslationJobResponse>> listBatchJobs(
-            @PageableDefault(size = 20, sort = {"updatedAt", "createdAt"}, direction = Sort.Direction.DESC) Pageable pageable) {
+            @PageableDefault(size = 20, sort = {"updatedAt", SharedConstants.CREATED_AT}, direction = Sort.Direction.DESC) Pageable pageable) {
         Page<BatchTranslationJobResponse> jobs = batchTranslationService.listJobs(tenantId(), pageable);
         return ResponseEntity.ok(jobs);
     }
@@ -228,7 +212,7 @@ public class TranslationController {
 
         return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
                 "translationId", translation.getId(),
-                "status", translation.getStatus().name(),
+            SharedConstants.STATUS, translation.getStatus().name(),
             SharedConstants.MESSAGE, "Translation request created successfully"
         ));
     }
@@ -252,7 +236,7 @@ public class TranslationController {
 
         return ResponseEntity.ok(Map.of(
                 "translationId", translation.getId(),
-                "status", translation.getStatus().name(),
+            SharedConstants.STATUS, translation.getStatus().name(),
             SharedConstants.MESSAGE, "Translation resubmitted successfully"
         ));
     }
@@ -283,7 +267,7 @@ public class TranslationController {
 
         return ResponseEntity.ok(Map.of(
                 "translationId", translation.getId(),
-                "status", translation.getStatus().name(),
+            SharedConstants.STATUS, translation.getStatus().name(),
             SharedConstants.MESSAGE, "Translation approved successfully"
         ));
     }
@@ -304,7 +288,7 @@ public class TranslationController {
 
         return ResponseEntity.ok(Map.of(
                 "translationId", id,
-                "status", QuestionStateConstants.DRAFT,
+            SharedConstants.STATUS, QuestionStateConstants.DRAFT,
             SharedConstants.MESSAGE, "Translation rejected; translator notified"
         ));
     }
@@ -381,7 +365,7 @@ public class TranslationController {
 
     private String tenantId() {
         String t = TenantContext.get();
-        return t != null ? t : "default";
+        return t != null ? t : SharedConstants.DEFAULT_TENANT;
     }
 
     private UUID extractUserId(Jwt jwt) {

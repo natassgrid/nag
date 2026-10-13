@@ -29,7 +29,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableAsync
 public class QuestionBankServiceApplication {
 
-    public static void main(String[] args) {
+    static void main(String[] args) {
         SpringApplication.run(QuestionBankServiceApplication.class, args);
     }
 }

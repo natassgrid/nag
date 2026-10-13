@@ -20,12 +20,12 @@
 package com.examplatform.notification.consumer;
 
 import com.examplatform.notification.service.NotificationProcessingService;
+import com.examplatform.shared.constants.MessagingConstants;
 import com.examplatform.shared.messaging.GenericDomainEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.ExchangeTypes;
-import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.Exchange;
 import org.springframework.amqp.rabbit.annotation.Queue;
 import org.springframework.amqp.rabbit.annotation.QueueBinding;
@@ -33,8 +33,6 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.context.event.EventListener;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
-
-import java.nio.charset.StandardCharsets;
 
 /**
  * Consumer that listens for outbound notification events on the
@@ -48,7 +46,7 @@ import java.nio.charset.StandardCharsets;
 @RequiredArgsConstructor
 public class NotificationEventConsumer {
 
-    public static final String NOTIFICATION_TOPIC = "exam.notifications.outbound";
+    public static final String NOTIFICATION_TOPIC = MessagingConstants.NOTIFICATIONS_OUTBOUND_TOPIC;
 
     private final NotificationProcessingService notificationProcessingService;
     private final ObjectMapper objectMapper;
@@ -72,7 +70,7 @@ public class NotificationEventConsumer {
     @RabbitListener(
             bindings = @QueueBinding(
                     value = @Queue(value = "notification.events.queue", durable = "true"),
-                    exchange = @Exchange(value = "exam.events", type = ExchangeTypes.TOPIC),
+                    exchange = @Exchange(value = MessagingConstants.EXAM_EVENTS_TOPIC, type = ExchangeTypes.TOPIC),
                     key = NOTIFICATION_TOPIC
             )
     )

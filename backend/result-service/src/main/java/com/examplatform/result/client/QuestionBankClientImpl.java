@@ -34,28 +34,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
-import org.springframework.web.context.request.RequestAttributes;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * REST-first implementation of QuestionBankClient querying question-bank-service.
@@ -92,21 +76,22 @@ public class QuestionBankClientImpl implements QuestionBankClient {
         if (questionIds == null || questionIds.isEmpty()) {
             return Collections.emptyList();
         }
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
 
         // 1. Try REST call to question-bank-service
         try {
             String url = questionBankServiceUrl + "/api/v1/questions/by-ids";
             RestClient.RequestBodySpec spec = restClient.post()
                     .uri(url)
-                    .header("X-Tenant-Id", effectiveTenant)
+                    .header(SharedConstants.HEADER_TENANT_ID, effectiveTenant)
                     .contentType(MediaType.APPLICATION_JSON);
             attachAuthHeader(spec);
 
             ApiResponseDto<List<RemoteQuestionDto>> apiResponse = spec
                     .body(questionIds)
                     .retrieve()
-                    .body(new ParameterizedTypeReference<ApiResponseDto<List<RemoteQuestionDto>>>() {});
+                    .body(new ParameterizedTypeReference<>() {
+                    });
 
             if (apiResponse != null && apiResponse.getData() != null && !apiResponse.getData().isEmpty()) {
                 log.info("Retrieved {} questions from question-bank-service via REST", apiResponse.getData().size());
@@ -147,9 +132,9 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                         .id(id)
                         .subject(rs.getString(SharedConstants.SUBJECT))
                         .topic(rs.getString("topic"))
-                        .difficulty(rs.getString("difficulty"))
+                        .difficulty(rs.getString(SharedConstants.DIFFICULTY))
                         .cognitiveLevel(rs.getString("cognitive_level"))
-                        .content(rs.getString("content"))
+                        .content(rs.getString(SharedConstants.CONTENT))
                         .options(options)
                         .explanation(rs.getString("explanation"))
                         .answerKey(rs.getString("answer_key"))
@@ -177,7 +162,8 @@ public class QuestionBankClientImpl implements QuestionBankClient {
             return Collections.emptyList();
         }
         try {
-            return objectMapper.readValue(optionsJson, new TypeReference<List<ReviewOptionDto>>() {});
+            return objectMapper.readValue(optionsJson, new TypeReference<>() {
+            });
         } catch (Exception e) {
             log.warn("Failed to parse options JSON: {}", e.getMessage());
             return Collections.emptyList();

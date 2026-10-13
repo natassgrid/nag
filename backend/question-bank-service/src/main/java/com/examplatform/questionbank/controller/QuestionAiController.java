@@ -20,14 +20,11 @@
 package com.examplatform.questionbank.controller;
 
 import com.examplatform.questionbank.ai.embedding.EmbeddingService;
-import com.examplatform.questionbank.ai.generation.ClarifyRequirementsRequest;
-import com.examplatform.questionbank.ai.generation.ClarifyRequirementsResponse;
-import com.examplatform.questionbank.ai.generation.QuestionGenerationRequest;
-import com.examplatform.questionbank.ai.generation.QuestionGenerationResponse;
-import com.examplatform.questionbank.ai.generation.QuestionGenerationService;
+import com.examplatform.questionbank.ai.generation.*;
 import com.examplatform.questionbank.ai.parser.NormalizedSampleQuestion;
 import com.examplatform.questionbank.ai.parser.SampleDocumentParserService;
 import com.examplatform.shared.api.ApiResponse;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -37,19 +34,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestPart;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * REST controller for AI-powered question operations: embedding backfill,
@@ -75,13 +64,13 @@ public class QuestionAiController {
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'QUESTION_AUTHOR')")
     public ResponseEntity<ApiResponse<QuestionGenerationResponse>> generateQuestions(
             @Valid @RequestBody QuestionGenerationRequest request,
-            @RequestHeader("X-Tenant-Id") String tenantId,
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
             @AuthenticationPrincipal Jwt jwt) {
 
         log.info("AI question generation requested: subject={}, topic={}, count={}, tenant={}",
                 request.getSubject(), request.getTopic(), request.getCount(), tenantId);
 
-        UUID authorId = UUID.fromString(jwt.getSubject());
+        UUID authorId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         QuestionGenerationResponse response = questionGenerationService.generate(request, tenantId, authorId);
 
         log.info("AI generation completed: model={}, generated={}, valid={}, duplicates={}, mode={}, tenant={}",
@@ -103,10 +92,10 @@ public class QuestionAiController {
     public ResponseEntity<ApiResponse<QuestionGenerationResponse>> generateWithSamplesMultipart(
             @RequestPart(value = "file", required = false) MultipartFile file,
             @RequestPart("request") String requestJson,
-            @RequestHeader("X-Tenant-Id") String tenantId,
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
             @AuthenticationPrincipal Jwt jwt) throws IOException {
 
-        UUID authorId = UUID.fromString(jwt.getSubject());
+        UUID authorId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         QuestionGenerationRequest request = objectMapper.readValue(requestJson, QuestionGenerationRequest.class);
 
         List<NormalizedSampleQuestion> sampleQuestions = new ArrayList<>();
@@ -135,10 +124,10 @@ public class QuestionAiController {
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'QUESTION_AUTHOR')")
     public ResponseEntity<ApiResponse<QuestionGenerationResponse>> generateWithSamplesJson(
             @Valid @RequestBody QuestionGenerationRequest request,
-            @RequestHeader("X-Tenant-Id") String tenantId,
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
             @AuthenticationPrincipal Jwt jwt) {
 
-        UUID authorId = UUID.fromString(jwt.getSubject());
+        UUID authorId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         QuestionGenerationResponse response = questionGenerationService.generate(request, tenantId, authorId);
 
         return ResponseEntity.ok(ApiResponse.success(response,
@@ -171,7 +160,7 @@ public class QuestionAiController {
     @PostMapping("/embeddings/backfill")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> backfillEmbeddings(
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
 
         log.info("Starting embedding backfill for tenant={}", tenantId);
 

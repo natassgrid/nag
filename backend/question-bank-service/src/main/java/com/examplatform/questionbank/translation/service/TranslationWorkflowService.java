@@ -22,8 +22,8 @@ package com.examplatform.questionbank.translation.service;
 import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.dto.QuestionOption;
 import com.examplatform.questionbank.repository.QuestionRepository;
-import com.examplatform.questionbank.translation.domain.Translation;
 import com.examplatform.questionbank.translation.domain.TranslatedQuestionPayload;
+import com.examplatform.questionbank.translation.domain.Translation;
 import com.examplatform.questionbank.translation.dto.TranslatedOptionDto;
 import com.examplatform.questionbank.translation.dto.TranslationRequest;
 import com.examplatform.questionbank.translation.repository.TranslationRepository;
@@ -32,12 +32,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -113,7 +108,7 @@ public class TranslationWorkflowService {
                 .findByQuestionIdAndLanguageCodeAndTenantId(request.getQuestionId(), request.getLanguageCode(), tenantId);
 
         if (!existing.isEmpty()) {
-            Translation translation = existing.get(0);
+            Translation translation = existing.getFirst();
             translation.setTranslatedPayload(serialized);
             translation.setPayloadEncrypted(payloadService.isEncryptionEnabled());
             translation.setSourceVersion(question.getVersion() != null ? question.getVersion() : 0L);
@@ -228,7 +223,7 @@ public class TranslationWorkflowService {
 
         Translation translation;
         if (!existing.isEmpty()) {
-            translation = existing.get(0);
+            translation = existing.getFirst();
             translation.setTranslatedPayload(serialized);
             translation.setPayloadEncrypted(payloadService.isEncryptionEnabled());
             translation.setSourceVersion(question.getVersion() != null ? question.getVersion() : 0L);

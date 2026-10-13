@@ -27,16 +27,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -73,7 +66,7 @@ public class ReviewController {
     public ResponseEntity<ExamReviewResponse> getExamReview(
             @PathVariable UUID candidateId,
             @RequestParam UUID examId,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId,
             Authentication auth) {
 
         log.info("GET exam review for candidate={}, exam={}, tenant={}", candidateId, examId, tenantId);
@@ -98,7 +91,7 @@ public class ReviewController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
                     "valid", false,
                     "error", "Verification code is required",
-                    "code", ""
+                SharedConstants.CODE, ""
             ));
         }
 
@@ -109,7 +102,7 @@ public class ReviewController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
                     "valid", false,
                     "error", "Scorecard verification code not found: " + trimmedCode,
-                    "code", trimmedCode
+                SharedConstants.CODE, trimmedCode
             ));
         }
 
@@ -122,13 +115,13 @@ public class ReviewController {
             return ResponseEntity.status(HttpStatus.GONE).body(Map.of(
                     "valid", false,
                     "error", "Scorecard has been invalidated",
-                    "code", trimmedCode
+                SharedConstants.CODE, trimmedCode
             ));
         }
 
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("valid", true);
-        response.put("code", trimmedCode);
+        response.put(SharedConstants.CODE, trimmedCode);
         response.put("candidateId", result.getCandidateId());
         response.put("examId", result.getExamId());
         response.put("totalScore", result.getTotalScore());
@@ -140,7 +133,7 @@ public class ReviewController {
         if (result.getAccuracyRate() != null) {
             response.put("accuracyRate", result.getAccuracyRate());
         }
-        response.put("status", "VALID");
+        response.put(SharedConstants.STATUS, "VALID");
         response.put(SharedConstants.MESSAGE, "Scorecard verified successfully");
 
         return ResponseEntity.ok(response);

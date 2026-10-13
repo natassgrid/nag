@@ -19,8 +19,6 @@
 
 package com.examplatform.response.service;
 
-import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
-
 import com.examplatform.response.exception.ResponseIntegrityException;
 import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
@@ -34,6 +32,8 @@ import org.springframework.web.client.RestTemplate;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
+
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
 
 /**
  * Validates response integrity by calling delivery-service.
@@ -113,13 +113,13 @@ public class IntegrityValidationService {
                                        String reason, String tenantId) {
         try {
             Map<String, Object> alert = Map.of(
-                    "eventType", "INTEGRITY_ALERT",
+                SharedConstants.EVENT_TYPE, "INTEGRITY_ALERT",
                     "sessionId", sessionId.toString(),
                     "candidateId", candidateId.toString(),
                 SharedConstants.QUESTION_ID, questionId.toString(),
                     "reason", reason,
                 SharedConstants.TENANT_ID, tenantId,
-                    "occurredAt", Instant.now().toString()
+                SharedConstants.OCCURRED_AT, Instant.now().toString()
             );
             eventPublisher.publish(AUDIT_EVENTS_TOPIC, sessionId.toString(), alert);
         } catch (Exception ex) {

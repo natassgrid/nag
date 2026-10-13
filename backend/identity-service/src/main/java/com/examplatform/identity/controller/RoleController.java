@@ -20,14 +20,10 @@
 package com.examplatform.identity.controller;
 
 import com.examplatform.identity.domain.enums.UserRole;
-import com.examplatform.identity.dto.CreateRoleRequest;
-import com.examplatform.identity.dto.PermissionResponse;
-import com.examplatform.identity.dto.RoleAssignmentRequest;
-import com.examplatform.identity.dto.RoleAssignmentResponse;
-import com.examplatform.identity.dto.RoleDefinitionResponse;
-import com.examplatform.identity.dto.UpdateRoleRequest;
+import com.examplatform.identity.dto.*;
 import com.examplatform.identity.service.RoleDefinitionService;
 import com.examplatform.identity.service.RoleManagementService;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.response.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -37,16 +33,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
@@ -81,7 +68,7 @@ public class RoleController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "") String search,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
         log.info("Listing roles for tenant: {}, page: {}, size: {}", tenantId, page, size);
         return okPayload(roleDefinitionService.listRoles(tenantId, page, size, search));
     }
@@ -93,7 +80,7 @@ public class RoleController {
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SECURITY_ADMIN')")
     public ResponseEntity<ApiResponse<RoleDefinitionResponse>> getRole(
             @PathVariable UUID roleId,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
         log.debug("Get role request: roleId [{}], tenant [{}]", roleId, tenantId);
         RoleDefinitionResponse role = roleDefinitionService.getRole(roleId, tenantId);
         return ResponseEntity.ok(ApiResponse.success(role));
@@ -106,7 +93,7 @@ public class RoleController {
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<RoleDefinitionResponse>> createRole(
             @Valid @RequestBody CreateRoleRequest request,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId,
             Authentication authentication) {
         log.debug("Create role request: actor [{}], code [{}], tenant [{}]",
                 authentication.getName(), request.getCode(), tenantId);
@@ -122,7 +109,7 @@ public class RoleController {
     public ResponseEntity<ApiResponse<RoleDefinitionResponse>> updateRole(
             @PathVariable UUID roleId,
             @Valid @RequestBody UpdateRoleRequest request,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId,
             Authentication authentication) {
         log.debug("Update role request: actor [{}], roleId [{}], tenant [{}]", authentication.getName(), roleId, tenantId);
         return ResponseEntity.ok(ApiResponse.success(roleDefinitionService.updateRole(roleId, request, authentication.getName(), tenantId), "Role updated successfully."));
@@ -135,7 +122,7 @@ public class RoleController {
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<Void>> deleteRole(
             @PathVariable UUID roleId,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId,
             Authentication authentication) {
         log.debug("Delete role request: actor [{}], roleId [{}], tenant [{}]", authentication.getName(), roleId, tenantId);
         roleDefinitionService.deleteRole(roleId, authentication.getName(), tenantId);
@@ -155,7 +142,7 @@ public class RoleController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size,
             @RequestParam(defaultValue = "") String search,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
         log.info("Listing system permissions for tenant: {}, search: '{}'", tenantId, search);
         return okPayload(roleDefinitionService.listPermissions(tenantId, page, size, search));
     }
@@ -182,7 +169,7 @@ public class RoleController {
     public ResponseEntity<ApiResponse<RoleAssignmentResponse>> manageRole(
             @PathVariable UUID userId,
             @Valid @RequestBody RoleAssignmentRequest request,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId,
             Authentication authentication) {
         String actorId = authentication.getName();
         log.debug("Role management request: actor [{}] -> target [{}], role [{}], action [{}], tenant [{}]",
@@ -202,7 +189,7 @@ public class RoleController {
     @PreAuthorize("hasRole('SUPER_ADMIN') or #userId.toString() == authentication.name")
     public ResponseEntity<ApiResponse<List<UserRole>>> getUserRoles(
             @PathVariable("userId") UUID userId,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
         log.debug("Get roles request for user [{}], tenant [{}]", userId, tenantId);
         List<UserRole> roles = roleManagementService.getRoles(userId, tenantId);
         return ResponseEntity.ok(ApiResponse.success(roles));

@@ -155,17 +155,13 @@ public class PracticeSessionService {
             AnswerKeyDto key = keys.get(qId);
             if (key != null) {
                 Map<String, Map<String, Object>> translations = key.translations();
-                Map<String, Object> primaryTranslation = null;
+                Map<String, Object> primaryTranslation = new HashMap<>();
                 boolean fallbackToEnglish = false;
 
                 if ("en".equalsIgnoreCase(targetLang)) {
-                    primaryTranslation = null;
-                    fallbackToEnglish = false;
                 } else if (translations != null && translations.containsKey(targetLang)) {
                     primaryTranslation = translations.get(targetLang);
-                    fallbackToEnglish = false;
                 } else {
-                    primaryTranslation = null;
                     fallbackToEnglish = true;
                 }
 
@@ -296,7 +292,8 @@ public class PracticeSessionService {
     private List<UUID> parseQuestionIds(String json) {
         if (json == null || json.isBlank()) return Collections.emptyList();
         try {
-            return objectMapper.readValue(json, new TypeReference<List<UUID>>() {});
+            return objectMapper.readValue(json, new TypeReference<>() {
+            });
         } catch (Exception e) {
             return Collections.emptyList();
         }

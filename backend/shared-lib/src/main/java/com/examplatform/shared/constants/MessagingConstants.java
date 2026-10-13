@@ -26,4 +26,6 @@ public final class MessagingConstants {
 
     public static final String AUDIT_EVENTS_TOPIC = "exam.audit.events";
     public static final String EVALUATION_COMPLETED_TOPIC = "exam.evaluation.completed";
+    public static final String EXAM_EVENTS_TOPIC = "exam.events";
+    public static final String NOTIFICATIONS_OUTBOUND_TOPIC = "exam.notifications.outbound";
 }

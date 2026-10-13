@@ -35,13 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -236,7 +230,7 @@ public class AnalyticsService {
 
         int n = sortedScores.size();
         if (n == 1) {
-            return BigDecimal.valueOf(sortedScores.get(0)).setScale(4, RoundingMode.HALF_UP);
+            return BigDecimal.valueOf(sortedScores.getFirst()).setScale(4, RoundingMode.HALF_UP);
         }
 
         double rank = (percentile / 100.0) * (n - 1);
@@ -270,7 +264,7 @@ public class AnalyticsService {
 
         for (Double score : scores) {
             if (score == null) continue;
-            int bucket = Math.min(9, Math.max(0, (int) (score / 10.0)));
+            int bucket = Math.clamp((int) (score / 10.0), 0, 9);
             String key = (bucket * 10) + "-" + ((bucket + 1) * 10);
             distribution.compute(key, (k, v) -> (v != null ? v : 0L) + 1L);
         }

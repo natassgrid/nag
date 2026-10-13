@@ -12,6 +12,7 @@
 package com.examplatform.audit.controller;
 
 import com.examplatform.audit.service.AuditQueryService;
+import com.examplatform.shared.constants.SharedConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -38,7 +39,7 @@ public class AuditAnalyticsController {
      */
     @GetMapping("/api/v1/audit/events/recent")
     public ResponseEntity<List<Map<String, Object>>> getRecentEvents(
-            @RequestParam(required = false, defaultValue = "default") String tenantId,
+            @RequestParam(required = false, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId,
             @RequestParam(required = false, defaultValue = "10") int limit) {
         return ResponseEntity.ok(auditQueryService.getRecentLedgerEvents(tenantId, limit));
     }

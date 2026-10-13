@@ -26,11 +26,7 @@ import com.fasterxml.jackson.databind.json.JsonMapper;
 import lombok.Builder;
 import lombok.Data;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * Deterministic Canonical Manifest generator for examination papers.

@@ -19,6 +19,7 @@
 
 package com.examplatform.admin.controller;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.tenant.TenantContext;
 import org.springframework.security.oauth2.jwt.Jwt;
 
@@ -42,7 +43,7 @@ public final class AdminControllerHelper {
         if (contextTenant != null && !contextTenant.isBlank()) {
             return contextTenant;
         }
-        return "default";
+        return SharedConstants.DEFAULT_TENANT;
     }
 
     public static UUID extractActorId(Jwt jwt) {

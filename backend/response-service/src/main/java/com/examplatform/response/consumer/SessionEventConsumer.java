@@ -20,6 +20,8 @@
 package com.examplatform.response.consumer;
 
 import com.examplatform.response.service.AutoSaveService;
+import com.examplatform.shared.constants.MessagingConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.GenericDomainEvent;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -74,7 +76,7 @@ public class SessionEventConsumer {
     @RabbitListener(
             bindings = @QueueBinding(
                     value = @Queue(value = "response.session.events.queue", durable = "true"),
-                    exchange = @Exchange(value = "exam.events", type = ExchangeTypes.TOPIC),
+                    exchange = @Exchange(value = MessagingConstants.EXAM_EVENTS_TOPIC, type = ExchangeTypes.TOPIC),
                     key = SESSION_EVENTS_TOPIC
             )
     )
@@ -97,24 +99,30 @@ public class SessionEventConsumer {
 
     private void dispatchSessionEventMessage(Object payload, String source) {
         try {
-            if (payload instanceof Message amqpMsg) {
-                String s = new String(amqpMsg.getBody(), StandardCharsets.UTF_8);
-                JsonNode node = objectMapper.readTree(s);
-                processJsonNode(node);
-            } else if (payload instanceof byte[] bytes) {
-                String s = new String(bytes, StandardCharsets.UTF_8);
-                JsonNode node = objectMapper.readTree(s);
-                processJsonNode(node);
-            } else if (payload instanceof Map<?, ?> map) {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> eventMap = (Map<String, Object>) map;
-                processEventMap(eventMap);
-            } else if (payload instanceof String s) {
-                JsonNode node = objectMapper.readTree(s);
-                processJsonNode(node);
-            } else {
-                JsonNode node = objectMapper.valueToTree(payload);
-                processJsonNode(node);
+            switch (payload) {
+                case Message amqpMsg -> {
+                    String s = new String(amqpMsg.getBody(), StandardCharsets.UTF_8);
+                    JsonNode node = objectMapper.readTree(s);
+                    processJsonNode(node);
+                }
+                case byte[] bytes -> {
+                    String s = new String(bytes, StandardCharsets.UTF_8);
+                    JsonNode node = objectMapper.readTree(s);
+                    processJsonNode(node);
+                }
+                case Map<?, ?> map -> {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> eventMap = (Map<String, Object>) map;
+                    processEventMap(eventMap);
+                }
+                case String s -> {
+                    JsonNode node = objectMapper.readTree(s);
+                    processJsonNode(node);
+                }
+                case null, default -> {
+                    JsonNode node = objectMapper.valueToTree(payload);
+                    processJsonNode(node);
+                }
             }
         } catch (Exception e) {
             log.error("Failed to process {} session event: {}", source, e.getMessage(), e);
@@ -122,7 +130,7 @@ public class SessionEventConsumer {
     }
 
     private void processEventMap(Map<String, Object> event) {
-        String eventType = (String) event.get("eventType");
+        String eventType = (String) event.get(SharedConstants.EVENT_TYPE);
         if (EVENT_TYPE_NAVIGATION.equals(eventType)) {
             String sessionIdStr = (String) event.get("sessionId");
             if (sessionIdStr != null) {
@@ -138,7 +146,7 @@ public class SessionEventConsumer {
     }
 
     private void processJsonNode(JsonNode node) {
-        String eventType = node.has("eventType") ? node.get("eventType").asText() : "";
+        String eventType = node.has(SharedConstants.EVENT_TYPE) ? node.get(SharedConstants.EVENT_TYPE).asText() : "";
         if (EVENT_TYPE_NAVIGATION.equals(eventType)) {
             String sessionIdStr = node.has("sessionId") ? node.get("sessionId").asText() : null;
             if (sessionIdStr != null) {

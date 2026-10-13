@@ -12,6 +12,7 @@
 package com.examplatform.questionbank.grpc;
 
 import com.examplatform.questionbank.service.QuestionService;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.grpc.QuestionBankMetricsGrpcRequest;
 import com.examplatform.shared.grpc.QuestionBankMetricsGrpcResponse;
 import com.examplatform.shared.grpc.QuestionBankMetricsGrpcServiceGrpc;
@@ -35,9 +36,10 @@ public class QuestionBankMetricsGrpcServiceImpl extends QuestionBankMetricsGrpcS
     @Override
     public void getQuestionBankMetrics(QuestionBankMetricsGrpcRequest request,
                                        StreamObserver<QuestionBankMetricsGrpcResponse> responseObserver) {
-        String tenantId = (request.getTenantId() != null && !request.getTenantId().isBlank())
+        request.getTenantId();
+        String tenantId = !request.getTenantId().isBlank()
                 ? request.getTenantId()
-                : "default";
+                : SharedConstants.DEFAULT_TENANT;
         log.info("gRPC getQuestionBankMetrics request for tenant={}", tenantId);
 
         try {

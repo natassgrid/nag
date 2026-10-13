@@ -19,8 +19,6 @@
 
 package com.examplatform.asset.service;
 
-import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
-
 import com.examplatform.asset.domain.entity.MediaAsset;
 import com.examplatform.asset.domain.enums.AssetStatus;
 import com.examplatform.asset.dto.AssetMetadataUpdateRequest;
@@ -39,12 +37,6 @@ import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import com.examplatform.shared.tenant.TenantContext;
 import jakarta.persistence.EntityNotFoundException;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.util.Optional;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -53,6 +45,15 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.Optional;
+import java.util.UUID;
+
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
 
 /**
  * Core service orchestrating asset upload, retrieval, metadata update,
@@ -206,7 +207,7 @@ public class AssetService {
      */
     @Transactional(readOnly = true)
     public Page<AssetUploadResponse> listAssets(int page, int size, String tenantId) {
-        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, SharedConstants.CREATED_AT));
         return assetRepository.findByTenantIdAndStatusNot(tenantId, AssetStatus.DELETED, pageRequest)
                 .map(this::mapToResponse);
     }
@@ -216,7 +217,7 @@ public class AssetService {
      */
     @Transactional(readOnly = true)
     public Page<AssetUploadResponse> searchAssets(AssetSearchRequest searchRequest, int page, int size, String tenantId) {
-        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, SharedConstants.CREATED_AT));
         return assetRepository.searchAssets(
                 tenantId,
                 searchRequest.getFilename(),
@@ -371,7 +372,7 @@ public class AssetService {
     private void publishAuditEvent(String eventType, UUID assetId, UUID userId, String tenantId) {
         try {
             var event = java.util.Map.of(
-                    "eventType", eventType,
+                SharedConstants.EVENT_TYPE, eventType,
                     "assetId", assetId.toString(),
                     "userId", userId.toString(),
                 SharedConstants.TENANT_ID, tenantId,

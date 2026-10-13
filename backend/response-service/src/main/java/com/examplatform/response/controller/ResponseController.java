@@ -28,6 +28,7 @@ import com.examplatform.response.service.ResponseHistoryService;
 import com.examplatform.response.service.ResponseSaveService;
 import com.examplatform.response.service.SessionFinalizationService;
 import com.examplatform.shared.api.ApiResponse;
+import com.examplatform.shared.constants.SharedConstants;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,15 +36,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -80,14 +76,14 @@ public class ResponseController {
             @PathVariable UUID sessionId,
             @Valid @RequestBody SaveResponseRequest request,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader(value = "X-Tenant-Id", required = false) String tenantId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, required = false) String tenantId,
             @RequestHeader(value = "X-Forwarded-For", required = false) String xForwardedFor,
             @RequestHeader(value = "User-Agent", required = false) String userAgent) {
 
         long startTime = System.currentTimeMillis();
 
-        UUID candidateId = UUID.fromString(jwt.getSubject());
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
 
         String clientIp = (xForwardedFor != null && !xForwardedFor.isBlank())
             ? xForwardedFor.split(",")[0].trim()
@@ -125,10 +121,10 @@ public class ResponseController {
             @PathVariable UUID sessionId,
             @Valid @RequestBody BulkSaveRequest request,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader(value = "X-Tenant-Id", required = false) String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, required = false) String tenantId) {
 
-        UUID candidateId = UUID.fromString(jwt.getSubject());
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
 
         log.debug("Bulk-saving responses: sessionId={}, candidate={}, count={}, tenant={}",
                 sessionId, candidateId, request.getResponses().size(), effectiveTenant);
@@ -153,10 +149,10 @@ public class ResponseController {
     public ResponseEntity<ApiResponse<Void>> submitSession(
             @PathVariable UUID sessionId,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader(value = "X-Tenant-Id", required = false) String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, required = false) String tenantId) {
 
-        UUID candidateId = UUID.fromString(jwt.getSubject());
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
 
         log.debug("Submitting session: sessionId={}, candidate={}, tenant={}",
                 sessionId, candidateId, effectiveTenant);
@@ -179,9 +175,9 @@ public class ResponseController {
     @PreAuthorize("hasAnyRole('EVALUATOR', 'AUDITOR', 'CANDIDATE')")
     public ResponseEntity<ApiResponse<List<Response>>> getSessionResponses(
             @PathVariable UUID sessionId,
-            @RequestHeader(value = "X-Tenant-Id", required = false) String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, required = false) String tenantId) {
 
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         log.debug("Retrieving session responses: sessionId={}, tenant={}", sessionId, effectiveTenant);
 
         List<Response> responses = responseHistoryService.getSessionResponses(sessionId, effectiveTenant);

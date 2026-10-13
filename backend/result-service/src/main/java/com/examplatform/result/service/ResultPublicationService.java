@@ -23,11 +23,12 @@ import com.examplatform.result.client.DigiLockerClient;
 import com.examplatform.result.domain.Result;
 import com.examplatform.result.dto.DigiLockerPushResponse;
 import com.examplatform.result.repository.ResultRepository;
+import com.examplatform.shared.constants.MessagingConstants;
 import com.examplatform.shared.constants.SharedConstants;
+import com.examplatform.shared.messaging.EventPublisher;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import com.examplatform.shared.messaging.EventPublisher;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,7 +50,7 @@ import java.util.UUID;
 @Transactional
 public class ResultPublicationService {
 
-    private static final String NOTIFICATION_TOPIC = "exam.notifications.outbound";
+    private static final String NOTIFICATION_TOPIC = MessagingConstants.NOTIFICATIONS_OUTBOUND_TOPIC;
 
     private final ResultRepository resultRepository;
     private final DigiLockerClient digiLockerClient;
@@ -145,12 +146,12 @@ public class ResultPublicationService {
     private void publishNotificationEvent(UUID candidateId, UUID examId, String tenantId) {
         try {
             Map<String, Object> event = Map.of(
-                    "eventType", "RESULT_PUBLISHED_NOTIFICATION",
+                SharedConstants.EVENT_TYPE, "RESULT_PUBLISHED_NOTIFICATION",
                     "candidateId", candidateId.toString(),
                     "examId", examId.toString(),
                 SharedConstants.TENANT_ID, tenantId,
                 SharedConstants.MESSAGE, "Your examination result is now available.",
-                    "occurredAt", Instant.now().toString()
+                SharedConstants.OCCURRED_AT, Instant.now().toString()
             );
             eventPublisher.publish(NOTIFICATION_TOPIC, candidateId.toString(), event);
         } catch (Exception e) {

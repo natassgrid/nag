@@ -70,6 +70,7 @@ class RiskAssessmentServiceTest {
     @BeforeEach
     void setUp() {
         riskAssessmentService = new RiskAssessmentService(redisTemplate, geoIpService, dynamicConfigService);
+        lenient().when(dynamicConfigService.getBoolean(eq("auth.risk.time.enabled"), anyString(), anyBoolean())).thenReturn(true);
     }
 
     private UserAccount buildAccount(String storedFingerprint) {
@@ -167,6 +168,18 @@ class RiskAssessmentServiceTest {
 
             boolean result = riskAssessmentService.isStepUpRequired(
                     account, null, IP_ADDRESS, LocalDateTime.of(2024, 1, 15, 6, 0));
+
+            assertThat(result).isFalse();
+        }
+
+        @Test
+        @DisplayName("step-up NOT required at 3:00 AM when auth.risk.time.enabled is false")
+        void stepUpNotRequiredWhenTimeRiskDisabled() {
+            UserAccount account = buildAccount(null);
+            when(dynamicConfigService.getBoolean(eq("auth.risk.time.enabled"), eq("default"), eq(true))).thenReturn(false);
+
+            boolean result = riskAssessmentService.isStepUpRequired(
+                    account, null, IP_ADDRESS, LocalDateTime.of(2024, 1, 15, 3, 0));
 
             assertThat(result).isFalse();
         }

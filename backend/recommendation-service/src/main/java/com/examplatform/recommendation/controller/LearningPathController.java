@@ -2,14 +2,7 @@
 package com.examplatform.recommendation.controller;
 
 import com.examplatform.recommendation.domain.DynamicLearningPath;
-import com.examplatform.recommendation.dto.DynamicLearningPathResponse;
-import com.examplatform.recommendation.dto.GatekeeperStatusResponse;
-import com.examplatform.recommendation.dto.LearningPathSummaryResponse;
-import com.examplatform.recommendation.dto.RecalculateLearningPathRequest;
-import com.examplatform.recommendation.dto.StartAdaptiveQuizResponse;
-import com.examplatform.recommendation.dto.StartGatekeeperResponse;
-import com.examplatform.recommendation.dto.SubmitGatekeeperScoreRequest;
-import com.examplatform.recommendation.dto.SubmitQuizScoreRequest;
+import com.examplatform.recommendation.dto.*;
 import com.examplatform.recommendation.service.LearningPathGeneratorService;
 import com.examplatform.recommendation.service.MilestoneProgressionService;
 import lombok.RequiredArgsConstructor;
@@ -17,13 +10,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
+import java.util.Objects;
 import java.util.UUID;
 
 @RestController
@@ -40,7 +29,7 @@ public class LearningPathController {
     @GetMapping("/current")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<DynamicLearningPathResponse> getCurrentPath(@AuthenticationPrincipal Jwt jwt) {
-        UUID candidateId = UUID.fromString(jwt.getSubject());
+        UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         return learningPathGeneratorService.getCurrentActivePath(candidateId)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> {
@@ -57,7 +46,7 @@ public class LearningPathController {
     public ResponseEntity<DynamicLearningPathResponse> recalculate(
             @AuthenticationPrincipal Jwt jwt,
             @RequestBody(required = false) RecalculateLearningPathRequest request) {
-        UUID candidateId = UUID.fromString(jwt.getSubject());
+        UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         UUID sourceSessionId = request != null ? request.sourceSessionId() : null;
         String examTarget = request != null ? request.examTarget() : null;
 
@@ -71,7 +60,7 @@ public class LearningPathController {
     @GetMapping("/summary")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<LearningPathSummaryResponse> getSummary(@AuthenticationPrincipal Jwt jwt) {
-        UUID candidateId = UUID.fromString(jwt.getSubject());
+        UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         return ResponseEntity.ok(learningPathGeneratorService.getSummary(candidateId));
     }
 
@@ -83,7 +72,7 @@ public class LearningPathController {
     public ResponseEntity<DynamicLearningPathResponse> completeMilestone(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable String milestoneId) {
-        UUID candidateId = UUID.fromString(jwt.getSubject());
+        UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         DynamicLearningPathResponse response = milestoneProgressionService.completeMilestone(candidateId, milestoneId);
         return ResponseEntity.ok(response);
     }
@@ -94,7 +83,7 @@ public class LearningPathController {
     @PostMapping("/adaptive-quiz/start")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<StartAdaptiveQuizResponse> startAdaptiveQuiz(@AuthenticationPrincipal Jwt jwt) {
-        UUID candidateId = UUID.fromString(jwt.getSubject());
+        UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         StartAdaptiveQuizResponse response = milestoneProgressionService.startAdaptiveQuiz(candidateId);
         return ResponseEntity.ok(response);
     }
@@ -107,7 +96,7 @@ public class LearningPathController {
     public ResponseEntity<DynamicLearningPathResponse> submitAdaptiveQuiz(
             @AuthenticationPrincipal Jwt jwt,
             @RequestBody SubmitQuizScoreRequest request) {
-        UUID candidateId = UUID.fromString(jwt.getSubject());
+        UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         DynamicLearningPathResponse response = milestoneProgressionService.submitAdaptiveQuiz(candidateId, request);
         return ResponseEntity.ok(response);
     }
@@ -118,7 +107,7 @@ public class LearningPathController {
     @PostMapping("/gatekeeper/start")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<StartGatekeeperResponse> startGatekeeperTest(@AuthenticationPrincipal Jwt jwt) {
-        UUID candidateId = UUID.fromString(jwt.getSubject());
+        UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         StartGatekeeperResponse response = milestoneProgressionService.startGatekeeperTest(candidateId);
         return ResponseEntity.ok(response);
     }
@@ -131,7 +120,7 @@ public class LearningPathController {
     public ResponseEntity<DynamicLearningPathResponse> submitGatekeeperTest(
             @AuthenticationPrincipal Jwt jwt,
             @RequestBody SubmitGatekeeperScoreRequest request) {
-        UUID candidateId = UUID.fromString(jwt.getSubject());
+        UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         DynamicLearningPathResponse response = milestoneProgressionService.submitGatekeeperTest(candidateId, request);
         return ResponseEntity.ok(response);
     }
@@ -142,7 +131,7 @@ public class LearningPathController {
     @GetMapping("/gatekeeper/status")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<GatekeeperStatusResponse> getGatekeeperStatus(@AuthenticationPrincipal Jwt jwt) {
-        UUID candidateId = UUID.fromString(jwt.getSubject());
+        UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         GatekeeperStatusResponse response = milestoneProgressionService.getGatekeeperStatus(candidateId);
         return ResponseEntity.ok(response);
     }
