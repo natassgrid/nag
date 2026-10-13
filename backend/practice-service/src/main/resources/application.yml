@@ -151,6 +151,9 @@ logging:
   pattern:
     console: '{"timestamp":"%d{ISO8601}","level":"%p","service":"practice-service","traceId":"%X{traceId}","spanId":"%X{spanId}","message":"%m"}%n'
 
+anvaya-prajna:
+  base-url: ${ANVAYA_PRAJNA_BASE_URL:http://localhost:8080}
+
 resilience4j:
   circuitbreaker:
     instances:
@@ -159,3 +162,20 @@ resilience4j:
         failure-rate-threshold: 50
         wait-duration-in-open-state: 30s
         permitted-number-of-calls-in-half-open-state: 3
+      anvayaPrajna:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+        minimum-number-of-calls: 5
+  timelimiter:
+    instances:
+      anvayaPrajna:
+        timeout-duration: 3s
+        cancel-running-future: true
+  retry:
+    instances:
+      anvayaPrajna:
+        max-attempts: 3
+        wait-duration: 500ms
+        exponential-backoff-multiplier: 2
