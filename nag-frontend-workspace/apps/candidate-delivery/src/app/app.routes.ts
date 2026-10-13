@@ -106,6 +106,8 @@ export const appRoutes: Route[] = [
     loadComponent: () => import('./learn/learn.component').then(m => m.LearnComponent),
     children: [
       { path: 'recommendations', loadComponent: () => import('./learn/components/recommendations-dashboard/recommendations-dashboard.component').then(m => m.RecommendationsDashboardComponent) },
+      { path: 'roadmap', loadComponent: () => import('./learn/components/dlp-roadmap/dlp-roadmap.component').then(m => m.DlpRoadmapComponent) },
+      { path: 'lesson/:subtopicId', loadComponent: () => import('./learn/components/micro-lesson-viewer/micro-lesson-viewer.component').then(m => m.MicroLessonViewerComponent) },
       { path: '', redirectTo: 'recommendations', pathMatch: 'full' }
     ]
   },

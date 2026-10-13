@@ -94,6 +94,6 @@ export class AdminDashboardComponent implements OnInit {
 
   formatNumber(val: number | undefined | null): string {
     if (val === undefined || val === null) return '0';
-    return Number(val).toLocaleString();
+    return Number(val).toLocaleString('en-US');
   }
 }

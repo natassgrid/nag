@@ -183,6 +183,14 @@ export const appRoutes: Route[] = [
       ),
   },
   {
+    path: 'learning/micro-lessons',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./learning/components/micro-lesson-review/micro-lesson-review.component').then(
+        (m) => m.MicroLessonReviewComponent
+      ),
+  },
+  {
     path: 'learning',
     canActivate: [authGuard],
     loadComponent: () =>
