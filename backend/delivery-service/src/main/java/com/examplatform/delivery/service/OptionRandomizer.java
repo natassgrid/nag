@@ -54,122 +54,184 @@ public class OptionRandomizer {
             return Collections.emptyList();
         }
 
-        long baseSeed = seedId != null
-                ? (seedId.getMostSignificantBits() ^ seedId.getLeastSignificantBits())
-                : System.currentTimeMillis();
-
+        long baseSeed = computeBaseSeed(seedId);
         List<QuestionDeliveryDto> randomizedList = new ArrayList<>(questions.size());
 
         for (QuestionDeliveryDto q : questions) {
-            if (q.getOptions() == null || q.getOptions().size() <= 1) {
-                randomizedList.add(q);
-                continue;
-            }
-
-            long qSeed = baseSeed ^ (q.getId() != null ? q.getId().hashCode() : 0);
-            Random random = new Random(qSeed);
-
-            List<QuestionOptionDeliveryDto> shuffled = new ArrayList<>(q.getOptions());
-            Collections.shuffle(shuffled, random);
-
-            Integer newCorrectOptionIndex = null;
-            List<QuestionOptionDeliveryDto> reindexedOptions = new ArrayList<>(shuffled.size());
-            Map<String, Integer> idToNewIndexMap = new HashMap<>();
-
-            for (int i = 0; i < shuffled.size(); i++) {
-                QuestionOptionDeliveryDto original = shuffled.get(i);
-                if (q.getCorrectOptionIndex() != null && original.getOriginalIndex() == q.getCorrectOptionIndex()) {
-                    newCorrectOptionIndex = i;
-                }
-                idToNewIndexMap.put(original.getId(), i);
-
-                reindexedOptions.add(QuestionOptionDeliveryDto.builder()
-                        .id(original.getId())
-                        .index(i)
-                        .originalIndex(original.getOriginalIndex())
-                        .text(original.getText())
-                        .imageUrl(original.getImageUrl())
-                        .imageAltText(original.getImageAltText())
-                        .build());
-            }
-
-            // Also re-index translations to match the exact option IDs and preserve image assets
-            Map<String, TranslatedQuestionDeliveryDto> randomizedTranslations = new HashMap<>();
-            if (q.getTranslations() != null) {
-                for (Map.Entry<String, TranslatedQuestionDeliveryDto> entry : q.getTranslations().entrySet()) {
-                    TranslatedQuestionDeliveryDto trans = entry.getValue();
-                    List<QuestionOptionDeliveryDto> transOptions = new ArrayList<>();
-                    if (trans.getOptions() != null && !trans.getOptions().isEmpty()) {
-                        Map<String, QuestionOptionDeliveryDto> transOptMap = new HashMap<>();
-                        for (QuestionOptionDeliveryDto opt : trans.getOptions()) {
-                            transOptMap.put(opt.getId(), opt);
-                        }
-
-                        for (int i = 0; i < reindexedOptions.size(); i++) {
-                            QuestionOptionDeliveryDto baseOpt = reindexedOptions.get(i);
-                            QuestionOptionDeliveryDto transOpt = transOptMap.get(baseOpt.getId());
-                            if (transOpt != null) {
-                                String optImg = (transOpt.getImageUrl() != null && !transOpt.getImageUrl().isBlank())
-                                        ? transOpt.getImageUrl()
-                                        : baseOpt.getImageUrl();
-                                String optAlt = (transOpt.getImageAltText() != null && !transOpt.getImageAltText().isBlank())
-                                        ? transOpt.getImageAltText()
-                                        : baseOpt.getImageAltText();
-
-                                transOptions.add(QuestionOptionDeliveryDto.builder()
-                                        .id(baseOpt.getId())
-                                        .index(i)
-                                        .originalIndex(transOpt.getOriginalIndex())
-                                        .text(transOpt.getText())
-                                        .imageUrl(optImg)
-                                        .imageAltText(optAlt)
-                                        .build());
-                            } else {
-                                transOptions.add(QuestionOptionDeliveryDto.builder()
-                                        .id(baseOpt.getId())
-                                        .index(i)
-                                        .originalIndex(baseOpt.getOriginalIndex())
-                                        .text(baseOpt.getText())
-                                        .imageUrl(baseOpt.getImageUrl())
-                                        .imageAltText(baseOpt.getImageAltText())
-                                        .build());
-                            }
-                        }
-                    }
-
-                    randomizedTranslations.put(entry.getKey(), TranslatedQuestionDeliveryDto.builder()
-                            .languageCode(trans.getLanguageCode())
-                            .content(trans.getContent())
-                            .imageUrl(trans.getImageUrl() != null ? trans.getImageUrl() : q.getImageUrl())
-                            .imageAltText(trans.getImageAltText() != null ? trans.getImageAltText() : q.getImageAltText())
-                            .options(transOptions)
-                            .explanation(trans.getExplanation())
-                            .build());
-                }
-            }
-
-            randomizedList.add(QuestionDeliveryDto.builder()
-                    .id(q.getId())
-                    .text(q.getText())
-                    .imageUrl(q.getImageUrl())
-                    .imageAltText(q.getImageAltText())
-                    .hasImages(q.isHasImages())
-                    .options(reindexedOptions)
-                    .marks(q.getMarks())
-                    .negativeMarks(q.getNegativeMarks())
-                    .sectionId(q.getSectionId())
-                    .sectionName(q.getSectionName())
-                    .topic(q.getTopic())
-                    .correctOptionIndex(newCorrectOptionIndex != null ? newCorrectOptionIndex : q.getCorrectOptionIndex())
-                    .explanation(q.getExplanation())
-                    .questionType(q.getQuestionType())
-                    .passageId(q.getPassageId())
-                    .passageContent(q.getPassageContent())
-                    .passageOrderIndex(q.getPassageOrderIndex())
-                    .translations(randomizedTranslations)
-                    .build());
+            randomizedList.add(randomizeQuestion(q, baseSeed));
         }
 
         return randomizedList;
+    }
+
+    private long computeBaseSeed(UUID seedId) {
+        if (seedId != null) {
+            return seedId.getMostSignificantBits() ^ seedId.getLeastSignificantBits();
+        }
+        return System.currentTimeMillis();
+    }
+
+    private QuestionDeliveryDto randomizeQuestion(QuestionDeliveryDto q, long baseSeed) {
+        if (q.getOptions() == null || q.getOptions().size() <= 1) {
+            return q;
+        }
+
+        long qSeed = baseSeed ^ (q.getId() != null ? q.getId().hashCode() : 0);
+        List<QuestionOptionDeliveryDto> shuffled = new ArrayList<>(q.getOptions());
+        Collections.shuffle(shuffled, new Random(qSeed));
+
+        ReindexedOptionsResult reindexedResult = reindexOptions(shuffled, q.getCorrectOptionIndex());
+        Map<String, TranslatedQuestionDeliveryDto> randomizedTranslations =
+                reindexTranslations(q.getTranslations(), reindexedResult.reindexedOptions(), q.getImageUrl(), q.getImageAltText());
+
+        Integer finalCorrectIndex = reindexedResult.newCorrectOptionIndex() != null
+                ? reindexedResult.newCorrectOptionIndex()
+                : q.getCorrectOptionIndex();
+
+        return buildRandomizedQuestion(q, reindexedResult.reindexedOptions(), finalCorrectIndex, randomizedTranslations);
+    }
+
+    record ReindexedOptionsResult(
+            List<QuestionOptionDeliveryDto> reindexedOptions,
+            Integer newCorrectOptionIndex
+    ) {}
+
+    private ReindexedOptionsResult reindexOptions(List<QuestionOptionDeliveryDto> shuffled, Integer originalCorrectIndex) {
+        Integer newCorrectOptionIndex = null;
+        List<QuestionOptionDeliveryDto> reindexedOptions = new ArrayList<>(shuffled.size());
+
+        for (int i = 0; i < shuffled.size(); i++) {
+            QuestionOptionDeliveryDto original = shuffled.get(i);
+            if (originalCorrectIndex != null && original.getOriginalIndex() == originalCorrectIndex) {
+                newCorrectOptionIndex = i;
+            }
+
+            reindexedOptions.add(QuestionOptionDeliveryDto.builder()
+                    .id(original.getId())
+                    .index(i)
+                    .originalIndex(original.getOriginalIndex())
+                    .text(original.getText())
+                    .imageUrl(original.getImageUrl())
+                    .imageAltText(original.getImageAltText())
+                    .build());
+        }
+
+        return new ReindexedOptionsResult(reindexedOptions, newCorrectOptionIndex);
+    }
+
+    private Map<String, TranslatedQuestionDeliveryDto> reindexTranslations(
+            Map<String, TranslatedQuestionDeliveryDto> translations,
+            List<QuestionOptionDeliveryDto> baseOptions,
+            String defaultImageUrl,
+            String defaultImageAltText) {
+        if (translations == null || translations.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        Map<String, TranslatedQuestionDeliveryDto> randomizedTranslations = new HashMap<>();
+        for (Map.Entry<String, TranslatedQuestionDeliveryDto> entry : translations.entrySet()) {
+            randomizedTranslations.put(
+                    entry.getKey(),
+                    reindexSingleTranslation(entry.getValue(), baseOptions, defaultImageUrl, defaultImageAltText)
+            );
+        }
+        return randomizedTranslations;
+    }
+
+    private TranslatedQuestionDeliveryDto reindexSingleTranslation(
+            TranslatedQuestionDeliveryDto trans,
+            List<QuestionOptionDeliveryDto> baseOptions,
+            String defaultImageUrl,
+            String defaultImageAltText) {
+        List<QuestionOptionDeliveryDto> transOptions = reindexTranslationOptions(trans.getOptions(), baseOptions);
+
+        return TranslatedQuestionDeliveryDto.builder()
+                .languageCode(trans.getLanguageCode())
+                .content(trans.getContent())
+                .imageUrl(trans.getImageUrl() != null ? trans.getImageUrl() : defaultImageUrl)
+                .imageAltText(trans.getImageAltText() != null ? trans.getImageAltText() : defaultImageAltText)
+                .options(transOptions)
+                .explanation(trans.getExplanation())
+                .build();
+    }
+
+    private List<QuestionOptionDeliveryDto> reindexTranslationOptions(
+            List<QuestionOptionDeliveryDto> transOptionsList,
+            List<QuestionOptionDeliveryDto> baseOptions) {
+        if (transOptionsList == null || transOptionsList.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        Map<String, QuestionOptionDeliveryDto> transOptMap = new HashMap<>();
+        for (QuestionOptionDeliveryDto opt : transOptionsList) {
+            transOptMap.put(opt.getId(), opt);
+        }
+
+        List<QuestionOptionDeliveryDto> result = new ArrayList<>(baseOptions.size());
+        for (int i = 0; i < baseOptions.size(); i++) {
+            QuestionOptionDeliveryDto baseOpt = baseOptions.get(i);
+            QuestionOptionDeliveryDto transOpt = transOptMap.get(baseOpt.getId());
+            result.add(buildAlignedOption(baseOpt, transOpt, i));
+        }
+        return result;
+    }
+
+    private QuestionOptionDeliveryDto buildAlignedOption(
+            QuestionOptionDeliveryDto baseOpt,
+            QuestionOptionDeliveryDto transOpt,
+            int index) {
+        if (transOpt == null) {
+            return QuestionOptionDeliveryDto.builder()
+                    .id(baseOpt.getId())
+                    .index(index)
+                    .originalIndex(baseOpt.getOriginalIndex())
+                    .text(baseOpt.getText())
+                    .imageUrl(baseOpt.getImageUrl())
+                    .imageAltText(baseOpt.getImageAltText())
+                    .build();
+        }
+
+        String optImg = resolveImage(transOpt.getImageUrl(), baseOpt.getImageUrl());
+        String optAlt = resolveImage(transOpt.getImageAltText(), baseOpt.getImageAltText());
+
+        return QuestionOptionDeliveryDto.builder()
+                .id(baseOpt.getId())
+                .index(index)
+                .originalIndex(transOpt.getOriginalIndex())
+                .text(transOpt.getText())
+                .imageUrl(optImg)
+                .imageAltText(optAlt)
+                .build();
+    }
+
+    private String resolveImage(String specific, String fallback) {
+        return (specific != null && !specific.isBlank()) ? specific : fallback;
+    }
+
+    private QuestionDeliveryDto buildRandomizedQuestion(
+            QuestionDeliveryDto q,
+            List<QuestionOptionDeliveryDto> reindexedOptions,
+            Integer finalCorrectIndex,
+            Map<String, TranslatedQuestionDeliveryDto> randomizedTranslations) {
+        return QuestionDeliveryDto.builder()
+                .id(q.getId())
+                .text(q.getText())
+                .imageUrl(q.getImageUrl())
+                .imageAltText(q.getImageAltText())
+                .hasImages(q.isHasImages())
+                .options(reindexedOptions)
+                .marks(q.getMarks())
+                .negativeMarks(q.getNegativeMarks())
+                .sectionId(q.getSectionId())
+                .sectionName(q.getSectionName())
+                .topic(q.getTopic())
+                .correctOptionIndex(finalCorrectIndex)
+                .explanation(q.getExplanation())
+                .questionType(q.getQuestionType())
+                .passageId(q.getPassageId())
+                .passageContent(q.getPassageContent())
+                .passageOrderIndex(q.getPassageOrderIndex())
+                .translations(randomizedTranslations)
+                .build();
     }
 }

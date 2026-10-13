@@ -40,39 +40,51 @@ public class MockExamAccessValidator {
             return;
         }
 
-        boolean isMock = false;
-        try {
-            Boolean examTableExists = jdbcTemplate.queryForObject(
-                    "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'examination_service' AND table_name = 'examination')",
-                    Boolean.class
-            );
-            if (Boolean.TRUE.equals(examTableExists)) {
-                String examSql = "SELECT title, exam_type FROM examination_service.examination WHERE id = ?";
-                Boolean mockFound = jdbcTemplate.query(examSql, rs -> {
-                    if (rs.next()) {
-                        String title = rs.getString("title");
-                        String type = rs.getString("exam_type");
-                        return (title != null && title.toLowerCase().contains("mock"))
-                                || (type != null && type.toLowerCase().contains("mock"));
-                    }
-                    return false;
-                }, examId);
-                isMock = Boolean.TRUE.equals(mockFound);
-            }
-        } catch (Exception e) {
-            log.debug("Could not verify exam type: {}", e.getMessage());
-        }
-
-        if (!isMock) {
+        if (!isMockExam(jdbcTemplate, examId)) {
             return;
         }
 
+        checkGatekeeperPrerequisite(jdbcTemplate, candidateId);
+    }
+
+    private boolean isMockExam(JdbcTemplate jdbcTemplate, UUID examId) {
         try {
-            Boolean dlpTableExists = jdbcTemplate.queryForObject(
-                    "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'recommendation_service' AND table_name = 'dynamic_learning_path')",
-                    Boolean.class
-            );
-            if (!Boolean.TRUE.equals(dlpTableExists)) {
+            if (!tableExists(jdbcTemplate, "examination_service", "examination")) {
+                return false;
+            }
+            String examSql = "SELECT title, exam_type FROM examination_service.examination WHERE id = ?";
+            Boolean mockFound = jdbcTemplate.query(examSql, rs -> {
+                if (rs.next()) {
+                    String title = rs.getString("title");
+                    String type = rs.getString("exam_type");
+                    return isMockText(title) || isMockText(type);
+                }
+                return false;
+            }, examId);
+            return Boolean.TRUE.equals(mockFound);
+        } catch (Exception e) {
+            log.debug("Could not verify exam type: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    private boolean isMockText(String text) {
+        return text != null && text.toLowerCase().contains("mock");
+    }
+
+    private boolean tableExists(JdbcTemplate jdbcTemplate, String schema, String table) {
+        Boolean exists = jdbcTemplate.queryForObject(
+                "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = ? AND table_name = ?)",
+                Boolean.class,
+                schema,
+                table
+        );
+        return Boolean.TRUE.equals(exists);
+    }
+
+    private void checkGatekeeperPrerequisite(JdbcTemplate jdbcTemplate, UUID candidateId) {
+        try {
+            if (!tableExists(jdbcTemplate, "recommendation_service", "dynamic_learning_path")) {
                 return;
             }
 
@@ -86,34 +98,43 @@ public class MockExamAccessValidator {
 
             jdbcTemplate.query(sql, rs -> {
                 String graphJson = rs.getString("milestone_graph_json");
-                if (graphJson != null && !graphJson.isBlank()) {
-                    try {
-                        JsonNode root = objectMapper.readTree(graphJson);
-                        boolean gatekeeperPassed = root.has("gatekeeperPassed") && root.get("gatekeeperPassed").asBoolean();
-                        if (!gatekeeperPassed) {
-                            JsonNode conceptualGaps = root.get("conceptualGaps");
-                            JsonNode applicationGaps = root.get("applicationGaps");
-                            boolean hasGaps = (conceptualGaps != null && conceptualGaps.size() > 0)
-                                    || (applicationGaps != null && applicationGaps.size() > 0);
-
-                            if (hasGaps) {
-                                throw new ResponseStatusException(
-                                        HttpStatus.UNPROCESSABLE_ENTITY,
-                                        "GATEKEEPER_REQUIRED: Candidate must complete Phase 3 Gatekeeper Test before accessing full mock examinations."
-                                );
-                            }
-                        }
-                    } catch (ResponseStatusException rse) {
-                        throw rse;
-                    } catch (Exception parseEx) {
-                        log.warn("Failed to parse DLP JSON for candidate {}: {}", candidateId, parseEx.getMessage());
-                    }
-                }
+                evaluateMilestoneGraph(graphJson, candidateId);
             }, candidateId);
         } catch (ResponseStatusException e) {
             throw e;
         } catch (Exception e) {
             log.debug("Gatekeeper check bypassed or schema not reachable: {}", e.getMessage());
         }
+    }
+
+    private void evaluateMilestoneGraph(String graphJson, UUID candidateId) {
+        if (graphJson == null || graphJson.isBlank()) {
+            return;
+        }
+        try {
+            JsonNode root = objectMapper.readTree(graphJson);
+            if (isGatekeeperRequired(root)) {
+                throw new ResponseStatusException(
+                        HttpStatus.UNPROCESSABLE_ENTITY,
+                        "GATEKEEPER_REQUIRED: Candidate must complete Phase 3 Gatekeeper Test before accessing full mock examinations."
+                );
+            }
+        } catch (ResponseStatusException rse) {
+            throw rse;
+        } catch (Exception parseEx) {
+            log.warn("Failed to parse DLP JSON for candidate {}: {}", candidateId, parseEx.getMessage());
+        }
+    }
+
+    private boolean isGatekeeperRequired(JsonNode root) {
+        boolean gatekeeperPassed = root.has("gatekeeperPassed") && root.get("gatekeeperPassed").asBoolean();
+        if (gatekeeperPassed) {
+            return false;
+        }
+        return hasGaps(root.get("conceptualGaps")) || hasGaps(root.get("applicationGaps"));
+    }
+
+    private boolean hasGaps(JsonNode gapsNode) {
+        return gapsNode != null && gapsNode.size() > 0;
     }
 }

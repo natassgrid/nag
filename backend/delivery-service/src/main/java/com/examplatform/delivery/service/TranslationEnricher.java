@@ -45,6 +45,9 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class TranslationEnricher {
 
+    private static final String FIELD_IMAGE_URL = "imageUrl";
+    private static final String FIELD_IMAGE_ALT_TEXT = "imageAltText";
+
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
 
@@ -57,23 +60,31 @@ public class TranslationEnricher {
             return;
         }
 
-        List<UUID> questionUuids = new ArrayList<>();
-        Map<UUID, QuestionDeliveryDto> dtoMap = new HashMap<>();
-        for (QuestionDeliveryDto q : questions) {
-            try {
-                if (q.getId() != null) {
-                    UUID uid = UUID.fromString(q.getId());
-                    questionUuids.add(uid);
-                    dtoMap.put(uid, q);
-                }
-            } catch (IllegalArgumentException ignored) {
-            }
-        }
-
-        if (questionUuids.isEmpty()) {
+        Map<UUID, QuestionDeliveryDto> dtoMap = buildQuestionDtoMap(questions);
+        if (dtoMap.isEmpty()) {
             return;
         }
 
+        queryAndAttachTranslations(dtoMap, tenantId);
+    }
+
+    private Map<UUID, QuestionDeliveryDto> buildQuestionDtoMap(List<QuestionDeliveryDto> questions) {
+        Map<UUID, QuestionDeliveryDto> dtoMap = new HashMap<>();
+        for (QuestionDeliveryDto q : questions) {
+            if (q.getId() != null) {
+                try {
+                    dtoMap.put(UUID.fromString(q.getId()), q);
+                } catch (IllegalArgumentException _) {
+                    // Ignore questions with invalid UUID format
+                }
+            }
+        }
+        return dtoMap;
+    }
+
+    @SuppressWarnings("java:S2077") // Dynamic inSql only contains '?' placeholders safely parameterized
+    private void queryAndAttachTranslations(Map<UUID, QuestionDeliveryDto> dtoMap, String tenantId) {
+        List<UUID> questionUuids = new ArrayList<>(dtoMap.keySet());
         try {
             String inSql = String.join(",", Collections.nCopies(questionUuids.size(), "?"));
             String sql = String.format("""
@@ -89,81 +100,100 @@ public class TranslationEnricher {
             params.addAll(questionUuids);
 
             jdbcTemplate.query(sql, rs -> {
-                UUID qId = null;
-                Object obj = rs.getObject("question_id");
-                if (obj instanceof UUID) {
-                    qId = (UUID) obj;
-                } else if (obj != null) {
-                    try {
-                        qId = UUID.fromString(obj.toString());
-                    } catch (Exception ignored) {}
-                }
+                UUID qId = extractQuestionId(rs.getObject("question_id"));
                 String langCode = rs.getString("language_code");
                 String payload = rs.getString("translated_payload");
-
-                QuestionDeliveryDto qDto = dtoMap.get(qId);
-                if (qDto != null && payload != null && !payload.isBlank()) {
-                    try {
-                        JsonNode node = objectMapper.readTree(payload);
-                        String transContent = node.path("content").asText(null);
-                        String transExplanation = node.path("explanation").asText(null);
-                        String transImageUrl = node.has("imageUrl") && !node.get("imageUrl").isNull()
-                                ? node.get("imageUrl").asText(null)
-                                : qDto.getImageUrl();
-                        String transImageAltText = node.has("imageAltText") && !node.get("imageAltText").isNull()
-                                ? node.get("imageAltText").asText(null)
-                                : qDto.getImageAltText();
-
-                        List<QuestionOptionDeliveryDto> transOptions = new ArrayList<>();
-                        JsonNode optNode = node.path("options");
-                        if (optNode.isArray() && qDto.getOptions() != null) {
-                            for (int i = 0; i < optNode.size(); i++) {
-                                JsonNode o = optNode.get(i);
-                                String optText = o.path("text").asText("");
-                                String optId = o.has("id") ? o.path("id").asText("") : String.valueOf((char) ('A' + i));
-                                String optImg = o.has("imageUrl") && !o.get("imageUrl").isNull()
-                                        ? o.get("imageUrl").asText(null) : null;
-                                String optAlt = o.has("imageAltText") && !o.get("imageAltText").isNull()
-                                        ? o.get("imageAltText").asText(null) : null;
-
-                                if (optImg == null && i < qDto.getOptions().size()) {
-                                    optImg = qDto.getOptions().get(i).getImageUrl();
-                                    if (optAlt == null) {
-                                        optAlt = qDto.getOptions().get(i).getImageAltText();
-                                    }
-                                }
-
-                                transOptions.add(QuestionOptionDeliveryDto.builder()
-                                        .id(optId)
-                                        .index(i)
-                                        .originalIndex(i)
-                                        .text(optText)
-                                        .imageUrl(optImg)
-                                        .imageAltText(optAlt)
-                                        .build());
-                            }
-                        }
-
-                        if (transContent != null) {
-                            if (qDto.getTranslations() == null) {
-                                qDto.setTranslations(new HashMap<>());
-                            }
-                            qDto.getTranslations().put(langCode, TranslatedQuestionDeliveryDto.builder()
-                                    .languageCode(langCode)
-                                    .content(transContent)
-                                    .imageUrl(transImageUrl)
-                                    .imageAltText(transImageAltText)
-                                    .options(transOptions)
-                                    .explanation(transExplanation)
-                                    .build());
-                        }
-                    } catch (Exception e) {
-                        log.warn("Failed to parse translation payload for question {}: {}", qId, e.getMessage());
-                    }
-                }
+                processTranslationRow(dtoMap.get(qId), qId, langCode, payload);
             }, params.toArray());
         } catch (Exception e) {
             log.warn("Could not query translations for delivery questions: {}", e.getMessage());
         }
+    }
+
+    private UUID extractQuestionId(Object obj) {
+        if (obj instanceof UUID uuid) {
+            return uuid;
+        }
+        if (obj != null) {
+            try {
+                return UUID.fromString(obj.toString());
+            } catch (Exception _) {
+                // Ignore unparseable question ID object
+            }
+        }
+        return null;
+    }
+
+    private void processTranslationRow(QuestionDeliveryDto qDto, UUID qId, String langCode, String payload) {
+        if (qDto == null || payload == null || payload.isBlank()) {
+            return;
+        }
+
+        try {
+            JsonNode node = objectMapper.readTree(payload);
+            String transContent = node.path("content").asText(null);
+            if (transContent == null) {
+                return;
+            }
+
+            String transExplanation = node.path("explanation").asText(null);
+            String transImageUrl = getTextFieldOrDefault(node, FIELD_IMAGE_URL, qDto.getImageUrl());
+            String transImageAltText = getTextFieldOrDefault(node, FIELD_IMAGE_ALT_TEXT, qDto.getImageAltText());
+            List<QuestionOptionDeliveryDto> transOptions = parseTranslatedOptions(node.path("options"), qDto.getOptions());
+
+            if (qDto.getTranslations() == null) {
+                qDto.setTranslations(new HashMap<>());
+            }
+            qDto.getTranslations().put(langCode, TranslatedQuestionDeliveryDto.builder()
+                    .languageCode(langCode)
+                    .content(transContent)
+                    .imageUrl(transImageUrl)
+                    .imageAltText(transImageAltText)
+                    .options(transOptions)
+                    .explanation(transExplanation)
+                    .build());
+        } catch (Exception e) {
+            log.warn("Failed to parse translation payload for question {}: {}", qId, e.getMessage());
+        }
+    }
+
+    private List<QuestionOptionDeliveryDto> parseTranslatedOptions(
+            JsonNode optNode, List<QuestionOptionDeliveryDto> baseOptions) {
+        List<QuestionOptionDeliveryDto> transOptions = new ArrayList<>();
+        if (!optNode.isArray() || baseOptions == null) {
+            return transOptions;
+        }
+
+        for (int i = 0; i < optNode.size(); i++) {
+            JsonNode o = optNode.get(i);
+            String optText = o.path("text").asText("");
+            String optId = o.has("id") ? o.path("id").asText("") : String.valueOf((char) ('A' + i));
+            String optImg = getTextFieldOrDefault(o, FIELD_IMAGE_URL, null);
+            String optAlt = getTextFieldOrDefault(o, FIELD_IMAGE_ALT_TEXT, null);
+
+            if (optImg == null && i < baseOptions.size()) {
+                optImg = baseOptions.get(i).getImageUrl();
+                if (optAlt == null) {
+                    optAlt = baseOptions.get(i).getImageAltText();
+                }
+            }
+
+            transOptions.add(QuestionOptionDeliveryDto.builder()
+                    .id(optId)
+                    .index(i)
+                    .originalIndex(i)
+                    .text(optText)
+                    .imageUrl(optImg)
+                    .imageAltText(optAlt)
+                    .build());
+        }
+        return transOptions;
+    }
+
+    private static String getTextFieldOrDefault(JsonNode node, String fieldName, String defaultValue) {
+        if (node != null && node.has(fieldName) && !node.get(fieldName).isNull()) {
+            return node.get(fieldName).asText(null);
+        }
+        return defaultValue;
     }
 }

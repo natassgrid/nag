@@ -63,6 +63,18 @@ import java.util.UUID;
 @Transactional
 public class SessionStartService {
 
+    private static final String DEFAULT_TENANT = "default";
+    private static final String SESSION_CACHE_PREFIX = "session:";
+    private static final String TOPIC_SESSION_EVENTS = "exam.session.events";
+
+    private static final Map<String, String> STANDARD_EXAM_TITLES = Map.of(
+            "e1000000-0000-0000-0000-000000000001", "Staff Selection Commission Combined Graduate Level (SSC CGL) Tier-1 Examination 2026",
+            "e1000000-0000-0000-0000-000000000002", "IBPS Probationary Officer (PO) Preliminary Examination 2026",
+            "e1000000-0000-0000-0000-000000000003", "UPSC Civil Services (Preliminary) Examination 2026 - Paper 1 (General Studies)",
+            "e1000000-0000-0000-0000-000000000004", "Railway Recruitment Board Non-Technical Popular Categories (RRB NTPC) CBT-1 2026",
+            "e1000000-0000-0000-0000-000000000005", "Central Teacher Eligibility Test (CTET) Paper-1 (Primary Teacher) 2026"
+    );
+
     private final ExamSessionRepository examSessionRepository;
     private final ShiftAssignmentClient shiftAssignmentClient;
     private final DisabilityExtensionService disabilityExtensionService;
@@ -130,16 +142,9 @@ public class SessionStartService {
         this.mockExamAccessValidator = mockExamAccessValidator;
     }
 
-    private static final String SESSION_CACHE_PREFIX = "session:";
-    private static final String TOPIC_SESSION_EVENTS = "exam.session.events";
-
-    private static final Map<String, String> STANDARD_EXAM_TITLES = Map.of(
-            "e1000000-0000-0000-0000-000000000001", "Staff Selection Commission Combined Graduate Level (SSC CGL) Tier-1 Examination 2026",
-            "e1000000-0000-0000-0000-000000000002", "IBPS Probationary Officer (PO) Preliminary Examination 2026",
-            "e1000000-0000-0000-0000-000000000003", "UPSC Civil Services (Preliminary) Examination 2026 - Paper 1 (General Studies)",
-            "e1000000-0000-0000-0000-000000000004", "Railway Recruitment Board Non-Technical Popular Categories (RRB NTPC) CBT-1 2026",
-            "e1000000-0000-0000-0000-000000000005", "Central Teacher Eligibility Test (CTET) Paper-1 (Primary Teacher) 2026"
-    );
+    private static String resolveEffectiveTenant(String tenantId) {
+        return (tenantId != null && !tenantId.isBlank()) ? tenantId : DEFAULT_TENANT;
+    }
 
     /**
      * Start a new exam session or seamlessly resume an active session for the candidate.
@@ -154,136 +159,51 @@ public class SessionStartService {
             mockExamAccessValidator.validateCandidateAccess(candidateId, request.getExamId());
         }
 
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = resolveEffectiveTenant(tenantId);
         Instant now = Instant.now();
 
         // 1. Check for existing active session for this candidate
-        List<ExamSession> existingSessions = examSessionRepository.findByCandidateIdAndTenantId(candidateId, effectiveTenant);
-        Optional<ExamSession> activeSessionOpt = existingSessions.stream()
-                .filter(s -> s.getStatus() == ExamSessionStatus.ACTIVE)
-                .findFirst();
-
-        if (activeSessionOpt.isPresent()) {
-            ExamSession activeSession = activeSessionOpt.get();
-
-            // Check if active session has expired past its scheduledEndAt
-            if (activeSession.getScheduledEndAt() != null && now.isAfter(activeSession.getScheduledEndAt())) {
-                log.info("Active session [{}] for candidate [{}] expired at [{}]. Marking EXPIRED.",
-                        activeSession.getSessionId(), candidateId, activeSession.getScheduledEndAt());
-                activeSession.setStatus(ExamSessionStatus.EXPIRED);
-                examSessionRepository.save(activeSession);
-            } else if (Boolean.TRUE.equals(request.getForceNewSession()) || Boolean.TRUE.equals(request.getTerminateExisting())) {
-                log.info("Terminating existing active session [{}] on exam [{}] for candidate [{}] to start exam [{}] (forceNewSession=true).",
-                        activeSession.getSessionId(), activeSession.getExamId(), candidateId, request.getExamId());
-                activeSession.setStatus(ExamSessionStatus.EXPIRED);
-                examSessionRepository.save(activeSession);
-            } else if (activeSession.getExamId() != null && activeSession.getExamId().equals(request.getExamId())) {
-                // RESUME FEATURE: Candidate reconnected or refreshed exam page
-                log.info("Resuming active session [{}] for candidate [{}] on exam [{}]",
-                        activeSession.getSessionId(), candidateId, request.getExamId());
-                return resumeSession(activeSession, effectiveTenant);
-            } else {
-                // Active session belongs to a different exam
-                throw new ConcurrentSessionException(
-                        "Candidate " + candidateId + " already has an active session for exam " + activeSession.getExamId() + " in tenant " + effectiveTenant,
-                        activeSession.getExamId(),
-                        activeSession.getSessionId());
-            }
+        Optional<SessionStartResponse> existingSessionResponse =
+                handleExistingActiveSession(request, candidateId, effectiveTenant, now);
+        if (existingSessionResponse.isPresent()) {
+            return existingSessionResponse.get();
         }
 
-        // Resolve effective shiftId
-        UUID shiftId = request.getShiftId() != null
-                ? request.getShiftId()
-                : UUID.nameUUIDFromBytes(("shift-" + request.getExamId()).getBytes(StandardCharsets.UTF_8));
+        UUID shiftId = resolveShiftId(request);
 
         // 2. Look up shift assignment from examination-service
         ShiftAssignment assignment = shiftAssignmentClient.getShiftAssignment(
                 candidateId, request.getExamId(), shiftId, effectiveTenant);
 
         // 3. Decrypt shift paper package using Vault Transit engine (in-memory only)
-        String decryptedPaper = null;
-        if (assignment != null && assignment.getEncryptedPackageRef() != null && !assignment.getEncryptedPackageRef().isBlank()) {
-            try {
-                String keyName = "shift-key-" + shiftId;
-                decryptedPaper = vaultCryptoService.decrypt(keyName, assignment.getEncryptedPackageRef());
-            } catch (Exception e) {
-                log.warn("Vault decryption failed for shift paper key [shift-key-{}]: {}", shiftId, e.getMessage());
-            }
-        }
-
+        String decryptedPaper = decryptPaperPackage(assignment, shiftId);
         UUID paperId = resolvePaperId(request.getPaperId(), assignment, request.getExamId());
-
-        // 4. Resolve delivery questions
-        List<QuestionDeliveryDto> baseQuestions = examQuestionDeliveryService != null
-                ? examQuestionDeliveryService.getDeliveryQuestions(request.getExamId(), paperId, decryptedPaper, effectiveTenant)
-                : List.of();
 
         UUID sessionId = UUID.randomUUID();
 
-        // 5. Randomize options per session
-        List<QuestionDeliveryDto> questions = (examQuestionDeliveryService != null && baseQuestions != null && !baseQuestions.isEmpty())
-                ? examQuestionDeliveryService.randomizeOptions(baseQuestions, sessionId)
-                : baseQuestions;
-        if (examQuestionDeliveryService != null && questions != null && !questions.isEmpty()) {
-            examQuestionDeliveryService.applyLanguagePreference(questions, request.getLanguageCode());
-        }
+        // 4 & 5. Resolve delivery questions and randomize options per session
+        List<QuestionDeliveryDto> questions = prepareDeliveryQuestions(
+                request.getExamId(), paperId, decryptedPaper, effectiveTenant, sessionId, request.getLanguageCode());
 
         QuestionPreparationResult qPrep = prepareQuestionsMetadata(decryptedPaper, questions);
-        String firstQuestionContent = qPrep.firstQuestionContent();
-        int totalQuestions = qPrep.totalQuestions();
 
-        // 6. Apply disability extension time
+        // 6 & 7. Apply duration and disability extension time
         int disabilityExtension = disabilityExtensionService.getExtraTimeMinutes(candidateId, effectiveTenant);
-
-        // 7. Create exam session entity
-        int baseDuration = resolveExamDurationMinutes(request.getExamId(), assignment);
-        int extraTime = assignment != null ? assignment.getExtraTimeMinutes() : 0;
-        int totalDuration = baseDuration + extraTime + disabilityExtension;
+        int totalDuration = calculateTotalDurationMinutes(request.getExamId(), assignment, disabilityExtension);
         Instant scheduledEnd = now.plus(Duration.ofMinutes(totalDuration));
 
-        ExamSession session = ExamSession.builder()
-                .sessionId(sessionId)
-                .candidateId(candidateId)
-                .examId(request.getExamId())
-                .shiftId(shiftId)
-                .paperId(paperId)
-                .status(ExamSessionStatus.ACTIVE)
-                .startedAt(now)
-                .scheduledEndAt(scheduledEnd)
-                .currentQuestionIndex(0)
-                .languageCode(request.getLanguageCode() != null ? request.getLanguageCode() : "en")
-                .fullScreenExitCount(0)
-                .build();
-        session.setTenantId(effectiveTenant);
-
         // 8. Save session to database
-        ExamSession savedSession = examSessionRepository.save(session);
+        ExamSession savedSession = createAndSaveSession(
+                request, candidateId, effectiveTenant, sessionId, shiftId, paperId, now, scheduledEnd);
 
         // 9. Cache session in Redis for fast subsequent lookups
-        String cacheKey = SESSION_CACHE_PREFIX + savedSession.getSessionId();
-        try {
-            redisTemplate.opsForValue().set(cacheKey, savedSession, Duration.ofHours(6));
-        } catch (Exception e) {
-            log.warn("Failed to cache session in Redis: {}", e.getMessage());
-        }
+        cacheSessionQuietly(savedSession);
 
         // 10. Publish SESSION_STARTED event (fire-and-forget)
-        try {
-            SessionEvents.SessionStarted event = SessionEvents.SessionStarted.of(
-                    savedSession.getSessionId().toString(),
-                    candidateId.toString(),
-                    request.getExamId().toString(),
-                    shiftId.toString(),
-                    effectiveTenant
-            );
-            eventPublisher.publish(TOPIC_SESSION_EVENTS, savedSession.getSessionId().toString(), event);
-        } catch (Exception e) {
-            log.error("Unexpected error publishing SESSION_STARTED event: {}", e.getMessage());
-        }
+        publishSessionStartedEvent(savedSession, candidateId, request.getExamId(), shiftId, effectiveTenant);
 
         // 11. Read dynamic delivery parameters
         DynamicDeliveryParams deliveryParams = resolveDynamicDeliveryParams(effectiveTenant);
-
         String examTitle = resolveExamTitle(request.getExamId());
 
         // 12. Return response with first question, full questions list and dynamic parameters
@@ -299,8 +219,8 @@ public class SessionStartService {
                 .expiresAt(scheduledEnd)
                 .durationSeconds(totalDuration * 60)
                 .navigationMode("FLEXIBLE")
-                .firstQuestionContent(firstQuestionContent)
-                .totalQuestions(totalQuestions)
+                .firstQuestionContent(qPrep.firstQuestionContent())
+                .totalQuestions(qPrep.totalQuestions())
                 .questions(questions)
                 .kioskModeEnforced(deliveryParams.kioskEnforced())
                 .heartbeatIntervalSeconds(deliveryParams.heartbeatSec())
@@ -318,72 +238,28 @@ public class SessionStartService {
      * @return the session start/resume response
      */
     public SessionStartResponse resumeSession(ExamSession session, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = resolveEffectiveTenant(tenantId);
         Instant now = Instant.now();
 
-        // 1. Look up shift assignment for paper decryption if available
-        ShiftAssignment assignment = null;
-        try {
-            assignment = shiftAssignmentClient.getShiftAssignment(
-                    session.getCandidateId(), session.getExamId(), session.getShiftId(), effectiveTenant);
-        } catch (Exception e) {
-            log.warn("Could not retrieve shift assignment on resume for session [{}]: {}", session.getSessionId(), e.getMessage());
-        }
-
-        String decryptedPaper = null;
-        if (assignment != null && assignment.getEncryptedPackageRef() != null && !assignment.getEncryptedPackageRef().isBlank()) {
-            try {
-                String keyName = "shift-key-" + session.getShiftId();
-                decryptedPaper = vaultCryptoService.decrypt(keyName, assignment.getEncryptedPackageRef());
-            } catch (Exception e) {
-                log.warn("Vault decryption failed on resume for shift-key-{}: {}", session.getShiftId(), e.getMessage());
-            }
-        }
-
+        // 1. Look up shift assignment and decrypt paper package if available
+        ShiftAssignment assignment = fetchShiftAssignmentQuietly(
+                session.getCandidateId(), session.getExamId(), session.getShiftId(), effectiveTenant, session.getSessionId());
+        String decryptedPaper = decryptPaperPackage(assignment, session.getShiftId());
         UUID paperId = resolvePaperId(session.getPaperId(), assignment, session.getExamId());
 
         // 2. Fetch delivery questions (randomized options seeded with the existing session ID)
-        List<QuestionDeliveryDto> baseQuestions = examQuestionDeliveryService != null
-                ? examQuestionDeliveryService.getDeliveryQuestions(session.getExamId(), paperId, decryptedPaper, effectiveTenant)
-                : List.of();
-
-        List<QuestionDeliveryDto> questions = (examQuestionDeliveryService != null && baseQuestions != null && !baseQuestions.isEmpty())
-                ? examQuestionDeliveryService.randomizeOptions(baseQuestions, session.getSessionId())
-                : baseQuestions;
-        if (examQuestionDeliveryService != null && questions != null && !questions.isEmpty()) {
-            examQuestionDeliveryService.applyLanguagePreference(questions, session.getLanguageCode());
-        }
+        List<QuestionDeliveryDto> questions = prepareDeliveryQuestions(
+                session.getExamId(), paperId, decryptedPaper, effectiveTenant, session.getSessionId(), session.getLanguageCode());
 
         QuestionPreparationResult qPrep = prepareQuestionsMetadata(decryptedPaper, questions);
-        String firstQuestionContent = qPrep.firstQuestionContent();
-        int totalQuestions = qPrep.totalQuestions();
 
         // 3. Publish SESSION_RESUMED telemetry event
-        try {
-            SessionEvents.SessionResumed event = SessionEvents.SessionResumed.of(
-                    session.getSessionId().toString(),
-                    session.getCandidateId().toString(),
-                    session.getExamId().toString(),
-                    session.getShiftId().toString(),
-                    effectiveTenant
-            );
-            eventPublisher.publish(TOPIC_SESSION_EVENTS, session.getSessionId().toString(), event);
-        } catch (Exception e) {
-            log.warn("Failed to publish SESSION_RESUMED event: {}", e.getMessage());
-        }
+        publishSessionResumedEvent(session, effectiveTenant);
 
         // 4. Read dynamic delivery parameters
         DynamicDeliveryParams deliveryParams = resolveDynamicDeliveryParams(effectiveTenant);
-
         String examTitle = resolveExamTitle(session.getExamId());
-
-        int remainingSeconds = session.getScheduledEndAt() != null
-                ? (int) Math.max(0, Duration.between(now, session.getScheduledEndAt()).toSeconds())
-                : 3600;
-
-        int totalDurationSeconds = (session.getScheduledEndAt() != null && session.getStartedAt() != null)
-                ? (int) Duration.between(session.getStartedAt(), session.getScheduledEndAt()).toSeconds()
-                : 3600;
+        int durationSeconds = calculateResumeDurationSeconds(session, now);
 
         return SessionStartResponse.builder()
                 .sessionId(session.getSessionId())
@@ -395,10 +271,10 @@ public class SessionStartService {
                 .scheduledEndAt(session.getScheduledEndAt())
                 .serverTime(now)
                 .expiresAt(session.getScheduledEndAt())
-                .durationSeconds(remainingSeconds > 0 ? remainingSeconds : totalDurationSeconds)
+                .durationSeconds(durationSeconds)
                 .navigationMode("FLEXIBLE")
-                .firstQuestionContent(firstQuestionContent)
-                .totalQuestions(totalQuestions)
+                .firstQuestionContent(qPrep.firstQuestionContent())
+                .totalQuestions(qPrep.totalQuestions())
                 .questions(questions)
                 .kioskModeEnforced(deliveryParams.kioskEnforced())
                 .heartbeatIntervalSeconds(deliveryParams.heartbeatSec())
@@ -413,9 +289,8 @@ public class SessionStartService {
      */
     @Transactional
     public int terminateActiveSessionsForCandidate(UUID candidateId, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = resolveEffectiveTenant(tenantId);
         List<ExamSession> existingSessions = examSessionRepository.findByCandidateIdAndTenantId(candidateId, effectiveTenant);
-        Instant now = Instant.now();
         int count = 0;
         for (ExamSession s : existingSessions) {
             if (s.getStatus() == ExamSessionStatus.ACTIVE) {
@@ -428,7 +303,7 @@ public class SessionStartService {
     }
 
     public SessionStartResponse resumeSessionById(UUID sessionId, UUID candidateId, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = resolveEffectiveTenant(tenantId);
         ExamSession session = examSessionRepository.findById(sessionId)
                 .orElseThrow(() -> new IllegalArgumentException("Session not found: " + sessionId));
 
@@ -440,6 +315,175 @@ public class SessionStartService {
         }
 
         return resumeSession(session, effectiveTenant);
+    }
+
+    private Optional<SessionStartResponse> handleExistingActiveSession(
+            SessionStartRequest request, UUID candidateId, String effectiveTenant, Instant now) {
+        List<ExamSession> existingSessions = examSessionRepository.findByCandidateIdAndTenantId(candidateId, effectiveTenant);
+        Optional<ExamSession> activeSessionOpt = existingSessions.stream()
+                .filter(s -> s.getStatus() == ExamSessionStatus.ACTIVE)
+                .findFirst();
+
+        if (activeSessionOpt.isEmpty()) {
+            return Optional.empty();
+        }
+
+        ExamSession activeSession = activeSessionOpt.get();
+
+        if (activeSession.getScheduledEndAt() != null && now.isAfter(activeSession.getScheduledEndAt())) {
+            log.info("Active session [{}] for candidate [{}] expired at [{}]. Marking EXPIRED.",
+                    activeSession.getSessionId(), candidateId, activeSession.getScheduledEndAt());
+            activeSession.setStatus(ExamSessionStatus.EXPIRED);
+            examSessionRepository.save(activeSession);
+            return Optional.empty();
+        }
+
+        if (Boolean.TRUE.equals(request.getForceNewSession()) || Boolean.TRUE.equals(request.getTerminateExisting())) {
+            log.info("Terminating existing active session [{}] on exam [{}] for candidate [{}] to start exam [{}] (forceNewSession=true).",
+                    activeSession.getSessionId(), activeSession.getExamId(), candidateId, request.getExamId());
+            activeSession.setStatus(ExamSessionStatus.EXPIRED);
+            examSessionRepository.save(activeSession);
+            return Optional.empty();
+        }
+
+        if (activeSession.getExamId() != null && activeSession.getExamId().equals(request.getExamId())) {
+            log.info("Resuming active session [{}] for candidate [{}] on exam [{}]",
+                    activeSession.getSessionId(), candidateId, request.getExamId());
+            return Optional.of(resumeSession(activeSession, effectiveTenant));
+        }
+
+        throw new ConcurrentSessionException(
+                "Candidate " + candidateId + " already has an active session for exam " + activeSession.getExamId() + " in tenant " + effectiveTenant,
+                activeSession.getExamId(),
+                activeSession.getSessionId());
+    }
+
+    private UUID resolveShiftId(SessionStartRequest request) {
+        if (request.getShiftId() != null) {
+            return request.getShiftId();
+        }
+        return UUID.nameUUIDFromBytes(("shift-" + request.getExamId()).getBytes(StandardCharsets.UTF_8));
+    }
+
+    private String decryptPaperPackage(ShiftAssignment assignment, UUID shiftId) {
+        if (assignment == null || assignment.getEncryptedPackageRef() == null || assignment.getEncryptedPackageRef().isBlank()) {
+            return null;
+        }
+        try {
+            String keyName = "shift-key-" + shiftId;
+            return vaultCryptoService.decrypt(keyName, assignment.getEncryptedPackageRef());
+        } catch (Exception e) {
+            log.warn("Vault decryption failed for shift paper key [shift-key-{}]: {}", shiftId, e.getMessage());
+            return null;
+        }
+    }
+
+    private List<QuestionDeliveryDto> prepareDeliveryQuestions(
+            UUID examId, UUID paperId, String decryptedPaper, String effectiveTenant, UUID sessionId, String languageCode) {
+        if (examQuestionDeliveryService == null) {
+            return List.of();
+        }
+        List<QuestionDeliveryDto> baseQuestions = examQuestionDeliveryService.getDeliveryQuestions(
+                examId, paperId, decryptedPaper, effectiveTenant);
+        if (baseQuestions == null || baseQuestions.isEmpty()) {
+            return List.of();
+        }
+        List<QuestionDeliveryDto> questions = examQuestionDeliveryService.randomizeOptions(baseQuestions, sessionId);
+        if (questions != null && !questions.isEmpty()) {
+            examQuestionDeliveryService.applyLanguagePreference(questions, languageCode);
+            return questions;
+        }
+        return baseQuestions;
+    }
+
+    private int calculateTotalDurationMinutes(UUID examId, ShiftAssignment assignment, int disabilityExtension) {
+        int baseDuration = resolveExamDurationMinutes(examId, assignment);
+        int extraTime = assignment != null ? assignment.getExtraTimeMinutes() : 0;
+        return baseDuration + extraTime + disabilityExtension;
+    }
+
+    private ExamSession createAndSaveSession(
+            SessionStartRequest request, UUID candidateId, String effectiveTenant,
+            UUID sessionId, UUID shiftId, UUID paperId, Instant now, Instant scheduledEnd) {
+        ExamSession session = ExamSession.builder()
+                .sessionId(sessionId)
+                .candidateId(candidateId)
+                .examId(request.getExamId())
+                .shiftId(shiftId)
+                .paperId(paperId)
+                .status(ExamSessionStatus.ACTIVE)
+                .startedAt(now)
+                .scheduledEndAt(scheduledEnd)
+                .currentQuestionIndex(0)
+                .languageCode(request.getLanguageCode() != null ? request.getLanguageCode() : "en")
+                .fullScreenExitCount(0)
+                .build();
+        session.setTenantId(effectiveTenant);
+        return examSessionRepository.save(session);
+    }
+
+    private void cacheSessionQuietly(ExamSession session) {
+        String cacheKey = SESSION_CACHE_PREFIX + session.getSessionId();
+        try {
+            redisTemplate.opsForValue().set(cacheKey, session, Duration.ofHours(6));
+        } catch (Exception e) {
+            log.warn("Failed to cache session in Redis: {}", e.getMessage());
+        }
+    }
+
+    private void publishSessionStartedEvent(
+            ExamSession session, UUID candidateId, UUID examId, UUID shiftId, String tenantId) {
+        try {
+            SessionEvents.SessionStarted event = SessionEvents.SessionStarted.of(
+                    session.getSessionId().toString(),
+                    candidateId.toString(),
+                    examId.toString(),
+                    shiftId.toString(),
+                    tenantId
+            );
+            eventPublisher.publish(TOPIC_SESSION_EVENTS, session.getSessionId().toString(), event);
+        } catch (Exception e) {
+            log.error("Unexpected error publishing SESSION_STARTED event: {}", e.getMessage());
+        }
+    }
+
+    private ShiftAssignment fetchShiftAssignmentQuietly(
+            UUID candidateId, UUID examId, UUID shiftId, String tenantId, UUID sessionId) {
+        try {
+            return shiftAssignmentClient.getShiftAssignment(candidateId, examId, shiftId, tenantId);
+        } catch (Exception e) {
+            log.warn("Could not retrieve shift assignment on resume for session [{}]: {}", sessionId, e.getMessage());
+            return null;
+        }
+    }
+
+    private void publishSessionResumedEvent(ExamSession session, String tenantId) {
+        try {
+            SessionEvents.SessionResumed event = SessionEvents.SessionResumed.of(
+                    session.getSessionId().toString(),
+                    session.getCandidateId().toString(),
+                    session.getExamId().toString(),
+                    session.getShiftId().toString(),
+                    tenantId
+            );
+            eventPublisher.publish(TOPIC_SESSION_EVENTS, session.getSessionId().toString(), event);
+        } catch (Exception e) {
+            log.warn("Failed to publish SESSION_RESUMED event: {}", e.getMessage());
+        }
+    }
+
+    private int calculateResumeDurationSeconds(ExamSession session, Instant now) {
+        if (session.getScheduledEndAt() == null) {
+            return 3600;
+        }
+        int remainingSeconds = (int) Math.max(0, Duration.between(now, session.getScheduledEndAt()).toSeconds());
+        if (remainingSeconds > 0) {
+            return remainingSeconds;
+        }
+        if (session.getStartedAt() != null) {
+            return (int) Duration.between(session.getStartedAt(), session.getScheduledEndAt()).toSeconds();
+        }
+        return 3600;
     }
 
     private String extractFirstQuestion(String decryptedPaper) {
@@ -493,7 +537,8 @@ public class SessionStartService {
                 if (title != null && !title.isBlank()) {
                     return title;
                 }
-            } catch (Exception ignored) {
+            } catch (Exception _) {
+                // Ignore query failure; fall back to default exam title
             }
         }
         return "NextGen Assessment Grid Examination (" + examIdStr.substring(0, 8) + ")";
@@ -514,11 +559,13 @@ public class SessionStartService {
                 if (duration != null && duration > 0) {
                     return duration;
                 }
-            } catch (Exception ignored) {
+            } catch (Exception _) {
+                // Ignore query failure; fall back to default duration of 60 minutes
             }
         }
         return 60;
     }
+
     record DynamicDeliveryParams(
             boolean kioskEnforced,
             int heartbeatSec,
@@ -547,7 +594,9 @@ public class SessionStartService {
         if (firstQuestionContent == null && questions != null && !questions.isEmpty()) {
             try {
                 firstQuestionContent = objectMapper.writeValueAsString(questions.get(0));
-            } catch (JsonProcessingException ignored) {}
+            } catch (JsonProcessingException _) {
+                // Ignore serialization failure; firstQuestionContent remains null
+            }
         }
         int totalQuestions = (questions != null && !questions.isEmpty()) ? questions.size() : countQuestions(decryptedPaper);
         return new QuestionPreparationResult(firstQuestionContent, totalQuestions);
