@@ -19,6 +19,7 @@
 
 package com.examplatform.questionbank.service;
 
+import com.examplatform.questionbank.constants.QuestionBankConstants;
 import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.dto.ReviewerAssignment;
 import com.examplatform.shared.config.DynamicConfigService;
@@ -46,7 +47,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ReviewWorkflowService {
 
-    private static final String TOPIC_LIFECYCLE = "exam.question.lifecycle";
+    private static final String TOPIC_LIFECYCLE = QuestionBankConstants.TOPIC_QUESTION_LIFECYCLE;
     private static final String TOPIC_NOTIFICATIONS = MessagingConstants.NOTIFICATIONS_OUTBOUND_TOPIC;
 
     private final EventPublisher eventPublisher;
@@ -80,7 +81,7 @@ public class ReviewWorkflowService {
      */
     private void handleSubmittedForReview(Question question, UUID actorId, String tenantId) {
         boolean dualReviewRequired = dynamicConfigService.getBoolean(
-                "question.dual.review.required", tenantId, true);
+                QuestionBankConstants.CONFIG_DUAL_REVIEW_REQUIRED, tenantId, true);
 
         ReviewerAssignment assignment = reviewerAssignmentService.assignReviewers(
                 question.getSubject(), question.getAuthorId(), tenantId, dualReviewRequired);
@@ -89,32 +90,34 @@ public class ReviewWorkflowService {
         UUID secondaryReviewer = assignment.getSecondaryReviewerId();
 
         Map<String, Object> lifecycleEvent = new HashMap<>();
-        lifecycleEvent.put(SharedConstants.EVENT_TYPE, "SUBMITTED_FOR_REVIEW");
+        lifecycleEvent.put(SharedConstants.EVENT_TYPE, QuestionBankConstants.EVENT_SUBMITTED_FOR_REVIEW);
         lifecycleEvent.put(SharedConstants.QUESTION_ID, question.getId());
         lifecycleEvent.put(SharedConstants.SUBJECT, question.getSubject());
         lifecycleEvent.put(SharedConstants.AUTHOR_ID, question.getAuthorId());
-        lifecycleEvent.put("assignedReviewer", primaryReviewer != null ? primaryReviewer.toString() : "UNASSIGNED");
+        lifecycleEvent.put(QuestionBankConstants.KEY_ASSIGNED_REVIEWER,
+                primaryReviewer != null ? primaryReviewer.toString() : QuestionBankConstants.VALUE_UNASSIGNED);
         if (secondaryReviewer != null) {
-            lifecycleEvent.put("assignedReviewer2", secondaryReviewer.toString());
+            lifecycleEvent.put(QuestionBankConstants.KEY_ASSIGNED_REVIEWER_2, secondaryReviewer.toString());
         }
-        lifecycleEvent.put("assignedReviewers", assignment.getAssignedReviewerIds().stream().map(UUID::toString).toList());
-        lifecycleEvent.put("escalatedToController", assignment.isEscalatedToController());
-        lifecycleEvent.put("dualReviewRequired", dualReviewRequired);
-        lifecycleEvent.put("actorId", actorId);
+        lifecycleEvent.put(QuestionBankConstants.KEY_ASSIGNED_REVIEWERS,
+                assignment.getAssignedReviewerIds().stream().map(UUID::toString).toList());
+        lifecycleEvent.put(QuestionBankConstants.KEY_ESCALATED_TO_CONTROLLER, assignment.isEscalatedToController());
+        lifecycleEvent.put(QuestionBankConstants.KEY_DUAL_REVIEW_REQUIRED, dualReviewRequired);
+        lifecycleEvent.put(SharedConstants.ACTOR_ID, actorId);
         lifecycleEvent.put(SharedConstants.TENANT_ID, tenantId);
-        lifecycleEvent.put("timestamp", Instant.now().toString());
+        lifecycleEvent.put(QuestionBankConstants.KEY_TIMESTAMP, Instant.now().toString());
 
         publishLifecycleEvent(question.getId(), lifecycleEvent);
 
         // Notify assigned reviewer(s)
         for (UUID assignedReviewerId : assignment.getAssignedReviewerIds()) {
             Map<String, Object> notification = Map.of(
-                    "type", "QUESTION_ASSIGNED_FOR_REVIEW",
-                SharedConstants.RECIPIENT_ID, assignedReviewerId,
-                SharedConstants.QUESTION_ID, question.getId(),
-                SharedConstants.SUBJECT, question.getSubject(),
-                SharedConstants.TENANT_ID, tenantId,
-                SharedConstants.MESSAGE, "A new question for subject '" + question.getSubject() + "' has been assigned to you for review."
+                    QuestionBankConstants.KEY_TYPE, QuestionBankConstants.NOTIF_QUESTION_ASSIGNED_FOR_REVIEW,
+                    SharedConstants.RECIPIENT_ID, assignedReviewerId,
+                    SharedConstants.QUESTION_ID, question.getId(),
+                    SharedConstants.SUBJECT, question.getSubject(),
+                    SharedConstants.TENANT_ID, tenantId,
+                    SharedConstants.MESSAGE, "A new question for subject '" + question.getSubject() + "' has been assigned to you for review."
             );
             publishNotification(assignedReviewerId, notification);
         }
@@ -124,7 +127,8 @@ public class ReviewWorkflowService {
     }
 
     /**
-     * REVIEW -> APPROVED: Reviewer approved the question. Decrement load and notify the author.\n     */
+     * REVIEW -> APPROVED: Reviewer approved the question. Decrement load and notify the author.
+     */
     private void handleApproved(Question question, String fromState, UUID actorId, String tenantId) {
         if (!QuestionStateConstants.REVIEW.equals(fromState)) {
             return;
@@ -132,20 +136,20 @@ public class ReviewWorkflowService {
 
         reviewerAssignmentService.releaseReviewerLoad(actorId, tenantId);
 
-        Map<String, Object> lifecycleEvent = createLifecyclePayload("REVIEWER_APPROVED", question.getId(), tenantId);
+        Map<String, Object> lifecycleEvent = createLifecyclePayload(QuestionBankConstants.EVENT_REVIEWER_APPROVED, question.getId(), tenantId);
         lifecycleEvent.put(SharedConstants.REVIEWER_ID, actorId);
         lifecycleEvent.put(SharedConstants.AUTHOR_ID, question.getAuthorId());
         publishLifecycleEvent(question.getId(), lifecycleEvent);
 
         // Notify author that their question was approved by reviewer
         Map<String, Object> notification = Map.of(
-                "type", "QUESTION_APPROVED_BY_REVIEWER",
-            SharedConstants.RECIPIENT_ID, question.getAuthorId(),
-            SharedConstants.QUESTION_ID, question.getId(),
-            SharedConstants.REVIEWER_ID, actorId,
-            SharedConstants.SUBJECT, question.getSubject(),
-            SharedConstants.TENANT_ID, tenantId,
-            SharedConstants.MESSAGE, SharedConstants.YOUR_QUESTION_FOR_SUBJECT_PREFIX + question.getSubject() + "' has been approved by the reviewer."
+                QuestionBankConstants.KEY_TYPE, QuestionBankConstants.NOTIF_QUESTION_APPROVED_BY_REVIEWER,
+                SharedConstants.RECIPIENT_ID, question.getAuthorId(),
+                SharedConstants.QUESTION_ID, question.getId(),
+                SharedConstants.REVIEWER_ID, actorId,
+                SharedConstants.SUBJECT, question.getSubject(),
+                SharedConstants.TENANT_ID, tenantId,
+                SharedConstants.MESSAGE, SharedConstants.YOUR_QUESTION_FOR_SUBJECT_PREFIX + question.getSubject() + "' has been approved by the reviewer."
         );
         publishNotification(question.getAuthorId(), notification);
 
@@ -164,22 +168,22 @@ public class ReviewWorkflowService {
 
         reviewerAssignmentService.releaseReviewerLoad(actorId, tenantId);
 
-        Map<String, Object> lifecycleEvent = createLifecyclePayload("RETURNED_TO_DRAFT", question.getId(), tenantId);
+        Map<String, Object> lifecycleEvent = createLifecyclePayload(QuestionBankConstants.EVENT_RETURNED_TO_DRAFT, question.getId(), tenantId);
         lifecycleEvent.put(SharedConstants.REVIEWER_ID, actorId);
         lifecycleEvent.put(SharedConstants.AUTHOR_ID, question.getAuthorId());
-        lifecycleEvent.put("comments", comments != null ? comments : "");
+        lifecycleEvent.put(QuestionBankConstants.KEY_COMMENTS, comments != null ? comments : "");
         publishLifecycleEvent(question.getId(), lifecycleEvent);
 
         // Notify author that their question was returned for revision
         Map<String, Object> notification = Map.of(
-                "type", "QUESTION_RETURNED_FOR_REVISION",
-            SharedConstants.RECIPIENT_ID, question.getAuthorId(),
-            SharedConstants.QUESTION_ID, question.getId(),
-            SharedConstants.REVIEWER_ID, actorId,
-                "comments", comments != null ? comments : "",
-            SharedConstants.TENANT_ID, tenantId,
-            SharedConstants.MESSAGE, SharedConstants.YOUR_QUESTION_FOR_SUBJECT_PREFIX + question.getSubject() +
-                           "' was returned with comments: " + (comments != null ? comments : "No comments provided")
+                QuestionBankConstants.KEY_TYPE, QuestionBankConstants.NOTIF_QUESTION_RETURNED_FOR_REVISION,
+                SharedConstants.RECIPIENT_ID, question.getAuthorId(),
+                SharedConstants.QUESTION_ID, question.getId(),
+                SharedConstants.REVIEWER_ID, actorId,
+                QuestionBankConstants.KEY_COMMENTS, comments != null ? comments : "",
+                SharedConstants.TENANT_ID, tenantId,
+                SharedConstants.MESSAGE, SharedConstants.YOUR_QUESTION_FOR_SUBJECT_PREFIX + question.getSubject() +
+                        "' was returned with comments: " + (comments != null ? comments : QuestionBankConstants.DEFAULT_NO_COMMENTS)
         );
         publishNotification(question.getAuthorId(), notification);
 
@@ -191,20 +195,20 @@ public class ReviewWorkflowService {
      * APPROVED -> PUBLISHED: Final approval given. Question available in bank.
      */
     private void handlePublished(Question question, UUID actorId, String tenantId) {
-        Map<String, Object> lifecycleEvent = createLifecyclePayload("QUESTION_PUBLISHED", question.getId(), tenantId);
-        lifecycleEvent.put("publisherId", actorId);
+        Map<String, Object> lifecycleEvent = createLifecyclePayload(QuestionBankConstants.EVENT_QUESTION_PUBLISHED, question.getId(), tenantId);
+        lifecycleEvent.put(QuestionBankConstants.KEY_PUBLISHER_ID, actorId);
         lifecycleEvent.put(SharedConstants.AUTHOR_ID, question.getAuthorId());
         lifecycleEvent.put(SharedConstants.SUBJECT, question.getSubject());
         publishLifecycleEvent(question.getId(), lifecycleEvent);
 
         // Notify author that their question has been published
         Map<String, Object> notification = Map.of(
-                "type", "QUESTION_PUBLISHED",
-            SharedConstants.RECIPIENT_ID, question.getAuthorId(),
-            SharedConstants.QUESTION_ID, question.getId(),
-            SharedConstants.SUBJECT, question.getSubject(),
-            SharedConstants.TENANT_ID, tenantId,
-            SharedConstants.MESSAGE, SharedConstants.YOUR_QUESTION_FOR_SUBJECT_PREFIX + question.getSubject() + "' has been published to the question bank."
+                QuestionBankConstants.KEY_TYPE, QuestionBankConstants.EVENT_QUESTION_PUBLISHED,
+                SharedConstants.RECIPIENT_ID, question.getAuthorId(),
+                SharedConstants.QUESTION_ID, question.getId(),
+                SharedConstants.SUBJECT, question.getSubject(),
+                SharedConstants.TENANT_ID, tenantId,
+                SharedConstants.MESSAGE, SharedConstants.YOUR_QUESTION_FOR_SUBJECT_PREFIX + question.getSubject() + "' has been published to the question bank."
         );
         publishNotification(question.getAuthorId(), notification);
 
@@ -225,7 +229,7 @@ public class ReviewWorkflowService {
         payload.put(SharedConstants.EVENT_TYPE, eventType);
         payload.put(SharedConstants.QUESTION_ID, questionId);
         payload.put(SharedConstants.TENANT_ID, tenantId);
-        payload.put("timestamp", Instant.now().toString());
+        payload.put(QuestionBankConstants.KEY_TIMESTAMP, Instant.now().toString());
         return payload;
     }
 }
