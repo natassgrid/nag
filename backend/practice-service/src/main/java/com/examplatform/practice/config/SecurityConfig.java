@@ -21,7 +21,7 @@ public class SecurityConfig {
     public SecurityFilterChain practiceSecurityFilterChain(HttpSecurity http,
                                                            JwtAuthenticationConverter jwtAuthenticationConverter) throws Exception {
         http
-            .securityMatcher("/api/practice/**", "/api/admin/practice/**")
+            .securityMatcher("/api/practice/**", "/api/v1/practice/**", "/api/admin/practice/**")
             .csrf(csrf -> csrf.disable())
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
