@@ -131,10 +131,8 @@ public class NavigationService {
         String cacheKey = SESSION_CACHE_PREFIX + sessionId;
         try {
             Object cached = redisTemplate.opsForValue().get(cacheKey);
-            if (cached instanceof ExamSession cachedSession) {
-                if (cachedSession.getCandidateId().equals(candidateId)) {
-                    return cachedSession;
-                }
+            if (cached instanceof ExamSession cachedSession && cachedSession.getCandidateId().equals(candidateId)) {
+                return cachedSession;
             }
         } catch (Exception e) {
             log.warn("Redis lookup failed for session {}: {}", sessionId, e.getMessage());
