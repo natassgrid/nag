@@ -59,6 +59,9 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AnalyticsPdfService {
 
+    private record CardBounds(float x, float y, float width, float height) {}
+    private record KpiCard(String title, String value, Color accentColor) {}
+
     private static final DateTimeFormatter DATE_FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z").withZone(ZoneId.of("UTC"));
 
@@ -196,14 +199,18 @@ public class AnalyticsPdfService {
         BigDecimal bottom10 = analytics.getBottom10PercentileThreshold() != null
                 ? analytics.getBottom10PercentileThreshold() : BigDecimal.ZERO;
 
-        drawKpiCard(cs, fontBold, fontRegular, x, cardY, cardWidth, cardHeight,
-                "Total Registered", String.format("%,d", registered), SECONDARY_COLOR);
-        drawKpiCard(cs, fontBold, fontRegular, x + cardWidth + 5, cardY, cardWidth, cardHeight,
-                "Total Appeared", String.format("%,d (%.1f%%)", appeared, turnoutPct), ACCENT_COLOR);
-        drawKpiCard(cs, fontBold, fontRegular, x + (cardWidth + 5) * 2, cardY, cardWidth, cardHeight,
-                "Top 10% (P90) Score", String.format("%.2f", top10), PRIMARY_COLOR);
-        drawKpiCard(cs, fontBold, fontRegular, x + (cardWidth + 5) * 3, cardY, cardWidth, cardHeight,
-                "Bottom 10% (P10) Score", String.format("%.2f", bottom10), TEXT_DARK);
+        drawKpiCard(cs, fontBold, fontRegular,
+                new CardBounds(x, cardY, cardWidth, cardHeight),
+                new KpiCard("Total Registered", String.format("%,d", registered), SECONDARY_COLOR));
+        drawKpiCard(cs, fontBold, fontRegular,
+                new CardBounds(x + cardWidth + 5, cardY, cardWidth, cardHeight),
+                new KpiCard("Total Appeared", String.format("%,d (%.1f%%)", appeared, turnoutPct), ACCENT_COLOR));
+        drawKpiCard(cs, fontBold, fontRegular,
+                new CardBounds(x + (cardWidth + 5) * 2, cardY, cardWidth, cardHeight),
+                new KpiCard("Top 10% (P90) Score", String.format("%.2f", top10), PRIMARY_COLOR));
+        drawKpiCard(cs, fontBold, fontRegular,
+                new CardBounds(x + (cardWidth + 5) * 3, cardY, cardWidth, cardHeight),
+                new KpiCard("Bottom 10% (P10) Score", String.format("%.2f", bottom10), TEXT_DARK));
 
         return cardY - 20;
     }
@@ -218,36 +225,35 @@ public class AnalyticsPdfService {
     }
 
     private void drawKpiCard(PDPageContentStream cs, PDType1Font fontBold, PDType1Font fontRegular,
-                             float cx, float cy, float cw, float ch,
-                             String title, String value, Color accentColor) throws IOException {
+                             CardBounds bounds, KpiCard card) throws IOException {
         cs.setNonStrokingColor(LIGHT_BG_COLOR);
-        cs.addRect(cx, cy, cw, ch);
+        cs.addRect(bounds.x(), bounds.y(), bounds.width(), bounds.height());
         cs.fill();
 
         cs.setStrokingColor(BORDER_COLOR);
         cs.setLineWidth(0.8f);
-        cs.addRect(cx, cy, cw, ch);
+        cs.addRect(bounds.x(), bounds.y(), bounds.width(), bounds.height());
         cs.stroke();
 
         // Accent top bar
-        cs.setNonStrokingColor(accentColor);
-        cs.addRect(cx, cy + ch - 3, cw, 3);
+        cs.setNonStrokingColor(card.accentColor());
+        cs.addRect(bounds.x(), bounds.y() + bounds.height() - 3, bounds.width(), 3);
         cs.fill();
 
         // Label
         cs.beginText();
         cs.setNonStrokingColor(TEXT_MUTED);
         cs.setFont(fontRegular, 8);
-        cs.newLineAtOffset(cx + 6, cy + ch - 15);
-        cs.showText(title);
+        cs.newLineAtOffset(bounds.x() + 6, bounds.y() + bounds.height() - 15);
+        cs.showText(card.title());
         cs.endText();
 
         // Value
         cs.beginText();
         cs.setNonStrokingColor(TEXT_DARK);
         cs.setFont(fontBold, 11);
-        cs.newLineAtOffset(cx + 6, cy + 8);
-        cs.showText(value);
+        cs.newLineAtOffset(bounds.x() + 6, bounds.y() + 8);
+        cs.showText(card.value());
         cs.endText();
     }
 
@@ -369,7 +375,6 @@ public class AnalyticsPdfService {
 
         // Table Header
         float col1Width = width * 0.55f;
-        float col2Width = width * 0.45f;
         float rowHeight = 20;
 
         cs.setNonStrokingColor(TABLE_HEADER_BG);
@@ -472,7 +477,7 @@ public class AnalyticsPdfService {
         }
         try {
             return objectMapper.readValue(json, new TypeReference<LinkedHashMap<String, Number>>() {});
-        } catch (Exception e) {
+        } catch (Exception _) {
             log.warn("Failed to parse score distribution JSON: {}", json);
             return Collections.emptyMap();
         }
@@ -484,7 +489,7 @@ public class AnalyticsPdfService {
         }
         try {
             return objectMapper.readValue(json, new TypeReference<LinkedHashMap<String, Object>>() {});
-        } catch (Exception e) {
+        } catch (Exception _) {
             log.warn("Failed to parse section averages JSON: {}", json);
             return Collections.emptyMap();
         }
@@ -498,7 +503,7 @@ public class AnalyticsPdfService {
         try {
             double d = Double.parseDouble(scoreObj.toString());
             return String.format("%.2f", d);
-        } catch (Exception e) {
+        } catch (Exception _) {
             return scoreObj.toString();
         }
     }
