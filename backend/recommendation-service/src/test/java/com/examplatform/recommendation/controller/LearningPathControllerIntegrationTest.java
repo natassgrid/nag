@@ -153,6 +153,42 @@ class LearningPathControllerIntegrationTest extends AbstractIntegrationTest {
                     .andExpect(jsonPath("$.id").value(DLP_ID.toString()))
                     .andExpect(jsonPath("$.status").value("ACTIVE"));
         }
+
+        @Test
+        @DisplayName("401 UNAUTHORIZED - When recalculate unauthenticated")
+        void unauthenticatedRecalculateReturns401() throws Exception {
+            RecalculateLearningPathRequest req = new RecalculateLearningPathRequest(UUID.randomUUID(), "JEE_MAIN");
+
+            mockMvc.perform(post("/api/learning-path/recalculate")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(req)))
+                    .andExpect(status().isUnauthorized());
+        }
+    }
+
+    @Nested
+    @DisplayName("Single Canonical Route Enforcement (No Legacy Endpoints)")
+    class CanonicalRouteEnforcement {
+
+        @Test
+        @DisplayName("404 NOT FOUND - Root GET /api/learning-path is rejected (only /current allowed)")
+        void legacyGetRootReturns404() throws Exception {
+            mockMvc.perform(get("/api/learning-path")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(CANDIDATE_ID.toString()))))
+                    .andExpect(status().isNotFound());
+        }
+
+        @Test
+        @DisplayName("404 NOT FOUND - POST /api/learning-path/generate is rejected (only /recalculate allowed)")
+        void legacyPostGenerateReturns404() throws Exception {
+            mockMvc.perform(post("/api/learning-path/generate")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{}")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(CANDIDATE_ID.toString()))))
+                    .andExpect(status().isNotFound());
+        }
     }
 
     @Nested

@@ -25,9 +25,8 @@ public class LearningPathController {
 
     /**
      * Retrieves the candidate's currently active Dynamic Learning Path (DLP).
-     * Supports both canonical /current and root / path alias.
      */
-    @GetMapping({"", "/", "/current"})
+    @GetMapping("/current")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<DynamicLearningPathResponse> getCurrentPath(@AuthenticationPrincipal Jwt jwt) {
         UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
@@ -41,9 +40,8 @@ public class LearningPathController {
 
     /**
      * Manually triggers DLP recalculation after diagnostic mock or practice session.
-     * Supports both /recalculate and legacy /generate endpoint aliases.
      */
-    @PostMapping({"/recalculate", "/generate"})
+    @PostMapping("/recalculate")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<DynamicLearningPathResponse> recalculate(
             @AuthenticationPrincipal Jwt jwt,
