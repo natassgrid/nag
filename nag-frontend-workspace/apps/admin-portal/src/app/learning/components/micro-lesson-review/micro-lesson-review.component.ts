@@ -19,8 +19,10 @@ import { MicroLessonAdminService } from '../../services/micro-lesson-admin.servi
 import {
   MicroLessonReviewItem,
   ReviewMicroLessonRequest,
+  BatchGenerateResponse,
 } from '../../models/micro-lesson.model';
 import { GenerateMicroLessonDialogComponent } from '../generate-micro-lesson-dialog/generate-micro-lesson-dialog.component';
+import { BatchGenerateMicroLessonDialogComponent } from '../batch-generate-dialog/batch-generate-dialog.component';
 
 @Component({
   selector: 'app-micro-lesson-review',
@@ -340,26 +342,26 @@ export class MicroLessonReviewComponent implements OnInit {
     });
   }
 
-  triggerBatchGenerate() {
-    this.isBatchGenerating.set(true);
-    this.microLessonService.triggerBatchGenerate({}).subscribe({
-      next: (res) => {
-        this.isBatchGenerating.set(false);
+  openBatchGenerateDialog() {
+    const dialogRef = this.dialog.open(BatchGenerateMicroLessonDialogComponent, {
+      width: '560px',
+      panelClass: 'nag-dialog-clean',
+    });
+
+    dialogRef.afterClosed().subscribe((res: BatchGenerateResponse | null) => {
+      if (res) {
         this.snackBar.open(
-          res.message || `Queued ${res.totalQueued} micro-lessons for generation`,
+          res.message || `Queued ${res.totalQueued} micro-lessons for batch generation.`,
           'OK',
           { duration: 4000 }
         );
         this.loadLessons();
-      },
-      error: (err) => {
-        this.isBatchGenerating.set(false);
-        console.error('Failed to trigger batch generation', err);
-        this.snackBar.open('Batch generation trigger failed', 'Close', {
-          duration: 3000,
-        });
-      },
+      }
     });
+  }
+
+  triggerBatchGenerate() {
+    this.openBatchGenerateDialog();
   }
 
   getStatusBadgeClass(status: string): string {

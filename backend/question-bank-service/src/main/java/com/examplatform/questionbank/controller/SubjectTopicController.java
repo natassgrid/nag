@@ -59,7 +59,7 @@ public class SubjectTopicController {
      * List all subjects for the given tenant.
      */
     @GetMapping
-    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'EXAM_CONTROLLER', 'SUPER_ADMIN', 'ADMIN', 'FACULTY')")
     public ResponseEntity<ApiResponse<List<Subject>>> listSubjects(
             @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
 
@@ -71,7 +71,7 @@ public class SubjectTopicController {
      * Create a new subject.
      */
     @PostMapping
-    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'EXAM_CONTROLLER', 'SUPER_ADMIN', 'ADMIN')")
     public ResponseEntity<ApiResponse<Subject>> createSubject(
             @Valid @RequestBody CreateSubjectRequest request,
             @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
@@ -94,7 +94,7 @@ public class SubjectTopicController {
      * List all topics for a given subject.
      */
     @GetMapping("/{subjectId}/topics")
-    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'EXAM_CONTROLLER', 'SUPER_ADMIN', 'ADMIN', 'FACULTY')")
     public ResponseEntity<ApiResponse<List<Topic>>> listTopics(
             @PathVariable Long subjectId,
             @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
@@ -107,13 +107,11 @@ public class SubjectTopicController {
      * Create a new topic under a subject.
      */
     @PostMapping("/{subjectId}/topics")
-    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'EXAM_CONTROLLER', 'SUPER_ADMIN', 'ADMIN')")
     public ResponseEntity<ApiResponse<Topic>> createTopic(
             @PathVariable Long subjectId,
             @Valid @RequestBody CreateTopicRequest request,
             @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
-
-        log.info("Creating topic: name={}, subjectId={}, tenant={}", request.getName(), subjectId, tenantId);
 
         log.info("Creating topic: name={}, subjectId={}, tenant={}", request.getName(), subjectId, tenantId);
         Topic topic = subjectTopicService.createTopic(
@@ -129,7 +127,7 @@ public class SubjectTopicController {
      * List all subtopics for a given topic.
      */
     @GetMapping("/{subjectId}/topics/{topicId}/subtopics")
-    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'EXAM_CONTROLLER', 'SUPER_ADMIN', 'ADMIN', 'FACULTY')")
     public ResponseEntity<ApiResponse<List<Subtopic>>> listSubtopics(
             @PathVariable Long subjectId,
             @PathVariable Long topicId,
@@ -143,7 +141,7 @@ public class SubjectTopicController {
      * Create a new subtopic under a topic.
      */
     @PostMapping("/{subjectId}/topics/{topicId}/subtopics")
-    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'EXAM_CONTROLLER', 'SUPER_ADMIN', 'ADMIN')")
     public ResponseEntity<ApiResponse<Subtopic>> createSubtopic(
             @PathVariable Long subjectId,
             @PathVariable Long topicId,
@@ -164,13 +162,14 @@ public class SubjectTopicController {
      * Returns the full Subject → Topic → Subtopic tree for populating cascading dropdowns.
      */
     @GetMapping("/hierarchy")
-    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'EXAM_CONTROLLER', 'SUPER_ADMIN', 'ADMIN', 'FACULTY')")
     public ResponseEntity<ApiResponse<List<SubjectHierarchyResponse>>> getHierarchy(
             @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
 
         List<SubjectHierarchyResponse> hierarchy = subjectTopicService.getHierarchy(tenantId);
         return ResponseEntity.ok(ApiResponse.success(hierarchy, "Hierarchy retrieved successfully"));
     }
+
     private <T> ResponseEntity<ApiResponse<T>> createdPayload(T body, String msg) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(body, msg));
     }

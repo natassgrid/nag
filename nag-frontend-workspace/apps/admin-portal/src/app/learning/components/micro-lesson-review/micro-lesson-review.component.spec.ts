@@ -16,7 +16,8 @@ describe('MicroLessonReviewComponent', () => {
   let dialogMock: any;
 
   const mockLessons: MicroLessonReviewItem[] = [
-    {\n      id: 'ml-1',
+    {
+      id: 'ml-1',
       subtopicId: 101,
       subtopicName: 'Bayes Theorem & Conditional Probability',
       topicName: 'Probability',
@@ -118,7 +119,15 @@ describe('MicroLessonReviewComponent', () => {
         { provide: MatDialog, useValue: dialogMock },
         { provide: ActivatedRoute, useValue: { snapshot: { params: {} } } },
       ],
-    }).compileComponents();
+    })
+    .overrideComponent(MicroLessonReviewComponent, {
+      set: {
+        providers: [
+          { provide: MatDialog, useValue: dialogMock },
+        ],
+      },
+    })
+    .compileComponents();
 
     fixture = TestBed.createComponent(MicroLessonReviewComponent);
     component = fixture.componentInstance;
@@ -228,5 +237,26 @@ describe('MicroLessonReviewComponent', () => {
     expect(dialogMock.open).toHaveBeenCalled();
     expect(component.lessons()[0].id).toBe('ml-new');
     expect(component.selectedLesson()?.id).toBe('ml-new');
+  });
+
+  it('should open batch generate dialog and display snackbar on queue success', () => {
+    const mockBatchRes = {
+      batchId: 'batch-test-1',
+      totalQueued: 10,
+      status: 'QUEUED',
+      message: 'Queued 10 micro-lessons for batch generation.',
+    };
+
+    dialogMock.open.mockReturnValue({
+      afterClosed: () => of(mockBatchRes),
+    });
+
+    component.openBatchGenerateDialog();
+    expect(dialogMock.open).toHaveBeenCalled();
+    expect(snackBarMock.open).toHaveBeenCalledWith(
+      'Queued 10 micro-lessons for batch generation.',
+      'OK',
+      expect.objectContaining({ duration: 4000 })
+    );
   });
 });
