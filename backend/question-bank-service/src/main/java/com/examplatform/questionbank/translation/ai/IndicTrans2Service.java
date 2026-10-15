@@ -17,13 +17,14 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.examplatform.questionbank.translation.service;
+package com.examplatform.questionbank.translation.ai;
 
 import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.dto.QuestionOption;
 import com.examplatform.questionbank.repository.QuestionRepository;
 import com.examplatform.questionbank.translation.dto.AutoTranslateResponse;
 import com.examplatform.questionbank.translation.dto.TranslatedOptionDto;
+import com.examplatform.shared.ai.latex.LatexPreservationUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;

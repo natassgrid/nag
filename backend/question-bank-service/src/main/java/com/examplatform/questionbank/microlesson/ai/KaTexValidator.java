@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-package com.examplatform.questionbank.microlesson.service;
+package com.examplatform.questionbank.microlesson.ai;
 
 import com.examplatform.questionbank.microlesson.dto.MicroLessonContentDto;
 import com.examplatform.questionbank.microlesson.dto.StepByStepBreakdownDto;
+import com.examplatform.shared.ai.latex.LatexSyntaxValidator;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Stack;
 
 @Component
 public class KaTexValidator {
@@ -71,65 +71,10 @@ public class KaTexValidator {
         return errors;
     }
 
+    /**
+     * Validates an individual LaTeX or KaTeX expression using the shared AI latex syntax validator.
+     */
     public List<String> validateLatexExpression(String text) {
-        List<String> errors = new ArrayList<>();
-        if (text == null || text.isBlank()) return errors;
-
-        // 1. Check balanced dollar delimiters (ignoring escaped ones: \$)
-        int singleDollarCount = 0;
-        int doubleDollarCount = 0;
-        int len = text.length();
-
-        for (int i = 0; i < len; i++) {
-            char c = text.charAt(i);
-            if (c == '\\') {
-                i++; // skip escaped character
-                continue;
-            }
-            if (c == '$') {
-                if (i + 1 < len && text.charAt(i + 1) == '$') {
-                    doubleDollarCount++;
-                    i++;
-                } else {
-                    singleDollarCount++;
-                }
-            }
-        }
-
-        if (singleDollarCount % 2 != 0) {
-            errors.add("Unbalanced inline math delimiter '$' in expression");
-        }
-        if (doubleDollarCount % 2 != 0) {
-            errors.add("Unbalanced display math delimiter '$$' in expression");
-        }
-
-        // 2. Check balanced curly braces '{' and '}' and brackets '[' and ']'
-        Stack<Character> stack = new Stack<>();
-        for (int i = 0; i < len; i++) {
-            char c = text.charAt(i);
-            if (c == '\\') {
-                i++;
-                continue;
-            }
-            if (c == '{' || c == '[') {
-                stack.push(c);
-            } else if (c == '}') {
-                if (stack.isEmpty() || stack.pop() != '{') {
-                    errors.add("Unbalanced or mismatched closing brace '}' in expression");
-                    break;
-                }
-            } else if (c == ']') {
-                if (stack.isEmpty() || stack.pop() != '[') {
-                    errors.add("Unbalanced or mismatched closing bracket ']' in expression");
-                    break;
-                }
-            }
-        }
-        if (!stack.isEmpty()) {
-            char unclosed = stack.pop();
-            errors.add("Unclosed delimiter '" + unclosed + "' in expression");
-        }
-
-        return errors;
+        return LatexSyntaxValidator.validate(text);
     }
 }

@@ -19,6 +19,8 @@
 
 package com.examplatform.questionbank.translation.controller;
 
+import com.examplatform.questionbank.translation.ai.IndicTrans2Service;
+
 import com.examplatform.questionbank.dto.QuestionResponse;
 import com.examplatform.questionbank.service.QuestionService;
 import com.examplatform.questionbank.translation.domain.Translation;

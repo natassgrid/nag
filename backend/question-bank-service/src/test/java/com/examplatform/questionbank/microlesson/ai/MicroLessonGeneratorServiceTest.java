@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-package com.examplatform.questionbank.microlesson.service;
+package com.examplatform.questionbank.microlesson.ai;
 
 import com.examplatform.questionbank.microlesson.domain.SubtopicMicroLesson;
 import com.examplatform.questionbank.microlesson.dto.MicroLessonContentDto;

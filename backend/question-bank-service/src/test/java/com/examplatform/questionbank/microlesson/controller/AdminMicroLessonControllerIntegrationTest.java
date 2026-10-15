@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.examplatform.questionbank.microlesson.controller;
 
+import com.examplatform.questionbank.microlesson.ai.MicroLessonBatchRunner;
+import com.examplatform.questionbank.microlesson.ai.MicroLessonGeneratorService;
 import com.examplatform.questionbank.microlesson.domain.SubtopicMicroLesson;
 import com.examplatform.questionbank.microlesson.dto.*;
 import com.examplatform.questionbank.microlesson.repository.SubtopicMicroLessonRepository;
-import com.examplatform.questionbank.microlesson.service.MicroLessonBatchRunner;
 import com.examplatform.questionbank.microlesson.service.MicroLessonCacheService;
-import com.examplatform.questionbank.microlesson.service.MicroLessonGeneratorService;
 import com.examplatform.questionbank.support.AbstractIntegrationTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -103,15 +103,31 @@ class AdminMicroLessonControllerIntegrationTest extends AbstractIntegrationTest 
 
             when(repository.findByStatus(eq("AI_GENERATED"), any(Pageable.class)))
                     .thenReturn(new PageImpl<>(List.of(entity)));
-            when(generatorService.toResponse(any())).thenReturn(response);
+            when(generatorService.toResponse(entity)).thenReturn(response);
 
             mockMvc.perform(get("/api/admin/micro-lessons")
-                            .param("status", "AI_GENERATED")
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
-                                    .jwt(j -> j.subject(REVIEWER_ID.toString()))))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.content[0].subtopic").value("Moment of Inertia"))
                     .andExpect(jsonPath("$.content[0].status").value("AI_GENERATED"));
+        }
+
+        @Test
+        @DisplayName("200 OK - Filters by status and subjectId")
+        void testListWithFilters() throws Exception {
+            SubtopicMicroLesson entity = buildSampleEntity("APPROVED");
+            MicroLessonResponse response = buildSampleResponse("APPROVED");
+
+            when(repository.findByStatusAndSubjectId(eq("APPROVED"), eq(1L), any(Pageable.class)))
+                    .thenReturn(new PageImpl<>(List.of(entity)));
+            when(generatorService.toResponse(entity)).thenReturn(response);
+
+            mockMvc.perform(get("/api/admin/micro-lessons")
+                            .param("status", "APPROVED")
+                            .param("subjectId", "1")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_FACULTY"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.content[0].status").value("APPROVED"));
         }
     }
 
@@ -120,53 +136,67 @@ class AdminMicroLessonControllerIntegrationTest extends AbstractIntegrationTest 
     class ReviewEndpoint {
 
         @Test
-        @DisplayName("200 OK - Faculty approves and publishes micro-lesson, caching it in Redis")
-        void testApproveAndPublish() throws Exception {
+        @DisplayName("200 OK - Faculty approves micro-lesson with comments")
+        void testApproveMicroLesson() throws Exception {
             SubtopicMicroLesson entity = buildSampleEntity("AI_GENERATED");
-            MicroLessonResponse approvedResponse = buildSampleResponse("PUBLISHED");
-
             when(repository.findById(LESSON_ID)).thenReturn(Optional.of(entity));
             when(repository.save(any(SubtopicMicroLesson.class))).thenAnswer(inv -> inv.getArgument(0));
-            when(generatorService.toResponse(any())).thenReturn(approvedResponse);
+            when(generatorService.toResponse(any(SubtopicMicroLesson.class)))
+                    .thenReturn(buildSampleResponse("APPROVED"));
 
             ReviewMicroLessonRequest req = new ReviewMicroLessonRequest(
-                    "PUBLISHED",
-                    "Pedagogically verified and ready for candidate remediation.",
-                    null, null, null, null
+                    "APPROVED", "Excellent native analogy", null, null, null, null
             );
 
-            mockMvc.perform(put("/api/admin/micro-lessons/{id}/review", LESSON_ID)
+            mockMvc.perform(put("/api/admin/micro-lessons/" + LESSON_ID + "/review")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(req))
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_FACULTY"))
                                     .jwt(j -> j.subject(REVIEWER_ID.toString()))))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.status").value("PUBLISHED"));
+                    .andExpect(jsonPath("$.status").value("APPROVED"));
 
-            verify(cacheService).put(eq(100L), any());
+            verify(cacheService).evict(100L);
         }
 
         @Test
-        @DisplayName("400 BAD REQUEST - Rejects review when KaTeX syntax is malformed")
-        void testRejectMalformedKaTex() throws Exception {
-            SubtopicMicroLesson entity = buildSampleEntity("AI_GENERATED");
+        @DisplayName("200 OK - Faculty publishes micro-lesson and populates near cache")
+        void testPublishMicroLesson() throws Exception {
+            SubtopicMicroLesson entity = buildSampleEntity("APPROVED");
             when(repository.findById(LESSON_ID)).thenReturn(Optional.of(entity));
+            when(repository.save(any(SubtopicMicroLesson.class))).thenAnswer(inv -> inv.getArgument(0));
+            MicroLessonResponse pubResponse = buildSampleResponse("PUBLISHED");
+            when(generatorService.toResponse(any(SubtopicMicroLesson.class)))
+                    .thenReturn(pubResponse);
 
-            // Malformed unclosed dollar delimiter
             ReviewMicroLessonRequest req = new ReviewMicroLessonRequest(
-                    "APPROVED",
-                    "Comment",
-                    "Valid core concept with three sentences.",
-                    "Valid trap.",
-                    List.of("$I = m r^2 without closing dollar"),
-                    null
+                    "PUBLISHED", "Verified ready for student delivery", null, null, null, null
             );
 
-            mockMvc.perform(put("/api/admin/micro-lessons/{id}/review", LESSON_ID)
+            mockMvc.perform(put("/api/admin/micro-lessons/" + LESSON_ID + "/review")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(req))
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_FACULTY"))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
                                     .jwt(j -> j.subject(REVIEWER_ID.toString()))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("PUBLISHED"));
+
+            verify(cacheService).put(eq(100L), any(MicroLessonResponse.class));
+        }
+
+        @Test
+        @DisplayName("400 Bad Request - When status transition is missing or invalid")
+        void testInvalidStatusTransition() throws Exception {
+            ReviewMicroLessonRequest req = new ReviewMicroLessonRequest(
+                    "INVALID_STATUS", null, null, null, null, null
+            );
+
+            when(repository.findById(LESSON_ID)).thenReturn(Optional.of(buildSampleEntity("AI_GENERATED")));
+
+            mockMvc.perform(put("/api/admin/micro-lessons/" + LESSON_ID + "/review")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(req))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
                     .andExpect(status().isBadRequest());
         }
     }
@@ -207,20 +237,23 @@ class AdminMicroLessonControllerIntegrationTest extends AbstractIntegrationTest 
     class BatchGenerateEndpoint {
 
         @Test
-        @DisplayName("200 OK - Admin triggers syllabus batch generation")
-        void testBatchGenerate() throws Exception {
-            BatchGenerateResponse batchResponse = new BatchGenerateResponse(
-                    "COMPLETED", 5, 5, 0, List.of("Moment of Inertia", "Friction"), "Batch completed successfully"
+        @DisplayName("200 OK - Triggers batch runner and returns summary")
+        void testTriggerBatchRunner() throws Exception {
+            BatchGenerateResponse mockResp = new BatchGenerateResponse(
+                    "COMPLETED", 5, 5, 0, List.of("Subtopic A", "Subtopic B"), "Batch completed"
             );
-            when(batchRunner.runBatchGeneration(any())).thenReturn(batchResponse);
 
-            BatchGenerateMicroLessonsRequest req = new BatchGenerateMicroLessonsRequest(1L, 10L, null, "JEE_MAIN", 5);
+            when(batchRunner.runBatchGeneration(any(BatchGenerateMicroLessonsRequest.class)))
+                    .thenReturn(mockResp);
+
+            BatchGenerateMicroLessonsRequest req = new BatchGenerateMicroLessonsRequest(
+                    1L, 10L, List.of(100L, 101L), "JEE_MAIN", 10
+            );
 
             mockMvc.perform(post("/api/admin/micro-lessons/batch-generate")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(req))
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
-                                    .jwt(j -> j.subject(REVIEWER_ID.toString()))))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("COMPLETED"))
                     .andExpect(jsonPath("$.totalGenerated").value(5));

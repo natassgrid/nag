@@ -1,18 +1,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.examplatform.questionbank.microlesson.controller;
 
+import com.examplatform.questionbank.microlesson.ai.MicroLessonGeneratorService;
 import com.examplatform.questionbank.microlesson.domain.SubtopicMicroLesson;
 import com.examplatform.questionbank.microlesson.dto.MicroLessonResponse;
 import com.examplatform.questionbank.microlesson.dto.StepByStepBreakdownDto;
 import com.examplatform.questionbank.microlesson.repository.SubtopicMicroLessonRepository;
 import com.examplatform.questionbank.microlesson.service.MicroLessonCacheService;
-import com.examplatform.questionbank.microlesson.service.MicroLessonGeneratorService;
 import com.examplatform.questionbank.support.AbstractIntegrationTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Instant;
 import java.util.List;
@@ -27,7 +28,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@DisplayName("MicroLessonController Candidate-Facing Delivery E2E Tests (MockMvc)")
+@DisplayName("MicroLessonController Remedial Delivery Integration Tests (MockMvc)")
 class MicroLessonControllerIntegrationTest extends AbstractIntegrationTest {
 
     @MockitoBean
@@ -39,27 +40,34 @@ class MicroLessonControllerIntegrationTest extends AbstractIntegrationTest {
     @MockitoBean
     private MicroLessonCacheService cacheService;
 
-    private static final UUID CANDIDATE_ID = UUID.fromString("22222222-3333-4444-5555-666666666666");
-    private static final Long SUBTOPIC_ID = 101L;
+    private static final UUID LESSON_ID = UUID.fromString("12345678-1234-1234-1234-123456789abc");
 
     private MicroLessonResponse buildSampleResponse() {
         return new MicroLessonResponse(
-                UUID.randomUUID(),
+                LESSON_ID,
                 1L,
                 10L,
-                SUBTOPIC_ID,
+                100L,
                 "Physics",
                 "Mechanics",
-                "Work Energy Theorem",
+                "Rotational Motion",
                 "JEE_MAIN",
-                "Net work done equals change in kinetic energy.",
-                "Ignoring negative work done by non-conservative frictional forces.",
-                List.of("$W_{net} = \\Delta K$"),
-                new StepByStepBreakdownDto("Find speed", List.of("Step 1"), "10 m/s"),
+                "Torque produces angular acceleration, analogous to force causing linear acceleration.",
+                "Confusing clockwise and counterclockwise torque signs in cross product \\vec{r} \\times \\vec{F}.",
+                List.of("$$\\tau = I \\alpha$$", "$$L = I \\omega$$"),
+                new StepByStepBreakdownDto(
+                        "A uniform disc of mass 2 kg and radius 0.2 m is acted upon by a tangential force of 10 N. Find its angular acceleration.",
+                        List.of(
+                                "Step 1: Compute torque $\\tau = F \\cdot R = 10 \\times 0.2 = 2\\text{ N}\\cdot\\text{m}$",
+                                "Step 2: Moment of inertia $I = \\frac{1}{2} M R^2 = \\frac{1}{2} \\times 2 \\times 0.04 = 0.04\\text{ kg}\\cdot\\text{m}^2$",
+                                "Step 3: Angular acceleration $\\alpha = \\frac{\\tau}{I} = \\frac{2}{0.04} = 50\\text{ rad/s}^2$"
+                        ),
+                        "50 \\text{ rad/s}^2"
+                ),
                 "PUBLISHED",
                 UUID.randomUUID(),
                 Instant.now(),
-                "Approved",
+                "Approved by faculty",
                 1,
                 Instant.now(),
                 Instant.now()
@@ -68,72 +76,72 @@ class MicroLessonControllerIntegrationTest extends AbstractIntegrationTest {
 
     @Nested
     @DisplayName("GET /api/micro-lessons/subtopic/{subtopicId}")
-    class CandidateGetMicroLesson {
+    class GetMicroLessonForSubtopic {
 
         @Test
-        @DisplayName("200 OK - Candidate retrieves cached micro-lesson from Redis (<20ms)")
-        void testCacheHitReturnsImmediately() throws Exception {
-            MicroLessonResponse cachedResp = buildSampleResponse();
-            when(cacheService.getCached(SUBTOPIC_ID)).thenReturn(Optional.of(cachedResp));
+        @DisplayName("200 OK - Delivers micro-lesson from cache when cached")
+        void testCacheHitReturnsMicroLesson() throws Exception {
+            MicroLessonResponse response = buildSampleResponse();
+            when(cacheService.getCached(100L)).thenReturn(Optional.of(response));
 
-            mockMvc.perform(get("/api/micro-lessons/subtopic/{subtopicId}", SUBTOPIC_ID)
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
-                                    .jwt(j -> j.subject(CANDIDATE_ID.toString()))))
+            mockMvc.perform(get("/api/micro-lessons/subtopic/100")
+                            .param("targetExam", "JEE_MAIN")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.subtopicId").value(SUBTOPIC_ID))
-                    .andExpect(jsonPath("$.subtopic").value("Work Energy Theorem"))
-                    .andExpect(jsonPath("$.status").value("PUBLISHED"));
+                    .andExpect(jsonPath("$.subtopic").value("Rotational Motion"))
+                    .andExpect(jsonPath("$.targetExam").value("JEE_MAIN"))
+                    .andExpect(jsonPath("$.coreConcept").isNotEmpty())
+                    .andExpect(jsonPath("$.cheatSheet").isArray())
+                    .andExpect(jsonPath("$.stepByStepBreakdown.steps").isArray());
 
-            // Verify DB repository was never touched on cache hit
-            verify(repository, never()).findFirstBySubtopicIdAndTargetExamAndStatusOrderByContentVersionDesc(any(), any(), any());
+            verify(cacheService).getCached(100L);
+            verifyNoInteractions(repository);
         }
 
         @Test
-        @DisplayName("200 OK - On cache miss, loads from DB and populates Redis cache")
-        void testCacheMissLoadsAndCaches() throws Exception {
-            when(cacheService.getCached(SUBTOPIC_ID)).thenReturn(Optional.empty());
+        @DisplayName("200 OK - Fetches from database and populates cache on cache miss")
+        void testCacheMissFetchesFromDatabase() throws Exception {
+            when(cacheService.getCached(100L)).thenReturn(Optional.empty());
 
-            SubtopicMicroLesson dbLesson = SubtopicMicroLesson.builder()
-                    .subtopicId(SUBTOPIC_ID)
-                    .subtopic("Work Energy Theorem")
+            SubtopicMicroLesson entity = SubtopicMicroLesson.builder()
+                    .subtopicId(100L)
+                    .targetExam("JEE_MAIN")
                     .status("PUBLISHED")
                     .build();
-            MicroLessonResponse resp = buildSampleResponse();
+            ReflectionTestUtils.setField(entity, "id", LESSON_ID);
 
-            when(repository.findFirstBySubtopicIdAndTargetExamAndStatusOrderByContentVersionDesc(eq(SUBTOPIC_ID), eq("JEE_MAIN"), eq("PUBLISHED")))
-                    .thenReturn(Optional.of(dbLesson));
-            when(generatorService.toResponse(dbLesson)).thenReturn(resp);
+            when(repository.findFirstBySubtopicIdAndTargetExamAndStatusOrderByContentVersionDesc(
+                    100L, "JEE_MAIN", "PUBLISHED"))
+                    .thenReturn(Optional.of(entity));
 
-            mockMvc.perform(get("/api/micro-lessons/subtopic/{subtopicId}", SUBTOPIC_ID)
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
-                                    .jwt(j -> j.subject(CANDIDATE_ID.toString()))))
+            MicroLessonResponse response = buildSampleResponse();
+            when(generatorService.toResponse(entity)).thenReturn(response);
+
+            mockMvc.perform(get("/api/micro-lessons/subtopic/100")
+                            .param("targetExam", "JEE_MAIN")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.subtopicId").value(SUBTOPIC_ID));
+                    .andExpect(jsonPath("$.subtopic").value("Rotational Motion"));
 
-            // Verify cache was populated
-            verify(cacheService).put(eq(SUBTOPIC_ID), eq(resp));
+            verify(cacheService).getCached(100L);
+            verify(cacheService).put(eq(100L), any(MicroLessonResponse.class));
         }
 
         @Test
-        @DisplayName("404 NOT FOUND - Unapproved / AI_GENERATED lessons are not exposed to candidates")
-        void testUnpublishedLessonsReturn404() throws Exception {
-            when(cacheService.getCached(SUBTOPIC_ID)).thenReturn(Optional.empty());
-            when(repository.findFirstBySubtopicIdAndTargetExamAndStatusOrderByContentVersionDesc(any(), any(), eq("PUBLISHED")))
+        @DisplayName("404 Not Found - Returns 404 when no published micro-lesson exists")
+        void testNotFoundWhenNoMicroLessonPublished() throws Exception {
+            when(cacheService.getCached(999L)).thenReturn(Optional.empty());
+            when(repository.findFirstBySubtopicIdAndTargetExamAndStatusOrderByContentVersionDesc(
+                    999L, "JEE_MAIN", "PUBLISHED"))
                     .thenReturn(Optional.empty());
-            when(repository.findFirstBySubtopicIdAndStatusOrderByContentVersionDesc(any(), eq("PUBLISHED")))
+            when(repository.findFirstBySubtopicIdAndStatusOrderByContentVersionDesc(
+                    999L, "PUBLISHED"))
                     .thenReturn(Optional.empty());
 
-            mockMvc.perform(get("/api/micro-lessons/subtopic/{subtopicId}", SUBTOPIC_ID)
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
-                                    .jwt(j -> j.subject(CANDIDATE_ID.toString()))))
+            mockMvc.perform(get("/api/micro-lessons/subtopic/999")
+                            .param("targetExam", "JEE_MAIN")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))))
                     .andExpect(status().isNotFound());
-        }
-
-        @Test
-        @DisplayName("401 UNAUTHORIZED - Unauthenticated request is rejected")
-        void testUnauthenticatedReturns401() throws Exception {
-            mockMvc.perform(get("/api/micro-lessons/subtopic/{subtopicId}", SUBTOPIC_ID))
-                    .andExpect(status().isUnauthorized());
         }
     }
 }

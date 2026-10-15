@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-package com.examplatform.questionbank.microlesson.service;
+package com.examplatform.questionbank.microlesson.ai;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
