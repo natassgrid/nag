@@ -1,4 +1,25 @@
 <div class="p-6 md:p-8 space-y-6 max-w-7xl mx-auto">
+  <!-- Shared Module Sub-Navigation -->
+  <div class="flex items-center gap-2 border-b border-slate-200 pb-3">
+    <a
+      routerLink="/learning"
+      routerLinkActive="!border-indigo-600 !text-indigo-600 !bg-indigo-50/70 shadow-2xs"
+      [routerLinkActiveOptions]="{ exact: true }"
+      class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 border border-transparent hover:bg-slate-100 flex items-center gap-2 transition-all cursor-pointer"
+    >
+      <mat-icon class="!text-base text-indigo-600">auto_stories</mat-icon>
+      <span>Practice Sets</span>
+    </a>
+    <a
+      routerLink="/learning/micro-lessons"
+      routerLinkActive="!border-purple-600 !text-purple-600 !bg-purple-50/70 shadow-2xs"
+      class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 border border-transparent hover:bg-slate-100 flex items-center gap-2 transition-all cursor-pointer"
+    >
+      <mat-icon class="!text-base text-purple-600">psychology</mat-icon>
+      <span>Micro-Lesson Moderation Desk</span>
+    </a>
+  </div>
+
   <!-- Top Banner -->
   <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
     <div class="flex items-center gap-4">

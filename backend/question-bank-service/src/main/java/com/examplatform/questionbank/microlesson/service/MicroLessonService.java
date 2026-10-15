@@ -3,6 +3,7 @@ package com.examplatform.questionbank.microlesson.service;
 
 import com.examplatform.questionbank.microlesson.domain.MicroLessonStatus;
 import com.examplatform.questionbank.microlesson.domain.SubtopicMicroLesson;
+import com.examplatform.questionbank.microlesson.dto.GenerateMicroLessonRequest;
 import com.examplatform.questionbank.microlesson.dto.MicroLessonContentDto;
 import com.examplatform.questionbank.microlesson.dto.MicroLessonResponse;
 import com.examplatform.questionbank.microlesson.dto.ReviewMicroLessonRequest;
@@ -133,6 +134,29 @@ public class MicroLessonService {
         }
 
         return response;
+    }
+
+    @Transactional
+    public MicroLessonResponse generateSingleMicroLesson(GenerateMicroLessonRequest request) {
+        if (request == null || request.subtopic() == null || request.subtopic().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Subtopic is required for generation");
+        }
+        Long subjectId = request.subjectId() != null ? request.subjectId() : 1L;
+        String subject = (request.subject() != null && !request.subject().isBlank()) ? request.subject() : "General";
+        Long topicId = request.topicId() != null ? request.topicId() : 1L;
+        String topic = (request.topic() != null && !request.topic().isBlank()) ? request.topic() : "General";
+        Long subtopicId = request.subtopicId() != null ? request.subtopicId() : (long) Math.abs(request.subtopic().hashCode());
+        String targetExam = (request.targetExam() != null && !request.targetExam().isBlank()) ? request.targetExam() : "JEE_MAIN";
+
+        String reference = request.referenceText();
+        if (reference == null || reference.isBlank()) {
+            reference = request.promptNotes();
+        }
+
+        SubtopicMicroLesson lesson = generatorService.generateForSubtopic(
+                subjectId, subject, topicId, topic, subtopicId, request.subtopic(), targetExam, reference
+        );
+        return generatorService.toResponse(lesson);
     }
 
     @Transactional(readOnly = true)

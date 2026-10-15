@@ -41,13 +41,23 @@ public class MicroLessonGeneratorService {
             Long topicId, String topic,
             Long subtopicId, String subtopic,
             String targetExam) {
+        return generateForSubtopic(subjectId, subject, topicId, topic, subtopicId, subtopic, targetExam, null);
+    }
+
+    @Transactional
+    public SubtopicMicroLesson generateForSubtopic(
+            Long subjectId, String subject,
+            Long topicId, String topic,
+            Long subtopicId, String subtopic,
+            String targetExam,
+            String referenceText) {
 
         String exam = (targetExam != null && !targetExam.isBlank()) ? targetExam : "JEE_MAIN";
         log.info("Generating remedial micro-lesson for subtopic: '{}' in topic: '{}' (Exam: {})", subtopic, topic, exam);
 
         MicroLessonContentDto content;
         try {
-            String userPrompt = promptBuilder.buildUserPrompt(subject, topic, subtopic, exam);
+            String userPrompt = promptBuilder.buildUserPrompt(subject, topic, subtopic, exam, referenceText);
             String rawResponse = chatClient.prompt()
                     .system(MicroLessonPromptBuilder.SYSTEM_PROMPT)
                     .user(userPrompt)

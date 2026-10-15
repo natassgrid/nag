@@ -2,6 +2,7 @@
 package com.examplatform.questionbank.microlesson.controller;
 
 import com.examplatform.questionbank.microlesson.dto.BatchGenerateMicroLessonsRequest;
+import com.examplatform.questionbank.microlesson.dto.GenerateMicroLessonRequest;
 import com.examplatform.questionbank.microlesson.dto.BatchGenerateResponse;
 import com.examplatform.questionbank.microlesson.dto.MicroLessonResponse;
 import com.examplatform.questionbank.microlesson.dto.ReviewMicroLessonRequest;
@@ -68,6 +69,14 @@ public class AdminMicroLessonController {
     /**
      * Admin trigger for asynchronous or syllabus subtopic batch generation.
      */
+    @PostMapping("/generate")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<MicroLessonResponse> generateMicroLesson(
+            @RequestBody GenerateMicroLessonRequest request) {
+        MicroLessonResponse response = microLessonService.generateSingleMicroLesson(request);
+        return ResponseEntity.ok(response);
+    }
+
     @PostMapping("/batch-generate")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BatchGenerateResponse> triggerBatchGenerate(

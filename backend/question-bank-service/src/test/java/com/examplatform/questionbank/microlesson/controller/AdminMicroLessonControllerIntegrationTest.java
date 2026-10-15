@@ -172,6 +172,37 @@ class AdminMicroLessonControllerIntegrationTest extends AbstractIntegrationTest 
     }
 
     @Nested
+    @DisplayName("POST /api/admin/micro-lessons/generate")
+    class GenerateEndpoint {
+
+        @Test
+        @DisplayName("200 OK - Generates single micro-lesson with syllabus taxonomy and reference notes")
+        void testGenerateSingleMicroLesson() throws Exception {
+            SubtopicMicroLesson entity = buildSampleEntity("AI_GENERATED");
+            MicroLessonResponse response = buildSampleResponse("AI_GENERATED");
+
+            when(generatorService.generateForSubtopic(
+                    eq(1L), eq("Physics"), eq(10L), eq("Mechanics"),
+                    eq(100L), eq("Moment of Inertia"), eq("JEE_MAIN"), eq("Custom notes")
+            )).thenReturn(entity);
+            when(generatorService.toResponse(entity)).thenReturn(response);
+
+            GenerateMicroLessonRequest req = new GenerateMicroLessonRequest(
+                    1L, "Physics", 10L, "Mechanics", 100L, "Moment of Inertia", "JEE_MAIN", "Custom notes", null
+            );
+
+            mockMvc.perform(post("/api/admin/micro-lessons/generate")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(req))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
+                                    .jwt(j -> j.subject(REVIEWER_ID.toString()))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.subtopic").value("Moment of Inertia"))
+                    .andExpect(jsonPath("$.status").value("AI_GENERATED"));
+        }
+    }
+
+    @Nested
     @DisplayName("POST /api/admin/micro-lessons/batch-generate")
     class BatchGenerateEndpoint {
 
