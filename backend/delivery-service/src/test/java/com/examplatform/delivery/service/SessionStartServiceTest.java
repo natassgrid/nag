@@ -199,6 +199,40 @@ class SessionStartServiceTest {
     }
 
     @Test
+    @DisplayName("startSession uses navigationPolicy from shift assignment")
+    void startSession_usesNavigationPolicyFromAssignment() {
+        SessionStartRequest request = SessionStartRequest.builder()
+                .examId(EXAM_ID)
+                .shiftId(SHIFT_ID)
+                .build();
+
+        ShiftAssignment assignment = ShiftAssignment.builder()
+                .paperId(PAPER_ID)
+                .encryptedPackageRef(ENCRYPTED_PACKAGE)
+                .durationMinutes(180)
+                .extraTimeMinutes(0)
+                .navigationPolicy("SEQUENTIAL")
+                .build();
+
+        when(examSessionRepository.findByCandidateIdAndTenantId(CANDIDATE_ID, TENANT_ID))
+                .thenReturn(List.of());
+        when(shiftAssignmentClient.getShiftAssignment(CANDIDATE_ID, EXAM_ID, SHIFT_ID, TENANT_ID))
+                .thenReturn(assignment);
+        when(vaultCryptoService.decrypt("shift-key-" + SHIFT_ID, ENCRYPTED_PACKAGE))
+                .thenReturn(DECRYPTED_PAPER);
+        when(examQuestionDeliveryService.getDeliveryQuestions(eq(EXAM_ID), eq(PAPER_ID), eq(DECRYPTED_PAPER), eq(TENANT_ID)))
+                .thenReturn(List.of());
+        when(disabilityExtensionService.getExtraTimeMinutes(CANDIDATE_ID, TENANT_ID))
+                .thenReturn(0);
+        when(examSessionRepository.save(any(ExamSession.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+
+        SessionStartResponse response = sessionStartService.startSession(request, CANDIDATE_ID, TENANT_ID);
+
+        assertThat(response.getNavigationMode()).isEqualTo("SEQUENTIAL");
+    }
+
+    @Test
     @DisplayName("Start session with disability extension increases scheduledEndAt")
     void startSession_withDisabilityExtension_increasesDuration() {
         // Given

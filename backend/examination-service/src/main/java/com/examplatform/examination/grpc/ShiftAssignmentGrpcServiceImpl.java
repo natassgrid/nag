@@ -45,6 +45,7 @@ public class ShiftAssignmentGrpcServiceImpl extends ShiftAssignmentGrpcServiceGr
 
             int durationMinutes = 0;
             int extraTimeMinutes = 0;
+            String navigationPolicy = "FLEXIBLE";
 
             if (shiftId != null) {
                 Optional<ExamShift> shiftOpt = examShiftRepository.findById(shiftId);
@@ -53,10 +54,15 @@ public class ShiftAssignmentGrpcServiceImpl extends ShiftAssignmentGrpcServiceGr
                 }
             }
 
-            if (examId != null && durationMinutes <= 0) {
+            if (examId != null) {
                 Optional<Examination> examOpt = examinationRepository.findById(examId);
                 if (examOpt.isPresent()) {
-                    durationMinutes = examOpt.get().getDurationMinutes();
+                    if (durationMinutes <= 0) {
+                        durationMinutes = examOpt.get().getDurationMinutes();
+                    }
+                    if (examOpt.get().getNavigationPolicy() != null && !examOpt.get().getNavigationPolicy().isBlank()) {
+                        navigationPolicy = examOpt.get().getNavigationPolicy();
+                    }
                 }
             }
 
@@ -72,6 +78,7 @@ public class ShiftAssignmentGrpcServiceImpl extends ShiftAssignmentGrpcServiceGr
                     .setExamShiftId(request.getShiftId())
                     .setDurationMinutes(durationMinutes)
                     .setExtraTimeMinutes(extraTimeMinutes)
+                    .setNavigationPolicy(navigationPolicy)
                     .setIsAssigned(true)
                     .build();
 

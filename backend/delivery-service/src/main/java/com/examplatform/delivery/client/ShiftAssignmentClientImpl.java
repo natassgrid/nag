@@ -75,10 +75,15 @@ public class ShiftAssignmentClientImpl implements ShiftAssignmentClient {
                 }
             }
 
+            String navPolicy = (response.getNavigationPolicy() != null && !response.getNavigationPolicy().isBlank())
+                    ? response.getNavigationPolicy()
+                    : "FLEXIBLE";
+
             return ShiftAssignment.builder()
                     .paperId(paperId != null ? paperId : UUID.randomUUID())
                     .durationMinutes(response.getDurationMinutes() > 0 ? response.getDurationMinutes() : 180)
                     .extraTimeMinutes(response.getExtraTimeMinutes())
+                    .navigationPolicy(navPolicy)
                     .build();
         } catch (Exception e) {
             log.warn("Failed to get shift assignment via gRPC from {}:{} ({}). Using fallback.",
@@ -87,6 +92,7 @@ public class ShiftAssignmentClientImpl implements ShiftAssignmentClient {
                     .paperId(UUID.randomUUID())
                     .durationMinutes(180)
                     .extraTimeMinutes(0)
+                    .navigationPolicy("FLEXIBLE")
                     .build();
         }
     }
