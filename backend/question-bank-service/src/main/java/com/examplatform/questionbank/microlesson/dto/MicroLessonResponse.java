@@ -2,6 +2,7 @@
 package com.examplatform.questionbank.microlesson.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.io.Serializable;
 import java.time.Instant;
@@ -29,4 +30,30 @@ public record MicroLessonResponse(
         int contentVersion,
         Instant createdAt,
         Instant updatedAt
-) implements Serializable {}
+) implements Serializable {
+
+    @JsonProperty("subtopicName")
+    public String getSubtopicName() {
+        return subtopic;
+    }
+
+    @JsonProperty("topicName")
+    public String getTopicName() {
+        return topic;
+    }
+
+    @JsonProperty("subjectName")
+    public String getSubjectName() {
+        return subject;
+    }
+
+    @JsonProperty("trapAlert")
+    public String getTrapAlert() {
+        return trap;
+    }
+
+    @JsonProperty("reviewerNotes")
+    public String getReviewerNotes() {
+        return reviewComments;
+    }
+}

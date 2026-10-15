@@ -28,7 +28,13 @@ public class MicroLessonPromptBuilder {
         4. Step-by-Step Breakdown: Present one standard medium-difficulty exam problem deconstructed into explicit numbered deduction steps
            followed by the unambiguous final answer with proper physical/mathematical units.
 
-        Output must be strictly valid JSON with no markdown fences, matching this schema:
+        CRITICAL INSTRUCTION:
+        Output must be strictly raw, valid JSON only.
+        Do NOT wrap in markdown code blocks or fences (no ``` or ```json).
+        Do NOT include any greetings, introductory text, commentary, preambles, or explanations outside the JSON object.
+        Ensure all LaTeX backslashes inside JSON strings are properly escaped (e.g., \\Delta, \\%, \\frac).
+
+        The output must match this exact schema:
         {
           "coreConcept": "3 simple sentences with native Indian analogy",
           "trap": "Common pitfall or exam trap",
@@ -100,7 +106,7 @@ public class MicroLessonPromptBuilder {
             sb.append("\n");
         }
 
-        sb.append("\nEnsure KaTeX notation is syntactically balanced and accurate. Return ONLY the JSON object.\n");
+        sb.append("\nEnsure KaTeX notation is syntactically balanced and accurate. Return ONLY the raw valid JSON object with no markdown fences and no other text.\n");
         return sb.toString();
     }
 }

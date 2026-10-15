@@ -9,8 +9,11 @@ import com.examplatform.questionbank.microlesson.dto.MicroLessonResponse;
 import com.examplatform.questionbank.microlesson.dto.StepByStepBreakdownDto;
 import com.examplatform.questionbank.microlesson.repository.SubtopicMicroLessonRepository;
 import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.json.JsonReadFeature;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,6 +39,7 @@ public class MicroLessonGeneratorService {
     private final KaTexValidator kaTexValidator;
     private final SubtopicMicroLessonRepository repository;
     private final ObjectMapper objectMapper;
+    private final ObjectMapper aiObjectMapper;
     private final ModelRouter modelRouter;
 
     public MicroLessonGeneratorService(
@@ -60,6 +64,12 @@ public class MicroLessonGeneratorService {
         this.kaTexValidator = kaTexValidator;
         this.repository = repository;
         this.objectMapper = objectMapper;
+        this.aiObjectMapper = objectMapper.copy()
+                .configure(JsonParser.Feature.ALLOW_BACKSLASH_ESCAPING_ANY_CHARACTER, true)
+                .configure(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true)
+                .configure(JsonParser.Feature.ALLOW_SINGLE_QUOTES, true)
+                .configure(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature(), true)
+                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         this.modelRouter = modelRouter;
     }
 
@@ -78,14 +88,14 @@ public class MicroLessonGeneratorService {
         }
 
         // Topic and Subtopic complexity heuristic
-        String combined = ((topic != null ? topic : "") + " " + (subtopic != null ? subtopic : "")).toLowerCase();
-        if (combined.contains("quantum") || combined.contains("calculus") || combined.contains("electrodynamics")
-                || combined.contains("relativity") || combined.contains("thermodynamics")
-                || combined.contains("organic synthesis") || combined.contains("rotational")) {
+        String combined = (subject + " " + topic + " " + subtopic).toLowerCase();
+        if (combined.contains("quantum") || combined.contains("relativity") || combined.contains("calculus")
+                || combined.contains("dynamic programming") || combined.contains("electromagnetism")) {
             return QuestionTaxonomyConstants.Difficulty.HARD;
         }
-        if (combined.contains("algebra") || combined.contains("kinematics") || combined.contains("optics")
-                || combined.contains("genetics") || combined.contains("equilibrium") || combined.contains("circuit")) {
+        if (combined.contains("algebra") || combined.contains("mechanics") || combined.contains("thermodynamics")
+                || combined.contains("organic") || combined.contains("circuits") || combined.contains("percentage")
+                || combined.contains("ratio") || combined.contains("geometry")) {
             return QuestionTaxonomyConstants.Difficulty.MEDIUM;
         }
 
@@ -180,12 +190,25 @@ public class MicroLessonGeneratorService {
             jsonText = matcher.group(1).trim();
         }
 
-        MicroLessonContentDto content = objectMapper.readValue(jsonText, MicroLessonContentDto.class);
+        MicroLessonContentDto content;
+        try {
+            content = aiObjectMapper.readValue(jsonText, MicroLessonContentDto.class);
+        } catch (JsonProcessingException e) {
+            log.warn("Direct parse failed ({}), applying LaTeX JSON sanitization and retrying...", e.getMessage());
+            String sanitized = sanitizeLatexJson(jsonText);
+            content = aiObjectMapper.readValue(sanitized, MicroLessonContentDto.class);
+        }
+
         List<String> errors = kaTexValidator.validateContent(content);
         if (!errors.isEmpty()) {
             log.warn("KaTeX / validation warnings in generated micro-lesson: {}", errors);
         }
         return content;
+    }
+
+    public static String sanitizeLatexJson(String json) {
+        if (json == null) return null;
+        return json.replaceAll("(?<!\\\\)\\\\(?![\"\\\\/bfnrtu]|u[0-9a-fA-F]{4})", "\\\\\\\\");
     }
 
     public MicroLessonContentDto buildFallbackContent(String subject, String topic, String subtopic, String targetExam) {

@@ -16,20 +16,29 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
 public class RecommendationAiService {
     private static final Logger log = LoggerFactory.getLogger(RecommendationAiService.class);
-    
+    private static final Pattern JSON_BLOCK_PATTERN = Pattern.compile("```(?:json)?\\s*([\\s\\S]*?)\\s*```");
+
     private final ChatClient chatClient;
     private final RecommendationRepository recommendationRepository;
     private final ObjectMapper objectMapper;
-    
+
     private static final String SYSTEM_PROMPT = """
         You are an expert educational counsellor specializing in Indian competitive examination preparation.
         Analyze the student's practice performance data and generate personalized study recommendations.
-        Respond ONLY with a valid JSON object matching this exact schema:
+
+        CRITICAL INSTRUCTION:
+        Respond strictly with a raw valid JSON object only.
+        Do NOT wrap in markdown code blocks or fences (no ``` or ```json).
+        Do NOT include conversational preambles, introductory filler, or commentary outside the JSON object.
+
+        The output must match this exact schema:
         {
           "weakTopicRecommendations": [
             {"topicName": "string", "currentAccuracy": 0.0, "subtopicsToRevise": ["string"]}
@@ -40,7 +49,7 @@ public class RecommendationAiService {
           "motivationalMessage": "string (max 2 sentences)"
         }
         """;
-    
+
     @Async("aiTaskExecutor")
     public void generateAndSave(LearnerProfile profile, UUID triggerSessionId) {
         // Create a PENDING recommendation first
@@ -50,7 +59,7 @@ public class RecommendationAiService {
             .status("PENDING")
             .build();
         recommendationRepository.save(rec);
-        
+
         try {
             String userPrompt = buildPrompt(profile);
             String response = chatClient
@@ -59,10 +68,17 @@ public class RecommendationAiService {
                 .user(userPrompt)
                 .call()
                 .content();
-            
+
+            // Clean markdown fences if present
+            String jsonText = response != null ? response.trim() : "";
+            Matcher matcher = JSON_BLOCK_PATTERN.matcher(jsonText);
+            if (matcher.find()) {
+                jsonText = matcher.group(1).trim();
+            }
+
             // Parse response
-            Map<String, Object> parsed = objectMapper.readValue(response, new TypeReference<>() {});
-            
+            Map<String, Object> parsed = objectMapper.readValue(jsonText, new TypeReference<>() {});
+
             rec.setWeakTopicRecommendations(objectMapper.writeValueAsString(parsed.get("weakTopicRecommendations")));
             rec.setStudyPlanItems(objectMapper.writeValueAsString(parsed.get("studyPlanItems")));
             rec.setMotivationalMessage((String) parsed.get("motivationalMessage"));
@@ -75,7 +91,7 @@ public class RecommendationAiService {
         }
         recommendationRepository.save(rec);
     }
-    
+
     private String buildPrompt(LearnerProfile profile) {
         return String.format("""
             Student Performance Summary:
@@ -84,11 +100,12 @@ public class RecommendationAiService {
             - Weak topics (accuracy < 60%%): %s
             - Strong topics: %s
             - Topic accuracy breakdown: %s
-            
+
             Generate personalized study recommendations to help this student improve.
             Focus recommendations on the weak topics.
             Create a realistic 7-day study plan.
             Keep the motivational message encouraging and specific to their performance level.
+            Return ONLY the raw JSON object.
             """,
             profile.getTotalPracticeSessions(),
             profile.getOverallAccuracy() * 100,

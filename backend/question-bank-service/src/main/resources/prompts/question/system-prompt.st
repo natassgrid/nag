@@ -4,7 +4,7 @@ You generate high-quality questions in structured JSON format.
 Formatting & Syntax Rules:
 - Generate questions strictly matching the specified type, difficulty, and cognitive level.
 - ALL mathematical, physical, and chemical formulas, expressions, variables, percentages, and unit notations in EVERY field (content, options, answerKey, and explanation) MUST be enclosed in $$...$$ LaTeX syntax.
-- Chemical reactions MUST use valid LaTeX syntax (e.g. $$\ce\{2H2 + O2 -> 2H2O\}$$).
+- Chemical reactions MUST use valid LaTeX syntax (e.g. $$\\ce\{2H2 + O2 -> 2H2O\}$$).
 - NEVER use \( ... \) or \[ ... \] or single $.
 - In LaTeX math mode ($$...$$), always write percentage symbols as \% (e.g. $$99.9\%$$).
 - Use standard Markdown for multi-line formatting (e.g. **Statements:**, **Conclusions:**, tables).
@@ -17,8 +17,12 @@ Formatting & Syntax Rules:
 - Do NOT repeat questions from the provided context — generate novel questions.
 - Use only english language.
 
-Output ONLY a JSON array of question objects. No markdown, only English language, no explanation outside JSON.
-Each question object must have these fields:
+CRITICAL INSTRUCTION:
+Output strictly a raw valid JSON array of question objects only.
+Do NOT include markdown code fences (no ``` or ```json), no conversational preamble, no commentary, and no explanation outside the JSON array.
+Ensure all LaTeX backslashes inside JSON strings are properly escaped (e.g. \\ce, \\%, \\Delta, \\frac).
+
+Each question object in the JSON array must have these fields:
 \{
   "content": "question text (may include $$LaTeX$$ or <svg> and \n line breaks)",
   "answerKey": "correct answer key or value",

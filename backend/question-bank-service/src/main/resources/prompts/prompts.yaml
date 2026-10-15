@@ -21,7 +21,13 @@ prompts:
       4. Step-by-Step Breakdown: Present one standard medium-difficulty exam problem deconstructed into explicit numbered deduction steps
          followed by the unambiguous final answer with proper physical/mathematical units.
 
-      Output must be strictly valid JSON with no markdown fences, matching this schema:
+      CRITICAL INSTRUCTION:
+      Output must be strictly raw, valid JSON only.
+      Do NOT wrap in markdown code blocks or fences (no ``` or ```json).
+      Do NOT include any greetings, introductory text, commentary, preambles, or explanations outside the JSON object.
+      Ensure all LaTeX backslashes inside JSON strings are properly escaped (e.g., \\Delta, \\%, \\frac).
+
+      The output must match this exact schema:
       \{
         "coreConcept": "3 simple sentences with native Indian analogy",
         "trap": "Common pitfall or exam trap",
@@ -39,7 +45,7 @@ prompts:
       - Sub-Topic: {subtopic}
       - Target Exam: {targetExam}
       {referenceSection}
-      Ensure KaTeX notation is syntactically balanced and accurate. Return ONLY the JSON object.
+      Ensure KaTeX notation is syntactically balanced and accurate. Return ONLY the raw valid JSON object with no markdown fences.
 
   question:
     system: |
@@ -49,12 +55,11 @@ prompts:
       Formatting & Syntax Rules:
       - Generate questions strictly matching the specified type, difficulty, and cognitive level.
       - ALL mathematical, physical, and chemical formulas, expressions, variables, percentages, and unit notations in EVERY field (content, options, answerKey, and explanation) MUST be enclosed in $$...$$ LaTeX syntax.
-      - Chemical reactions MUST use valid LaTeX syntax (e.g. $$\ce\{2H2 + O2 -> 2H2O\}$$).
-      - NEVER use \( ... \) or \[ ... \] or single $.
-      - In LaTeX math mode ($$...$$), always write percentage symbols as \% (e.g. $$99.9\%$$).
+      - Chemical reactions MUST use valid LaTeX syntax (e.g. $$\\ce\{2H2 + O2 -> 2H2O\}$$).
+      - NEVER use \\( ... \\) or \\[ ... \\] or single $.
+      - In LaTeX math mode ($$...$$), always write percentage symbols as \\% (e.g. $$99.9\\%$$).
       - Use standard Markdown for multi-line formatting (e.g. **Statements:**, **Conclusions:**, tables).
-      - Use double newlines (\n\n) to separate headings and paragraphs, and single newlines (\n) between numbered statement items.
-      - For MCQ (SINGLE_MCQ): exactly 4 options with ids A, B, C, D. Set "isCorrect": true on EXACTLY ONE option and "isCorrect": false on the other three. The "answerKey" must be the id (A/B/C/D) of the correct option.
+      - Use double newlines (\\n\\n) to separate headings and paragraphs, and single newlines (\\n) between numbered statement items.\n      - For MCQ (SINGLE_MCQ): exactly 4 options with ids A, B, C, D. Set "isCorrect": true on EXACTLY ONE option and "isCorrect": false on the other three. The "answerKey" must be the id (A/B/C/D) of the correct option.
       - For MSQ (MULTI_MCQ): exactly 4 options (A, B, C, D), 2 or more correct.
       - For NUMERICAL: no options, answerKey is the numeric value.
       - For DESCRIPTIVE: no options, answerKey contains the model answer.
@@ -62,10 +67,14 @@ prompts:
       - Do NOT repeat questions from the provided context — generate novel questions.
       - Use only english language.
 
-      Output ONLY a JSON array of question objects. No markdown, only English language, no explanation outside JSON.
-      Each question object must have these fields:
+      CRITICAL INSTRUCTION:
+      Output strictly a raw valid JSON array of question objects only.
+      Do NOT include markdown code fences (no ``` or ```json), no conversational preamble, no commentary, and no explanation outside the JSON array.
+      Ensure all LaTeX backslashes inside JSON strings are properly escaped (e.g. \\ce, \\%, \\Delta, \\frac).
+
+      Each question object in the JSON array must have these fields:
       \{
-        "content": "question text (may include $$LaTeX$$ or <svg> and \n line breaks)",
+        "content": "question text (may include $$LaTeX$$ or <svg> and \\n line breaks)",
         "answerKey": "correct answer key or value",
         "explanation": "explanation of the correct answer with $$LaTeX$$",
         "options": [\{"id": "A", "text": "option text", "isCorrect": true\}, \{"id": "B", "text": "option text", "isCorrect": false\}, \{"id": "C", "text": "option text", "isCorrect": false\}, \{"id": "D", "text": "option text", "isCorrect": false\}],

@@ -107,6 +107,7 @@ class MicroLessonGeneratorServiceTest {
         MicroLessonResponse response = service.toResponse(result);
         assertThat(response.cheatSheet()).hasSize(2);
         assertThat(response.stepByStepBreakdown().steps()).hasSize(2);
+        assertThat(response.getSubtopicName()).isEqualTo("Moment of Inertia");
     }
 
     @Test
@@ -189,5 +190,41 @@ class MicroLessonGeneratorServiceTest {
         assertThat(result).isNotNull();
         // options is not called when modelRouter is null
         verify(requestSpec, never()).options(any());
+    }
+
+    @Test
+    @DisplayName("Successfully parses raw LLM JSON with unescaped LaTeX backslashes without triggering fallback")
+    void testParseRawLatexWithUnescapedBackslashes() {
+        String rawLlmJson = """
+            {
+              "coreConcept": "Percentage calculation involves fraction multiplication by 100.",
+              "trap": "Forgetting that rate \\(r\\) is divided by 100.",
+              "cheatSheet": ["$$P = \\frac{part}{total} \\times 100\\%$$"],
+              "stepByStepBreakdown": {
+                "questionStem": "What is 20% of 80?",
+                "steps": ["Step 1: Write equation \\(x = 0.20 \\times 80\\)", "Step 2: Solve x = 16"],
+                "finalAnswer": "16"
+              }
+            }
+            """;
+
+        when(chatClient.prompt()).thenReturn(requestSpec);
+        when(requestSpec.system(anyString())).thenReturn(requestSpec);
+        when(requestSpec.user(anyString())).thenReturn(requestSpec);
+        when(requestSpec.call()).thenReturn(callResponseSpec);
+        when(callResponseSpec.content()).thenReturn(rawLlmJson);
+
+        when(repository.findTopBySubtopicIdAndTargetExamOrderByContentVersionDesc(176L, "JEE_MAIN"))
+                .thenReturn(Optional.empty());
+        when(repository.save(any(SubtopicMicroLesson.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        SubtopicMicroLesson result = service.generateForSubtopic(
+                8L, "Mathematics", 80L, "Arithmetic", 176L, "Percentage", "JEE_MAIN"
+        );
+
+        assertThat(result).isNotNull();
+        // Verifies it did NOT fall back to "Indian bicycle chain" fallback template!
+        assertThat(result.getCoreConcept()).contains("Percentage calculation involves fraction");
+        assertThat(result.getCoreConcept()).doesNotContain("bicycle chain");
     }
 }
