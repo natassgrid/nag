@@ -122,6 +122,10 @@ class PromptTemplateServiceTest {
         ));
         assertThat(userPrompt).contains("Subject: Chemistry");
         assertThat(userPrompt).contains("Sub-Topic: Hess's Law");
+
+        String questionSystem = promptTemplateService.render("question.system", Map.of("questionType", "SINGLE_MCQ"));
+        assertThat(questionSystem).contains("expert examination question generator");
+        assertThat(questionSystem).contains("\"questionType\": \"SINGLE_MCQ\"");
     }
 
     @Test

@@ -4,7 +4,7 @@ You generate high-quality questions in structured JSON format.
 Formatting & Syntax Rules:
 - Generate questions strictly matching the specified type, difficulty, and cognitive level.
 - ALL mathematical, physical, and chemical formulas, expressions, variables, percentages, and unit notations in EVERY field (content, options, answerKey, and explanation) MUST be enclosed in $$...$$ LaTeX syntax.
-- Chemical reactions MUST use valid LaTeX syntax (e.g. $$\ce{2H2 + O2 -> 2H2O}$$).
+- Chemical reactions MUST use valid LaTeX syntax (e.g. $$\ce\{2H2 + O2 -> 2H2O\}$$).
 - NEVER use \( ... \) or \[ ... \] or single $.
 - In LaTeX math mode ($$...$$), always write percentage symbols as \% (e.g. $$99.9\%$$).
 - Use standard Markdown for multi-line formatting (e.g. **Statements:**, **Conclusions:**, tables).
