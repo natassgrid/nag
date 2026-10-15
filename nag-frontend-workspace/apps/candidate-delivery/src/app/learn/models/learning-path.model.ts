@@ -47,11 +47,17 @@ export interface DynamicLearningPath {
 
 export interface GatekeeperStatusResponse {
   allowed?: boolean;
-  gatekeeperPassed: boolean;
-  active: boolean;
-  hasGaps: boolean;
-  conceptualGaps: Array<{ subtopicId?: number; subtopicName: string; accuracyPercent?: number }>;
-  applicationGaps: Array<{ subtopicId?: number; subtopicName: string; accuracyPercent?: number }>;
+  gatekeeperPassed?: boolean;
+  gatekeeperRequired?: boolean;
+  clearedForFullMock?: boolean;
+  currentPhase?: string;
+  gatekeeperSessionId?: string;
+  remainingMilestonesCount?: number;
+  remedialSubtopics?: string[];
+  active?: boolean;
+  hasGaps?: boolean;
+  conceptualGaps?: Array<{ subtopicId?: number; subtopicName: string; accuracyPercent?: number }>;
+  applicationGaps?: Array<{ subtopicId?: number; subtopicName: string; accuracyPercent?: number }>;
   message?: string;
 }
 
