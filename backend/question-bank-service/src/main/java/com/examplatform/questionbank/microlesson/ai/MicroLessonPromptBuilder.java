@@ -1,7 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.examplatform.questionbank.microlesson.ai;
 
+import com.examplatform.questionbank.ai.prompt.PromptTemplateService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @Component
 public class MicroLessonPromptBuilder {
@@ -36,12 +41,50 @@ public class MicroLessonPromptBuilder {
         }
         """;
 
+    private final PromptTemplateService promptTemplateService;
+
+    public MicroLessonPromptBuilder() {
+        this(null);
+    }
+
+    @Autowired
+    public MicroLessonPromptBuilder(PromptTemplateService promptTemplateService) {
+        this.promptTemplateService = promptTemplateService;
+    }
+
+    public String getSystemPrompt() {
+        if (promptTemplateService != null) {
+            try {
+                return promptTemplateService.render("microlesson/system-prompt", Map.of());
+            } catch (Exception ignored) {}
+        }
+        return SYSTEM_PROMPT;
+    }
+
     public String buildUserPrompt(String subject, String topic, String subtopic, String targetExam) {
         return buildUserPrompt(subject, topic, subtopic, targetExam, null);
     }
 
     public String buildUserPrompt(String subject, String topic, String subtopic, String targetExam, String referenceText) {
         String exam = (targetExam != null && !targetExam.isBlank()) ? targetExam : "JEE_MAIN";
+
+        if (promptTemplateService != null) {
+            try {
+                String referenceSection = "";
+                if (referenceText != null && !referenceText.isBlank()) {
+                    referenceSection = "\nAdditional Faculty Reference Context / Steering Notes:\n" + referenceText.trim() + "\n";
+                }
+                Map<String, Object> vars = new HashMap<>();
+                vars.put("subject", subject != null ? subject : "General");
+                vars.put("topic", topic != null ? topic : "General");
+                vars.put("subtopic", subtopic != null ? subtopic : "General");
+                vars.put("targetExam", exam);
+                vars.put("referenceSection", referenceSection);
+
+                return promptTemplateService.render("microlesson/user-prompt", vars);
+            } catch (Exception ignored) {}
+        }
+
         StringBuilder sb = new StringBuilder();
         sb.append(String.format("""
             Generate a remedial micro-lesson for the following syllabus sub-topic:

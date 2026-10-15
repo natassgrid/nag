@@ -59,7 +59,7 @@ public class MicroLessonGeneratorService {
         try {
             String userPrompt = promptBuilder.buildUserPrompt(subject, topic, subtopic, exam, referenceText);
             String rawResponse = chatClient.prompt()
-                    .system(MicroLessonPromptBuilder.SYSTEM_PROMPT)
+                    .system(promptBuilder.getSystemPrompt())
                     .user(userPrompt)
                     .call()
                     .content();
