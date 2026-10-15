@@ -95,16 +95,46 @@
 
       <!-- Target Examination -->
       <div>
-        <label class="block mb-1 text-slate-600 font-semibold">Target Examination</label>
-        <select
-          [ngModel]="targetExam()"
-          (ngModelChange)="targetExam.set($event)"
-          class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-indigo-500 text-xs"
-        >
-          @for (opt of examOptions; track opt.value) {
-            <option [value]="opt.value">{{ opt.label }}</option>
+        <div class="flex items-center justify-between mb-1">
+          <label class="text-slate-600 font-semibold">Target Examination</label>
+          @if (isLoadingExams()) {
+            <span class="text-[10px] text-indigo-600 flex items-center gap-1 font-normal">
+              <mat-progress-spinner diameter="10" mode="indeterminate"></mat-progress-spinner>
+              Loading...
+            </span>
           }
-        </select>
+        </div>
+        @if (!isCustomExam()) {
+          <select
+            [ngModel]="targetExam()"
+            (ngModelChange)="onExamChange($event)"
+            class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-indigo-500 text-xs"
+          >
+            @for (opt of examOptions(); track opt.value) {
+              <option [value]="opt.value">{{ opt.label }}</option>
+            }
+            <option value="__CUSTOM__">+ Custom / Enter Exam Code</option>
+          </select>
+        } @else {
+          <div class="space-y-1">
+            <input
+              type="text"
+              [ngModel]="targetExam()"
+              (ngModelChange)="targetExam.set($event)"
+              placeholder="e.g. UPSC_CSAT or GATE_CS"
+              class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-indigo-500 text-xs"
+            />
+            @if (examOptions().length > 0) {
+              <button
+                type="button"
+                (click)="isCustomExam.set(false); targetExam.set(examOptions()[0].value)"
+                class="text-[10px] text-indigo-600 hover:underline cursor-pointer"
+              >
+                &larr; Choose from configured exams
+              </button>
+            }
+          </div>
+        }
       </div>
     </div>
 

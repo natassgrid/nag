@@ -5,7 +5,7 @@ import { MatDialogRef, MatDialogModule } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { SubjectTopicService, SubjectHierarchy } from '@nag-frontend-workspace/questions-data-access';
+import { SubjectTopicService, SubjectHierarchy, TargetExaminationOption } from '@nag-frontend-workspace/questions-data-access';
 import { MicroLessonAdminService } from '../../services/micro-lesson-admin.service';
 import { BatchGenerateMicroLessonsRequest, BatchGenerateResponse } from '../../models/micro-lesson.model';
 
@@ -34,20 +34,17 @@ export class BatchGenerateMicroLessonDialogComponent implements OnInit {
 
   readonly selectedSubjectId = signal<number | null>(null);
   readonly selectedTopicId = signal<number | null>(null);
+
   readonly targetExam = signal<string>('JEE_MAIN');
+  readonly examOptions = signal<{ label: string; value: string; category?: string }[]>([]);
+  readonly isLoadingExams = signal<boolean>(false);
+  readonly isCustomExam = signal<boolean>(false);
+
   readonly maxCount = signal<number>(10);
   readonly forceRegenerate = signal<boolean>(false);
 
   readonly isGenerating = signal<boolean>(false);
   readonly errorMessage = signal<string | null>(null);
-
-  readonly examOptions = [
-    { label: 'JEE Main & Advanced', value: 'JEE_MAIN' },
-    { label: 'NEET-UG (Medical)', value: 'NEET' },
-    { label: 'GATE Engineering', value: 'GATE' },
-    { label: 'SSC CGL', value: 'SSC_CGL' },
-    { label: 'UPSC Civil Services', value: 'UPSC_CSAT' },
-  ];
 
   readonly countOptions = [5, 10, 15, 20, 25];
 
@@ -60,6 +57,55 @@ export class BatchGenerateMicroLessonDialogComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadTaxonomy();
+    this.loadExaminations();
+  }
+
+  loadExaminations(): void {
+    this.isLoadingExams.set(true);
+    this.subjectTopicService.getExaminations().subscribe({
+      next: (exams: TargetExaminationOption[]) => {
+        this.isLoadingExams.set(false);
+        if (exams && exams.length > 0) {
+          const mapped = exams.map((e) => ({
+            label: `${e.name} (${e.code})`,
+            value: e.code,
+            category: e.category,
+          }));
+          this.examOptions.set(mapped);
+          this.targetExam.set(mapped[0].value);
+        } else {
+          this.examOptions.set([
+            { label: 'JEE Main & Advanced (JEE_MAIN)', value: 'JEE_MAIN' },
+            { label: 'NEET-UG Medical (NEET)', value: 'NEET' },
+            { label: 'GATE Engineering (GATE)', value: 'GATE' },
+            { label: 'SSC CGL (SSC_CGL)', value: 'SSC_CGL' },
+            { label: 'UPSC Civil Services (UPSC_CSAT)', value: 'UPSC_CSAT' },
+          ]);
+          this.targetExam.set('JEE_MAIN');
+        }
+      },
+      error: () => {
+        this.isLoadingExams.set(false);
+        this.examOptions.set([
+          { label: 'JEE Main & Advanced (JEE_MAIN)', value: 'JEE_MAIN' },
+          { label: 'NEET-UG Medical (NEET)', value: 'NEET' },
+          { label: 'GATE Engineering (GATE)', value: 'GATE' },
+          { label: 'SSC CGL (SSC_CGL)', value: 'SSC_CGL' },
+          { label: 'UPSC Civil Services (UPSC_CSAT)', value: 'UPSC_CSAT' },
+        ]);
+        this.targetExam.set('JEE_MAIN');
+      },
+    });
+  }
+
+  onExamChange(val: string): void {
+    if (val === '__CUSTOM__') {
+      this.isCustomExam.set(true);
+      this.targetExam.set('');
+    } else {
+      this.isCustomExam.set(false);
+      this.targetExam.set(val);
+    }
   }
 
   loadTaxonomy(): void {
@@ -91,10 +137,12 @@ export class BatchGenerateMicroLessonDialogComponent implements OnInit {
     this.isGenerating.set(true);
     this.errorMessage.set(null);
 
+    const examCode = this.targetExam().trim() || 'General';
+
     const req: BatchGenerateMicroLessonsRequest = {
       subjectId: this.selectedSubjectId() ?? undefined,
       topicId: this.selectedTopicId() ?? undefined,
-      targetExam: this.targetExam(),
+      targetExam: examCode,
       maxCount: this.maxCount(),
       forceRegenerate: this.forceRegenerate(),
     };

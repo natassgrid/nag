@@ -50,10 +50,10 @@ public class ExaminationController {
     private final ExaminationService examinationService;
 
     /**
-     * List all examinations for the current tenant (paginated). Requires EXAM_CONTROLLER role.
+     * List all examinations for the current tenant (paginated). Requires appropriate staff/admin roles.
      */
     @GetMapping
-    @PreAuthorize("hasRole('EXAM_CONTROLLER')")
+    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER', 'ADMIN', 'SUPER_ADMIN', 'FACULTY', 'QUESTION_AUTHOR', 'REVIEWER')")
     public ResponseEntity<ApiResponse<org.springframework.data.domain.Page<ExaminationResponse>>> list(
             @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
             @RequestParam(defaultValue = "0") int page,
@@ -110,10 +110,10 @@ public class ExaminationController {
     }
 
     /**
-     * Retrieve an examination by ID. Requires EXAM_CONTROLLER or SUPER_ADMIN role.
+     * Retrieve an examination by ID. Requires staff or admin role.
      */
     @GetMapping("/{examId}")
-    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER', 'SUPER_ADMIN', 'ADMIN', 'FACULTY', 'QUESTION_AUTHOR', 'REVIEWER')")
     public ResponseEntity<ApiResponse<ExaminationResponse>> getById(
             @PathVariable UUID examId,
             @AuthenticationPrincipal Jwt jwt) {
