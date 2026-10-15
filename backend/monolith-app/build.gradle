@@ -71,6 +71,9 @@ dependencies {
     implementation libs.spring.boot.starter.amqp
     implementation libs.spring.kafka
 
+    // Resilience4j
+    implementation libs.resilience4j.spring.boot4
+
     // pgvector & AI
     implementation libs.pgvector
     implementation libs.spring.ai.starter.model.openai
