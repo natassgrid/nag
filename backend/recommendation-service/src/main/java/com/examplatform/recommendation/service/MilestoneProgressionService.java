@@ -5,7 +5,10 @@ import com.examplatform.recommendation.domain.DynamicLearningPath;
 import com.examplatform.recommendation.dto.*;
 import com.examplatform.recommendation.repository.DynamicLearningPathRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.examplatform.practice.service.AdaptiveQuizGenerator;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -21,12 +24,31 @@ import java.util.UUID;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class MilestoneProgressionService {
 
     private final DynamicLearningPathRepository dlpRepository;
     private final LearningPathGeneratorService generatorService;
     private final ObjectMapper objectMapper;
+    private final ObjectProvider<AdaptiveQuizGenerator> adaptiveQuizGeneratorProvider;
+
+    public MilestoneProgressionService(
+            DynamicLearningPathRepository dlpRepository,
+            LearningPathGeneratorService generatorService,
+            ObjectMapper objectMapper) {
+        this(dlpRepository, generatorService, objectMapper, null);
+    }
+
+    @Autowired
+    public MilestoneProgressionService(
+            DynamicLearningPathRepository dlpRepository,
+            LearningPathGeneratorService generatorService,
+            ObjectMapper objectMapper,
+            @Autowired(required = false) ObjectProvider<AdaptiveQuizGenerator> adaptiveQuizGeneratorProvider) {
+        this.dlpRepository = dlpRepository;
+        this.generatorService = generatorService;
+        this.objectMapper = objectMapper;
+        this.adaptiveQuizGeneratorProvider = adaptiveQuizGeneratorProvider;
+    }
 
     @Transactional
     public DynamicLearningPathResponse completeMilestone(UUID candidateId, String milestoneId) {
@@ -148,9 +170,41 @@ public class MilestoneProgressionService {
         }
 
         MilestonePhaseDto phase2 = findPhase(graph.phases(), 2);
-        UUID quizSessionId = (phase2 != null && phase2.quizSessionId() != null)
-                ? phase2.quizSessionId()
-                : UUID.randomUUID();
+
+        List<String> targetSubtopics = new ArrayList<>();
+        if (phase2 != null && phase2.items() != null) {
+            for (MilestoneItemDto it : phase2.items()) {
+                targetSubtopics.add(it.subtopicName());
+            }
+        }
+        if (targetSubtopics.isEmpty() && graph.applicationGaps() != null) {
+            for (SubtopicClassificationResult r : graph.applicationGaps()) {
+                targetSubtopics.add(r.subtopicName());
+            }
+        }
+
+        UUID practiceSetId = null;
+        if (adaptiveQuizGeneratorProvider != null) {
+            var generator = adaptiveQuizGeneratorProvider.getIfAvailable();
+            if (generator != null) {
+                try {
+                    var setDto = generator.generateAdaptiveSet(
+                            candidateId, targetSubtopics, graph.targetExam(), 15, false);
+                    if (setDto != null && setDto.id() != null) {
+                        practiceSetId = setDto.id();
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to generate adaptive set via AdaptiveQuizGenerator: {}", e.getMessage());
+                }
+            }
+        }
+
+        UUID quizSessionId = practiceSetId != null
+                ? practiceSetId
+                : ((phase2 != null && phase2.quizSessionId() != null) ? phase2.quizSessionId() : UUID.randomUUID());
+        if (practiceSetId == null) {
+            practiceSetId = quizSessionId;
+        }
 
         List<MilestonePhaseDto> updatedPhases = new ArrayList<>();
         for (MilestonePhaseDto p : graph.phases()) {
@@ -162,18 +216,6 @@ public class MilestoneProgressionService {
                 ));
             } else {
                 updatedPhases.add(p);
-            }
-        }
-
-        List<String> targetSubtopics = new ArrayList<>();
-        if (phase2 != null && phase2.items() != null) {
-            for (MilestoneItemDto it : phase2.items()) {
-                targetSubtopics.add(it.subtopicName());
-            }
-        }
-        if (targetSubtopics.isEmpty() && graph.applicationGaps() != null) {
-            for (SubtopicClassificationResult r : graph.applicationGaps()) {
-                targetSubtopics.add(r.subtopicName());
             }
         }
 
@@ -191,8 +233,11 @@ public class MilestoneProgressionService {
 
         saveGraph(dlp, updatedGraph);
 
+        String launcherUrl = "/practice/session/" + practiceSetId;
         return new StartAdaptiveQuizResponse(
                 quizSessionId,
+                practiceSetId,
+                launcherUrl,
                 "PHASE_2_ADAPTIVE_QUIZ",
                 phase2 != null && phase2.targetAccuracy() != null ? phase2.targetAccuracy() : 70.0,
                 15,
@@ -269,9 +314,36 @@ public class MilestoneProgressionService {
         }
 
         MilestonePhaseDto phase3 = findPhase(graph.phases(), 3);
-        UUID gatekeeperSessionId = (phase3 != null && phase3.gatekeeperSessionId() != null)
-                ? phase3.gatekeeperSessionId()
-                : UUID.randomUUID();
+
+        List<String> failedSubtopics = new ArrayList<>();
+        if (graph.conceptualGaps() != null) {
+            for (SubtopicClassificationResult r : graph.conceptualGaps()) {
+                failedSubtopics.add(r.subtopicName());
+            }
+        }
+
+        UUID practiceSetId = null;
+        if (adaptiveQuizGeneratorProvider != null) {
+            var generator = adaptiveQuizGeneratorProvider.getIfAvailable();
+            if (generator != null) {
+                try {
+                    var setDto = generator.generateAdaptiveSet(
+                            candidateId, failedSubtopics, graph.targetExam(), 20, true);
+                    if (setDto != null && setDto.id() != null) {
+                        practiceSetId = setDto.id();
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to generate gatekeeper set via AdaptiveQuizGenerator: {}", e.getMessage());
+                }
+            }
+        }
+
+        UUID gatekeeperSessionId = practiceSetId != null
+                ? practiceSetId
+                : ((phase3 != null && phase3.gatekeeperSessionId() != null) ? phase3.gatekeeperSessionId() : UUID.randomUUID());
+        if (practiceSetId == null) {
+            practiceSetId = gatekeeperSessionId;
+        }
 
         List<MilestonePhaseDto> updatedPhases = new ArrayList<>();
         for (MilestonePhaseDto p : graph.phases()) {
@@ -283,13 +355,6 @@ public class MilestoneProgressionService {
                 ));
             } else {
                 updatedPhases.add(p);
-            }
-        }
-
-        List<String> failedSubtopics = new ArrayList<>();
-        if (graph.conceptualGaps() != null) {
-            for (SubtopicClassificationResult r : graph.conceptualGaps()) {
-                failedSubtopics.add(r.subtopicName());
             }
         }
 
@@ -307,8 +372,11 @@ public class MilestoneProgressionService {
 
         saveGraph(dlp, updatedGraph);
 
+        String launcherUrl = "/practice/session/" + practiceSetId;
         return new StartGatekeeperResponse(
                 gatekeeperSessionId,
+                practiceSetId,
+                launcherUrl,
                 "PHASE_3_GATEKEEPER",
                 phase3 != null && phase3.passThreshold() != null ? phase3.passThreshold() : 75.0,
                 20,

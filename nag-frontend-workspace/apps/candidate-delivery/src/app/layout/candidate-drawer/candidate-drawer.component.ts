@@ -5,6 +5,7 @@ import {
   input,
   output,
   inject,
+  signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
@@ -21,6 +22,8 @@ import { NavItem, CANDIDATE_NAV_ITEMS } from '../layout.models';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CandidateDrawerComponent {
+  private readonly router = inject(Router);
+
   readonly isOpen = input<boolean>(false);
   readonly userName = input<string>('Guest');
   readonly isAuthenticated = input<boolean>(false);
@@ -28,6 +31,10 @@ export class CandidateDrawerComponent {
 
   readonly closeDrawer = output<void>();
   readonly logout = output<void>();
+
+  readonly expandedGroups = signal<Set<string>>(
+    new Set(['learning', 'assessments'])
+  );
 
   @HostListener('window:keydown.escape')
   onEscape(): void {
@@ -47,6 +54,34 @@ export class CandidateDrawerComponent {
   onLogoutClick(): void {
     this.closeDrawer.emit();
     this.logout.emit();
+  }
+
+  toggleGroup(groupId: string): void {
+    this.expandedGroups.update((set) => {
+      const updated = new Set(set);
+      if (updated.has(groupId)) {
+        updated.delete(groupId);
+      } else {
+        updated.add(groupId);
+      }
+      return updated;
+    });
+  }
+
+  isGroupExpanded(groupId: string): boolean {
+    return this.expandedGroups().has(groupId);
+  }
+
+  isGroupActive(item: NavItem): boolean {
+    if (!item.children || item.children.length === 0) return false;
+    const currentUrl = this.router.url;
+    return item.children.some(
+      (child) =>
+        child.route &&
+        (currentUrl === child.route ||
+          currentUrl.startsWith(child.route + '/') ||
+          currentUrl.startsWith(child.route + '?'))
+    );
   }
 
   getUserInitials(): string {

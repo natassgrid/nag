@@ -205,6 +205,7 @@ public class SessionStartService {
         // 11. Read dynamic delivery parameters
         DynamicDeliveryParams deliveryParams = resolveDynamicDeliveryParams(effectiveTenant);
         String examTitle = resolveExamTitle(request.getExamId());
+        String navigationMode = resolveNavigationPolicy(request.getExamId(), assignment);
 
         // 12. Return response with first question, full questions list and dynamic parameters
         return SessionStartResponse.builder()
@@ -218,7 +219,7 @@ public class SessionStartService {
                 .serverTime(now)
                 .expiresAt(scheduledEnd)
                 .durationSeconds(totalDuration * 60)
-                .navigationMode("FLEXIBLE")
+                .navigationMode(navigationMode)
                 .firstQuestionContent(qPrep.firstQuestionContent())
                 .totalQuestions(qPrep.totalQuestions())
                 .questions(questions)
@@ -260,6 +261,7 @@ public class SessionStartService {
         DynamicDeliveryParams deliveryParams = resolveDynamicDeliveryParams(effectiveTenant);
         String examTitle = resolveExamTitle(session.getExamId());
         int durationSeconds = calculateResumeDurationSeconds(session, now);
+        String navigationMode = resolveNavigationPolicy(session.getExamId(), assignment);
 
         return SessionStartResponse.builder()
                 .sessionId(session.getSessionId())
@@ -272,7 +274,7 @@ public class SessionStartService {
                 .serverTime(now)
                 .expiresAt(session.getScheduledEndAt())
                 .durationSeconds(durationSeconds)
-                .navigationMode("FLEXIBLE")
+                .navigationMode(navigationMode)
                 .firstQuestionContent(qPrep.firstQuestionContent())
                 .totalQuestions(qPrep.totalQuestions())
                 .questions(questions)
@@ -564,6 +566,28 @@ public class SessionStartService {
             }
         }
         return 60;
+    }
+
+    private String resolveNavigationPolicy(UUID examId, ShiftAssignment assignment) {
+        if (assignment != null && assignment.getNavigationPolicy() != null && !assignment.getNavigationPolicy().isBlank()) {
+            return assignment.getNavigationPolicy().trim().toUpperCase();
+        }
+        JdbcTemplate jdbcTemplate = jdbcTemplateProvider != null ? jdbcTemplateProvider.getIfAvailable() : null;
+        if (jdbcTemplate != null && examId != null) {
+            try {
+                String policy = jdbcTemplate.queryForObject(
+                        "SELECT navigation_policy FROM examination_service.examination WHERE id = ?",
+                        String.class,
+                        examId
+                );
+                if (policy != null && !policy.isBlank()) {
+                    return policy.trim().toUpperCase();
+                }
+            } catch (Exception _) {
+                // Ignore query failure; fall back to default
+            }
+        }
+        return "FLEXIBLE";
     }
 
     record DynamicDeliveryParams(

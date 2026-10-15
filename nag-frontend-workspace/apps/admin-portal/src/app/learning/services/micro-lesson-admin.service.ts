@@ -6,6 +6,7 @@ import {
   ReviewMicroLessonRequest,
   BatchGenerateMicroLessonsRequest,
   BatchGenerateResponse,
+  GenerateMicroLessonRequest,
 } from '../models/micro-lesson.model';
 
 export interface PageResponse<T> {
@@ -49,6 +50,15 @@ export class MicroLessonAdminService {
   ): Observable<MicroLessonReviewItem> {
     return this.http.put<MicroLessonReviewItem>(
       `${this.apiUrl}/${id}/review`,
+      req
+    );
+  }
+
+  generateSingle(
+    req: GenerateMicroLessonRequest
+  ): Observable<MicroLessonReviewItem> {
+    return this.http.post<MicroLessonReviewItem>(
+      `${this.apiUrl}/generate`,
       req
     );
   }

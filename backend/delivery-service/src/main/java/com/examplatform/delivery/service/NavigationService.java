@@ -32,6 +32,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
@@ -53,19 +55,22 @@ public class NavigationService {
     private final ExamSessionRepository examSessionRepository;
     private final RedisTemplate<String, Object> redisTemplate;
     private final ExamQuestionDeliveryService examQuestionDeliveryService;
+    private final ObjectProvider<JdbcTemplate> jdbcTemplateProvider;
 
     public NavigationService(ExamSessionRepository examSessionRepository,
                              RedisTemplate<String, Object> redisTemplate) {
-        this(examSessionRepository, redisTemplate, null);
+        this(examSessionRepository, redisTemplate, null, null);
     }
 
     @Autowired
     public NavigationService(ExamSessionRepository examSessionRepository,
                              RedisTemplate<String, Object> redisTemplate,
-                             @Autowired(required = false) ExamQuestionDeliveryService examQuestionDeliveryService) {
+                             @Autowired(required = false) ExamQuestionDeliveryService examQuestionDeliveryService,
+                             @Autowired(required = false) ObjectProvider<JdbcTemplate> jdbcTemplateProvider) {
         this.examSessionRepository = examSessionRepository;
         this.redisTemplate = redisTemplate;
         this.examQuestionDeliveryService = examQuestionDeliveryService;
+        this.jdbcTemplateProvider = jdbcTemplateProvider;
     }
 
     /**
@@ -149,13 +154,54 @@ public class NavigationService {
 
     /**
      * Determines the navigation policy for a session.
-     * In a full implementation, this would be derived from exam configuration.
+     * Derived dynamically from the exam configuration.
      * Default is FLEXIBLE if not specified.
      */
     NavigationPolicy determinePolicy(ExamSession session) {
-        // Navigation policy is typically set per exam configuration
-        // For now, derive from exam metadata or default to FLEXIBLE
+        if (session != null && session.getExamId() != null) {
+            String cacheKey = "exam:nav_policy:" + session.getExamId();
+            try {
+                if (redisTemplate != null) {
+                    Object cached = redisTemplate.opsForValue().get(cacheKey);
+                    if (cached instanceof String s && !s.isBlank()) {
+                        return parsePolicy(s);
+                    }
+                }
+            } catch (Exception e) {
+                log.debug("Redis lookup failed for {}: {}", cacheKey, e.getMessage());
+            }
+
+            JdbcTemplate jdbcTemplate = jdbcTemplateProvider != null ? jdbcTemplateProvider.getIfAvailable() : null;
+            if (jdbcTemplate != null) {
+                try {
+                    String policyStr = jdbcTemplate.queryForObject(
+                            "SELECT navigation_policy FROM examination_service.examination WHERE id = ?",
+                            String.class,
+                            session.getExamId()
+                    );
+                    if (policyStr != null && !policyStr.isBlank()) {
+                        NavigationPolicy policy = parsePolicy(policyStr);
+                        try {
+                            if (redisTemplate != null) {
+                                redisTemplate.opsForValue().set(cacheKey, policy.name(), java.time.Duration.ofHours(1));
+                            }
+                        } catch (Exception _) {}
+                        return policy;
+                    }
+                } catch (Exception e) {
+                    log.debug("Could not resolve navigation policy for exam {}: {}", session.getExamId(), e.getMessage());
+                }
+            }
+        }
         return NavigationPolicy.FLEXIBLE;
+    }
+
+    private NavigationPolicy parsePolicy(String policyStr) {
+        try {
+            return NavigationPolicy.valueOf(policyStr.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return NavigationPolicy.FLEXIBLE;
+        }
     }
 
     void validateNavigation(NavigationPolicy policy, int currentIndex, int targetIndex,

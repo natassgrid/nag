@@ -1,4 +1,25 @@
 <div class="p-6 md:p-8 space-y-6 max-w-7xl mx-auto">
+  <!-- Shared Module Sub-Navigation -->
+  <div class="flex items-center gap-2 border-b border-slate-200 pb-3">
+    <a
+      routerLink="/learning"
+      routerLinkActive="!border-indigo-600 !text-indigo-600 !bg-indigo-50/70 shadow-2xs"
+      [routerLinkActiveOptions]="{ exact: true }"
+      class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 border border-transparent hover:bg-slate-100 flex items-center gap-2 transition-all cursor-pointer"
+    >
+      <mat-icon class="!text-base text-indigo-600">auto_stories</mat-icon>
+      <span>Practice Sets</span>
+    </a>
+    <a
+      routerLink="/learning/micro-lessons"
+      routerLinkActive="!border-purple-600 !text-purple-600 !bg-purple-50/70 shadow-2xs"
+      class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 border border-transparent hover:bg-slate-100 flex items-center gap-2 transition-all cursor-pointer"
+    >
+      <mat-icon class="!text-base text-purple-600">psychology</mat-icon>
+      <span>Micro-Lesson Moderation Desk</span>
+    </a>
+  </div>
+
   <!-- Top Banner -->
   <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
     <div class="flex items-center gap-4">
@@ -27,6 +48,14 @@
       >
         <mat-icon class="!text-sm">refresh</mat-icon>
         Refresh
+      </button>
+      <button
+        mat-stroked-button
+        (click)="openGenerateDialog()"
+        class="!text-purple-700 !border-purple-200 hover:!bg-purple-50 !rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+      >
+        <mat-icon class="!text-sm text-purple-600">add</mat-icon>
+        <span>Generate Micro-Lesson</span>
       </button>
       <button
         mat-flat-button
@@ -77,15 +106,15 @@
     </div>
   </div>
 
-  <!-- Search and Filter Bar -->
-  <div class="bg-white p-4 rounded-xl border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xs">
-    <div class="flex items-center gap-2 w-full sm:w-96 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+  <!-- Search and Cascading Filter Bar -->
+  <div class="bg-white p-4 rounded-xl border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4 shadow-xs">
+    <div class="flex items-center gap-2 w-full md:w-80 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl">
       <mat-icon class="text-slate-400 !w-4 !h-4 !text-base !leading-none flex items-center justify-center shrink-0">search</mat-icon>
       <input
         type="text"
         [ngModel]="searchQuery()"
         (ngModelChange)="searchQuery.set($event)"
-        placeholder="Search by subtopic, topic, or subject..."
+        placeholder="Search subtopic, topic, subject..."
         class="bg-transparent text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none w-full font-medium"
       />
       @if (searchQuery().trim()) {
@@ -99,9 +128,35 @@
       }
     </div>
 
-    <!-- Status Filters -->
+    <!-- Taxonomy Filters (Cascading Subject & Topic) -->
     <div class="flex items-center gap-2 flex-wrap">
-      <span class="text-xs font-bold text-slate-400 uppercase">Status:</span>
+      <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5">
+        <span class="text-[11px] font-bold text-slate-400 uppercase">Subject:</span>
+        <select
+          [ngModel]="selectedSubject()"
+          (ngModelChange)="selectedSubject.set($event); selectedTopic.set('ALL')"
+          class="bg-transparent text-xs text-slate-700 font-semibold focus:outline-none cursor-pointer"
+        >
+          @for (subj of distinctSubjects(); track subj) {
+            <option [value]="subj">{{ subj === 'ALL' ? 'All Subjects' : subj }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5">
+        <span class="text-[11px] font-bold text-slate-400 uppercase">Topic:</span>
+        <select
+          [ngModel]="selectedTopic()"
+          (ngModelChange)="selectedTopic.set($event)"
+          class="bg-transparent text-xs text-slate-700 font-semibold focus:outline-none cursor-pointer"
+        >
+          @for (tpc of distinctTopics(); track tpc) {
+            <option [value]="tpc">{{ tpc === 'ALL' ? 'All Topics' : tpc }}</option>
+          }
+        </select>
+      </div>
+
+      <!-- Status Filters -->
       <div class="flex items-center bg-slate-100 p-1 rounded-xl flex-wrap gap-1">
         @for (opt of statusOptions; track opt.value) {
           <button
@@ -118,6 +173,53 @@
     </div>
   </div>
 
+  <!-- Bulk Moderation Toolbar -->
+  @if (selectedIds().size > 0) {
+    <div class="bg-slate-900 text-white px-5 py-3 rounded-2xl flex items-center justify-between shadow-lg sticky top-4 z-20">
+      <div class="flex items-center gap-3">
+        <span class="w-6 h-6 rounded-full bg-purple-600 flex items-center justify-center font-bold text-xs">
+          {{ selectedIds().size }}
+        </span>
+        <span class="text-xs font-semibold">
+          {{ selectedIds().size }} micro-lesson{{ selectedIds().size > 1 ? 's' : '' }} selected
+        </span>
+      </div>
+      <div class="flex items-center gap-2">
+        <button
+          type="button"
+          (click)="bulkSubmit('APPROVE')"
+          [disabled]="isBulkSubmitting()"
+          class="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold cursor-pointer transition-all disabled:opacity-50"
+        >
+          Approve Selected
+        </button>
+        <button
+          type="button"
+          (click)="bulkSubmit('PUBLISH')"
+          [disabled]="isBulkSubmitting()"
+          class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer transition-all disabled:opacity-50"
+        >
+          Publish Selected
+        </button>
+        <button
+          type="button"
+          (click)="bulkSubmit('REJECT')"
+          [disabled]="isBulkSubmitting()"
+          class="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold cursor-pointer transition-all disabled:opacity-50"
+        >
+          Reject Selected
+        </button>
+        <button
+          type="button"
+          (click)="clearSelection()"
+          class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium cursor-pointer"
+        >
+          Deselect All
+        </button>
+      </div>
+    </div>
+  }
+
   <!-- Main Content Layout (Table & Live KaTeX Preview Drawer) -->
   @if (isLoading()) {
     <div class="py-20 flex flex-col items-center justify-center space-y-3 text-slate-500">
@@ -132,13 +234,21 @@
           <div class="p-12 text-center text-slate-400">
             <mat-icon class="!text-4xl text-slate-300 mb-2">find_in_page</mat-icon>
             <p class="text-sm font-semibold text-slate-600">No micro-lessons match the current filter</p>
-            <p class="text-xs text-slate-400 mt-1">Try selecting another status or triggering batch generation.</p>
+            <p class="text-xs text-slate-400 mt-1">Try selecting another status or generating new micro-lessons.</p>
           </div>
         } @else {
           <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse text-xs">
               <thead>
                 <tr class="bg-slate-50/80 border-b border-slate-200 text-slate-400 font-semibold uppercase tracking-wider">
+                  <th class="py-3 px-3 w-10 text-center">
+                    <input
+                      type="checkbox"
+                      [checked]="isAllSelected()"
+                      (change)="toggleSelectAll($any($event.target).checked)"
+                      class="rounded border-slate-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                    />
+                  </th>
                   <th class="py-3 px-4">Subtopic / Subject</th>
                   <th class="py-3 px-4">Status</th>
                   @if (!selectedLesson()) {
@@ -154,8 +264,17 @@
                   <tr
                     (click)="selectLesson(item)"
                     [class.bg-purple-50]="selectedLesson()?.id === item.id"
+                    [class.bg-purple-50/40]="selectedIds().has(item.id) && selectedLesson()?.id !== item.id"
                     class="hover:bg-slate-50/80 transition-colors cursor-pointer"
                   >
+                    <td class="py-3 px-3 text-center" (click)="$event.stopPropagation()">
+                      <input
+                        type="checkbox"
+                        [checked]="selectedIds().has(item.id)"
+                        (change)="toggleSelect(item.id, $event)"
+                        class="rounded border-slate-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                      />
+                    </td>
                     <td class="py-3 px-4">
                       <p class="font-bold text-slate-900 line-clamp-1">{{ item.subtopicName }}</p>
                       <p class="text-[11px] text-slate-400 mt-0.5">{{ item.subjectName }} &bull; {{ item.topicName }}</p>
@@ -202,17 +321,46 @@
               <h2 class="text-lg font-bold text-slate-900 mt-1.5">{{ lesson.subtopicName }}</h2>
               <p class="text-xs text-slate-500">{{ lesson.subjectName }} &rsaquo; {{ lesson.topicName }} &bull; Target: {{ lesson.targetExam || 'General' }}</p>
             </div>
-            <button
-              type="button"
-              (click)="closePreview()"
-              class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 cursor-pointer"
-              title="Close Preview"
-            >
-              <mat-icon class="!text-lg">close</mat-icon>
-            </button>
+            <div class="flex items-center gap-2">
+              @if (!isEditingContent()) {
+                <button
+                  type="button"
+                  (click)="startEditing(lesson)"
+                  class="text-xs font-bold px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 flex items-center gap-1 cursor-pointer transition-colors"
+                >
+                  <mat-icon class="!text-sm">edit</mat-icon>
+                  Edit KaTeX Content
+                </button>
+              } @else {
+                <button
+                  type="button"
+                  (click)="cancelEditing()"
+                  class="text-xs font-bold px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  (click)="saveEditedContent()"
+                  [disabled]="isSubmitting()"
+                  class="text-xs font-bold px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-1 cursor-pointer shadow-xs"
+                >
+                  <mat-icon class="!text-sm">save</mat-icon>
+                  Save Changes
+                </button>
+              }
+              <button
+                type="button"
+                (click)="closePreview()"
+                class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 cursor-pointer"
+                title="Close Preview"
+              >
+                <mat-icon class="!text-lg">close</mat-icon>
+              </button>
+            </div>
           </div>
 
-          <!-- Remedial 4-Part Content Preview with Live KaTeX -->
+          <!-- Remedial 4-Part Content Preview / Live KaTeX Editor -->
           <div class="space-y-5 max-h-[600px] overflow-y-auto pr-2">
             <!-- 1. Core Concept -->
             <div class="bg-indigo-50/40 rounded-xl p-4 border border-indigo-100">
@@ -220,7 +368,21 @@
                 <mat-icon class="!text-sm">lightbulb</mat-icon>
                 1. Core Concept
               </h3>
-              <nag-math-renderer [content]="lesson.content?.coreConcept || 'No core concept provided.'"></nag-math-renderer>
+              @if (isEditingContent()) {
+                <textarea
+                  rows="3"
+                  [ngModel]="editedCoreConcept()"
+                  (ngModelChange)="editedCoreConcept.set($event)"
+                  placeholder="Enter core concept explanation with KaTeX ($...$ or $$...$$)..."
+                  class="w-full text-xs p-2.5 rounded-lg border border-indigo-200 focus:outline-none focus:border-indigo-500 bg-white font-mono"
+                ></textarea>
+                <div class="mt-2 p-2.5 bg-white rounded-lg border border-indigo-100">
+                  <span class="text-[10px] font-bold text-indigo-400 uppercase tracking-wider block mb-1">Live KaTeX Render:</span>
+                  <nag-math-renderer [content]="editedCoreConcept()"></nag-math-renderer>
+                </div>
+              } @else {
+                <nag-math-renderer [content]="lesson.content?.coreConcept || 'No core concept provided.'"></nag-math-renderer>
+              }
             </div>
 
             <!-- 2. Trap Alert -->
@@ -229,7 +391,21 @@
                 <mat-icon class="!text-sm">warning_amber</mat-icon>
                 2. The Trap Alert
               </h3>
-              <nag-math-renderer [content]="lesson.content?.trapAlert || 'No trap alert specified.'"></nag-math-renderer>
+              @if (isEditingContent()) {
+                <textarea
+                  rows="3"
+                  [ngModel]="editedTrapAlert()"
+                  (ngModelChange)="editedTrapAlert.set($event)"
+                  placeholder="Enter misconception/trap explanation with KaTeX ($...$ or $$...$$)..."
+                  class="w-full text-xs p-2.5 rounded-lg border border-rose-200 focus:outline-none focus:border-rose-500 bg-white font-mono"
+                ></textarea>
+                <div class="mt-2 p-2.5 bg-white rounded-lg border border-rose-100">
+                  <span class="text-[10px] font-bold text-rose-400 uppercase tracking-wider block mb-1">Live KaTeX Render:</span>
+                  <nag-math-renderer [content]="editedTrapAlert()"></nag-math-renderer>
+                </div>
+              } @else {
+                <nag-math-renderer [content]="lesson.content?.trapAlert || 'No trap alert specified.'"></nag-math-renderer>
+              }
             </div>
 
             <!-- 3. KaTeX Cheat Sheet -->
@@ -238,7 +414,21 @@
                 <mat-icon class="!text-sm">functions</mat-icon>
                 3. KaTeX Formula Cheat Sheet
               </h3>
-              <nag-math-renderer [content]="lesson.content?.formulaCheatSheet || 'No formulas provided.'"></nag-math-renderer>
+              @if (isEditingContent()) {
+                <textarea
+                  rows="3"
+                  [ngModel]="editedFormulaCheatSheet()"
+                  (ngModelChange)="editedFormulaCheatSheet.set($event)"
+                  placeholder="Enter formula cheat sheet with KaTeX ($$ ... $$)..."
+                  class="w-full text-xs p-2.5 rounded-lg border border-amber-200 focus:outline-none focus:border-amber-500 bg-white font-mono"
+                ></textarea>
+                <div class="mt-2 p-2.5 bg-white rounded-lg border border-amber-100">
+                  <span class="text-[10px] font-bold text-amber-400 uppercase tracking-wider block mb-1">Live KaTeX Render:</span>
+                  <nag-math-renderer [content]="editedFormulaCheatSheet()"></nag-math-renderer>
+                </div>
+              } @else {
+                <nag-math-renderer [content]="lesson.content?.formulaCheatSheet || 'No formulas provided.'"></nag-math-renderer>
+              }
             </div>
 
             <!-- 4. Step-by-Step Breakdown -->

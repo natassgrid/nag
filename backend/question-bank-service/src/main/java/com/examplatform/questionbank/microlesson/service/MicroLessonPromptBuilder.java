@@ -37,15 +37,27 @@ public class MicroLessonPromptBuilder {
         """;
 
     public String buildUserPrompt(String subject, String topic, String subtopic, String targetExam) {
+        return buildUserPrompt(subject, topic, subtopic, targetExam, null);
+    }
+
+    public String buildUserPrompt(String subject, String topic, String subtopic, String targetExam, String referenceText) {
         String exam = (targetExam != null && !targetExam.isBlank()) ? targetExam : "JEE_MAIN";
-        return String.format("""
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format("""
             Generate a remedial micro-lesson for the following syllabus sub-topic:
             - Subject: %s
             - Topic: %s
             - Sub-Topic: %s
             - Target Exam: %s
+            """, subject, topic, subtopic, exam));
 
-            Ensure KaTeX notation is syntactically balanced and accurate. Return ONLY the JSON object.
-            """, subject, topic, subtopic, exam);
+        if (referenceText != null && !referenceText.isBlank()) {
+            sb.append("\nAdditional Faculty Reference Context / Steering Notes:\n");
+            sb.append(referenceText.trim());
+            sb.append("\n");
+        }
+
+        sb.append("\nEnsure KaTeX notation is syntactically balanced and accurate. Return ONLY the JSON object.\n");
+        return sb.toString();
     }
 }

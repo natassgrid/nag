@@ -45,6 +45,18 @@ export interface BatchGenerateMicroLessonsRequest {
   limit?: number;
 }
 
+export interface GenerateMicroLessonRequest {
+  subjectId?: number;
+  subject: string;
+  topicId?: number;
+  topic: string;
+  subtopicId?: number;
+  subtopic: string;
+  targetExam?: string;
+  referenceText?: string;
+  promptNotes?: string;
+}
+
 export interface BatchGenerateResponse {
   batchId: string;
   totalQueued: number;

@@ -3,6 +3,7 @@ package com.examplatform.practice.controller;
 
 import com.examplatform.practice.dto.*;
 import com.examplatform.practice.service.PracticeResultService;
+import com.examplatform.practice.service.AdaptiveQuizGenerator;
 import com.examplatform.practice.service.PracticeSessionService;
 import com.examplatform.shared.security.UserContext;
 import jakarta.validation.Valid;
@@ -24,6 +25,22 @@ public class PracticeSessionController {
 
     private final PracticeSessionService practiceSessionService;
     private final PracticeResultService practiceResultService;
+    private final AdaptiveQuizGenerator adaptiveQuizGenerator;
+
+    @PostMapping("/adaptive-sets/generate")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<PracticeSetDto> generateAdaptiveSet(
+            @RequestBody GenerateAdaptiveSetRequest request) {
+        UUID candidateId = request.candidateId() != null ? request.candidateId() : UserContext.getRequiredUserId();
+        PracticeSetDto dto = adaptiveQuizGenerator.generateAdaptiveSet(
+                candidateId,
+                request.targetSubtopics(),
+                request.targetExam(),
+                request.totalQuestions() != null ? request.totalQuestions() : 15,
+                Boolean.TRUE.equals(request.isGatekeeper())
+        );
+        return ResponseEntity.ok(dto);
+    }
 
     @PostMapping("/sessions")
     @PreAuthorize("isAuthenticated()")

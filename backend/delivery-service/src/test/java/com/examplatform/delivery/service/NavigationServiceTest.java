@@ -298,5 +298,41 @@ class NavigationServiceTest {
             assertThat(response.getNavigationPolicy()).isEqualTo(NavigationPolicy.FLEXIBLE);
             assertThat(response.getAllowedActions()).isNotEmpty();
         }
+
+        @Test
+        @DisplayName("Determine policy resolves SEQUENTIAL when cached in Redis")
+        void determinePolicy_resolvesSequentialFromRedis() {
+            when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+            when(valueOperations.get("exam:nav_policy:" + EXAM_ID)).thenReturn("SEQUENTIAL");
+
+            NavigationPolicy policy = navigationService.determinePolicy(activeSession);
+
+            assertThat(policy).isEqualTo(NavigationPolicy.SEQUENTIAL);
+        }
+
+        @Test
+        @DisplayName("Determine policy resolves RESTRICTED from JdbcTemplate when available")
+        void determinePolicy_resolvesRestrictedFromJdbcTemplate() {
+            org.springframework.jdbc.core.JdbcTemplate mockJdbc = org.mockito.Mockito.mock(org.springframework.jdbc.core.JdbcTemplate.class);
+            @SuppressWarnings("unchecked")
+            org.springframework.beans.factory.ObjectProvider<org.springframework.jdbc.core.JdbcTemplate> mockProvider =
+                    org.mockito.Mockito.mock(org.springframework.beans.factory.ObjectProvider.class);
+            when(mockProvider.getIfAvailable()).thenReturn(mockJdbc);
+            when(mockJdbc.queryForObject(
+                    org.mockito.ArgumentMatchers.contains("SELECT navigation_policy"),
+                    org.mockito.ArgumentMatchers.eq(String.class),
+                    org.mockito.ArgumentMatchers.eq(EXAM_ID)
+            )).thenReturn("RESTRICTED");
+
+            NavigationService customService = new NavigationService(
+                    examSessionRepository, redisTemplate, null, mockProvider);
+
+            when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+            when(valueOperations.get("exam:nav_policy:" + EXAM_ID)).thenReturn(null);
+
+            NavigationPolicy policy = customService.determinePolicy(activeSession);
+
+            assertThat(policy).isEqualTo(NavigationPolicy.RESTRICTED);
+        }
     }
 }

@@ -40,4 +40,5 @@ public class ShiftAssignment {
     private String encryptedPackageRef;
     private int durationMinutes;
     private int extraTimeMinutes;
+    private String navigationPolicy;
 }

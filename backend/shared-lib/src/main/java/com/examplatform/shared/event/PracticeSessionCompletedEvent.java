@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-package com.examplatform.practice.event;
+package com.examplatform.shared.event;
 
+import java.io.Serializable;
 import java.util.UUID;
 
 public record PracticeSessionCompletedEvent(
@@ -14,7 +15,7 @@ public record PracticeSessionCompletedEvent(
     int totalMarks,
     String topicWiseBreakdown,
     String subtopicWiseBreakdown
-) {
+) implements Serializable {
     public PracticeSessionCompletedEvent(
         UUID sessionId,
         UUID candidateId,

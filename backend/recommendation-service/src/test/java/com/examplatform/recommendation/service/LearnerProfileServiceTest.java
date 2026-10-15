@@ -4,7 +4,7 @@ package com.examplatform.recommendation.service;
 import com.examplatform.recommendation.domain.LearnerProfile;
 import com.examplatform.recommendation.domain.LearnerSubtopicPerformance;
 import com.examplatform.recommendation.dto.LearnerProfileDto;
-import com.examplatform.recommendation.event.PracticeSessionCompletedEvent;
+import com.examplatform.shared.event.PracticeSessionCompletedEvent;
 import com.examplatform.recommendation.repository.LearnerProfileRepository;
 import com.examplatform.recommendation.repository.LearnerSubtopicPerformanceRepository;
 import com.examplatform.shared.dto.SubtopicPerformanceDto;
