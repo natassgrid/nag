@@ -8,7 +8,7 @@
 
   <!-- Drawer Container -->
   <aside
-    class="fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] bg-slate-900 text-white shadow-2xl flex flex-col transform transition-transform duration-300 ease-out md:hidden"
+    class="fixed inset-y-0 left-0 z-50 w-80 max-w-[85vw] bg-slate-900 text-white shadow-2xl flex flex-col transform transition-transform duration-300 ease-out md:hidden"
     role="dialog"
     aria-modal="true"
     aria-label="Mobile Navigation Menu"
@@ -68,24 +68,73 @@
       }
     </div>
 
-    <!-- Main Navigation List -->
-    <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-1" aria-label="Mobile Menu Links">
+    <!-- Main Navigation List with Grouped Sub-menus -->
+    <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-2" aria-label="Mobile Menu Links">
       @for (item of navItems(); track item.id) {
-        <a
-          [routerLink]="item.route"
-          routerLinkActive="bg-indigo-600 text-white font-bold shadow-sm"
-          [routerLinkActiveOptions]="{ exact: !!item.exact }"
-          (click)="onItemClick()"
-          class="flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800/70 transition-colors min-h-[44px] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-        >
-          <mat-icon class="!text-xl text-slate-400 group-hover:text-white">{{ item.icon }}</mat-icon>
-          <span class="grow">{{ item.label }}</span>
-          @if (item.badge) {
-            <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-indigo-500/30 text-indigo-200 border border-indigo-500/40">
-              {{ item.badge }}
-            </span>
-          }
-        </a>
+        @if (!item.children || item.children.length === 0) {
+          <!-- Single Direct Nav Item -->
+          <a
+            [routerLink]="item.route"
+            routerLinkActive="bg-indigo-600 text-white font-bold shadow-sm"
+            [routerLinkActiveOptions]="{ exact: !!item.exact }"
+            (click)="onItemClick()"
+            class="flex items-center gap-3.5 px-3.5 py-3 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800/70 transition-colors min-h-[44px] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+          >
+            <mat-icon class="!text-xl text-slate-400 group-hover:text-white">{{ item.icon }}</mat-icon>
+            <span class="grow">{{ item.label }}</span>
+            @if (item.badge) {
+              <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-indigo-500/30 text-indigo-200 border border-indigo-500/40">
+                {{ item.badge }}
+              </span>
+            }
+          </a>
+        } @else {
+          <!-- Group Header with Sub-menus -->
+          <div class="rounded-2xl bg-slate-800/40 border border-slate-800/60 overflow-hidden">
+            <button
+              type="button"
+              (click)="toggleGroup(item.id)"
+              [class.text-indigo-300]="isGroupActive(item)"
+              class="w-full flex items-center justify-between gap-3 px-3.5 py-3 text-slate-200 hover:text-white hover:bg-slate-800/80 transition-colors cursor-pointer text-left"
+            >
+              <div class="flex items-center gap-3 min-w-0">
+                <mat-icon class="!text-xl text-indigo-400 shrink-0">{{ item.icon }}</mat-icon>
+                <span class="text-sm font-bold truncate">{{ item.label }}</span>
+                @if (item.badge) {
+                  <span class="px-1.5 py-0.2 text-[9px] font-bold rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                    {{ item.badge }}
+                  </span>
+                }
+              </div>
+              <mat-icon class="!text-lg text-slate-400 shrink-0 transition-transform duration-200" [class.rotate-180]="isGroupExpanded(item.id)">
+                expand_more
+              </mat-icon>
+            </button>
+
+            @if (isGroupExpanded(item.id)) {
+              <div class="px-2 pb-2 pt-0.5 space-y-1 bg-slate-950/30 border-t border-slate-800/60">
+                @for (sub of item.children; track sub.id) {
+                  <a
+                    [routerLink]="sub.route"
+                    routerLinkActive="!bg-indigo-600 !text-white font-bold"
+                    (click)="onItemClick()"
+                    class="flex items-start gap-3 px-3 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800/70 transition-colors cursor-pointer"
+                  >
+                    <mat-icon class="!text-lg text-indigo-400 shrink-0 mt-0.5">{{ sub.icon }}</mat-icon>
+                    <div class="flex flex-col min-w-0">
+                      <span class="text-xs font-semibold leading-tight">{{ sub.label }}</span>
+                      @if (sub.description) {
+                        <span class="text-[10px] text-slate-400 font-normal leading-tight mt-0.5 line-clamp-1">
+                          {{ sub.description }}
+                        </span>
+                      }
+                    </div>
+                  </a>
+                }
+              </div>
+            }
+          </div>
+        }
       }
 
       <!-- Quick Action: Live Exam Runtime -->
@@ -118,8 +167,7 @@
           (click)="onItemClick()"
           class="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-colors min-h-[44px] cursor-pointer"
         >
-          <mat-icon class="!text-base">login</mat-icon>
-          <span>Sign In / Register</span>
+          Sign In
         </a>
       }
     </div>
