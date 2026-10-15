@@ -34,32 +34,66 @@
       class="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold text-slate-600 transition-all cursor-pointer flex items-center justify-center gap-1.5"
     >
       <mat-icon class="!text-sm">auto_awesome</mat-icon>
-      <span>Single Subtopic (Recommended)</span>
+      <span>Single Subtopic</span>
     </button>
     <button
       type="button"
-      disabled
-      title="Batch generation disabled on developer account quota limits"
-      class="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold text-slate-400 opacity-60 cursor-not-allowed flex items-center justify-center gap-1.5"
+      (click)="switchToBatch()"
+      class="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold text-purple-700 hover:bg-white/80 transition-all cursor-pointer flex items-center justify-center gap-1.5"
     >
-      <mat-icon class="!text-sm">playlist_add</mat-icon>
-      <span>Batch Syllabus (Quota Limited)</span>
+      <mat-icon class="!text-sm text-purple-600">auto_mode</mat-icon>
+      <span>Switch to Batch Generate</span>
     </button>
   </div>
 
   <!-- Form Fields -->
   <div class="space-y-4 text-xs font-medium text-slate-700">
     <div class="grid grid-cols-2 gap-3">
+      <!-- Subject Dropdown -->
       <div>
-        <label class="block mb-1 text-slate-600 font-semibold">Subject</label>
-        <input
-          type="text"
-          [ngModel]="subject()"
-          (ngModelChange)="subject.set($event)"
-          placeholder="e.g. Physics"
-          class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-indigo-500 text-xs"
-        />
+        <div class="flex items-center justify-between mb-1">
+          <label class="text-slate-600 font-semibold">Subject</label>
+          @if (isLoadingTaxonomy()) {
+            <span class="text-[10px] text-indigo-600 flex items-center gap-1 font-normal">
+              <mat-progress-spinner diameter="10" mode="indeterminate"></mat-progress-spinner>
+              Loading...
+            </span>
+          }
+        </div>
+        @if (hierarchy().length > 0 && !isCustomSubject()) {
+          <select
+            [ngModel]="selectedSubjectId()"
+            (ngModelChange)="onSubjectChange($event)"
+            class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-indigo-500 text-xs"
+          >
+            @for (s of hierarchy(); track s.id) {
+              <option [value]="s.id">{{ s.name }}</option>
+            }
+            <option value="__CUSTOM__">+ Custom / Enter Manually</option>
+          </select>
+        } @else {
+          <div class="space-y-1">
+            <input
+              type="text"
+              [ngModel]="selectedSubjectName()"
+              (ngModelChange)="selectedSubjectName.set($event)"
+              placeholder="e.g. Physics"
+              class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-indigo-500 text-xs"
+            />
+            @if (hierarchy().length > 0) {
+              <button
+                type="button"
+                (click)="isCustomSubject.set(false); onSubjectChange(hierarchy()[0].id.toString())"
+                class="text-[10px] text-indigo-600 hover:underline cursor-pointer"
+              >
+                &larr; Choose from existing subjects
+              </button>
+            }
+          </div>
+        }
       </div>
+
+      <!-- Target Examination -->
       <div>
         <label class="block mb-1 text-slate-600 font-semibold">Target Examination</label>
         <select
@@ -74,28 +108,78 @@
       </div>
     </div>
 
+    <!-- Topic Selection -->
     <div>
-      <label class="block mb-1 text-slate-600 font-semibold">Topic Hierarchy</label>
-      <input
-        type="text"
-        [ngModel]="topic()"
-        (ngModelChange)="topic.set($event)"
-        placeholder="e.g. Rotational Mechanics"
-        class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-indigo-500 text-xs"
-      />
+      <label class="block mb-1 text-slate-600 font-semibold">Topic</label>
+      @if (availableTopics().length > 0 && !isCustomTopic()) {
+        <select
+          [ngModel]="selectedTopicId()"
+          (ngModelChange)="onTopicChange($event)"
+          class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-indigo-500 text-xs"
+        >
+          @for (t of availableTopics(); track t.id) {
+            <option [value]="t.id">{{ t.name }}</option>
+          }
+          <option value="__CUSTOM__">+ Custom / Enter Manually</option>
+        </select>
+      } @else {
+        <div class="space-y-1">
+          <input
+            type="text"
+            [ngModel]="selectedTopicName()"
+            (ngModelChange)="selectedTopicName.set($event)"
+            placeholder="e.g. Rotational Mechanics"
+            class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-indigo-500 text-xs"
+          />
+          @if (availableTopics().length > 0) {
+            <button
+              type="button"
+              (click)="isCustomTopic.set(false); onTopicChange(availableTopics()[0].id.toString())"
+              class="text-[10px] text-indigo-600 hover:underline cursor-pointer"
+            >
+              &larr; Choose from existing topics
+            </button>
+          }
+        </div>
+      }
     </div>
 
+    <!-- Subtopic Selection -->
     <div>
       <label class="block mb-1 text-slate-600 font-semibold">
         Subtopic Name <span class="text-rose-500">*</span>
       </label>
-      <input
-        type="text"
-        [ngModel]="subtopic()"
-        (ngModelChange)="subtopic.set($event)"
-        placeholder="e.g. Moment of Inertia of Composite Bodies"
-        class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-indigo-500 text-xs"
-      />
+      @if (availableSubtopics().length > 0 && !isCustomSubtopic()) {
+        <select
+          [ngModel]="selectedSubtopicId()"
+          (ngModelChange)="onSubtopicChange($event)"
+          class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-indigo-500 text-xs"
+        >
+          @for (st of availableSubtopics(); track st.id) {
+            <option [value]="st.id">{{ st.name }}</option>
+          }
+          <option value="__CUSTOM__">+ Custom / Enter Manually</option>
+        </select>
+      } @else {
+        <div class="space-y-1">
+          <input
+            type="text"
+            [ngModel]="selectedSubtopicName()"
+            (ngModelChange)="selectedSubtopicName.set($event)"
+            placeholder="e.g. Moment of Inertia of Composite Bodies"
+            class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-indigo-500 text-xs"
+          />
+          @if (availableSubtopics().length > 0) {
+            <button
+              type="button"
+              (click)="isCustomSubtopic.set(false); onSubtopicChange(availableSubtopics()[0].id.toString())"
+              class="text-[10px] text-indigo-600 hover:underline cursor-pointer"
+            >
+              &larr; Choose from existing subtopics
+            </button>
+          }
+        </div>
+      }
     </div>
 
     <div>
@@ -128,7 +212,7 @@
       mat-flat-button
       color="primary"
       (click)="onGenerate()"
-      [disabled]="isGenerating() || !subtopic().trim()"
+      [disabled]="isGenerating() || !selectedSubtopicName().trim()"
       class="!rounded-xl !text-xs !font-bold flex items-center gap-2 !px-4 !py-2"
     >
       @if (isGenerating()) {

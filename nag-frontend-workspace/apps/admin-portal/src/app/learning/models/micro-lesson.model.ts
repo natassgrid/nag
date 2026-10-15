@@ -40,9 +40,12 @@ export interface ReviewMicroLessonRequest {
 
 export interface BatchGenerateMicroLessonsRequest {
   subjectId?: number;
+  topicId?: number;
+  subtopicIds?: number[];
   targetExam?: string;
   forceRegenerate?: boolean;
   limit?: number;
+  maxCount?: number;
 }
 
 export interface GenerateMicroLessonRequest {
