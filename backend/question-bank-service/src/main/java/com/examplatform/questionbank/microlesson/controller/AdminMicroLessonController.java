@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.examplatform.questionbank.microlesson.controller;
 
+import com.examplatform.questionbank.microlesson.ai.MicroLessonBatchRunner;
 import com.examplatform.questionbank.microlesson.dto.BatchGenerateMicroLessonsRequest;
 import com.examplatform.questionbank.microlesson.dto.GenerateMicroLessonRequest;
 import com.examplatform.questionbank.microlesson.dto.BatchGenerateResponse;
 import com.examplatform.questionbank.microlesson.dto.MicroLessonResponse;
 import com.examplatform.questionbank.microlesson.dto.ReviewMicroLessonRequest;
-import com.examplatform.questionbank.microlesson.service.MicroLessonBatchRunner;
 import com.examplatform.questionbank.microlesson.service.MicroLessonService;
 import com.examplatform.shared.constants.SharedConstants;
 import lombok.RequiredArgsConstructor;
@@ -38,32 +38,33 @@ public class AdminMicroLessonController {
             @RequestParam(required = false) String status,
             @RequestParam(required = false) Long subjectId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String direction) {
 
-        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, SharedConstants.CREATED_AT));
-        Page<MicroLessonResponse> result = microLessonService.listForReview(status, subjectId, pageRequest);
-        return ResponseEntity.ok(result);
+        Sort sort = direction.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
+        PageRequest pageRequest = PageRequest.of(page, size, sort);
+        return ResponseEntity.ok(microLessonService.listForReview(status, subjectId, pageRequest));
     }
 
     /**
-     * Faculty review desk: Approve, edit content, or reject back to draft with reviewer notes.
+     * Faculty/Admin approves, rejects, or edits a remedial micro-lesson.
      */
     @PutMapping("/{id}/review")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<MicroLessonResponse> reviewMicroLesson(
-            @AuthenticationPrincipal Jwt jwt,
             @PathVariable UUID id,
+            @AuthenticationPrincipal Jwt jwt,
             @RequestBody ReviewMicroLessonRequest request) {
 
         UUID reviewerId = null;
         if (jwt != null && jwt.getSubject() != null) {
             try {
                 reviewerId = UUID.fromString(jwt.getSubject());
-            } catch (Exception ignored) {}
+            } catch (IllegalArgumentException ignored) {}
         }
 
-        MicroLessonResponse response = microLessonService.reviewMicroLesson(id, reviewerId, request);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(microLessonService.reviewMicroLesson(id, reviewerId, request));
     }
 
     /**
@@ -81,8 +82,7 @@ public class AdminMicroLessonController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BatchGenerateResponse> triggerBatchGenerate(
             @RequestBody(required = false) BatchGenerateMicroLessonsRequest request) {
-
-        BatchGenerateResponse result = batchRunner.runBatchGeneration(request);
-        return ResponseEntity.ok(result);
+        BatchGenerateResponse response = batchRunner.runBatchGeneration(request);
+        return ResponseEntity.ok(response);
     }
 }

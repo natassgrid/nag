@@ -19,6 +19,8 @@
 
 package com.examplatform.questionbank.translation.service;
 
+import com.examplatform.questionbank.translation.ai.IndicTrans2Service;
+
 import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.repository.QuestionRepository;
 import com.examplatform.questionbank.translation.domain.BatchTranslationJob;

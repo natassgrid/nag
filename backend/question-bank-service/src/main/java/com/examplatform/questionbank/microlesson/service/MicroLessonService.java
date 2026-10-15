@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.examplatform.questionbank.microlesson.service;
 
+import com.examplatform.questionbank.microlesson.ai.KaTexValidator;
+import com.examplatform.questionbank.microlesson.ai.MicroLessonGeneratorService;
 import com.examplatform.questionbank.microlesson.domain.MicroLessonStatus;
 import com.examplatform.questionbank.microlesson.domain.SubtopicMicroLesson;
 import com.examplatform.questionbank.microlesson.dto.GenerateMicroLessonRequest;
