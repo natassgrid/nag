@@ -3,18 +3,20 @@ import { MicroLessonReviewComponent } from './micro-lesson-review.component';
 import { MicroLessonAdminService } from '../../services/micro-lesson-admin.service';
 import { of } from 'rxjs';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatDialog } from '@angular/material/dialog';
 import { MicroLessonReviewItem } from '../../models/micro-lesson.model';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
+import { ActivatedRoute } from '@angular/router';
 
 describe('MicroLessonReviewComponent', () => {
   let component: MicroLessonReviewComponent;
   let fixture: ComponentFixture<MicroLessonReviewComponent>;
   let microLessonServiceMock: any;
   let snackBarMock: any;
+  let dialogMock: any;
 
   const mockLessons: MicroLessonReviewItem[] = [
-    {
-      id: 'ml-1',
+    {\n      id: 'ml-1',
       subtopicId: 101,
       subtopicName: 'Bayes Theorem & Conditional Probability',
       topicName: 'Probability',
@@ -60,6 +62,26 @@ describe('MicroLessonReviewComponent', () => {
         },
       },
     },
+    {
+      id: 'ml-3',
+      subtopicId: 201,
+      subtopicName: 'Moment of Inertia',
+      topicName: 'Rotational Mechanics',
+      subjectName: 'Physics',
+      targetExam: 'JEE-MAIN',
+      status: 'PUBLISHED',
+      contentVersion: 1,
+      reviewerNotes: 'Production ready',
+      content: {
+        coreConcept: 'Moment of Inertia $I = \\int r^2 dm$.',
+        trapAlert: 'Remember parallel axis theorem shift.',
+        formulaCheatSheet: '$$I = I_{cm} + Md^2$$',
+        stepByStepBreakdown: {
+          problemStatement: 'Calculate I for thin rod',
+          steps: [],
+        },
+      },
+    },
   ];
 
   beforeEach(async () => {
@@ -67,7 +89,7 @@ describe('MicroLessonReviewComponent', () => {
       listForReview: jest.fn().mockReturnValue(
         of({
           content: mockLessons,
-          totalElements: 2,
+          totalElements: 3,
           totalPages: 1,
           number: 0,
           size: 20,
@@ -75,10 +97,17 @@ describe('MicroLessonReviewComponent', () => {
       ),
       reviewMicroLesson: jest.fn(),
       triggerBatchGenerate: jest.fn(),
+      generateSingle: jest.fn(),
     };
 
     snackBarMock = {
       open: jest.fn(),
+    };
+
+    dialogMock = {
+      open: jest.fn().mockReturnValue({
+        afterClosed: () => of(null),
+      }),
     };
 
     await TestBed.configureTestingModule({
@@ -86,6 +115,8 @@ describe('MicroLessonReviewComponent', () => {
       providers: [
         { provide: MicroLessonAdminService, useValue: microLessonServiceMock },
         { provide: MatSnackBar, useValue: snackBarMock },
+        { provide: MatDialog, useValue: dialogMock },
+        { provide: ActivatedRoute, useValue: { snapshot: { params: {} } } },
       ],
     }).compileComponents();
 
@@ -94,73 +125,108 @@ describe('MicroLessonReviewComponent', () => {
     fixture.detectChanges();
   });
 
-  it('should create', () => {
+  it('should create and populate computed metrics', () => {
     expect(component).toBeTruthy();
-    expect(component.lessons().length).toBe(2);
-    expect(component.totalCount()).toBe(2);
+    expect(component.lessons().length).toBe(3);
+    expect(component.totalCount()).toBe(3);
     expect(component.aiGeneratedCount()).toBe(1);
-    expect(component.approvedCount()).toBe(1);
+    expect(component.approvedCount()).toBe(2);
   });
 
-  it('should filter lessons by status and search query', () => {
-    component.statusFilter.set('APPROVED');
-    expect(component.filteredLessons().length).toBe(1);
-    expect(component.filteredLessons()[0].id).toBe('ml-2');
+  it('should filter lessons by cascading subject and topic', () => {
+    expect(component.distinctSubjects()).toEqual(['ALL', 'Mathematics', 'Physics']);
 
-    component.statusFilter.set('ALL');
-    component.searchQuery.set('Bayes');
+    component.selectedSubject.set('Mathematics');
+    expect(component.distinctTopics()).toEqual(['ALL', 'Linear Algebra', 'Probability']);
+    expect(component.filteredLessons().length).toBe(2);
+
+    component.selectedTopic.set('Probability');
     expect(component.filteredLessons().length).toBe(1);
     expect(component.filteredLessons()[0].id).toBe('ml-1');
   });
 
-  it('should select a lesson and set reviewer notes', () => {
-    component.selectLesson(mockLessons[0]);
-    expect(component.selectedLesson()?.id).toBe('ml-1');
-    expect(component.reviewerNotes()).toBe('');
+  it('should manage multi-selection and bulk submission', () => {
+    expect(component.selectedIds().size).toBe(0);
 
-    component.closePreview();
-    expect(component.selectedLesson()).toBeNull();
+    // Toggle select individual
+    component.toggleSelect('ml-1', { stopPropagation: () => {} } as any);
+    expect(component.selectedIds().has('ml-1')).toBe(true);
+    expect(component.selectedIds().size).toBe(1);
+
+    // Toggle select all
+    component.toggleSelectAll(true);
+    expect(component.selectedIds().size).toBe(3);
+    expect(component.isAllSelected()).toBe(true);
+
+    // Bulk submit APPROVE
+    microLessonServiceMock.reviewMicroLesson.mockReturnValue(
+      of({ ...mockLessons[0], status: 'APPROVED' })
+    );
+    component.bulkSubmit('APPROVE');
+    expect(microLessonServiceMock.reviewMicroLesson).toHaveBeenCalledTimes(3);
+
+    // Clear selection
+    component.clearSelection();
+    expect(component.selectedIds().size).toBe(0);
   });
 
-  it('should submit review action successfully', () => {
-    const updatedItem: MicroLessonReviewItem = {
-      ...mockLessons[0],
-      status: 'APPROVED',
-      reviewerNotes: 'Approved after review',
-    };
-    microLessonServiceMock.reviewMicroLesson.mockReturnValue(of(updatedItem));
-
+  it('should support in-place content editing with KaTeX formulas', () => {
     component.selectLesson(mockLessons[0]);
-    component.reviewerNotes.set('Approved after review');
-    component.submitReview('APPROVE');
+    expect(component.isEditingContent()).toBe(false);
 
+    component.startEditing(mockLessons[0]);
+    expect(component.isEditingContent()).toBe(true);
+    expect(component.editedCoreConcept()).toContain('Bayes Theorem');
+
+    component.editedCoreConcept.set('Updated Core Concept with $P(A|B)$');
+    const updatedResponse: MicroLessonReviewItem = {
+      ...mockLessons[0],
+      content: {
+        ...mockLessons[0].content,
+        coreConcept: 'Updated Core Concept with $P(A|B)$',
+      },
+    };
+    microLessonServiceMock.reviewMicroLesson.mockReturnValue(of(updatedResponse));
+
+    component.saveEditedContent();
     expect(microLessonServiceMock.reviewMicroLesson).toHaveBeenCalledWith(
       'ml-1',
-      {
-        action: 'APPROVE',
-        reviewerNotes: 'Approved after review',
-      }
-    );
-    expect(component.selectedLesson()?.status).toBe('APPROVED');
-    expect(snackBarMock.open).toHaveBeenCalled();
-  });
-
-  it('should trigger batch generation', () => {
-    microLessonServiceMock.triggerBatchGenerate.mockReturnValue(
-      of({
-        batchId: 'batch-1',
-        totalQueued: 5,
-        status: 'QUEUED',
-        message: 'Queued 5 micro-lessons',
+      expect.objectContaining({
+        action: 'EDIT',
+        updatedContent: expect.objectContaining({
+          coreConcept: 'Updated Core Concept with $P(A|B)$',
+        }),
       })
     );
+    expect(component.isEditingContent()).toBe(false);
+  });
 
-    component.triggerBatchGenerate();
-    expect(microLessonServiceMock.triggerBatchGenerate).toHaveBeenCalled();
-    expect(snackBarMock.open).toHaveBeenCalledWith(
-      'Queued 5 micro-lessons',
-      'OK',
-      { duration: 4000 }
-    );
+  it('should open generate dialog and prepend created micro-lesson', () => {
+    const newItem: MicroLessonReviewItem = {
+      id: 'ml-new',
+      subtopicId: 999,
+      subtopicName: 'Synthesized Subtopic',
+      topicName: 'Custom Topic',
+      subjectName: 'Custom Subject',
+      targetExam: 'GATE-CS',
+      status: 'AI_GENERATED',
+      contentVersion: 1,
+      reviewerNotes: null,
+      content: {
+        coreConcept: 'Concept',
+        trapAlert: 'Trap',
+        formulaCheatSheet: '$$F=ma$$',
+        stepByStepBreakdown: { problemStatement: 'PS', steps: [] },
+      },
+    };
+
+    dialogMock.open.mockReturnValue({
+      afterClosed: () => of(newItem),
+    });
+
+    component.openGenerateDialog();
+    expect(dialogMock.open).toHaveBeenCalled();
+    expect(component.lessons()[0].id).toBe('ml-new');
+    expect(component.selectedLesson()?.id).toBe('ml-new');
   });
 });

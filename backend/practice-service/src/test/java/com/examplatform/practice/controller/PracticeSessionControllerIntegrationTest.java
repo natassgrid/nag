@@ -21,6 +21,7 @@ import com.examplatform.practice.domain.PracticeSet;
 import com.examplatform.practice.dto.AnswerKeyDto;
 import com.examplatform.practice.dto.SaveResponseRequest;
 import com.examplatform.practice.dto.StartSessionRequest;
+import com.examplatform.practice.dto.GenerateAdaptiveSetRequest;
 import com.examplatform.practice.repository.PracticeResponseRepository;
 import com.examplatform.practice.repository.PracticeSessionRepository;
 import com.examplatform.practice.repository.PracticeSetRepository;
@@ -620,6 +621,68 @@ class PracticeSessionControllerIntegrationTest extends AbstractIntegrationTest {
                     .andExpect(jsonPath("$.obtainedMarks").value(7)) // 3 + 4 = 7
                     .andExpect(jsonPath("$.flaggedCount").value(1))
                     .andExpect(jsonPath("$.questionResults[0].markedForReview").value(true));
+        }
+    }
+
+    @Nested
+    @DisplayName("POST /api/practice/adaptive-sets/generate")
+    class GenerateAdaptiveSetEndpoint {
+
+        @Test
+        @DisplayName("+ve: Candidate successfully generates adaptive quiz practice set")
+        void generateAdaptiveSetSuccess() throws Exception {
+            if (!testcontainersAvailable) return;
+
+            when(questionBankClient.findQuestionsForAdaptiveQuiz(any(), any(), any(Integer.class)))
+                    .thenReturn(List.of(UUID.randomUUID(), UUID.randomUUID()));
+
+            GenerateAdaptiveSetRequest request = new GenerateAdaptiveSetRequest(
+                    CANDIDATE_ID,
+                    List.of("Algorithms", "Sorting"),
+                    "GATE_CS",
+                    10,
+                    false
+            );
+
+            mockMvc.perform(post("/api/practice/adaptive-sets/generate")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(CANDIDATE_ID.toString()).claim("tenant_id", TENANT_ID)))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.id").isNotEmpty())
+                    .andExpect(jsonPath("$.name").value("Adaptive Practice Quiz"))
+                    .andExpect(jsonPath("$.source").value("ADAPTIVE_QUIZ"))
+                    .andExpect(jsonPath("$.published").value(true));
+        }
+
+        @Test
+        @DisplayName("+ve: Generates gatekeeper practice set when isGatekeeper=true")
+        void generateGatekeeperSetSuccess() throws Exception {
+            if (!testcontainersAvailable) return;
+
+            when(questionBankClient.findQuestionsForAdaptiveQuiz(any(), any(), any(Integer.class)))
+                    .thenReturn(List.of(UUID.randomUUID(), UUID.randomUUID()));
+
+            GenerateAdaptiveSetRequest request = new GenerateAdaptiveSetRequest(
+                    CANDIDATE_ID,
+                    List.of("Algorithms"),
+                    "GATE_CS",
+                    15,
+                    true
+            );
+
+            mockMvc.perform(post("/api/practice/adaptive-sets/generate")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(CANDIDATE_ID.toString()).claim("tenant_id", TENANT_ID)))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.id").isNotEmpty())
+                    .andExpect(jsonPath("$.name").value("GATE_CS Gatekeeper Test"))
+                    .andExpect(jsonPath("$.source").value("GATEKEEPER_TEST"))
+                    .andExpect(jsonPath("$.durationMinutes").value(45))
+                    .andExpect(jsonPath("$.published").value(true));
         }
     }
 }

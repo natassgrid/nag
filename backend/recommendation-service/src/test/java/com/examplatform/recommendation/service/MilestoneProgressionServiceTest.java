@@ -221,4 +221,32 @@ class MilestoneProgressionServiceTest {
         assertThat(response.practiceSetId()).isEqualTo(expectedSetId);
         assertThat(response.practiceLauncherUrl()).contains(expectedSetId.toString());
     }
+
+    @Test
+    @DisplayName("startGatekeeperTest invokes AdaptiveQuizGenerator with isGatekeeper=true and sets practiceSetId")
+    void testStartGatekeeperTestWithGenerator() throws Exception {
+        DynamicLearningPath dlp = createSampleDlp("COMPLETED", "COMPLETED", "IN_PROGRESS", true);
+        when(dlpRepository.findFirstByCandidateIdAndStatusOrderByCreatedAtDesc(CANDIDATE_ID, "ACTIVE"))
+                .thenReturn(Optional.of(dlp));
+
+        AdaptiveQuizGenerator mockGenerator = org.mockito.Mockito.mock(AdaptiveQuizGenerator.class);
+        UUID expectedSetId = UUID.randomUUID();
+        PracticeSetDto mockDto = new PracticeSetDto(
+                expectedSetId, "Gatekeeper Set", "Desc", "GATEKEEPER_TEST", 45, "physics", true, 20
+        );
+        when(mockGenerator.generateAdaptiveSet(any(), any(), any(), eq(20), eq(true)))
+                .thenReturn(mockDto);
+
+        @SuppressWarnings("unchecked")
+        org.springframework.beans.factory.ObjectProvider<AdaptiveQuizGenerator> mockProvider =
+                org.mockito.Mockito.mock(org.springframework.beans.factory.ObjectProvider.class);
+        when(mockProvider.getIfAvailable()).thenReturn(mockGenerator);
+
+        MilestoneProgressionService serviceWithGen = new MilestoneProgressionService(
+                dlpRepository, generatorService, objectMapper, mockProvider);
+
+        StartGatekeeperResponse response = serviceWithGen.startGatekeeperTest(CANDIDATE_ID);
+        assertThat(response.practiceSetId()).isEqualTo(expectedSetId);
+        assertThat(response.practiceLauncherUrl()).contains(expectedSetId.toString());
+    }
 }

@@ -74,9 +74,23 @@ describe('DlpRoadmapComponent', () => {
     mockLearningPathService = {
       getLearningPath: jest.fn().mockReturnValue(of(samplePath)),
       generateLearningPath: jest.fn().mockReturnValue(of(samplePath)),
-      startAdaptiveQuiz: jest.fn().mockReturnValue(of({ quizSessionId: 'q-1', targetAccuracy: 70, questionCount: 10 })),
+      startAdaptiveQuiz: jest.fn().mockReturnValue(
+        of({
+          quizSessionId: 'q-1',
+          practiceSetId: 'set-quiz-123',
+          targetAccuracy: 70,
+          questionCount: 10,
+        })
+      ),
       submitAdaptiveQuiz: jest.fn().mockReturnValue(of(samplePath)),
-      startGatekeeper: jest.fn().mockReturnValue(of({ gatekeeperSessionId: 'gk-1', passThreshold: 75, questionCount: 15 })),
+      startGatekeeper: jest.fn().mockReturnValue(
+        of({
+          gatekeeperSessionId: 'gk-1',
+          practiceSetId: 'set-gate-456',
+          passThreshold: 75,
+          questionCount: 15,
+        })
+      ),
       submitGatekeeper: jest.fn().mockReturnValue(of(samplePath)),
     };
     mockRouter = {
@@ -108,6 +122,22 @@ describe('DlpRoadmapComponent', () => {
     component.onStudyMicroLesson(samplePath.milestoneGraph.phases[0].items[0]);
     expect(mockRouter.navigate).toHaveBeenCalledWith(['/learn/lesson', 501], {
       queryParams: { milestoneId: 'ms-1' },
+    });
+  });
+
+  it('should start adaptive quiz and navigate to practice with practiceSetId', () => {
+    component.onStartAdaptiveQuiz();
+    expect(mockLearningPathService.startAdaptiveQuiz).toHaveBeenCalled();
+    expect(mockRouter.navigate).toHaveBeenCalledWith(['/practice'], {
+      queryParams: { setId: 'set-quiz-123' },
+    });
+  });
+
+  it('should start gatekeeper test and navigate to practice with practiceSetId', () => {
+    component.onStartGatekeeper();
+    expect(mockLearningPathService.startGatekeeper).toHaveBeenCalled();
+    expect(mockRouter.navigate).toHaveBeenCalledWith(['/practice'], {
+      queryParams: { setId: 'set-gate-456' },
     });
   });
 
