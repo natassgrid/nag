@@ -6,7 +6,7 @@ import com.examplatform.practice.domain.PracticeResponse;
 import com.examplatform.practice.domain.PracticeSession;
 import com.examplatform.practice.domain.PracticeSet;
 import com.examplatform.practice.dto.*;
-import com.examplatform.practice.event.PracticeSessionCompletedEvent;
+import com.examplatform.shared.event.PracticeSessionCompletedEvent;
 import com.examplatform.practice.exception.PracticeSetNotFoundException;
 import com.examplatform.practice.exception.SessionAlreadySubmittedException;
 import com.examplatform.practice.repository.PracticeResponseRepository;

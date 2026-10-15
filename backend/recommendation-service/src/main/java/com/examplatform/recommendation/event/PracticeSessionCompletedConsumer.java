@@ -5,6 +5,7 @@ import com.examplatform.recommendation.domain.LearnerProfile;
 import com.examplatform.recommendation.service.LearnerProfileService;
 import com.examplatform.recommendation.service.LearningPathGeneratorService;
 import com.examplatform.recommendation.service.RecommendationAiService;
+import com.examplatform.shared.event.PracticeSessionCompletedEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
