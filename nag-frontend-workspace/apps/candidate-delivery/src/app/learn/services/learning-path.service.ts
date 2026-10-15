@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import {
   DynamicLearningPath,
   GatekeeperStatusResponse,
+  LearningPathSummary,
   StartAdaptiveQuizResponse,
   StartGatekeeperResponse,
 } from '../models/learning-path.model';
@@ -15,6 +16,10 @@ export class LearningPathService {
 
   getLearningPath(): Observable<DynamicLearningPath> {
     return this.http.get<DynamicLearningPath>(`${this.apiUrl}/current`);
+  }
+
+  getSummary(): Observable<LearningPathSummary> {
+    return this.http.get<LearningPathSummary>(`${this.apiUrl}/summary`);
   }
 
   generateLearningPath(targetExam?: string): Observable<DynamicLearningPath> {

@@ -26,6 +26,13 @@ describe('LearningPathService', () => {
     req.flush({});
   });
 
+  it('should retrieve summary via GET /api/learning-path/summary', () => {
+    service.getSummary().subscribe();
+    const req = httpMock.expectOne('/api/learning-path/summary');
+    expect(req.request.method).toBe('GET');
+    req.flush({ totalSubtopics: 10, conceptualGapsCount: 2, applicationGapsCount: 3, proficientCount: 5, masteryPercentage: 50.0 });
+  });
+
   it('should recalculate learning path via POST /api/learning-path/recalculate', () => {
     service.generateLearningPath('JEE_MAIN').subscribe();
     const req = httpMock.expectOne('/api/learning-path/recalculate');
