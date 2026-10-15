@@ -5,6 +5,8 @@ import com.examplatform.recommendation.domain.DynamicLearningPath;
 import com.examplatform.recommendation.domain.PerformanceBracket;
 import com.examplatform.recommendation.dto.*;
 import com.examplatform.recommendation.repository.DynamicLearningPathRepository;
+import com.examplatform.practice.service.AdaptiveQuizGenerator;
+import com.examplatform.practice.dto.PracticeSetDto;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -21,6 +23,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -189,5 +192,33 @@ class MilestoneProgressionServiceTest {
         assertThat(status.clearedForFullMock()).isFalse();
         assertThat(status.remainingMilestonesCount()).isGreaterThan(0);
         assertThat(status.remedialSubtopics()).contains("Moment of Inertia");
+    }
+
+    @Test
+    @DisplayName("startAdaptiveQuiz invokes AdaptiveQuizGenerator when present and sets practiceSetId")
+    void testStartAdaptiveQuizWithGenerator() throws Exception {
+        DynamicLearningPath dlp = createSampleDlp("COMPLETED", "IN_PROGRESS", "LOCKED", false);
+        when(dlpRepository.findFirstByCandidateIdAndStatusOrderByCreatedAtDesc(CANDIDATE_ID, "ACTIVE"))
+                .thenReturn(Optional.of(dlp));
+
+        AdaptiveQuizGenerator mockGenerator = org.mockito.Mockito.mock(AdaptiveQuizGenerator.class);
+        UUID expectedSetId = UUID.randomUUID();
+        PracticeSetDto mockDto = new PracticeSetDto(
+                expectedSetId, "Test Set", "Desc", "ADAPTIVE_DLP", 30, "physics", true, 15
+        );
+        when(mockGenerator.generateAdaptiveSet(any(), any(), any(), eq(15), eq(false)))
+                .thenReturn(mockDto);
+
+        @SuppressWarnings("unchecked")
+        org.springframework.beans.factory.ObjectProvider<AdaptiveQuizGenerator> mockProvider =
+                org.mockito.Mockito.mock(org.springframework.beans.factory.ObjectProvider.class);
+        when(mockProvider.getIfAvailable()).thenReturn(mockGenerator);
+
+        MilestoneProgressionService serviceWithGen = new MilestoneProgressionService(
+                dlpRepository, generatorService, objectMapper, mockProvider);
+
+        StartAdaptiveQuizResponse response = serviceWithGen.startAdaptiveQuiz(CANDIDATE_ID);
+        assertThat(response.practiceSetId()).isEqualTo(expectedSetId);
+        assertThat(response.practiceLauncherUrl()).contains(expectedSetId.toString());
     }
 }

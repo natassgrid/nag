@@ -22,6 +22,8 @@ dependencyManagement {
 
 dependencies {
     implementation project(':backend:shared-lib')
+    compileOnly project(':backend:practice-service')
+    testImplementation project(':backend:practice-service')
 
     // Web
     implementation libs.spring.boot.starter.web

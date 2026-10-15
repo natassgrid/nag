@@ -7,9 +7,22 @@ import java.util.UUID;
 
 public record StartGatekeeperResponse(
         UUID gatekeeperSessionId,
+        UUID practiceSetId,
+        String practiceLauncherUrl,
         String currentPhase,
         double passThreshold,
         int questionCount,
         List<String> failedSubtopics,
         String message
-) implements Serializable {}
+) implements Serializable {
+    public StartGatekeeperResponse(
+            UUID gatekeeperSessionId,
+            String currentPhase,
+            double passThreshold,
+            int questionCount,
+            List<String> failedSubtopics,
+            String message
+    ) {
+        this(gatekeeperSessionId, gatekeeperSessionId, "/practice/session/" + gatekeeperSessionId, currentPhase, passThreshold, questionCount, failedSubtopics, message);
+    }
+}
