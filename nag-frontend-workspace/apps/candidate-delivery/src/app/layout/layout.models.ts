@@ -75,11 +75,4 @@ export const CANDIDATE_NAV_ITEMS: NavItem[] = [
       },
     ],
   },
-  {
-    id: 'profile',
-    label: 'Profile & KYC',
-    route: '/profile',
-    icon: 'badge',
-    description: 'Candidate identity verification & DigiLocker KYC',
-  },
 ];

@@ -3,7 +3,6 @@ import { CandidateHeaderComponent } from './candidate-header.component';
 import { Router } from '@angular/router';
 import { provideRouter } from '@angular/router';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
-import { CANDIDATE_NAV_ITEMS } from '../layout.models';
 
 describe('CandidateHeaderComponent', () => {
   let component: CandidateHeaderComponent;
@@ -26,9 +25,12 @@ describe('CandidateHeaderComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should render grouped navigation items with submenus', () => {
+  it('should render primary navigation items with grouped submenus', () => {
     const items = component.navItems();
-    expect(items.length).toBe(4);
+    expect(items.length).toBe(3);
+
+    const dashboard = items.find((i) => i.id === 'dashboard');
+    expect(dashboard).toBeTruthy();
 
     const learningGroup = items.find((i) => i.id === 'learning');
     expect(learningGroup).toBeTruthy();
@@ -56,6 +58,14 @@ describe('CandidateHeaderComponent', () => {
 
     jest.spyOn(router, 'url', 'get').mockReturnValue('/browse');
     expect(component.isGroupActive(learningGroup)).toBe(false);
+  });
+
+  it('should compute user initials for profile dropdown avatar', () => {
+    fixture.componentRef.setInput('userName', 'bimbim.in@gmail.com');
+    expect(component.getUserInitials()).toBe('BI');
+
+    fixture.componentRef.setInput('userName', 'Rahul Sharma');
+    expect(component.getUserInitials()).toBe('RS');
   });
 
   it('should emit toggleDrawer on hamburger click', () => {
