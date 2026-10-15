@@ -39,6 +39,10 @@ export class GatekeeperDialogComponent {
     return this.data?.statusResponse?.applicationGaps || [];
   }
 
+  get remedialSubtopics(): string[] {
+    return this.data?.statusResponse?.remedialSubtopics || [];
+  }
+
   onGoToRoadmap(): void {
     this.dialogRef.close('GO_TO_ROADMAP');
     this.router.navigate(['/learn/roadmap']);

@@ -52,7 +52,8 @@ export class DlpRoadmapComponent implements OnInit {
   });
 
   readonly currentPhaseNumber = computed<number>(() => {
-    return this.learningPath()?.milestoneGraph?.currentPhase || 1;
+    const cp = this.learningPath()?.milestoneGraph?.currentPhase;
+    return typeof cp === 'number' ? cp : Number(cp) || 1;
   });
 
   readonly gatekeeperPassed = computed<boolean>(() => {
@@ -69,7 +70,8 @@ export class DlpRoadmapComponent implements OnInit {
     const completedItems = items.filter((i) => i.status === 'COMPLETED').length;
     const p1Progress = items.length > 0 ? (completedItems / items.length) * 40 : 40;
 
-    const currentP = lp.milestoneGraph?.currentPhase || 1;
+    const cp = lp.milestoneGraph?.currentPhase;
+    const currentP = typeof cp === 'number' ? cp : Number(cp) || 1;
     if (currentP === 1) {
       return Math.round(p1Progress);
     } else if (currentP === 2) {

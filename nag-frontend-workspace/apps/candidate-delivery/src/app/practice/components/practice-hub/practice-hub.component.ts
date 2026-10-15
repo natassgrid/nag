@@ -131,7 +131,8 @@ export class PracticeHubComponent implements OnInit {
     if (set.source === 'EXAM_CLONE' && this.learningPathService) {
       this.learningPathService.checkGatekeeperStatus().subscribe({
         next: (status: GatekeeperStatusResponse) => {
-          if (status && !status.allowed) {
+          const isBlocked = (status?.gatekeeperRequired && !status?.clearedForFullMock) || status?.allowed === false;
+          if (status && isBlocked) {
             this.dialog.open(GatekeeperDialogComponent, {
               data: {
                 statusResponse: status,

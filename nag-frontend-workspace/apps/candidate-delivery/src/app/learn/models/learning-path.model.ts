@@ -14,7 +14,7 @@ export interface MilestonePhase {
   phaseNumber: number;
   name: string;
   focus: string;
-  status: 'LOCKED' | 'ACTIVE' | 'COMPLETED';
+  status: 'LOCKED' | 'ACTIVE' | 'IN_PROGRESS' | 'COMPLETED';
   durationWeeks: number;
   targetAccuracy: number;
   achievedAccuracy?: number | null;
@@ -27,7 +27,7 @@ export interface MilestonePhase {
 
 export interface MilestoneGraph {
   phases: MilestonePhase[];
-  currentPhase: number;
+  currentPhase: number | string;
   targetExam: string;
   gatekeeperPassed: boolean;
 }
@@ -35,7 +35,7 @@ export interface MilestoneGraph {
 export interface DynamicLearningPath {
   id: string;
   candidateId: string;
-  status: 'ACTIVE' | 'COMPLETED' | 'ARCHIVED';
+  status: 'ACTIVE' | 'IN_PROGRESS' | 'COMPLETED' | 'SUPERSEDED' | 'ARCHIVED';
   targetExam: string;
   createdAt: string;
   updatedAt?: string;
@@ -47,11 +47,17 @@ export interface DynamicLearningPath {
 
 export interface GatekeeperStatusResponse {
   allowed?: boolean;
-  gatekeeperPassed: boolean;
-  active: boolean;
-  hasGaps: boolean;
-  conceptualGaps: Array<{ subtopicId?: number; subtopicName: string; accuracyPercent?: number }>;
-  applicationGaps: Array<{ subtopicId?: number; subtopicName: string; accuracyPercent?: number }>;
+  gatekeeperPassed?: boolean;
+  gatekeeperRequired?: boolean;
+  clearedForFullMock?: boolean;
+  currentPhase?: string;
+  gatekeeperSessionId?: string;
+  remainingMilestonesCount?: number;
+  remedialSubtopics?: string[];
+  active?: boolean;
+  hasGaps?: boolean;
+  conceptualGaps?: Array<{ subtopicId?: number; subtopicName: string; accuracyPercent?: number }>;
+  applicationGaps?: Array<{ subtopicId?: number; subtopicName: string; accuracyPercent?: number }>;
   message?: string;
 }
 
