@@ -164,21 +164,31 @@
       </div>
 
       <div class="flex items-center gap-3">
-        <button
-          mat-flat-button
-          color="primary"
-          [disabled]="completing() || isCompleted()"
-          (click)="onMarkCompleted()"
-          class="!px-6 !py-2.5 !rounded-xl !font-bold"
-        >
-          @if (completing()) {
-            Updating Roadmap...
-          } @else if (isCompleted()) {
-            Completed
-          } @else {
-            Mark Complete & Unlock Next Phase
-          }
-        </button>
+        @if (isCompleted()) {
+          <button
+            mat-flat-button
+            color="primary"
+            (click)="onBackToRoadmap()"
+            class="!px-6 !py-2.5 !rounded-xl !font-bold flex items-center gap-2 cursor-pointer shadow-xs"
+          >
+            <mat-icon>arrow_forward</mat-icon>
+            <span>Return to Learning Roadmap</span>
+          </button>
+        } @else {
+          <button
+            mat-flat-button
+            color="primary"
+            [disabled]="completing()"
+            (click)="onMarkCompleted()"
+            class="!px-6 !py-2.5 !rounded-xl !font-bold cursor-pointer shadow-xs"
+          >
+            @if (completing()) {
+              Updating Roadmap...
+            } @else {
+              Mark Complete & Unlock Next Phase
+            }
+          </button>
+        }
       </div>
     </div>
   }

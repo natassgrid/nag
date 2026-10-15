@@ -133,8 +133,9 @@ export class DlpRoadmapComponent implements OnInit {
         this.message.set(
           `Adaptive quiz session ${res.quizSessionId.slice(0, 8)} started! Pass score: ${res.targetAccuracy}%.`
         );
-        // Simulate immediate test submission for demo/testing or navigate
         this.actionInProgress.set(false);
+        const setId = res.practiceSetId || res.quizSessionId;
+        this.router.navigate(['/practice'], { queryParams: { setId } });
       },
       error: (err) => {
         this.error.set(err?.error?.message || 'Could not launch adaptive quiz.');
@@ -173,6 +174,8 @@ export class DlpRoadmapComponent implements OnInit {
           `Gatekeeper test session ${res.gatekeeperSessionId.slice(0, 8)} started! Required score: >= ${res.passThreshold}%.`
         );
         this.actionInProgress.set(false);
+        const setId = res.practiceSetId || res.gatekeeperSessionId;
+        this.router.navigate(['/practice'], { queryParams: { setId } });
       },
       error: (err) => {
         this.error.set(err?.error?.message || 'Could not launch Gatekeeper test.');

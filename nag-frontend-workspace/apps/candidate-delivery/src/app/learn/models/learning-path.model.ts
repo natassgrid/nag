@@ -85,6 +85,8 @@ export interface LearningPathSummary {
 
 export interface StartAdaptiveQuizResponse {
   quizSessionId: string;
+  practiceSetId?: string;
+  practiceLauncherUrl?: string;
   targetAccuracy: number;
   questionCount: number;
   message?: string;
@@ -92,6 +94,8 @@ export interface StartAdaptiveQuizResponse {
 
 export interface StartGatekeeperResponse {
   gatekeeperSessionId: string;
+  practiceSetId?: string;
+  practiceLauncherUrl?: string;
   passThreshold: number;
   questionCount: number;
   message?: string;
