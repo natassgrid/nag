@@ -34,8 +34,14 @@ describe('BatchGenerateMicroLessonDialogComponent', () => {
       triggerBatchGenerate: jest.fn(),
     };
 
+    const mockExams = [
+      { id: '1', name: 'Joint Entrance Examination', code: 'JEE_MAIN', category: 'ENTRANCE' },
+      { id: '2', name: 'National Eligibility Entrance Test', code: 'NEET', category: 'ENTRANCE' },
+    ];
+
     subjectTopicServiceMock = {
       getHierarchy: jest.fn().mockReturnValue(of(mockHierarchy)),
+      getExaminations: jest.fn().mockReturnValue(of(mockExams)),
     };
 
     dialogRefMock = {
@@ -56,12 +62,23 @@ describe('BatchGenerateMicroLessonDialogComponent', () => {
     fixture.detectChanges();
   });
 
-  it('should create and load taxonomy on init', () => {
+  it('should create and load taxonomy and examinations on init', () => {
     expect(component).toBeTruthy();
     expect(subjectTopicServiceMock.getHierarchy).toHaveBeenCalled();
+    expect(subjectTopicServiceMock.getExaminations).toHaveBeenCalled();
     expect(component.hierarchy().length).toBe(1);
+    expect(component.examOptions().length).toBe(2);
     expect(component.targetExam()).toBe('JEE_MAIN');
     expect(component.maxCount()).toBe(10);
+  });
+
+  it('should allow custom examination code entry', () => {
+    component.onExamChange('__CUSTOM__');
+    expect(component.isCustomExam()).toBe(true);
+    expect(component.targetExam()).toBe('');
+
+    component.targetExam.set('CUSTOM_EXAM_99');
+    expect(component.targetExam()).toBe('CUSTOM_EXAM_99');
   });
 
   it('should update topic scope when subject changes', () => {

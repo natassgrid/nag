@@ -112,6 +112,34 @@ class ExaminationControllerIntegrationTest extends AbstractIntegrationTest {
         }
 
         @Test
+        @DisplayName("+ve: ADMIN retrieves paginated list of examinations - returns 200 OK")
+        void adminCanListExaminations() throws Exception {
+            when(examinationService.listByTenantPaged(eq(TENANT_ID), any(), any(), any(), anyInt(), anyInt()))
+                    .thenReturn(new PageImpl<>(List.of(sampleExaminationResponse())));
+
+            mockMvc.perform(get("/api/v1/examinations")
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("success"))
+                    .andExpect(jsonPath("$.data.content[0].id").value(EXAM_ID.toString()));
+        }
+
+        @Test
+        @DisplayName("+ve: FACULTY retrieves paginated list of examinations - returns 200 OK")
+        void facultyCanListExaminations() throws Exception {
+            when(examinationService.listByTenantPaged(eq(TENANT_ID), any(), any(), any(), anyInt(), anyInt()))
+                    .thenReturn(new PageImpl<>(List.of(sampleExaminationResponse())));
+
+            mockMvc.perform(get("/api/v1/examinations")
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_FACULTY"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("success"))
+                    .andExpect(jsonPath("$.data.content[0].id").value(EXAM_ID.toString()));
+        }
+
+        @Test
         @DisplayName("-ve: CANDIDATE role cannot list all internal examinations - returns 403 Forbidden")
         void candidateRoleForbiddenFromListingInternalExaminations() throws Exception {
             mockMvc.perform(get("/api/v1/examinations")

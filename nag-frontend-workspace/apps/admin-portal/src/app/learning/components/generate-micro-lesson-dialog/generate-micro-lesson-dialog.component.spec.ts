@@ -60,8 +60,14 @@ describe('GenerateMicroLessonDialogComponent', () => {
       generateSingle: jest.fn(),
     };
 
+    const mockExams = [
+      { id: '1', name: 'JEE Main & Advanced', code: 'JEE_MAIN', category: 'ENTRANCE' },
+      { id: '2', name: 'NEET-UG', code: 'NEET', category: 'ENTRANCE' },
+    ];
+
     subjectTopicServiceMock = {
       getHierarchy: jest.fn().mockReturnValue(of(mockHierarchy)),
+      getExaminations: jest.fn().mockReturnValue(of(mockExams)),
     };
 
     dialogRefMock = {
@@ -97,9 +103,12 @@ describe('GenerateMicroLessonDialogComponent', () => {
     fixture.detectChanges();
   });
 
-  it('should create and load taxonomy hierarchy on init', () => {
+  it('should create and load taxonomy hierarchy and examinations on init', () => {
     expect(component).toBeTruthy();
     expect(subjectTopicServiceMock.getHierarchy).toHaveBeenCalled();
+    expect(subjectTopicServiceMock.getExaminations).toHaveBeenCalled();
+    expect(component.examOptions().length).toBe(2);
+    expect(component.targetExam()).toBe('JEE_MAIN');
     expect(component.hierarchy().length).toBe(2);
     expect(component.selectedSubjectId()).toBe(1);
     expect(component.selectedSubjectName()).toBe('Physics');
@@ -215,5 +224,13 @@ describe('GenerateMicroLessonDialogComponent', () => {
   it('should close dialog with null on cancel', () => {
     component.onCancel();
     expect(dialogRefMock.close).toHaveBeenCalledWith(null);
+  });
+  it('should support custom target examination entry', () => {
+    component.onExamChange('__CUSTOM__');
+    expect(component.isCustomExam()).toBe(true);
+    expect(component.targetExam()).toBe('');
+
+    component.targetExam.set('CUSTOM_ENTRANCE_TEST');
+    expect(component.targetExam()).toBe('CUSTOM_ENTRANCE_TEST');
   });
 });
