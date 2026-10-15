@@ -17,10 +17,10 @@ export const CANDIDATE_NAV_ITEMS: NavItem[] = [
     exact: true,
   },
   {
-    id: 'practice',
-    label: 'Practice Hub',
-    route: '/practice',
-    icon: 'quiz',
+    id: 'roadmap',
+    label: 'Learning Roadmap',
+    route: '/learn/roadmap',
+    icon: 'trending_up',
   },
   {
     id: 'learn',
@@ -29,21 +29,27 @@ export const CANDIDATE_NAV_ITEMS: NavItem[] = [
     icon: 'auto_awesome',
   },
   {
+    id: 'practice',
+    label: 'Practice Hub',
+    route: '/practice',
+    icon: 'quiz',
+  },
+  {
     id: 'browse',
     label: 'Browse Exams',
     route: '/browse',
     icon: 'search',
   },
   {
-    id: 'profile',
-    label: 'Profile & KYC',
-    route: '/profile',
-    icon: 'person',
-  },
-  {
     id: 'results',
     label: 'Scorecards & Results',
     route: '/results',
     icon: 'verified',
+  },
+  {
+    id: 'profile',
+    label: 'Profile & KYC',
+    route: '/profile',
+    icon: 'person',
   },
 ];

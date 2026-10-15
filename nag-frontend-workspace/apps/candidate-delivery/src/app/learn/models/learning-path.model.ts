@@ -61,6 +61,28 @@ export interface GatekeeperStatusResponse {
   message?: string;
 }
 
+export interface SubjectMasterySummary {
+  subjectName: string;
+  totalSubtopics: number;
+  conceptualGapsCount: number;
+  applicationGapsCount: number;
+  proficientCount: number;
+  avgAccuracyPercent: number;
+}
+
+export interface LearningPathSummary {
+  candidateId: string;
+  activePathId?: string;
+  examTarget?: string;
+  status?: string;
+  totalSubtopics: number;
+  conceptualGapsCount: number;
+  applicationGapsCount: number;
+  proficientCount: number;
+  masteryPercentage: number;
+  subjectSummaries?: Record<string, SubjectMasterySummary>;
+}
+
 export interface StartAdaptiveQuizResponse {
   quizSessionId: string;
   targetAccuracy: number;

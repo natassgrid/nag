@@ -1,1 +1,39 @@
-<router-outlet></router-outlet>
+<div class="learn-shell min-h-[calc(100vh-64px)] flex flex-col bg-slate-50">
+  <!-- Sub-Navigation Header Bar -->
+  <header class="bg-white border-b border-slate-200 sticky top-14 z-30 shadow-2xs">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-14">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+          <mat-icon class="!text-lg">psychology</mat-icon>
+        </div>
+        <span class="font-bold text-sm text-slate-900 tracking-tight">Adaptive Learning Hub</span>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="flex items-center gap-1 sm:gap-2">
+        <a
+          routerLink="/learn/roadmap"
+          routerLinkActive="bg-indigo-50 text-indigo-700 border-indigo-200 font-bold"
+          class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-transparent text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all cursor-pointer"
+        >
+          <mat-icon class="!text-base">trending_up</mat-icon>
+          <span>Learning Roadmap</span>
+        </a>
+
+        <a
+          routerLink="/learn/recommendations"
+          routerLinkActive="bg-indigo-50 text-indigo-700 border-indigo-200 font-bold"
+          class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-transparent text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all cursor-pointer"
+        >
+          <mat-icon class="!text-base">auto_awesome</mat-icon>
+          <span>AI Study Plan &amp; Insights</span>
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Router Outlet -->
+  <div class="flex-1">
+    <router-outlet></router-outlet>
+  </div>
+</div>
