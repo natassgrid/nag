@@ -14,12 +14,12 @@ export class LearningPathService {
   private readonly apiUrl = '/api/learning-path';
 
   getLearningPath(): Observable<DynamicLearningPath> {
-    return this.http.get<DynamicLearningPath>(this.apiUrl);
+    return this.http.get<DynamicLearningPath>(`${this.apiUrl}/current`);
   }
 
   generateLearningPath(targetExam?: string): Observable<DynamicLearningPath> {
-    return this.http.post<DynamicLearningPath>(`${this.apiUrl}/generate`, {
-      targetExam: targetExam || 'GENERAL_COMPETITIVE',
+    return this.http.post<DynamicLearningPath>(`${this.apiUrl}/recalculate`, {
+      examTarget: targetExam || 'GENERAL_COMPETITIVE',
     });
   }
 
@@ -43,7 +43,7 @@ export class LearningPathService {
   ): Observable<DynamicLearningPath> {
     return this.http.post<DynamicLearningPath>(
       `${this.apiUrl}/adaptive-quiz/submit`,
-      { quizSessionId, scorePercentage }
+      { sessionId: quizSessionId, scorePercent: scorePercentage }
     );
   }
 
@@ -60,7 +60,7 @@ export class LearningPathService {
   ): Observable<DynamicLearningPath> {
     return this.http.post<DynamicLearningPath>(
       `${this.apiUrl}/gatekeeper/submit`,
-      { gatekeeperSessionId, scorePercentage }
+      { sessionId: gatekeeperSessionId, scorePercent: scorePercentage }
     );
   }
 

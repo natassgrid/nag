@@ -77,7 +77,7 @@
         @if (phase.phaseNumber === 1) {
           <div class="bg-white rounded-3xl p-6 border-2 transition-all shadow-sm"
                [ngClass]="{
-                 'border-indigo-500 ring-2 ring-indigo-100': phase.status === 'ACTIVE',
+                 'border-indigo-500 ring-2 ring-indigo-100': phase.status === 'ACTIVE' || phase.status === 'IN_PROGRESS',
                  'border-emerald-300 bg-emerald-50/20': phase.status === 'COMPLETED',
                  'border-slate-200': phase.status === 'LOCKED'
                }">
@@ -85,7 +85,7 @@
               <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-2xl flex items-center justify-center font-extrabold text-sm"
                      [ngClass]="{
-                       'bg-indigo-600 text-white': phase.status === 'ACTIVE',
+                       'bg-indigo-600 text-white': phase.status === 'ACTIVE' || phase.status === 'IN_PROGRESS',
                        'bg-emerald-600 text-white': phase.status === 'COMPLETED',
                        'bg-slate-100 text-slate-400': phase.status === 'LOCKED'
                      }">
@@ -96,7 +96,7 @@
                     <h2 class="text-lg font-bold text-slate-900">Phase 1: Remediation</h2>
                     <span class="text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider"
                           [ngClass]="{
-                            'bg-indigo-100 text-indigo-800': phase.status === 'ACTIVE',
+                            'bg-indigo-100 text-indigo-800': phase.status === 'ACTIVE' || phase.status === 'IN_PROGRESS',
                             'bg-emerald-100 text-emerald-800': phase.status === 'COMPLETED',
                             'bg-slate-100 text-slate-600': phase.status === 'LOCKED'
                           }">
@@ -162,7 +162,7 @@
         @if (phase.phaseNumber === 2) {
           <div class="bg-white rounded-3xl p-6 border-2 transition-all shadow-sm"
                [ngClass]="{
-                 'border-indigo-500 ring-2 ring-indigo-100': phase.status === 'ACTIVE',
+                 'border-indigo-500 ring-2 ring-indigo-100': phase.status === 'ACTIVE' || phase.status === 'IN_PROGRESS',
                  'border-emerald-300 bg-emerald-50/20': phase.status === 'COMPLETED',
                  'border-slate-200 opacity-80': phase.status === 'LOCKED'
                }">
@@ -170,7 +170,7 @@
               <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-2xl flex items-center justify-center font-extrabold text-sm"
                      [ngClass]="{
-                       'bg-indigo-600 text-white': phase.status === 'ACTIVE',
+                       'bg-indigo-600 text-white': phase.status === 'ACTIVE' || phase.status === 'IN_PROGRESS',
                        'bg-emerald-600 text-white': phase.status === 'COMPLETED',
                        'bg-slate-100 text-slate-400': phase.status === 'LOCKED'
                      }">
@@ -181,7 +181,7 @@
                     <h2 class="text-lg font-bold text-slate-900">Phase 2: Adaptive Quiz</h2>
                     <span class="text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider"
                           [ngClass]="{
-                            'bg-indigo-100 text-indigo-800': phase.status === 'ACTIVE',
+                            'bg-indigo-100 text-indigo-800': phase.status === 'ACTIVE' || phase.status === 'IN_PROGRESS',
                             'bg-emerald-100 text-emerald-800': phase.status === 'COMPLETED',
                             'bg-slate-100 text-slate-600': phase.status === 'LOCKED'
                           }">
@@ -260,7 +260,7 @@
         @if (phase.phaseNumber === 3) {
           <div class="bg-white rounded-3xl p-6 border-2 transition-all shadow-sm"
                [ngClass]="{
-                 'border-indigo-500 ring-2 ring-indigo-100': phase.status === 'ACTIVE',
+                 'border-indigo-500 ring-2 ring-indigo-100': phase.status === 'ACTIVE' || phase.status === 'IN_PROGRESS',
                  'border-emerald-300 bg-emerald-50/20': phase.status === 'COMPLETED',
                  'border-slate-200 opacity-80': phase.status === 'LOCKED'
                }">
@@ -268,7 +268,7 @@
               <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-2xl flex items-center justify-center font-extrabold text-sm"
                      [ngClass]="{
-                       'bg-indigo-600 text-white': phase.status === 'ACTIVE',
+                       'bg-indigo-600 text-white': phase.status === 'ACTIVE' || phase.status === 'IN_PROGRESS',
                        'bg-emerald-600 text-white': phase.status === 'COMPLETED',
                        'bg-slate-100 text-slate-400': phase.status === 'LOCKED'
                      }">
@@ -279,7 +279,7 @@
                     <h2 class="text-lg font-bold text-slate-900">Phase 3: Gatekeeper Test</h2>
                     <span class="text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider"
                           [ngClass]="{
-                            'bg-indigo-100 text-indigo-800': phase.status === 'ACTIVE',
+                            'bg-indigo-100 text-indigo-800': phase.status === 'ACTIVE' || phase.status === 'IN_PROGRESS',
                             'bg-emerald-100 text-emerald-800': phase.status === 'COMPLETED',
                             'bg-slate-100 text-slate-600': phase.status === 'LOCKED'
                           }">
