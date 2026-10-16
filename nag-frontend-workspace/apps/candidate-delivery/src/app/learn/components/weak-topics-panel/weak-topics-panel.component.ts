@@ -31,7 +31,8 @@ export class WeakTopicsPanelComponent {
   }
 
   getAccuracy(wt: WeakTopicRecommendation): number {
-    return wt.currentAccuracy ?? 0;
+    const acc = wt.currentAccuracy ?? 0;
+    return acc > 1 ? acc / 100 : acc;
   }
 
   getSubtopics(wt: WeakTopicRecommendation): string[] {
@@ -52,7 +53,7 @@ export class WeakTopicsPanelComponent {
     const subtopics = this.getSubtopics(wt);
     const subtopic = subtopics[0] || topic;
     const subject = wt.subjectName || wt.subject || '';
-    const subtopicId = Math.abs(this.hashCode(subtopic));
+    const subtopicId = wt.subtopicId || Math.abs(this.hashCode(subtopic));
     this.router.navigate(['/learn/lesson', subtopicId], {
       queryParams: {
         subtopicName: subtopic,

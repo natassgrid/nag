@@ -69,10 +69,6 @@ public class LearnerProfileService {
                 ? objectMapper.readValue(profile.getTopicAccuracyMap(), new TypeReference<>() {})
                 : new HashMap<>();
 
-            List<String> weakTopics = new ArrayList<>();
-            List<String> strongTopics = new ArrayList<>();
-            double weakThreshold = 0.6;
-
             for (Map.Entry<String, Map<String, Integer>> entry : breakdown.entrySet()) {
                 String topic = entry.getKey();
                 int correct = entry.getValue().getOrDefault("correct", 0);
@@ -91,14 +87,26 @@ public class LearnerProfileService {
                 topicData.put("accuracy", Math.round(newAcc * 1000.0) / 1000.0);
                 topicData.put("attempts", newAttempts);
                 existingMap.put(topic, topicData);
-
-                if (newAcc < weakThreshold) weakTopics.add(topic);
-                else strongTopics.add(topic);
             }
 
-            profile.setTopicAccuracyMap(objectMapper.writeValueAsString(existingMap));
-            profile.setWeakTopics(objectMapper.writeValueAsString(weakTopics));
-            profile.setStrongTopics(objectMapper.writeValueAsString(strongTopics));
+            if (!existingMap.isEmpty()) {
+                List<String> weakTopics = new ArrayList<>();
+                List<String> strongTopics = new ArrayList<>();
+                for (Map.Entry<String, Map<String, Object>> entry : existingMap.entrySet()) {
+                    String topic = entry.getKey();
+                    double topicAcc = ((Number) entry.getValue().getOrDefault("accuracy", 0.0)).doubleValue();
+                    double accNorm = topicAcc <= 1.0 ? topicAcc * 100.0 : topicAcc;
+                    if (accNorm < 60.0) {
+                        weakTopics.add(topic);
+                    } else if (accNorm >= 75.0) {
+                        strongTopics.add(topic);
+                    }
+                }
+
+                profile.setTopicAccuracyMap(objectMapper.writeValueAsString(existingMap));
+                profile.setWeakTopics(objectMapper.writeValueAsString(weakTopics));
+                profile.setStrongTopics(objectMapper.writeValueAsString(strongTopics));
+            }
         } catch (Exception e) {
             log.warn("Failed to update topic accuracy: {}", e.getMessage());
         }
@@ -114,6 +122,8 @@ public class LearnerProfileService {
             Map<String, Map<String, Object>> subtopicMap = profile.getSubtopicAccuracyMap() != null
                     ? objectMapper.readValue(profile.getSubtopicAccuracyMap(), new TypeReference<>() {})
                     : new HashMap<>();
+
+            List<LearnerSubtopicPerformance> savedPerfs = new ArrayList<>();
 
             for (SubtopicPerformanceDto dto : list) {
                 if (dto.subtopicName() == null || dto.subtopicName().isBlank()) continue;
@@ -171,6 +181,7 @@ public class LearnerProfileService {
 
                 perf.setLastTestedAt(Instant.now());
                 subtopicRepository.save(perf);
+                savedPerfs.add(perf);
 
                 // Update subtopic map on profile for rapid JSON querying
                 Map<String, Object> subData = subtopicMap.computeIfAbsent(dto.subtopicName(), k -> new HashMap<>());
@@ -183,9 +194,82 @@ public class LearnerProfileService {
             }
 
             profile.setSubtopicAccuracyMap(objectMapper.writeValueAsString(subtopicMap));
+
+            // Rollup topic accuracy if topicAccuracyMap is missing or empty
+            boolean topicMapEmpty = profile.getTopicAccuracyMap() == null
+                    || profile.getTopicAccuracyMap().isBlank()
+                    || profile.getTopicAccuracyMap().trim().equals("{}");
+
+            if (topicMapEmpty) {
+                List<LearnerSubtopicPerformance> candidateSubtopics = subtopicRepository.findByCandidateId(candidateId);
+                if (candidateSubtopics == null || candidateSubtopics.isEmpty()) {
+                    candidateSubtopics = savedPerfs;
+                }
+                rollupTopicAccuracyFromSubtopics(profile, candidateSubtopics);
+            }
         } catch (Exception e) {
             log.warn("Failed to update subtopic performance for candidate {}: {}", candidateId, e.getMessage());
         }
+    }
+
+    private void rollupTopicAccuracyFromSubtopics(LearnerProfile profile, List<LearnerSubtopicPerformance> subtopics) {
+        if (subtopics == null || subtopics.isEmpty()) return;
+        try {
+            Map<String, List<LearnerSubtopicPerformance>> byTopic = new HashMap<>();
+            for (LearnerSubtopicPerformance s : subtopics) {
+                if (s.getTopicName() != null && !s.getTopicName().isBlank()) {
+                    byTopic.computeIfAbsent(s.getTopicName(), k -> new ArrayList<>()).add(s);
+                }
+            }
+
+            if (byTopic.isEmpty()) return;
+
+            Map<String, Map<String, Object>> rolledUpMap = new HashMap<>();
+            List<String> weakTopics = new ArrayList<>();
+            List<String> strongTopics = new ArrayList<>();
+
+            for (Map.Entry<String, List<LearnerSubtopicPerformance>> entry : byTopic.entrySet()) {
+                String topic = entry.getKey();
+                List<LearnerSubtopicPerformance> topicSubs = entry.getValue();
+                int totalAttempts = topicSubs.stream().mapToInt(LearnerSubtopicPerformance::getTotalAttempts).sum();
+                int totalCorrect = topicSubs.stream().mapToInt(LearnerSubtopicPerformance::getTotalCorrect).sum();
+
+                double acc = totalAttempts > 0 ? (double) totalCorrect / totalAttempts : 0.0;
+                double accPercent = totalAttempts > 0 ? ((double) totalCorrect * 100.0 / totalAttempts) : 0.0;
+
+                Map<String, Object> topicData = new HashMap<>();
+                topicData.put("accuracy", Math.round(acc * 1000.0) / 1000.0);
+                topicData.put("attempts", totalAttempts);
+                rolledUpMap.put(topic, topicData);
+
+                if (accPercent < 60.0) {
+                    weakTopics.add(topic);
+                } else if (accPercent >= 75.0) {
+                    strongTopics.add(topic);
+                }
+            }
+
+            profile.setTopicAccuracyMap(objectMapper.writeValueAsString(rolledUpMap));
+            profile.setWeakTopics(objectMapper.writeValueAsString(weakTopics));
+            profile.setStrongTopics(objectMapper.writeValueAsString(strongTopics));
+        } catch (Exception e) {
+            log.warn("Failed to rollup topic accuracy from subtopics: {}", e.getMessage());
+        }
+    }
+
+    @Transactional
+    public LearnerProfile getOrCreateProfile(UUID candidateId) {
+        return profileRepository.findByCandidateId(candidateId)
+            .orElseGet(() -> profileRepository.save(LearnerProfile.builder()
+                .candidateId(candidateId)
+                .totalPracticeSessions(0)
+                .totalQuestionsAttempted(0)
+                .overallAccuracy(0.0)
+                .topicAccuracyMap("{}")
+                .subtopicAccuracyMap("{}")
+                .weakTopics("[]")
+                .strongTopics("[]")
+                .build()));
     }
 
     @Transactional(readOnly = true)

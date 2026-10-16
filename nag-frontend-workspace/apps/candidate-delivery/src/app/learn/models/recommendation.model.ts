@@ -6,12 +6,16 @@ export interface WeakTopicRecommendation {
   currentAccuracy?: number;
   subtopicsToRevise?: string[];
   subtopics?: string[];
+  subtopicId?: number;
 }
 
 export interface StudyPlanItem {
   day: number;
   topicName: string;
   estimatedMinutes: number;
+  tasks?: string[];
+  focusTopic?: string;
+  durationMinutes?: number;
   completed?: boolean;
 }
 

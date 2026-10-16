@@ -5,7 +5,9 @@ import com.examplatform.recommendation.domain.DynamicLearningPath;
 import com.examplatform.recommendation.dto.*;
 import com.examplatform.recommendation.service.LearningPathGeneratorService;
 import com.examplatform.recommendation.service.MilestoneProgressionService;
+import com.examplatform.recommendation.service.RecommendationService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -15,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Objects;
 import java.util.UUID;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/learning-path")
 @RequiredArgsConstructor
@@ -22,6 +25,7 @@ public class LearningPathController {
 
     private final LearningPathGeneratorService learningPathGeneratorService;
     private final MilestoneProgressionService milestoneProgressionService;
+    private final RecommendationService recommendationService;
 
     /**
      * Retrieves the candidate's currently active Dynamic Learning Path (DLP).
@@ -51,6 +55,13 @@ public class LearningPathController {
         String examTarget = request != null ? request.examTarget() : null;
 
         DynamicLearningPath path = learningPathGeneratorService.generateOrRecalculate(candidateId, sourceSessionId, examTarget);
+        if (recommendationService != null) {
+            try {
+                recommendationService.generateOrRefresh(candidateId, examTarget);
+            } catch (Exception e) {
+                log.warn("Failed to generate/refresh recommendations during DLP recalculation for candidate {}: {}", candidateId, e.getMessage());
+            }
+        }
         return ResponseEntity.ok(learningPathGeneratorService.toResponse(path));
     }
 

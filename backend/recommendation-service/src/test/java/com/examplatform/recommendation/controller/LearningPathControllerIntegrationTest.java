@@ -23,6 +23,7 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -152,6 +153,8 @@ class LearningPathControllerIntegrationTest extends AbstractIntegrationTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.id").value(DLP_ID.toString()))
                     .andExpect(jsonPath("$.status").value("ACTIVE"));
+
+            verify(recommendationService).generateOrRefresh(eq(CANDIDATE_ID), eq("JEE_MAIN"));
         }
 
         @Test

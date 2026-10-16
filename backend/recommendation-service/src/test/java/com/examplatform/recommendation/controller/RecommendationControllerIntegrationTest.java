@@ -114,6 +114,34 @@ class RecommendationControllerIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Nested
+    @DisplayName("POST /api/recommendations/generate - Generate Recommendations")
+    class GenerateEndpoint {
+
+        @Test
+        @DisplayName("200 OK - Authenticated candidate generates or refreshes recommendations")
+        void candidateCanGenerateRecommendations() throws Exception {
+            RecommendationDto dto = buildSampleRecommendation();
+            when(recommendationService.generateOrRefresh(eq(CANDIDATE_ID), eq("JEE_MAIN"))).thenReturn(dto);
+
+            mockMvc.perform(post("/api/recommendations/generate")
+                            .param("examTarget", "JEE_MAIN")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(CANDIDATE_ID.toString()))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.id").value(RECOMMENDATION_ID.toString()))
+                    .andExpect(jsonPath("$.candidateId").value(CANDIDATE_ID.toString()))
+                    .andExpect(jsonPath("$.status").value("ACTIVE"));
+        }
+
+        @Test
+        @DisplayName("401 UNAUTHORIZED - Unauthenticated request is rejected")
+        void unauthenticatedReturns401() throws Exception {
+            mockMvc.perform(post("/api/recommendations/generate"))
+                    .andExpect(status().isUnauthorized());
+        }
+    }
+
+    @Nested
     @DisplayName("GET /api/recommendations/history - Recommendation History")
     class GetHistoryEndpoint {
 

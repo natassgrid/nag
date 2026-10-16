@@ -9,6 +9,7 @@ import com.examplatform.recommendation.service.RecommendationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -33,6 +34,18 @@ public class RecommendationController {
         return recommendationService.getLatest(candidateId)
             .map(ResponseEntity::ok)
             .orElse(ResponseEntity.noContent().build());
+    }
+
+    @PostMapping("/generate")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<RecommendationDto> generateRecommendations(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(required = false, defaultValue = "JEE_MAIN") String examTarget) {
+        if (jwt == null || jwt.getSubject() == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        UUID candidateId = UUID.fromString(jwt.getSubject());
+        return ResponseEntity.ok(recommendationService.generateOrRefresh(candidateId, examTarget));
     }
 
     @GetMapping("/history")
