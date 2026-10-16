@@ -20,6 +20,7 @@ import {
   MicroLessonReviewItem,
   ReviewMicroLessonRequest,
   BatchGenerateResponse,
+  adaptToReviewItem,
 } from '../../models/micro-lesson.model';
 import { GenerateMicroLessonDialogComponent } from '../generate-micro-lesson-dialog/generate-micro-lesson-dialog.component';
 import { BatchGenerateMicroLessonDialogComponent } from '../batch-generate-dialog/batch-generate-dialog.component';
@@ -79,7 +80,7 @@ export class MicroLessonReviewComponent implements OnInit {
 
   readonly distinctSubjects = computed(() => {
     const list = this.lessons()
-      .map((l) => l.subjectName)
+      .map((l) => l.subjectName || l.subject || '')
       .filter((s): s is string => !!s && s.trim().length > 0);
     return ['ALL', ...Array.from(new Set(list)).sort()];
   });
@@ -88,10 +89,10 @@ export class MicroLessonReviewComponent implements OnInit {
     let list = this.lessons();
     const sub = this.selectedSubject();
     if (sub !== 'ALL') {
-      list = list.filter((l) => l.subjectName === sub);
+      list = list.filter((l) => (l.subjectName || l.subject) === sub);
     }
     const topics = list
-      .map((l) => l.topicName)
+      .map((l) => l.topicName || l.topic || '')
       .filter((t): t is string => !!t && t.trim().length > 0);
     return ['ALL', ...Array.from(new Set(topics)).sort()];
   });
@@ -107,18 +108,18 @@ export class MicroLessonReviewComponent implements OnInit {
       list = list.filter((item) => item.status === status);
     }
     if (subject !== 'ALL') {
-      list = list.filter((item) => item.subjectName === subject);
+      list = list.filter((item) => (item.subjectName || item.subject) === subject);
     }
     if (topic !== 'ALL') {
-      list = list.filter((item) => item.topicName === topic);
+      list = list.filter((item) => (item.topicName || item.topic) === topic);
     }
     if (query) {
-      list = list.filter(
-        (item) =>
-          item.subtopicName.toLowerCase().includes(query) ||
-          item.topicName.toLowerCase().includes(query) ||
-          item.subjectName.toLowerCase().includes(query)
-      );
+      list = list.filter((item) => {
+        const sub = (item.subtopicName || item.subtopic || '').toLowerCase();
+        const top = (item.topicName || item.topic || '').toLowerCase();
+        const sbj = (item.subjectName || item.subject || '').toLowerCase();
+        return sub.includes(query) || top.includes(query) || sbj.includes(query);
+      });
     }
     return list;
   });
@@ -149,7 +150,8 @@ export class MicroLessonReviewComponent implements OnInit {
     this.isLoading.set(true);
     this.microLessonService.listForReview().subscribe({
       next: (response) => {
-        this.lessons.set(response.content || []);
+        const items = (response.content || []).map(adaptToReviewItem);
+        this.lessons.set(items);
         this.isLoading.set(false);
       },
       error: (err) => {
@@ -168,12 +170,14 @@ export class MicroLessonReviewComponent implements OnInit {
       panelClass: 'nag-dialog-clean',
     });
 
-    dialogRef.afterClosed().subscribe((createdItem: MicroLessonReviewItem | null) => {
+    dialogRef.afterClosed().subscribe((createdItem: MicroLessonReviewItem | any | null) => {
       if (createdItem) {
-        this.lessons.update((list) => [createdItem, ...list]);
-        this.selectLesson(createdItem);
+        const item = adaptToReviewItem(createdItem);
+        this.lessons.update((list) => [item, ...list]);
+        this.selectLesson(item);
+        const name = item.subtopicName || item.subtopic || 'New Lesson';
         this.snackBar.open(
-          `Synthesized micro-lesson: "${createdItem.subtopicName}"`,
+          `Synthesized micro-lesson: "${name}"`,
           'View',
           { duration: 4000 }
         );
@@ -182,8 +186,9 @@ export class MicroLessonReviewComponent implements OnInit {
   }
 
   selectLesson(lesson: MicroLessonReviewItem) {
-    this.selectedLesson.set(lesson);
-    this.reviewerNotes.set(lesson.reviewerNotes || '');
+    const adapted = adaptToReviewItem(lesson);
+    this.selectedLesson.set(adapted);
+    this.reviewerNotes.set(adapted.reviewerNotes || '');
     this.isEditingContent.set(false);
   }
 
@@ -232,8 +237,9 @@ export class MicroLessonReviewComponent implements OnInit {
         .subscribe({
           next: (updated) => {
             completedCount++;
+            const adapted = adaptToReviewItem(updated);
             this.lessons.update((list) =>
-              list.map((item) => (item.id === updated.id ? updated : item))
+              list.map((item) => (item.id === adapted.id ? adapted : item))
             );
             if (completedCount === ids.length) {
               this.isBulkSubmitting.set(false);
@@ -259,9 +265,12 @@ export class MicroLessonReviewComponent implements OnInit {
   }
 
   startEditing(lesson: MicroLessonReviewItem) {
-    this.editedCoreConcept.set(lesson.content?.coreConcept || '');
-    this.editedTrapAlert.set(lesson.content?.trapAlert || '');
-    this.editedFormulaCheatSheet.set(lesson.content?.formulaCheatSheet || '');
+    this.editedCoreConcept.set(lesson.content?.coreConcept || lesson.coreConcept || '');
+    this.editedTrapAlert.set(lesson.content?.trapAlert || lesson.trap || '');
+    this.editedFormulaCheatSheet.set(
+      lesson.content?.formulaCheatSheet ||
+      (Array.isArray(lesson.cheatSheet) ? lesson.cheatSheet.join('\n\n') : '')
+    );
     this.isEditingContent.set(true);
   }
 
@@ -294,10 +303,11 @@ export class MicroLessonReviewComponent implements OnInit {
         this.snackBar.open('Micro-lesson content and LaTeX updated successfully.', 'OK', {
           duration: 3000,
         });
+        const adapted = adaptToReviewItem(updated);
         this.lessons.update((list) =>
-          list.map((item) => (item.id === updated.id ? updated : item))
+          list.map((item) => (item.id === adapted.id ? adapted : item))
         );
-        this.selectedLesson.set(updated);
+        this.selectedLesson.set(adapted);
       },
       error: (err) => {
         this.isSubmitting.set(false);
@@ -327,10 +337,11 @@ export class MicroLessonReviewComponent implements OnInit {
         this.snackBar.open(`Micro-lesson updated to ${action}`, 'OK', {
           duration: 3000,
         });
+        const adapted = adaptToReviewItem(updated);
         this.lessons.update((list) =>
-          list.map((item) => (item.id === updated.id ? updated : item))
+          list.map((item) => (item.id === adapted.id ? adapted : item))
         );
-        this.selectedLesson.set(updated);
+        this.selectedLesson.set(adapted);
       },
       error: (err) => {
         this.isSubmitting.set(false);

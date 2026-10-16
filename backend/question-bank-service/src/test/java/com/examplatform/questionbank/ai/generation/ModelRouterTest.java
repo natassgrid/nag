@@ -71,6 +71,19 @@ class ModelRouterTest {
     }
 
     @Test
+    @DisplayName("selectModel() routes to local Ollama models when Bedrock is disabled")
+    void selectModel_whenBedrockDisabled_routesToLocalModels() {
+        try {
+            modelRouter.setBedrockEnabled(false);
+            assertThat(modelRouter.selectModel(QuestionTaxonomyConstants.Difficulty.EASY)).isEqualTo("llama3.2:1b");
+            assertThat(modelRouter.selectModel(QuestionTaxonomyConstants.Difficulty.MEDIUM)).isEqualTo("qwen2.5:1.5b");
+            assertThat(modelRouter.selectModel(QuestionTaxonomyConstants.Difficulty.HARD)).isEqualTo("qwen2.5:1.5b");
+        } finally {
+            modelRouter.setBedrockEnabled(true);
+        }
+    }
+
+    @Test
     @DisplayName("selectBatchModelId() returns correct Bedrock model IDs by difficulty")
     void selectBatchModelId_returnCorrectIds() {
         assertThat(modelRouter.selectBatchModelId(QuestionTaxonomyConstants.Difficulty.EASY)).isEqualTo(AMAZON_NOVA_MICRO_V_1_0);

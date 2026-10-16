@@ -65,6 +65,9 @@ public class MicroLessonService {
         }
 
         String targetStatus = request.status().toUpperCase();
+        if ("EDIT".equals(targetStatus)) {
+            targetStatus = lesson.getStatus() != null ? lesson.getStatus() : MicroLessonStatus.IN_REVIEW.name();
+        }
         try {
             MicroLessonStatus.valueOf(targetStatus);
         } catch (IllegalArgumentException e) {

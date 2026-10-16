@@ -4,7 +4,7 @@ import { MicroLessonAdminService } from '../../services/micro-lesson-admin.servi
 import { of } from 'rxjs';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatDialog } from '@angular/material/dialog';
-import { MicroLessonReviewItem } from '../../models/micro-lesson.model';
+import { MicroLessonReviewItem, adaptToReviewItem } from '../../models/micro-lesson.model';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { ActivatedRoute } from '@angular/router';
 
@@ -237,6 +237,72 @@ describe('MicroLessonReviewComponent', () => {
     expect(dialogMock.open).toHaveBeenCalled();
     expect(component.lessons()[0].id).toBe('ml-new');
     expect(component.selectedLesson()?.id).toBe('ml-new');
+  });
+
+  it('should handle raw backend response from generate dialog and not display undefined in snackbar', () => {
+    const rawBackendItem: any = {
+      id: '01a14085-5838-71ac-a705-9d025b34bba1',
+      subjectId: 8,
+      topicId: 80,
+      subtopicId: 176,
+      subject: 'Mathematics',
+      topic: 'Arithmetic',
+      subtopic: 'Percentage',
+      targetExam: 'IBPS-PO-PRE-2027',
+      coreConcept: 'Percentage bedrock principle.',
+      trap: 'Sign conventions trap.',
+      cheatSheet: ['$$\\Delta K + \\Delta U = W_{ext}$$'],
+      stepByStepBreakdown: {
+        questionStem: 'Evaluate percentage',
+        steps: ['Step 1: Write down equation'],
+        finalAnswer: '100%'
+      },
+      status: 'AI_GENERATED',
+      contentVersion: 2,
+    };
+
+    dialogMock.open.mockReturnValue({
+      afterClosed: () => of(rawBackendItem),
+    });
+
+    component.openGenerateDialog();
+    expect(dialogMock.open).toHaveBeenCalled();
+    expect(component.lessons()[0].subtopicName).toBe('Percentage');
+    expect(component.lessons()[0].content.coreConcept).toBe('Percentage bedrock principle.');
+    expect(snackBarMock.open).toHaveBeenCalledWith(
+      'Synthesized micro-lesson: "Percentage"',
+      'View',
+      expect.objectContaining({ duration: 4000 })
+    );
+  });
+
+  it('adaptToReviewItem should map backend fields to frontend model', () => {
+    const raw = {
+      id: 'abc',
+      subject: 'Math',
+      topic: 'Algebra',
+      subtopic: 'Quadratics',
+      coreConcept: 'Core text',
+      trap: 'Trap text',
+      cheatSheet: ['$f_1$', '$f_2$'],
+      stepByStepBreakdown: {
+        questionStem: 'Solve x^2 = 4',
+        steps: ['Step 1: square root'],
+        finalAnswer: 'x = \\pm 2'
+      },
+      status: 'AI_GENERATED',
+      contentVersion: 1
+    };
+    const adapted = adaptToReviewItem(raw);
+    expect(adapted.subtopicName).toBe('Quadratics');
+    expect(adapted.topicName).toBe('Algebra');
+    expect(adapted.subjectName).toBe('Math');
+    expect(adapted.content.coreConcept).toBe('Core text');
+    expect(adapted.content.trapAlert).toBe('Trap text');
+    expect(adapted.content.formulaCheatSheet).toBe('$f_1$\n\n$f_2$');
+    expect(adapted.content.stepByStepBreakdown?.problemStatement).toBe('Solve x^2 = 4');
+    expect(adapted.content.stepByStepBreakdown?.steps.length).toBe(1);
+    expect(adapted.content.stepByStepBreakdown?.finalAnswer).toBe('x = \\pm 2');
   });
 
   it('should open batch generate dialog and display snackbar on queue success', () => {

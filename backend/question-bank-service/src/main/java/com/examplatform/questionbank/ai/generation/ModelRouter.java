@@ -23,11 +23,22 @@ import org.springframework.stereotype.Component;
  * Routes question-generation requests to the appropriate LLM model
  * based on the difficulty level.
  *
- * <p>Model selection strategy (configurable via application.yml):
+ * <p>Model selection strategy (configurable via application.yml / environment):
  * <ul>
- *   <li><b>EASY</b> → Amazon Nova Micro (fast, cost-efficient)</li>
- *   <li><b>MEDIUM</b> → Amazon Nova Lite (balanced)</li>
- *   <li><b>HARD</b> → Amazon Nova Lite (balanced)</li>
+ *   <li><b>Bedrock Enabled:</b>
+ *     <ul>
+ *       <li><b>EASY</b> &rarr; Amazon Nova Micro (fast, cost-efficient)</li>
+ *       <li><b>MEDIUM</b> &rarr; Amazon Nova Lite (balanced)</li>
+ *       <li><b>HARD</b> &rarr; Amazon Nova Lite (balanced)</li>
+ *     </ul>
+ *   </li>
+ *   <li><b>Bedrock Disabled (Local Dev / Offline):</b>
+ *     <ul>
+ *       <li><b>EASY</b> &rarr; llama3.2:1b (local Ollama)</li>
+ *       <li><b>MEDIUM</b> &rarr; qwen2.5:1.5b (local Ollama)</li>
+ *       <li><b>HARD</b> &rarr; qwen2.5:1.5b (local Ollama)</li>
+ *     </ul>
+ *   </li>
  * </ul>
  *
  * <p>All model names refer to LiteLLM gateway route names. The actual
@@ -41,22 +52,54 @@ public class ModelRouter {
     public static final String AMAZON_NOVA_MICRO_V_1_0 = "amazon.nova-micro-v1:0";
     public static final String AMAZON_NOVA_LITE_V_1_0 = "amazon.nova-lite-v1:0";
 
+    @Value("${app.ai.bedrock.enabled:${AI_BEDROCK_ENABLED:true}}")
+    private boolean bedrockEnabled = true;
+
     @Value("${app.ai.models.easy:nova-micro}")
-    private String easyModel;
+    private String easyModel = "nova-micro";
 
     @Value("${app.ai.models.medium:nova-lite}")
-    private String mediumModel;
+    private String mediumModel = "nova-lite";
 
     @Value("${app.ai.models.hard:nova-lite}")
-    private String hardModel;
+    private String hardModel = "nova-lite";
+
+    @Value("${app.ai.models.local.easy:llama3.2:1b}")
+    private String localEasyModel = "llama3.2:1b";
+
+    @Value("${app.ai.models.local.medium:qwen2.5:1.5b}")
+    private String localMediumModel = "qwen2.5:1.5b";
+
+    @Value("${app.ai.models.local.hard:qwen2.5:1.5b}")
+    private String localHardModel = "qwen2.5:1.5b";
+
+    public boolean isBedrockEnabled() {
+        return bedrockEnabled;
+    }
+
+    public void setBedrockEnabled(boolean bedrockEnabled) {
+        this.bedrockEnabled = bedrockEnabled;
+    }
 
     /**
      * Selects the LLM model based on the difficulty level.
+     * If Bedrock is disabled, routes to zero-cost local Ollama models.
      *
      * @param difficulty the difficulty level (EASY, MEDIUM, HARD)
      * @return the LiteLLM model name to use for question generation
      */
     public String selectModel(String difficulty) {
+        if (!bedrockEnabled) {
+            if (difficulty == null || difficulty.isBlank()) {
+                return localMediumModel;
+            }
+            return switch (difficulty.toUpperCase().trim()) {
+                case QuestionTaxonomyConstants.Difficulty.EASY -> localEasyModel;
+                case QuestionTaxonomyConstants.Difficulty.HARD -> localHardModel;
+                default -> localMediumModel;
+            };
+        }
+
         if (difficulty == null || difficulty.isBlank()) {
             return mediumModel;
         }

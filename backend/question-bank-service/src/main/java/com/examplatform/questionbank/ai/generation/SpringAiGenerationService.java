@@ -19,6 +19,7 @@ import com.examplatform.questionbank.ai.embedding.EmbeddingService;
 import com.examplatform.questionbank.ai.generation.multiagent.*;
 import com.examplatform.questionbank.ai.parser.NormalizedSampleQuestion;
 import com.examplatform.questionbank.ai.parser.SampleDocumentParserService;
+import com.examplatform.questionbank.ai.prompt.PromptTemplateService;
 import com.examplatform.questionbank.ai.similarity.SimilarityCheckResult;
 import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.dto.QuestionOption;
@@ -116,6 +117,12 @@ public class SpringAiGenerationService implements QuestionGenerationService {
     private final SimilarityAuditorAgent similarityAuditorAgent;
     private final RefinementAgent refinementAgent;
     private final SampleDocumentParserService sampleDocumentParserService;
+    private PromptTemplateService promptTemplateService;
+
+    @Autowired(required = false)
+    public void setPromptTemplateService(PromptTemplateService promptTemplateService) {
+        this.promptTemplateService = promptTemplateService;
+    }
 
     public SpringAiGenerationService(
             ChatClient chatClient,
@@ -426,6 +433,14 @@ public class SpringAiGenerationService implements QuestionGenerationService {
     }
 
     private String buildSystemPrompt(QuestionGenerationRequest request) {
+        if (promptTemplateService != null) {
+            try {
+                return promptTemplateService.render("question/system-prompt",
+                        Map.of("questionType", String.valueOf(request.getQuestionType())));
+            } catch (Exception e) {
+                log.warn("Failed to render question system prompt from template: {}. Falling back to default.", e.getMessage());
+            }
+        }
         return """
                 You are an expert examination question generator for Indian competitive examinations.
                 You generate high-quality questions in structured JSON format.
@@ -465,27 +480,50 @@ public class SpringAiGenerationService implements QuestionGenerationService {
             List<SimilarityResult> ragContext,
             List<NormalizedSampleQuestion> sampleQuestions) {
 
-        StringBuilder prompt = new StringBuilder();
-        prompt.append("Generate ").append(request.getCount()).append(" question(s) with these parameters:\n");
+        StringBuilder parameters = new StringBuilder();
         QuestionPromptFormatter.appendGenerationParameters(
-                prompt, request, "- ", "Description/Requirements", "Target Exam");
+                parameters, request, "- ", "Description/Requirements", "Target Exam");
 
+        StringBuilder samplesSection = new StringBuilder();
         if (sampleQuestions != null && !sampleQuestions.isEmpty()) {
-            prompt.append("\nReference Sample Demonstrations (Model question style and depth):\n");
+            samplesSection.append("\nReference Sample Demonstrations (Model question style and depth):\n");
             for (int i = 0; i < sampleQuestions.size(); i++) {
                 NormalizedSampleQuestion sq = sampleQuestions.get(i);
-                prompt.append("Sample ").append(i + 1).append(": ").append(sq.getStem()).append("\n");
+                samplesSection.append("Sample ").append(i + 1).append(": ").append(sq.getStem()).append("\n");
             }
         }
 
+        StringBuilder ragSection = new StringBuilder();
         if (!ragContext.isEmpty()) {
-            prompt.append("\nHere are existing questions on this topic for reference (do NOT duplicate them):\n");
+            ragSection.append("\nHere are existing questions on this topic for reference (do NOT duplicate them):\n");
             for (int i = 0; i < ragContext.size(); i++) {
                 SimilarityResult ctx = ragContext.get(i);
-                prompt.append(i + 1).append(". ").append(ctx.getContent()).append("\n");
+                ragSection.append(i + 1).append(". ").append(ctx.getContent()).append("\n");
             }
         }
 
+        if (promptTemplateService != null) {
+            try {
+                Map<String, Object> vars = new HashMap<>();
+                vars.put("count", request.getCount());
+                vars.put("parameters", parameters.toString());
+                vars.put("samplesSection", samplesSection.toString());
+                vars.put("ragSection", ragSection.toString());
+                return promptTemplateService.render("question/user-prompt", vars);
+            } catch (Exception e) {
+                log.warn("Failed to render question user prompt from template: {}. Falling back to default.", e.getMessage());
+            }
+        }
+
+        StringBuilder prompt = new StringBuilder();
+        prompt.append("Generate ").append(request.getCount()).append(" question(s) with these parameters:\n");
+        prompt.append(parameters);
+        if (!samplesSection.isEmpty()) {
+            prompt.append(samplesSection);
+        }
+        if (!ragSection.isEmpty()) {
+            prompt.append(ragSection);
+        }
         prompt.append("\nGenerate the questions now as a JSON array:");
         return prompt.toString();
     }

@@ -415,6 +415,8 @@ services:
     depends_on:
       ollama:
         condition: service_healthy
+      ollama-pull:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:4000/health || exit 1"]
       interval: 15s

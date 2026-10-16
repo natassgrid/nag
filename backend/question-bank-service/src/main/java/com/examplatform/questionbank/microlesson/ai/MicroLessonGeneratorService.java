@@ -1,19 +1,25 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.examplatform.questionbank.microlesson.ai;
 
+import com.examplatform.questionbank.ai.generation.ModelRouter;
 import com.examplatform.questionbank.microlesson.domain.MicroLessonStatus;
 import com.examplatform.questionbank.microlesson.domain.SubtopicMicroLesson;
 import com.examplatform.questionbank.microlesson.dto.MicroLessonContentDto;
 import com.examplatform.questionbank.microlesson.dto.MicroLessonResponse;
 import com.examplatform.questionbank.microlesson.dto.StepByStepBreakdownDto;
 import com.examplatform.questionbank.microlesson.repository.SubtopicMicroLessonRepository;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.json.JsonReadFeature;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.prompt.ChatOptions;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,7 +29,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Service
-@RequiredArgsConstructor
 public class MicroLessonGeneratorService {
 
     private static final Logger log = LoggerFactory.getLogger(MicroLessonGeneratorService.class);
@@ -34,6 +39,68 @@ public class MicroLessonGeneratorService {
     private final KaTexValidator kaTexValidator;
     private final SubtopicMicroLessonRepository repository;
     private final ObjectMapper objectMapper;
+    private final ObjectMapper aiObjectMapper;
+    private final ModelRouter modelRouter;
+
+    public MicroLessonGeneratorService(
+            ChatClient chatClient,
+            MicroLessonPromptBuilder promptBuilder,
+            KaTexValidator kaTexValidator,
+            SubtopicMicroLessonRepository repository,
+            ObjectMapper objectMapper) {
+        this(chatClient, promptBuilder, kaTexValidator, repository, objectMapper, null);
+    }
+
+    @Autowired
+    public MicroLessonGeneratorService(
+            ChatClient chatClient,
+            MicroLessonPromptBuilder promptBuilder,
+            KaTexValidator kaTexValidator,
+            SubtopicMicroLessonRepository repository,
+            ObjectMapper objectMapper,
+            ModelRouter modelRouter) {
+        this.chatClient = chatClient;
+        this.promptBuilder = promptBuilder;
+        this.kaTexValidator = kaTexValidator;
+        this.repository = repository;
+        this.objectMapper = objectMapper;
+        this.aiObjectMapper = objectMapper.copy()
+                .configure(JsonParser.Feature.ALLOW_BACKSLASH_ESCAPING_ANY_CHARACTER, true)
+                .configure(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true)
+                .configure(JsonParser.Feature.ALLOW_SINGLE_QUOTES, true)
+                .configure(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature(), true)
+                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        this.modelRouter = modelRouter;
+    }
+
+    /**
+     * Resolves the complexity difficulty level based on target exam and topic/subtopic depth.
+     */
+    public String resolveDifficulty(String subject, String topic, String subtopic, String targetExam) {
+        String exam = targetExam != null ? targetExam.toUpperCase().trim() : "";
+        if (exam.contains("JEE_ADV") || exam.contains("GATE") || exam.contains("UPSC") || exam.contains("CAT")) {
+            return QuestionTaxonomyConstants.Difficulty.HARD;
+        }
+        if (exam.contains("JEE_MAIN") || exam.contains("NEET") || exam.contains("SSC")
+                || exam.contains("RRB") || exam.contains("BANK") || exam.contains("IBPS")
+                || exam.contains("SBI") || exam.contains("DEFICIT")) {
+            return QuestionTaxonomyConstants.Difficulty.MEDIUM;
+        }
+
+        // Topic and Subtopic complexity heuristic
+        String combined = (subject + " " + topic + " " + subtopic).toLowerCase();
+        if (combined.contains("quantum") || combined.contains("relativity") || combined.contains("calculus")
+                || combined.contains("dynamic programming") || combined.contains("electromagnetism")) {
+            return QuestionTaxonomyConstants.Difficulty.HARD;
+        }
+        if (combined.contains("algebra") || combined.contains("mechanics") || combined.contains("thermodynamics")
+                || combined.contains("organic") || combined.contains("circuits") || combined.contains("percentage")
+                || combined.contains("ratio") || combined.contains("geometry")) {
+            return QuestionTaxonomyConstants.Difficulty.MEDIUM;
+        }
+
+        return QuestionTaxonomyConstants.Difficulty.EASY;
+    }
 
     @Transactional
     public SubtopicMicroLesson generateForSubtopic(
@@ -53,17 +120,26 @@ public class MicroLessonGeneratorService {
             String referenceText) {
 
         String exam = (targetExam != null && !targetExam.isBlank()) ? targetExam : "JEE_MAIN";
-        log.info("Generating remedial micro-lesson for subtopic: '{}' in topic: '{}' (Exam: {})", subtopic, topic, exam);
+        String difficulty = resolveDifficulty(subject, topic, subtopic, exam);
+        String targetModel = (modelRouter != null) ? modelRouter.selectModel(difficulty) : null;
+
+        log.info("Generating remedial micro-lesson for subtopic: '{}' in topic: '{}' (Exam: {}, Difficulty: {}, Model: {})",
+                subtopic, topic, exam, difficulty, targetModel);
 
         MicroLessonContentDto content;
         try {
             String userPrompt = promptBuilder.buildUserPrompt(subject, topic, subtopic, exam, referenceText);
-            String rawResponse = chatClient.prompt()
-                    .system(MicroLessonPromptBuilder.SYSTEM_PROMPT)
-                    .user(userPrompt)
-                    .call()
-                    .content();
+            var promptSpec = chatClient.prompt()
+                    .system(promptBuilder.getSystemPrompt())
+                    .user(userPrompt);
 
+            if (targetModel != null && !targetModel.isBlank()) {
+                promptSpec = promptSpec.options(ChatOptions.builder()
+                        .model(targetModel)
+                        .temperature(0.7));
+            }
+
+            String rawResponse = promptSpec.call().content();
             content = parseAndValidate(rawResponse);
         } catch (Exception e) {
             log.warn("AI generation failed for subtopic '{}': {}. Generating high-yield pedagogical fallback template.", subtopic, e.getMessage());
@@ -114,12 +190,25 @@ public class MicroLessonGeneratorService {
             jsonText = matcher.group(1).trim();
         }
 
-        MicroLessonContentDto content = objectMapper.readValue(jsonText, MicroLessonContentDto.class);
+        MicroLessonContentDto content;
+        try {
+            content = aiObjectMapper.readValue(jsonText, MicroLessonContentDto.class);
+        } catch (JsonProcessingException e) {
+            log.warn("Direct parse failed ({}), applying LaTeX JSON sanitization and retrying...", e.getMessage());
+            String sanitized = sanitizeLatexJson(jsonText);
+            content = aiObjectMapper.readValue(sanitized, MicroLessonContentDto.class);
+        }
+
         List<String> errors = kaTexValidator.validateContent(content);
         if (!errors.isEmpty()) {
             log.warn("KaTeX / validation warnings in generated micro-lesson: {}", errors);
         }
         return content;
+    }
+
+    public static String sanitizeLatexJson(String json) {
+        if (json == null) return null;
+        return json.replaceAll("(?<!\\\\)\\\\(?![\"\\\\/bfnrtu]|u[0-9a-fA-F]{4})", "\\\\\\\\");
     }
 
     public MicroLessonContentDto buildFallbackContent(String subject, String topic, String subtopic, String targetExam) {

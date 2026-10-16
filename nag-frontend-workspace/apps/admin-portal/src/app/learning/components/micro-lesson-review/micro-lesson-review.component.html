@@ -276,8 +276,8 @@
                       />
                     </td>
                     <td class="py-3 px-4">
-                      <p class="font-bold text-slate-900 line-clamp-1">{{ item.subtopicName }}</p>
-                      <p class="text-[11px] text-slate-400 mt-0.5">{{ item.subjectName }} &bull; {{ item.topicName }}</p>
+                      <p class="font-bold text-slate-900 line-clamp-1"><nag-math-renderer [content]="item.subtopicName || item.subtopic || ''" [inline]="true"></nag-math-renderer></p>
+                      <p class="text-[11px] text-slate-400 mt-0.5">{{ item.subjectName || item.subject }} &bull; {{ item.topicName || item.topic }}</p>
                     </td>
                     <td class="py-3 px-4 whitespace-nowrap">
                       <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border" [ngClass]="getStatusBadgeClass(item.status)">
@@ -318,8 +318,8 @@
                 </span>
                 <span class="text-xs text-slate-400 font-mono">v{{ lesson.contentVersion || 1 }}</span>
               </div>
-              <h2 class="text-lg font-bold text-slate-900 mt-1.5">{{ lesson.subtopicName }}</h2>
-              <p class="text-xs text-slate-500">{{ lesson.subjectName }} &rsaquo; {{ lesson.topicName }} &bull; Target: {{ lesson.targetExam || 'General' }}</p>
+              <h2 class="text-lg font-bold text-slate-900 mt-1.5"><nag-math-renderer [content]="lesson.subtopicName || lesson.subtopic || ''" [inline]="true"></nag-math-renderer></h2>
+              <p class="text-xs text-slate-500">{{ lesson.subjectName || lesson.subject }} &rsaquo; {{ lesson.topicName || lesson.topic }} &bull; Target: {{ lesson.targetExam || 'General' }}</p>
             </div>
             <div class="flex items-center gap-2">
               @if (!isEditingContent()) {
@@ -381,7 +381,7 @@
                   <nag-math-renderer [content]="editedCoreConcept()"></nag-math-renderer>
                 </div>
               } @else {
-                <nag-math-renderer [content]="lesson.content?.coreConcept || 'No core concept provided.'"></nag-math-renderer>
+                <nag-math-renderer [content]="lesson.content?.coreConcept || lesson.coreConcept || 'No core concept provided.'"></nag-math-renderer>
               }
             </div>
 
@@ -404,7 +404,7 @@
                   <nag-math-renderer [content]="editedTrapAlert()"></nag-math-renderer>
                 </div>
               } @else {
-                <nag-math-renderer [content]="lesson.content?.trapAlert || 'No trap alert specified.'"></nag-math-renderer>
+                <nag-math-renderer [content]="lesson.content?.trapAlert || lesson.trap || 'No trap alert specified.'"></nag-math-renderer>
               }
             </div>
 
@@ -460,6 +460,12 @@
                           </div>
                         }
                       </div>
+                    </div>
+                  }
+                  @if (breakdown.finalAnswer) {
+                    <div class="bg-emerald-50/70 p-3 rounded-lg border border-emerald-200 text-xs flex items-center justify-between">
+                      <span class="font-bold text-emerald-800 uppercase text-[10px]">Final Answer:</span>
+                      <nag-math-renderer [content]="breakdown.finalAnswer"></nag-math-renderer>
                     </div>
                   }
                 </div>
