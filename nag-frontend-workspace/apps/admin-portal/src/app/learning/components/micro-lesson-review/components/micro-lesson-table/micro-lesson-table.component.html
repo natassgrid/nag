@@ -1,0 +1,160 @@
+<div [class]="selectedLessonId() ? 'lg:col-span-5' : 'lg:col-span-12'" class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+  @if (lessons().length === 0) {
+    <div class="p-12 text-center text-slate-400">
+      <mat-icon class="!text-4xl text-slate-300 mb-2">find_in_page</mat-icon>
+      <p class="text-sm font-semibold text-slate-600">No micro-lessons match the current filter</p>
+      <p class="text-xs text-slate-400 mt-1">Try selecting another status, resetting filters, or generating new micro-lessons.</p>
+    </div>
+  } @else {
+    <div class="overflow-x-auto">
+      <table class="w-full text-left border-collapse text-xs">
+        <thead>
+          <tr class="bg-slate-50/80 border-b border-slate-200 text-slate-400 font-semibold uppercase tracking-wider">
+            <th class="py-3 px-3 w-10 text-center">
+              <input
+                type="checkbox"
+                [checked]="isAllSelected()"
+                (change)="toggleSelectAll.emit($any($event.target).checked)"
+                class="rounded border-slate-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+              />
+            </th>
+            <th class="py-3 px-4">Subtopic / Subject</th>
+            <th class="py-3 px-4">Status</th>
+            @if (!selectedLessonId()) {
+              <th class="py-3 px-4">Exam</th>
+              <th class="py-3 px-4">Version</th>
+              <th class="py-3 px-4">Updated</th>
+            }
+            <th class="py-3 px-4 text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          @for (item of lessons(); track item.id) {
+            <tr
+              (click)="lessonSelect.emit(item)"
+              [class.bg-purple-50]="selectedLessonId() === item.id"
+              [class.bg-purple-50/40]="selectedIds().has(item.id) && selectedLessonId() !== item.id"
+              class="hover:bg-slate-50/80 transition-colors cursor-pointer"
+            >
+              <td class="py-3 px-3 text-center" (click)="$event.stopPropagation()">
+                <input
+                  type="checkbox"
+                  [checked]="selectedIds().has(item.id)"
+                  (change)="toggleSelect.emit({ id: item.id, event: $event })"
+                  class="rounded border-slate-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                />
+              </td>
+              <td class="py-3 px-4">
+                <p class="font-bold text-slate-900 line-clamp-1"><nag-math-renderer [content]="item.subtopicName || item.subtopic || ''" [inline]="true"></nag-math-renderer></p>
+                <p class="text-[11px] text-slate-400 mt-0.5">{{ item.subjectName || item.subject }} &bull; {{ item.topicName || item.topic }}</p>
+              </td>
+              <td class="py-3 px-4 whitespace-nowrap">
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border" [ngClass]="getStatusBadgeClass(item.status)">
+                  {{ item.status }}
+                </span>
+              </td>
+              @if (!selectedLessonId()) {
+                <td class="py-3 px-4 text-slate-600 font-medium">{{ item.targetExam || 'General' }}</td>
+                <td class="py-3 px-4 text-slate-500 font-mono">v{{ item.contentVersion || 1 }}</td>
+                <td class="py-3 px-4 text-slate-400">{{ item.updatedAt ? (item.updatedAt | date:'shortDate') : '-' }}</td>
+              }
+              <td class="py-3 px-4 text-right whitespace-nowrap">
+                <div class="inline-flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    (click)="lessonSelect.emit(item); $event.stopPropagation()"
+                    class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer transition-colors"
+                  >
+                    Inspect &rarr;
+                  </button>
+                  <button
+                    type="button"
+                    (click)="deleteLesson.emit({ lesson: item, event: $event })"
+                    title="Delete Micro-Lesson"
+                    class="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer transition-colors inline-flex items-center"
+                  >
+                    <mat-icon class="!text-base">delete_outline</mat-icon>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Server-side Pagination Bar -->
+    <div class="px-5 py-3.5 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+      <div class="flex items-center gap-2 text-slate-500 font-medium">
+        <span>Showing</span>
+        <span class="font-bold text-slate-800">{{ displayStart() }}</span>
+        <span>to</span>
+        <span class="font-bold text-slate-800">{{ displayEnd() }}</span>
+        <span>of</span>
+        <span class="font-bold text-slate-900">{{ totalElements() }}</span>
+        <span>micro-lessons</span>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <!-- Page Size Selector -->
+        <div class="flex items-center gap-1.5">
+          <span class="text-slate-400 font-medium">Per page:</span>
+          <select
+            [ngModel]="pageSize()"
+            (ngModelChange)="pageSizeChange.emit(+$event)"
+            class="bg-white border border-slate-200 rounded-lg px-2 py-1 text-slate-700 font-bold focus:outline-none cursor-pointer"
+          >
+            @for (size of pageSizeOptions(); track size) {
+              <option [value]="size">{{ size }}</option>
+            }
+          </select>
+        </div>
+
+        <!-- Page Navigation Controls -->
+        <div class="flex items-center gap-1">
+          <button
+            type="button"
+            (click)="firstPage.emit()"
+            [disabled]="pageIndex() === 0 || isLoading()"
+            class="p-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+            title="First Page"
+          >
+            <mat-icon class="!text-base !w-4 !h-4 flex items-center justify-center">first_page</mat-icon>
+          </button>
+          <button
+            type="button"
+            (click)="prevPage.emit()"
+            [disabled]="pageIndex() === 0 || isLoading()"
+            class="p-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+            title="Previous Page"
+          >
+            <mat-icon class="!text-base !w-4 !h-4 flex items-center justify-center">chevron_left</mat-icon>
+          </button>
+
+          <span class="px-2 font-semibold text-slate-700">
+            Page {{ totalPages() === 0 ? 0 : pageIndex() + 1 }} of {{ totalPages() }}
+          </span>
+
+          <button
+            type="button"
+            (click)="nextPage.emit()"
+            [disabled]="pageIndex() >= totalPages() - 1 || isLoading()"
+            class="p-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+            title="Next Page"
+          >
+            <mat-icon class="!text-base !w-4 !h-4 flex items-center justify-center">chevron_right</mat-icon>
+          </button>
+          <button
+            type="button"
+            (click)="lastPage.emit()"
+            [disabled]="pageIndex() >= totalPages() - 1 || isLoading()"
+            class="p-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+            title="Last Page"
+          >
+            <mat-icon class="!text-base !w-4 !h-4 flex items-center justify-center">last_page</mat-icon>
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>
