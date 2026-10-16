@@ -76,10 +76,16 @@ export interface GenerateMicroLessonRequest {
 }
 
 export interface BatchGenerateResponse {
-  batchId: string;
+  batchId?: string;
+  status: 'QUEUED' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED' | 'CANCELLED' | string;
   totalQueued: number;
-  status: string;
-  message: string;
+  totalGenerated: number;
+  totalFailed: number;
+  percentComplete?: number;
+  currentSubtopic?: string;
+  generatedSubtopics?: string[];
+  failedSubtopics?: string[];
+  message?: string;
 }
 
 export function adaptToReviewItem(raw: any): MicroLessonReviewItem {
@@ -150,4 +156,23 @@ export function adaptToReviewItem(raw: any): MicroLessonReviewItem {
     reviewerNotes: raw.reviewerNotes || raw.reviewComments || '',
     content,
   };
+}
+
+export interface MicroLessonStats {
+  total: number;
+  aiGenerated: number;
+  inReview: number;
+  approved: number;
+  published: number;
+  rejected: number;
+}
+
+export interface MicroLessonFilterOptions {
+  subjects: string[];
+  topics: string[];
+  statuses: string[];
+}
+
+export interface BulkDeleteResponse {
+  deletedCount: number;
 }

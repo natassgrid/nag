@@ -42,7 +42,7 @@
     <div class="flex items-center gap-3">
       <button
         mat-stroked-button
-        (click)="loadLessons()"
+        (click)="loadLessons(); loadStats()"
         [disabled]="isLoading()"
         class="!text-slate-700 !border-slate-300 !rounded-xl text-xs font-semibold cursor-pointer"
       >
@@ -64,9 +64,9 @@
         [disabled]="isBatchGenerating()"
         class="!rounded-xl !bg-purple-600 hover:!bg-purple-700 !text-white text-xs font-bold flex items-center gap-1.5 !px-4 !py-2.5 shadow-md shadow-purple-500/20 cursor-pointer"
       >
-        @if (isBatchGenerating()) {
+        @if (activeBatchJob()?.status === 'IN_PROGRESS' || activeBatchJob()?.status === 'QUEUED') {
           <mat-progress-spinner diameter="16" mode="indeterminate" class="!inline-block"></mat-progress-spinner>
-          <span>Queuing...</span>
+          <span>Batch Progress ({{ activeBatchJob()?.percentComplete ?? 0 }}%)</span>
         } @else {
           <mat-icon class="!text-sm">auto_awesome</mat-icon>
           <span>Batch Generate</span>
@@ -75,7 +75,121 @@
     </div>
   </div>
 
-  <!-- KPI Metrics Ribbon -->
+  <!-- Active AI Batch Generation Progress Banner -->
+  @if (activeBatchJob(); as batch) {
+    <div
+      class="p-4 rounded-2xl border transition-all duration-300 shadow-xs"
+      [ngClass]="{
+        'bg-gradient-to-r from-purple-50/90 via-indigo-50/70 to-purple-50/90 border-purple-200': batch.status === 'IN_PROGRESS' || batch.status === 'QUEUED',
+        'bg-emerald-50/80 border-emerald-200': batch.status === 'COMPLETED',
+        'bg-slate-50 border-slate-200': batch.status === 'CANCELLED',
+        'bg-rose-50 border-rose-200': batch.status === 'FAILED'
+      }"
+    >
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <div
+            class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border"
+            [ngClass]="{
+              'bg-purple-100/80 text-purple-700 border-purple-200': batch.status === 'IN_PROGRESS' || batch.status === 'QUEUED',
+              'bg-emerald-100 text-emerald-700 border-emerald-200': batch.status === 'COMPLETED',
+              'bg-slate-100 text-slate-700 border-slate-200': batch.status === 'CANCELLED',
+              'bg-rose-100 text-rose-700 border-rose-200': batch.status === 'FAILED'
+            }"
+          >
+            @if (batch.status === 'IN_PROGRESS' || batch.status === 'QUEUED') {
+              <mat-icon class="!text-xl animate-spin">sync</mat-icon>
+            } @else if (batch.status === 'COMPLETED') {
+              <mat-icon class="!text-xl text-emerald-600">task_alt</mat-icon>
+            } @else if (batch.status === 'CANCELLED') {
+              <mat-icon class="!text-xl text-slate-600">cancel</mat-icon>
+            } @else {
+              <mat-icon class="!text-xl text-rose-600">error_outline</mat-icon>
+            }
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-bold text-slate-900">
+                @if (batch.status === 'IN_PROGRESS' || batch.status === 'QUEUED') {
+                  AI Batch Generation Running
+                } @else if (batch.status === 'COMPLETED') {
+                  Batch Generation Complete
+                } @else if (batch.status === 'CANCELLED') {
+                  Batch Generation Cancelled
+                } @else {
+                  Batch Generation Failed
+                }
+              </span>
+              <span
+                class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                [ngClass]="{
+                  'bg-purple-200/70 text-purple-800 animate-pulse': batch.status === 'IN_PROGRESS' || batch.status === 'QUEUED',
+                  'bg-emerald-200/70 text-emerald-800': batch.status === 'COMPLETED',
+                  'bg-slate-200 text-slate-700': batch.status === 'CANCELLED',
+                  'bg-rose-200 text-rose-700': batch.status === 'FAILED'
+                }"
+              >
+                {{ batch.status }}
+              </span>
+            </div>
+            <p class="text-xs text-slate-600 font-medium mt-0.5">
+              @if (batch.status === 'IN_PROGRESS' && batch.currentSubtopic) {
+                <span>Currently synthesizing: <strong>{{ batch.currentSubtopic }}</strong></span>
+              } @else {
+                <span>{{ batch.message || 'Processing subtopic micro-lessons in the background.' }}</span>
+              }
+            </p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 self-end sm:self-auto">
+          @if (batch.status === 'IN_PROGRESS' || batch.status === 'QUEUED') {
+            <button
+              mat-stroked-button
+              (click)="openBatchGenerateDialog()"
+              class="!text-xs !rounded-xl !border-purple-300 !text-purple-700 hover:!bg-purple-100/50 cursor-pointer"
+            >
+              <mat-icon class="!text-sm">visibility</mat-icon>
+              View Progress
+            </button>
+            <button
+              mat-stroked-button
+              (click)="cancelActiveBatch()"
+              [disabled]="isCancellingBatch()"
+              class="!text-xs !rounded-xl !border-rose-200 !text-rose-600 hover:!bg-rose-50 cursor-pointer"
+            >
+              Cancel
+            </button>
+          } @else {
+            <button
+              mat-stroked-button
+              (click)="loadLessons(); loadStats(); dismissBatchBanner()"
+              class="!text-xs !rounded-xl !border-slate-300 !text-slate-700 cursor-pointer"
+            >
+              Dismiss
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- Live Determinate Progress Bar for the Batch -->
+      @if (batch.status === 'IN_PROGRESS' || batch.status === 'QUEUED') {
+        <div class="mt-3 space-y-1">
+          <div class="flex justify-between text-[11px] font-semibold text-slate-600">
+            <span>Processed: {{ (batch.totalGenerated || 0) + (batch.totalFailed || 0) }} / {{ batch.totalQueued }} subtopics</span>
+            <span class="text-purple-700 font-bold">{{ batch.percentComplete ?? 0 }}%</span>
+          </div>
+          <mat-progress-bar
+            mode="determinate"
+            [value]="batch.percentComplete ?? 0"
+            class="!rounded-full !h-2"
+          ></mat-progress-bar>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- KPI Metrics Ribbon (Dynamic Server Aggregates) -->
   <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
     <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
       <div>
@@ -106,21 +220,21 @@
     </div>
   </div>
 
-  <!-- Search and Cascading Filter Bar -->
+  <!-- Search and Cascading Filter Bar (Database Dynamic) -->
   <div class="bg-white p-4 rounded-xl border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4 shadow-xs">
     <div class="flex items-center gap-2 w-full md:w-80 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl">
       <mat-icon class="text-slate-400 !w-4 !h-4 !text-base !leading-none flex items-center justify-center shrink-0">search</mat-icon>
       <input
         type="text"
         [ngModel]="searchQuery()"
-        (ngModelChange)="searchQuery.set($event)"
+        (ngModelChange)="onSearchInput($event)"
         placeholder="Search subtopic, topic, subject..."
         class="bg-transparent text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none w-full font-medium"
       />
       @if (searchQuery().trim()) {
         <button
           type="button"
-          (click)="searchQuery.set('')"
+          (click)="onSearchInput('')"
           class="text-slate-400 hover:text-slate-600 cursor-pointer flex items-center justify-center shrink-0"
         >
           <mat-icon class="!w-4 !h-4 !text-base !leading-none flex items-center justify-center shrink-0">close</mat-icon>
@@ -128,13 +242,13 @@
       }
     </div>
 
-    <!-- Taxonomy Filters (Cascading Subject & Topic) -->
+    <!-- Taxonomy Filters (Dynamic Subject & Topic from DB) -->
     <div class="flex items-center gap-2 flex-wrap">
       <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5">
         <span class="text-[11px] font-bold text-slate-400 uppercase">Subject:</span>
         <select
           [ngModel]="selectedSubject()"
-          (ngModelChange)="selectedSubject.set($event); selectedTopic.set('ALL')"
+          (ngModelChange)="onSubjectChange($event)"
           class="bg-transparent text-xs text-slate-700 font-semibold focus:outline-none cursor-pointer"
         >
           @for (subj of distinctSubjects(); track subj) {
@@ -147,7 +261,7 @@
         <span class="text-[11px] font-bold text-slate-400 uppercase">Topic:</span>
         <select
           [ngModel]="selectedTopic()"
-          (ngModelChange)="selectedTopic.set($event)"
+          (ngModelChange)="onTopicChange($event)"
           class="bg-transparent text-xs text-slate-700 font-semibold focus:outline-none cursor-pointer"
         >
           @for (tpc of distinctTopics(); track tpc) {
@@ -161,7 +275,7 @@
         @for (opt of statusOptions; track opt.value) {
           <button
             type="button"
-            (click)="statusFilter.set(opt.value)"
+            (click)="onStatusChange(opt.value)"
             [class.bg-white]="statusFilter() === opt.value"
             [class.shadow-xs]="statusFilter() === opt.value"
             class="px-2.5 py-1 text-xs font-semibold rounded-lg transition-all text-slate-700 cursor-pointer"
@@ -173,9 +287,9 @@
     </div>
   </div>
 
-  <!-- Bulk Moderation Toolbar -->
+  <!-- Bulk Moderation & Bulk Delete Toolbar -->
   @if (selectedIds().size > 0) {
-    <div class="bg-slate-900 text-white px-5 py-3 rounded-2xl flex items-center justify-between shadow-lg sticky top-4 z-20">
+    <div class="bg-slate-900 text-white px-5 py-3 rounded-2xl flex flex-wrap items-center justify-between gap-3 shadow-lg sticky top-4 z-20">
       <div class="flex items-center gap-3">
         <span class="w-6 h-6 rounded-full bg-purple-600 flex items-center justify-center font-bold text-xs">
           {{ selectedIds().size }}
@@ -184,11 +298,11 @@
           {{ selectedIds().size }} micro-lesson{{ selectedIds().size > 1 ? 's' : '' }} selected
         </span>
       </div>
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 flex-wrap">
         <button
           type="button"
           (click)="bulkSubmit('APPROVE')"
-          [disabled]="isBulkSubmitting()"
+          [disabled]="isBulkSubmitting() || isBulkDeleting()"
           class="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold cursor-pointer transition-all disabled:opacity-50"
         >
           Approve Selected
@@ -196,7 +310,7 @@
         <button
           type="button"
           (click)="bulkSubmit('PUBLISH')"
-          [disabled]="isBulkSubmitting()"
+          [disabled]="isBulkSubmitting() || isBulkDeleting()"
           class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer transition-all disabled:opacity-50"
         >
           Publish Selected
@@ -204,10 +318,24 @@
         <button
           type="button"
           (click)="bulkSubmit('REJECT')"
-          [disabled]="isBulkSubmitting()"
-          class="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold cursor-pointer transition-all disabled:opacity-50"
+          [disabled]="isBulkSubmitting() || isBulkDeleting()"
+          class="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold cursor-pointer transition-all disabled:opacity-50"
         >
           Reject Selected
+        </button>
+        <button
+          type="button"
+          (click)="bulkDeleteSelected()"
+          [disabled]="isBulkSubmitting() || isBulkDeleting()"
+          class="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold cursor-pointer transition-all disabled:opacity-50 flex items-center gap-1.5"
+        >
+          @if (isBulkDeleting()) {
+            <mat-progress-spinner diameter="14" mode="indeterminate" class="!inline-block"></mat-progress-spinner>
+            <span>Deleting...</span>
+          } @else {
+            <mat-icon class="!text-sm leading-none">delete</mat-icon>
+            <span>Delete Selected</span>
+          }
         </button>
         <button
           type="button"
@@ -234,7 +362,7 @@
           <div class="p-12 text-center text-slate-400">
             <mat-icon class="!text-4xl text-slate-300 mb-2">find_in_page</mat-icon>
             <p class="text-sm font-semibold text-slate-600">No micro-lessons match the current filter</p>
-            <p class="text-xs text-slate-400 mt-1">Try selecting another status or generating new micro-lessons.</p>
+            <p class="text-xs text-slate-400 mt-1">Try selecting another status, resetting filters, or generating new micro-lessons.</p>
           </div>
         } @else {
           <div class="overflow-x-auto">
@@ -290,18 +418,102 @@
                       <td class="py-3 px-4 text-slate-400">{{ item.updatedAt ? (item.updatedAt | date:'shortDate') : '-' }}</td>
                     }
                     <td class="py-3 px-4 text-right whitespace-nowrap">
-                      <button
-                        type="button"
-                        (click)="selectLesson(item); $event.stopPropagation()"
-                        class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer"
-                      >
-                        Inspect &rarr;
-                      </button>
+                      <div class="inline-flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          (click)="selectLesson(item); $event.stopPropagation()"
+                          class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer transition-colors"
+                        >
+                          Inspect &rarr;
+                        </button>
+                        <button
+                          type="button"
+                          (click)="deleteLesson(item, $event)"
+                          title="Delete Micro-Lesson"
+                          class="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer transition-colors inline-flex items-center"
+                        >
+                          <mat-icon class="!text-base">delete_outline</mat-icon>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 }
               </tbody>
             </table>
+          </div>
+
+          <!-- Server-side Pagination Bar -->
+          <div class="px-5 py-3.5 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+            <div class="flex items-center gap-2 text-slate-500 font-medium">
+              <span>Showing</span>
+              <span class="font-bold text-slate-800">{{ displayStart() }}</span>
+              <span>to</span>
+              <span class="font-bold text-slate-800">{{ displayEnd() }}</span>
+              <span>of</span>
+              <span class="font-bold text-slate-900">{{ totalElements() }}</span>
+              <span>micro-lessons</span>
+            </div>
+
+            <div class="flex items-center gap-3">
+              <!-- Page Size Selector -->
+              <div class="flex items-center gap-1.5">
+                <span class="text-slate-400 font-medium">Per page:</span>
+                <select
+                  [ngModel]="pageSize()"
+                  (ngModelChange)="onPageSizeChange($event)"
+                  class="bg-white border border-slate-200 rounded-lg px-2 py-1 text-slate-700 font-bold focus:outline-none cursor-pointer"
+                >
+                  @for (size of pageSizeOptions; track size) {
+                    <option [value]="size">{{ size }}</option>
+                  }
+                </select>
+              </div>
+
+              <!-- Page Navigation Controls -->
+              <div class="flex items-center gap-1">
+                <button
+                  type="button"
+                  (click)="firstPage()"
+                  [disabled]="pageIndex() === 0 || isLoading()"
+                  class="p-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                  title="First Page"
+                >
+                  <mat-icon class="!text-base !w-4 !h-4 flex items-center justify-center">first_page</mat-icon>
+                </button>
+                <button
+                  type="button"
+                  (click)="prevPage()"
+                  [disabled]="pageIndex() === 0 || isLoading()"
+                  class="p-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                  title="Previous Page"
+                >
+                  <mat-icon class="!text-base !w-4 !h-4 flex items-center justify-center">chevron_left</mat-icon>
+                </button>
+
+                <span class="px-2 font-semibold text-slate-700">
+                  Page {{ totalPages() === 0 ? 0 : pageIndex() + 1 }} of {{ totalPages() }}
+                </span>
+
+                <button
+                  type="button"
+                  (click)="nextPage()"
+                  [disabled]="pageIndex() >= totalPages() - 1 || isLoading()"
+                  class="p-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                  title="Next Page"
+                >
+                  <mat-icon class="!text-base !w-4 !h-4 flex items-center justify-center">chevron_right</mat-icon>
+                </button>
+                <button
+                  type="button"
+                  (click)="lastPage()"
+                  [disabled]="pageIndex() >= totalPages() - 1 || isLoading()"
+                  class="p-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                  title="Last Page"
+                >
+                  <mat-icon class="!text-base !w-4 !h-4 flex items-center justify-center">last_page</mat-icon>
+                </button>
+              </div>
+            </div>
           </div>
         }
       </div>
@@ -351,6 +563,15 @@
               }
               <button
                 type="button"
+                (click)="deleteLesson(lesson)"
+                class="text-xs font-bold px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 flex items-center gap-1 cursor-pointer transition-colors"
+                title="Delete this micro-lesson"
+              >
+                <mat-icon class="!text-sm">delete_outline</mat-icon>
+                Delete
+              </button>
+              <button
+                type="button"
                 (click)="closePreview()"
                 class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 cursor-pointer"
                 title="Close Preview"
@@ -370,129 +591,146 @@
               </h3>
               @if (isEditingContent()) {
                 <textarea
-                  rows="3"
                   [ngModel]="editedCoreConcept()"
                   (ngModelChange)="editedCoreConcept.set($event)"
-                  placeholder="Enter core concept explanation with KaTeX ($...$ or $$...$$)..."
-                  class="w-full text-xs p-2.5 rounded-lg border border-indigo-200 focus:outline-none focus:border-indigo-500 bg-white font-mono"
+                  rows="3"
+                  class="w-full text-xs font-mono bg-white border border-indigo-200 rounded-lg p-2.5 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                  placeholder="Core Concept text with LaTeX formulas (e.g. $E = mc^2$)"
                 ></textarea>
-                <div class="mt-2 p-2.5 bg-white rounded-lg border border-indigo-100">
-                  <span class="text-[10px] font-bold text-indigo-400 uppercase tracking-wider block mb-1">Live KaTeX Render:</span>
+                <p class="text-[10px] text-slate-400 mt-1">Live LaTeX preview below:</p>
+                <div class="mt-2 bg-white/80 p-3 rounded-lg border border-indigo-100/60">
                   <nag-math-renderer [content]="editedCoreConcept()"></nag-math-renderer>
                 </div>
               } @else {
-                <nag-math-renderer [content]="lesson.content?.coreConcept || lesson.coreConcept || 'No core concept provided.'"></nag-math-renderer>
+                <div class="text-xs text-slate-800 leading-relaxed font-sans">
+                  <nag-math-renderer [content]="lesson.content?.coreConcept || lesson.coreConcept || 'No core concept available.'"></nag-math-renderer>
+                </div>
               }
             </div>
 
             <!-- 2. Trap Alert -->
-            <div class="bg-rose-50/40 rounded-xl p-4 border border-rose-100">
-              <h3 class="text-xs font-bold uppercase tracking-wider text-rose-700 flex items-center gap-1.5 mb-2">
+            <div class="bg-amber-50/40 rounded-xl p-4 border border-amber-100">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-amber-700 flex items-center gap-1.5 mb-2">
                 <mat-icon class="!text-sm">warning_amber</mat-icon>
-                2. The Trap Alert
+                2. Trap Alert (Common Misconception)
               </h3>
               @if (isEditingContent()) {
                 <textarea
-                  rows="3"
                   [ngModel]="editedTrapAlert()"
                   (ngModelChange)="editedTrapAlert.set($event)"
-                  placeholder="Enter misconception/trap explanation with KaTeX ($...$ or $$...$$)..."
-                  class="w-full text-xs p-2.5 rounded-lg border border-rose-200 focus:outline-none focus:border-rose-500 bg-white font-mono"
+                  rows="2"
+                  class="w-full text-xs font-mono bg-white border border-amber-200 rounded-lg p-2.5 focus:ring-1 focus:ring-amber-500 focus:outline-none"
+                  placeholder="Trap description with LaTeX formulas"
                 ></textarea>
-                <div class="mt-2 p-2.5 bg-white rounded-lg border border-rose-100">
-                  <span class="text-[10px] font-bold text-rose-400 uppercase tracking-wider block mb-1">Live KaTeX Render:</span>
+                <p class="text-[10px] text-slate-400 mt-1">Live LaTeX preview below:</p>
+                <div class="mt-2 bg-white/80 p-3 rounded-lg border border-amber-100/60">
                   <nag-math-renderer [content]="editedTrapAlert()"></nag-math-renderer>
                 </div>
               } @else {
-                <nag-math-renderer [content]="lesson.content?.trapAlert || lesson.trap || 'No trap alert specified.'"></nag-math-renderer>
+                <div class="text-xs text-amber-900 leading-relaxed">
+                  <nag-math-renderer [content]="lesson.content?.trapAlert || lesson.trap || 'No trap warnings recorded.'"></nag-math-renderer>
+                </div>
               }
             </div>
 
-            <!-- 3. KaTeX Cheat Sheet -->
-            <div class="bg-amber-50/40 rounded-xl p-4 border border-amber-100">
-              <h3 class="text-xs font-bold uppercase tracking-wider text-amber-700 flex items-center gap-1.5 mb-2">
+            <!-- 3. Formula Cheat Sheet -->
+            <div class="bg-emerald-50/40 rounded-xl p-4 border border-emerald-100">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-emerald-700 flex items-center gap-1.5 mb-2">
                 <mat-icon class="!text-sm">functions</mat-icon>
-                3. KaTeX Formula Cheat Sheet
+                3. Formula Cheat Sheet
               </h3>
               @if (isEditingContent()) {
                 <textarea
-                  rows="3"
                   [ngModel]="editedFormulaCheatSheet()"
                   (ngModelChange)="editedFormulaCheatSheet.set($event)"
-                  placeholder="Enter formula cheat sheet with KaTeX ($$ ... $$)..."
-                  class="w-full text-xs p-2.5 rounded-lg border border-amber-200 focus:outline-none focus:border-amber-500 bg-white font-mono"
+                  rows="3"
+                  class="w-full text-xs font-mono bg-white border border-emerald-200 rounded-lg p-2.5 focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                  placeholder="Key formulas, separated by double newlines: e.g. $$I = m r^2$$"
                 ></textarea>
-                <div class="mt-2 p-2.5 bg-white rounded-lg border border-amber-100">
-                  <span class="text-[10px] font-bold text-amber-400 uppercase tracking-wider block mb-1">Live KaTeX Render:</span>
+                <p class="text-[10px] text-slate-400 mt-1">Live KaTeX preview below:</p>
+                <div class="mt-2 bg-white/80 p-3 rounded-lg border border-emerald-100/60">
                   <nag-math-renderer [content]="editedFormulaCheatSheet()"></nag-math-renderer>
                 </div>
               } @else {
-                <nag-math-renderer [content]="lesson.content?.formulaCheatSheet || 'No formulas provided.'"></nag-math-renderer>
+                <div class="text-xs text-slate-800 leading-relaxed">
+                  <nag-math-renderer [content]="lesson.content?.formulaCheatSheet || 'No formulas provided.'"></nag-math-renderer>
+                </div>
               }
             </div>
 
             <!-- 4. Step-by-Step Breakdown -->
             @if (lesson.content?.stepByStepBreakdown; as breakdown) {
-              <div class="bg-slate-50 rounded-xl p-4 border border-slate-200">
-                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5 mb-2">
+              <div class="bg-purple-50/40 rounded-xl p-4 border border-purple-100 space-y-3">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-purple-700 flex items-center gap-1.5">
                   <mat-icon class="!text-sm">format_list_numbered</mat-icon>
-                  4. Step-by-Step Problem Breakdown
+                  4. Exemplar Breakdown
                 </h3>
-                <div class="mb-3 p-3 bg-white rounded-lg border border-slate-200 text-xs">
-                  <span class="font-bold text-slate-500 uppercase text-[10px] block mb-1">Problem Statement</span>
-                  <nag-math-renderer [content]="breakdown.problemStatement"></nag-math-renderer>
-                </div>
-
-                <div class="space-y-3">
-                  @for (st of breakdown.steps; track st.stepNumber) {
-                    <div class="bg-white p-3 rounded-lg border border-slate-200 text-xs">
-                      <div class="flex items-center gap-2 mb-1.5">
-                        <span class="w-5 h-5 rounded-full bg-slate-900 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
-                          {{ st.stepNumber }}
+                @if (breakdown.problemStatement) {
+                  <div class="bg-white p-3 rounded-lg border border-purple-100/80">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Problem Statement</p>
+                    <div class="text-xs font-medium text-slate-800">
+                      <nag-math-renderer [content]="breakdown.problemStatement"></nag-math-renderer>
+                    </div>
+                  </div>
+                }
+                @if (breakdown.steps && breakdown.steps.length > 0) {
+                  <div class="space-y-2">
+                    @for (st of breakdown.steps; track st.stepNumber || $index) {
+                      <div class="bg-white p-3 rounded-lg border border-slate-100 flex items-start gap-2.5">
+                        <span class="w-5 h-5 rounded-full bg-purple-100 text-purple-700 font-bold text-[11px] flex items-center justify-center shrink-0">
+                          {{ st.stepNumber || ($index + 1) }}
                         </span>
-                        <span class="font-bold text-slate-800">{{ st.title }}</span>
+                        <div class="space-y-1 w-full">
+                          <p class="text-xs font-bold text-slate-900">{{ st.title }}</p>
+                          @if (st.explanation) {
+                            <div class="text-xs text-slate-600">
+                              <nag-math-renderer [content]="st.explanation"></nag-math-renderer>
+                            </div>
+                          }
+                          @if (st.formula) {
+                            <div class="mt-1 bg-slate-50 p-2 rounded border border-slate-200/60 font-mono text-xs">
+                              <nag-math-renderer [content]="st.formula" [inline]="true"></nag-math-renderer>
+                            </div>
+                          }
+                        </div>
                       </div>
-                      <div class="pl-7 space-y-1.5">
-                        <nag-math-renderer [content]="st.explanation"></nag-math-renderer>
-                        @if (st.formula) {
-                          <div class="p-2 bg-slate-50 rounded border border-slate-200">
-                            <nag-math-renderer [content]="st.formula"></nag-math-renderer>
-                          </div>
-                        }
-                      </div>
+                    }
+                  </div>
+                }
+                @if (breakdown.finalAnswer) {
+                  <div class="bg-emerald-50 border border-emerald-200 p-2.5 rounded-lg flex items-center gap-2">
+                    <mat-icon class="!text-base text-emerald-600">task_alt</mat-icon>
+                    <div class="text-xs font-bold text-emerald-800">
+                      <nag-math-renderer [content]="breakdown.finalAnswer" [inline]="true"></nag-math-renderer>
                     </div>
-                  }
-                  @if (breakdown.finalAnswer) {
-                    <div class="bg-emerald-50/70 p-3 rounded-lg border border-emerald-200 text-xs flex items-center justify-between">
-                      <span class="font-bold text-emerald-800 uppercase text-[10px]">Final Answer:</span>
-                      <nag-math-renderer [content]="breakdown.finalAnswer"></nag-math-renderer>
-                    </div>
-                  }
-                </div>
+                  </div>
+                }
               </div>
             }
           </div>
 
-          <!-- Reviewer Actions and Notes -->
+          <!-- Moderation Decision & Reviewer Notes Panel -->
           <div class="border-t border-slate-100 pt-4 space-y-3">
             <div>
-              <label class="block text-xs font-bold text-slate-700 mb-1">Reviewer Feedback / Audit Notes</label>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Reviewer Feedback & Audit Comments</label>
               <textarea
-                rows="2"
                 [ngModel]="reviewerNotes()"
                 (ngModelChange)="reviewerNotes.set($event)"
-                placeholder="Optional notes or correction guidance..."
-                class="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-purple-500 bg-slate-50"
+                rows="2"
+                placeholder="Optional notes for faculty review trail or rejection reason..."
+                class="w-full text-xs rounded-xl border border-slate-200 p-2.5 bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-purple-500 transition-colors"
               ></textarea>
             </div>
 
-            <div class="flex items-center justify-end gap-2.5">
+            <!-- Decision Action Bar -->
+            <div class="flex items-center justify-end gap-2 pt-1">
               <button
                 type="button"
                 mat-stroked-button
+                color="warn"
                 (click)="submitReview('REJECT')"
                 [disabled]="isSubmitting()"
-                class="!text-rose-600 !border-rose-200 hover:!bg-rose-50 !rounded-xl text-xs font-bold cursor-pointer"
+                class="!rounded-xl text-xs font-bold !text-rose-600 !border-rose-200 hover:!bg-rose-50 cursor-pointer"
               >
                 <mat-icon class="!text-sm">close</mat-icon>
                 Reject

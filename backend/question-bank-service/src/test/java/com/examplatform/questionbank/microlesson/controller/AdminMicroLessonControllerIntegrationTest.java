@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -129,6 +130,102 @@ class AdminMicroLessonControllerIntegrationTest extends AbstractIntegrationTest 
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.content[0].status").value("APPROVED"));
         }
+
+        @Test
+        @DisplayName("200 OK - Filters with specification when topic/query provided")
+        void testListWithSpecification() throws Exception {
+            SubtopicMicroLesson entity = buildSampleEntity("APPROVED");
+            MicroLessonResponse response = buildSampleResponse("APPROVED");
+
+            when(repository.findAll(any(Specification.class), any(Pageable.class)))
+                    .thenReturn(new PageImpl<>(List.of(entity)));
+            when(generatorService.toResponse(entity)).thenReturn(response);
+
+            mockMvc.perform(get("/api/admin/micro-lessons")
+                            .param("topic", "Mechanics")
+                            .param("query", "Inertia")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_FACULTY"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.content[0].topic").value("Mechanics"));
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /api/admin/micro-lessons/stats")
+    class StatsEndpoint {
+
+        @Test
+        @DisplayName("200 OK - Returns aggregate micro-lesson statistics")
+        void testGetStats() throws Exception {
+            when(repository.count()).thenReturn(45L);
+            when(repository.countByStatus("AI_GENERATED")).thenReturn(15L);
+            when(repository.countByStatus("APPROVED")).thenReturn(20L);
+            when(repository.countByStatus("PUBLISHED")).thenReturn(10L);
+
+            mockMvc.perform(get("/api/admin/micro-lessons/stats")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.total").value(45))
+                    .andExpect(jsonPath("$.aiGenerated").value(15))
+                    .andExpect(jsonPath("$.approved").value(20));
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /api/admin/micro-lessons/filter-options")
+    class FilterOptionsEndpoint {
+
+        @Test
+        @DisplayName("200 OK - Returns unique filter options")
+        void testGetFilterOptions() throws Exception {
+            when(repository.findDistinctSubjects()).thenReturn(List.of("Physics", "Chemistry"));
+            when(repository.findDistinctTopics(any())).thenReturn(List.of("Mechanics", "Thermodynamics"));
+
+            mockMvc.perform(get("/api/admin/micro-lessons/filter-options")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.subjects[0]").value("Physics"))
+                    .andExpect(jsonPath("$.topics[0]").value("Mechanics"))
+                    .andExpect(jsonPath("$.statuses[0]").value("ALL"));
+        }
+    }
+
+    @Nested
+    @DisplayName("DELETE /api/admin/micro-lessons")
+    class DeleteEndpoints {
+
+        @Test
+        @DisplayName("204 No Content - Deletes single micro-lesson")
+        void testDeleteSingle() throws Exception {
+            SubtopicMicroLesson entity = buildSampleEntity("AI_GENERATED");
+            when(repository.findById(LESSON_ID)).thenReturn(Optional.of(entity));
+
+            mockMvc.perform(delete("/api/admin/micro-lessons/" + LESSON_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+                    .andExpect(status().isNoContent());
+
+            verify(cacheService).evict(100L);
+            verify(repository).delete(entity);
+        }
+
+        @Test
+        @DisplayName("200 OK - Bulk deletes micro-lessons by IDs")
+        void testBulkDelete() throws Exception {
+            SubtopicMicroLesson entity1 = buildSampleEntity("AI_GENERATED");
+            when(repository.findAllById(List.of(LESSON_ID))).thenReturn(List.of(entity1));
+
+            BulkDeleteMicroLessonsRequest req = new BulkDeleteMicroLessonsRequest(List.of(LESSON_ID));
+
+            mockMvc.perform(post("/api/admin/micro-lessons/bulk-delete")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(req))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.deletedCount").value(1));
+
+            verify(cacheService).evict(100L);
+            verify(repository).deleteAll(List.of(entity1));
+        }
     }
 
     @Nested
@@ -185,6 +282,78 @@ class AdminMicroLessonControllerIntegrationTest extends AbstractIntegrationTest 
         }
 
         @Test
+        @DisplayName("200 OK - Faculty rejects micro-lesson using verb 'REJECT'")
+        void testRejectMicroLessonWithActionVerb() throws Exception {
+            SubtopicMicroLesson entity = buildSampleEntity("AI_GENERATED");
+            when(repository.findById(LESSON_ID)).thenReturn(Optional.of(entity));
+            when(repository.save(any(SubtopicMicroLesson.class))).thenAnswer(inv -> inv.getArgument(0));
+            when(generatorService.toResponse(any(SubtopicMicroLesson.class)))
+                    .thenReturn(buildSampleResponse("REJECTED"));
+
+            ReviewMicroLessonRequest req = new ReviewMicroLessonRequest(
+                    "REJECT", "Incomplete KaTeX formulas", null, null, null, null
+            );
+
+            mockMvc.perform(put("/api/admin/micro-lessons/" + LESSON_ID + "/review")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(req))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_FACULTY"))
+                                    .jwt(j -> j.subject(REVIEWER_ID.toString()))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("REJECTED"));
+
+            verify(cacheService).evict(100L);
+        }
+
+        @Test
+        @DisplayName("200 OK - Faculty rejects micro-lesson using participle 'REJECTED'")
+        void testRejectMicroLessonWithStatusParticiple() throws Exception {
+            SubtopicMicroLesson entity = buildSampleEntity("AI_GENERATED");
+            when(repository.findById(LESSON_ID)).thenReturn(Optional.of(entity));
+            when(repository.save(any(SubtopicMicroLesson.class))).thenAnswer(inv -> inv.getArgument(0));
+            when(generatorService.toResponse(any(SubtopicMicroLesson.class)))
+                    .thenReturn(buildSampleResponse("REJECTED"));
+
+            ReviewMicroLessonRequest req = new ReviewMicroLessonRequest(
+                    "REJECTED", "Content does not meet guidelines", null, null, null, null
+            );
+
+            mockMvc.perform(put("/api/admin/micro-lessons/" + LESSON_ID + "/review")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(req))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_FACULTY"))
+                                    .jwt(j -> j.subject(REVIEWER_ID.toString()))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("REJECTED"));
+
+            verify(cacheService).evict(100L);
+        }
+
+        @Test
+        @DisplayName("200 OK - Faculty approves micro-lesson using action verb 'APPROVE'")
+        void testApproveMicroLessonWithActionVerb() throws Exception {
+            SubtopicMicroLesson entity = buildSampleEntity("AI_GENERATED");
+            when(repository.findById(LESSON_ID)).thenReturn(Optional.of(entity));
+            when(repository.save(any(SubtopicMicroLesson.class))).thenAnswer(inv -> inv.getArgument(0));
+            when(generatorService.toResponse(any(SubtopicMicroLesson.class)))
+                    .thenReturn(buildSampleResponse("APPROVED"));
+
+            ReviewMicroLessonRequest req = new ReviewMicroLessonRequest(
+                    "APPROVE", "Looks great", null, null, null, null
+            );
+
+            mockMvc.perform(put("/api/admin/micro-lessons/" + LESSON_ID + "/review")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(req))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_FACULTY"))
+                                    .jwt(j -> j.subject(REVIEWER_ID.toString()))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("APPROVED"));
+
+            verify(cacheService).evict(100L);
+        }
+
+        @Test
         @DisplayName("400 Bad Request - When status transition is missing or invalid")
         void testInvalidStatusTransition() throws Exception {
             ReviewMicroLessonRequest req = new ReviewMicroLessonRequest(
@@ -237,13 +406,22 @@ class AdminMicroLessonControllerIntegrationTest extends AbstractIntegrationTest 
     class BatchGenerateEndpoint {
 
         @Test
-        @DisplayName("200 OK - Triggers batch runner and returns summary")
+        @DisplayName("200 OK - Triggers batch runner and returns tracking summary")
         void testTriggerBatchRunner() throws Exception {
             BatchGenerateResponse mockResp = new BatchGenerateResponse(
-                    "COMPLETED", 5, 5, 0, List.of("Subtopic A", "Subtopic B"), "Batch completed"
+                    "batch-123",
+                    "IN_PROGRESS",
+                    5,
+                    2,
+                    0,
+                    40,
+                    "Subtopic C",
+                    List.of("Subtopic A", "Subtopic B"),
+                    List.of(),
+                    "Batch job queued with 5 subtopics"
             );
 
-            when(batchRunner.runBatchGeneration(any(BatchGenerateMicroLessonsRequest.class)))
+            when(batchRunner.startBatchJob(any(BatchGenerateMicroLessonsRequest.class)))
                     .thenReturn(mockResp);
 
             BatchGenerateMicroLessonsRequest req = new BatchGenerateMicroLessonsRequest(
@@ -255,8 +433,85 @@ class AdminMicroLessonControllerIntegrationTest extends AbstractIntegrationTest 
                             .content(objectMapper.writeValueAsString(req))
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.status").value("COMPLETED"))
-                    .andExpect(jsonPath("$.totalGenerated").value(5));
+                    .andExpect(jsonPath("$.batchId").value("batch-123"))
+                    .andExpect(jsonPath("$.status").value("IN_PROGRESS"))
+                    .andExpect(jsonPath("$.percentComplete").value(40))
+                    .andExpect(jsonPath("$.currentSubtopic").value("Subtopic C"))
+                    .andExpect(jsonPath("$.totalGenerated").value(2));
+        }
+
+        @Test
+        @DisplayName("200 OK - Retrieves batch job status by ID")
+        void testGetBatchJobStatus() throws Exception {
+            BatchGenerateResponse mockResp = new BatchGenerateResponse(
+                    "batch-123",
+                    "IN_PROGRESS",
+                    10,
+                    5,
+                    0,
+                    50,
+                    "Subtopic 6",
+                    List.of("Subtopic 1", "Subtopic 2"),
+                    List.of(),
+                    "In progress"
+            );
+
+            when(batchRunner.getJobStatus("batch-123")).thenReturn(Optional.of(mockResp));
+
+            mockMvc.perform(get("/api/admin/micro-lessons/batch-jobs/batch-123")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.batchId").value("batch-123"))
+                    .andExpect(jsonPath("$.percentComplete").value(50));
+        }
+
+        @Test
+        @DisplayName("200 OK - Retrieves active batch job")
+        void testGetActiveBatchJob() throws Exception {
+            BatchGenerateResponse mockResp = new BatchGenerateResponse(
+                    "batch-active-1",
+                    "IN_PROGRESS",
+                    8,
+                    4,
+                    0,
+                    50,
+                    "Subtopic 5",
+                    List.of("Subtopic 1"),
+                    List.of(),
+                    "Running"
+            );
+
+            when(batchRunner.getActiveJob()).thenReturn(mockResp);
+
+            mockMvc.perform(get("/api/admin/micro-lessons/batch-jobs/active")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.batchId").value("batch-active-1"))
+                    .andExpect(jsonPath("$.status").value("IN_PROGRESS"));
+        }
+
+        @Test
+        @DisplayName("200 OK - Cancels active batch job")
+        void testCancelBatchJob() throws Exception {
+            BatchGenerateResponse mockResp = new BatchGenerateResponse(
+                    "batch-active-1",
+                    "CANCELLED",
+                    8,
+                    4,
+                    0,
+                    50,
+                    null,
+                    List.of("Subtopic 1"),
+                    List.of(),
+                    "Generation cancelled by user."
+            );
+
+            when(batchRunner.cancelJob("batch-active-1")).thenReturn(Optional.of(mockResp));
+
+            mockMvc.perform(post("/api/admin/micro-lessons/batch-jobs/batch-active-1/cancel")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("CANCELLED"));
         }
     }
 }

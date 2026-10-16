@@ -54,6 +54,8 @@ class PromptTemplateServiceTest {
         assertThat(prompt).contains("You are an expert master faculty and pedagogical content designer");
         assertThat(prompt).contains("stepByStepBreakdown");
         assertThat(prompt).contains("cheatSheet");
+        assertThat(prompt).contains("\\frac{1}{100}");
+        assertThat(prompt).contains("r_{eff}");
     }
 
     @Test

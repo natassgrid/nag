@@ -1,17 +1,26 @@
+import { provideRouter } from '@angular/router';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MicroLessonReviewComponent } from './micro-lesson-review.component';
 import { MicroLessonAdminService } from '../../services/micro-lesson-admin.service';
-import { of } from 'rxjs';
+import {
+  NotificationService,
+  MathRendererComponent,
+} from '@nag-frontend-workspace/shared-ui-components';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatDialog } from '@angular/material/dialog';
-import { MicroLessonReviewItem, adaptToReviewItem } from '../../models/micro-lesson.model';
+import { of, throwError } from 'rxjs';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
-import { ActivatedRoute } from '@angular/router';
+import {
+  MicroLessonReviewItem,
+  adaptToReviewItem,
+  BatchGenerateResponse,
+} from '../../models/micro-lesson.model';
 
 describe('MicroLessonReviewComponent', () => {
   let component: MicroLessonReviewComponent;
   let fixture: ComponentFixture<MicroLessonReviewComponent>;
   let microLessonServiceMock: any;
+  let notificationServiceMock: any;
   let snackBarMock: any;
   let dialogMock: any;
 
@@ -19,10 +28,10 @@ describe('MicroLessonReviewComponent', () => {
     {
       id: 'ml-1',
       subtopicId: 101,
-      subtopicName: 'Bayes Theorem & Conditional Probability',
+      subtopicName: 'Bayes Theorem Application',
       topicName: 'Probability',
       subjectName: 'Mathematics',
-      targetExam: 'GATE-CS',
+      targetExam: 'JEE-ADVANCED',
       status: 'AI_GENERATED',
       contentVersion: 1,
       reviewerNotes: null,
@@ -96,9 +105,35 @@ describe('MicroLessonReviewComponent', () => {
           size: 20,
         })
       ),
+      getStats: jest.fn().mockReturnValue(
+        of({
+          total: 3,
+          aiGenerated: 1,
+          inReview: 0,
+          approved: 1,
+          published: 1,
+          rejected: 0,
+        })
+      ),
+      getFilterOptions: jest.fn().mockReturnValue(
+        of({
+          subjects: ['Mathematics', 'Physics'],
+          topics: ['Linear Algebra', 'Probability', 'Rotational Mechanics'],
+          statuses: ['ALL', 'AI_GENERATED', 'IN_REVIEW', 'APPROVED', 'PUBLISHED', 'REJECTED'],
+        })
+      ),
+      deleteMicroLesson: jest.fn().mockReturnValue(of(undefined)),
+      bulkDelete: jest.fn().mockReturnValue(of({ deletedCount: 2 })),
       reviewMicroLesson: jest.fn(),
       triggerBatchGenerate: jest.fn(),
       generateSingle: jest.fn(),
+      getActiveBatchJob: jest.fn().mockReturnValue(of(null)),
+      getBatchJobStatus: jest.fn().mockReturnValue(of(null)),
+      cancelBatchJob: jest.fn().mockReturnValue(of(null)),
+    };
+
+    notificationServiceMock = {
+      confirm: jest.fn().mockResolvedValue(true),
     };
 
     snackBarMock = {
@@ -112,12 +147,17 @@ describe('MicroLessonReviewComponent', () => {
     };
 
     await TestBed.configureTestingModule({
-      imports: [MicroLessonReviewComponent, NoopAnimationsModule],
+      imports: [
+        MicroLessonReviewComponent,
+        MathRendererComponent,
+        NoopAnimationsModule,
+      ],
       providers: [
         { provide: MicroLessonAdminService, useValue: microLessonServiceMock },
+        { provide: NotificationService, useValue: notificationServiceMock },
         { provide: MatSnackBar, useValue: snackBarMock },
         { provide: MatDialog, useValue: dialogMock },
-        { provide: ActivatedRoute, useValue: { snapshot: { params: {} } } },
+        provideRouter([]),
       ],
     })
     .overrideComponent(MicroLessonReviewComponent, {
@@ -134,24 +174,99 @@ describe('MicroLessonReviewComponent', () => {
     fixture.detectChanges();
   });
 
-  it('should create and populate computed metrics', () => {
+  it('should create and load data on init', () => {
     expect(component).toBeTruthy();
+    expect(microLessonServiceMock.listForReview).toHaveBeenCalled();
+    expect(microLessonServiceMock.getStats).toHaveBeenCalled();
+    expect(microLessonServiceMock.getFilterOptions).toHaveBeenCalled();
+    expect(microLessonServiceMock.getActiveBatchJob).toHaveBeenCalled();
     expect(component.lessons().length).toBe(3);
     expect(component.totalCount()).toBe(3);
     expect(component.aiGeneratedCount()).toBe(1);
     expect(component.approvedCount()).toBe(2);
   });
 
-  it('should filter lessons by cascading subject and topic', () => {
-    expect(component.distinctSubjects()).toEqual(['ALL', 'Mathematics', 'Physics']);
+  it('should filter lessons by dynamic subjects and topics from database', () => {
+    component.onSubjectChange('Mathematics');
+    expect(component.selectedSubject()).toBe('Mathematics');
+    expect(component.selectedTopic()).toBe('ALL');
+    expect(microLessonServiceMock.getFilterOptions).toHaveBeenCalledWith('Mathematics');
+    expect(microLessonServiceMock.listForReview).toHaveBeenCalledWith(
+      expect.objectContaining({ subject: 'Mathematics' })
+    );
 
-    component.selectedSubject.set('Mathematics');
-    expect(component.distinctTopics()).toEqual(['ALL', 'Linear Algebra', 'Probability']);
-    expect(component.filteredLessons().length).toBe(2);
+    component.onTopicChange('Probability');
+    expect(component.selectedTopic()).toBe('Probability');
+    expect(microLessonServiceMock.listForReview).toHaveBeenCalledWith(
+      expect.objectContaining({ topic: 'Probability' })
+    );
+  });
 
-    component.selectedTopic.set('Probability');
-    expect(component.filteredLessons().length).toBe(1);
-    expect(component.filteredLessons()[0].id).toBe('ml-1');
+  it('should perform server-side pagination transitions', () => {
+    microLessonServiceMock.listForReview.mockReturnValue(
+      of({
+        content: mockLessons,
+        totalElements: 30,
+        totalPages: 3,
+        number: 0,
+        size: 10,
+      })
+    );
+    component.totalPages.set(3);
+    component.pageIndex.set(0);
+
+    component.nextPage();
+    expect(component.pageIndex()).toBe(1);
+
+    component.prevPage();
+    expect(component.pageIndex()).toBe(0);
+
+    component.lastPage();
+    expect(component.pageIndex()).toBe(2);
+
+    component.firstPage();
+    expect(component.pageIndex()).toBe(0);
+
+    component.onPageSizeChange(50);
+    expect(component.pageSize()).toBe(50);
+    expect(component.pageIndex()).toBe(0);
+  });
+
+  it('should prompt confirmation and delete single micro-lesson', async () => {
+    const lessonToDelete = mockLessons[0];
+    await component.deleteLesson(lessonToDelete);
+
+    expect(notificationServiceMock.confirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Delete Micro-Lesson?',
+        type: 'danger',
+      })
+    );
+    expect(microLessonServiceMock.deleteMicroLesson).toHaveBeenCalledWith('ml-1');
+    expect(snackBarMock.open).toHaveBeenCalledWith(
+      'Deleted micro-lesson: "Bayes Theorem Application"',
+      'OK',
+      expect.any(Object)
+    );
+  });
+
+  it('should prompt confirmation and bulk delete selected micro-lessons', async () => {
+    component.selectedIds.set(new Set(['ml-1', 'ml-2']));
+    await component.bulkDeleteSelected();
+
+    expect(notificationServiceMock.confirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Delete 2 Micro-Lessons?',
+        type: 'danger',
+      })
+    );
+    expect(microLessonServiceMock.bulkDelete).toHaveBeenCalledWith(['ml-1', 'ml-2']);
+    expect(component.selectedIds().size).toBe(0);
+    expect(snackBarMock.open).toHaveBeenCalledWith(
+      'Successfully deleted 2 micro-lessons.',
+      'OK',
+      expect.any(Object)
+    );
   });
 
   it('should manage multi-selection and bulk submission', () => {
@@ -210,7 +325,7 @@ describe('MicroLessonReviewComponent', () => {
     expect(component.isEditingContent()).toBe(false);
   });
 
-  it('should open generate dialog and prepend created micro-lesson', () => {
+  it('should open generate dialog and reload lessons and stats', () => {
     const newItem: MicroLessonReviewItem = {
       id: 'ml-new',
       subtopicId: 999,
@@ -235,8 +350,9 @@ describe('MicroLessonReviewComponent', () => {
 
     component.openGenerateDialog();
     expect(dialogMock.open).toHaveBeenCalled();
-    expect(component.lessons()[0].id).toBe('ml-new');
     expect(component.selectedLesson()?.id).toBe('ml-new');
+    expect(microLessonServiceMock.listForReview).toHaveBeenCalled();
+    expect(microLessonServiceMock.getStats).toHaveBeenCalled();
   });
 
   it('should handle raw backend response from generate dialog and not display undefined in snackbar', () => {
@@ -267,8 +383,8 @@ describe('MicroLessonReviewComponent', () => {
 
     component.openGenerateDialog();
     expect(dialogMock.open).toHaveBeenCalled();
-    expect(component.lessons()[0].subtopicName).toBe('Percentage');
-    expect(component.lessons()[0].content.coreConcept).toBe('Percentage bedrock principle.');
+    expect(component.selectedLesson()?.subtopicName).toBe('Percentage');
+    expect(component.selectedLesson()?.content.coreConcept).toBe('Percentage bedrock principle.');
     expect(snackBarMock.open).toHaveBeenCalledWith(
       'Synthesized micro-lesson: "Percentage"',
       'View',
@@ -305,12 +421,16 @@ describe('MicroLessonReviewComponent', () => {
     expect(adapted.content.stepByStepBreakdown?.finalAnswer).toBe('x = \\pm 2');
   });
 
-  it('should open batch generate dialog and display snackbar on queue success', () => {
-    const mockBatchRes = {
+  it('should open batch generate dialog and track active batch progress', () => {
+    const mockBatchRes: BatchGenerateResponse = {
       batchId: 'batch-test-1',
       totalQueued: 10,
-      status: 'QUEUED',
-      message: 'Queued 10 micro-lessons for batch generation.',
+      totalGenerated: 2,
+      totalFailed: 0,
+      percentComplete: 20,
+      currentSubtopic: 'Subtopic 3',
+      status: 'IN_PROGRESS',
+      message: 'Batch generation in progress...',
     };
 
     dialogMock.open.mockReturnValue({
@@ -319,10 +439,47 @@ describe('MicroLessonReviewComponent', () => {
 
     component.openBatchGenerateDialog();
     expect(dialogMock.open).toHaveBeenCalled();
-    expect(snackBarMock.open).toHaveBeenCalledWith(
-      'Queued 10 micro-lessons for batch generation.',
-      'OK',
-      expect.objectContaining({ duration: 4000 })
-    );
+    expect(component.activeBatchJob()).toEqual(mockBatchRes);
+  });
+
+  it('should cancel active batch job when requested from progress banner', () => {
+    const mockActiveJob: BatchGenerateResponse = {
+      batchId: 'batch-active-99',
+      totalQueued: 10,
+      totalGenerated: 4,
+      totalFailed: 0,
+      percentComplete: 40,
+      status: 'IN_PROGRESS',
+      message: 'In progress',
+    };
+    component.activeBatchJob.set(mockActiveJob);
+
+    const cancelledJob: BatchGenerateResponse = {
+      ...mockActiveJob,
+      status: 'CANCELLED',
+      message: 'Batch generation cancelled.',
+    };
+    microLessonServiceMock.cancelBatchJob.mockReturnValue(of(cancelledJob));
+
+    component.cancelActiveBatch();
+
+    expect(microLessonServiceMock.cancelBatchJob).toHaveBeenCalledWith('batch-active-99');
+    expect(component.activeBatchJob()?.status).toBe('CANCELLED');
+    expect(snackBarMock.open).toHaveBeenCalledWith('Batch generation cancelled.', 'OK', expect.any(Object));
+  });
+
+  it('should dismiss batch banner when dismissed', () => {
+    component.activeBatchJob.set({
+      batchId: 'batch-1',
+      totalQueued: 5,
+      totalGenerated: 5,
+      totalFailed: 0,
+      percentComplete: 100,
+      status: 'COMPLETED',
+    });
+    expect(component.activeBatchJob()).toBeTruthy();
+
+    component.dismissBatchBanner();
+    expect(component.activeBatchJob()).toBeNull();
   });
 });
