@@ -76,277 +76,45 @@
   </div>
 
   <!-- Active AI Batch Generation Progress Banner -->
-  @if (activeBatchJob(); as batch) {
-    <div
-      class="p-4 rounded-2xl border transition-all duration-300 shadow-xs"
-      [ngClass]="{
-        'bg-gradient-to-r from-purple-50/90 via-indigo-50/70 to-purple-50/90 border-purple-200': batch.status === 'IN_PROGRESS' || batch.status === 'QUEUED',
-        'bg-emerald-50/80 border-emerald-200': batch.status === 'COMPLETED',
-        'bg-slate-50 border-slate-200': batch.status === 'CANCELLED',
-        'bg-rose-50 border-rose-200': batch.status === 'FAILED'
-      }"
-    >
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div class="flex items-center gap-3">
-          <div
-            class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border"
-            [ngClass]="{
-              'bg-purple-100/80 text-purple-700 border-purple-200': batch.status === 'IN_PROGRESS' || batch.status === 'QUEUED',
-              'bg-emerald-100 text-emerald-700 border-emerald-200': batch.status === 'COMPLETED',
-              'bg-slate-100 text-slate-700 border-slate-200': batch.status === 'CANCELLED',
-              'bg-rose-100 text-rose-700 border-rose-200': batch.status === 'FAILED'
-            }"
-          >
-            @if (batch.status === 'IN_PROGRESS' || batch.status === 'QUEUED') {
-              <mat-icon class="!text-xl animate-spin">sync</mat-icon>
-            } @else if (batch.status === 'COMPLETED') {
-              <mat-icon class="!text-xl text-emerald-600">task_alt</mat-icon>
-            } @else if (batch.status === 'CANCELLED') {
-              <mat-icon class="!text-xl text-slate-600">cancel</mat-icon>
-            } @else {
-              <mat-icon class="!text-xl text-rose-600">error_outline</mat-icon>
-            }
-          </div>
-          <div>
-            <div class="flex items-center gap-2">
-              <span class="text-xs font-bold text-slate-900">
-                @if (batch.status === 'IN_PROGRESS' || batch.status === 'QUEUED') {
-                  AI Batch Generation Running
-                } @else if (batch.status === 'COMPLETED') {
-                  Batch Generation Complete
-                } @else if (batch.status === 'CANCELLED') {
-                  Batch Generation Cancelled
-                } @else {
-                  Batch Generation Failed
-                }
-              </span>
-              <span
-                class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
-                [ngClass]="{
-                  'bg-purple-200/70 text-purple-800 animate-pulse': batch.status === 'IN_PROGRESS' || batch.status === 'QUEUED',
-                  'bg-emerald-200/70 text-emerald-800': batch.status === 'COMPLETED',
-                  'bg-slate-200 text-slate-700': batch.status === 'CANCELLED',
-                  'bg-rose-200 text-rose-700': batch.status === 'FAILED'
-                }"
-              >
-                {{ batch.status }}
-              </span>
-            </div>
-            <p class="text-xs text-slate-600 font-medium mt-0.5">
-              @if (batch.status === 'IN_PROGRESS' && batch.currentSubtopic) {
-                <span>Currently synthesizing: <strong>{{ batch.currentSubtopic }}</strong></span>
-              } @else {
-                <span>{{ batch.message || 'Processing subtopic micro-lessons in the background.' }}</span>
-              }
-            </p>
-          </div>
-        </div>
-
-        <div class="flex items-center gap-2 self-end sm:self-auto">
-          @if (batch.status === 'IN_PROGRESS' || batch.status === 'QUEUED') {
-            <button
-              mat-stroked-button
-              (click)="openBatchGenerateDialog()"
-              class="!text-xs !rounded-xl !border-purple-300 !text-purple-700 hover:!bg-purple-100/50 cursor-pointer"
-            >
-              <mat-icon class="!text-sm">visibility</mat-icon>
-              View Progress
-            </button>
-            <button
-              mat-stroked-button
-              (click)="cancelActiveBatch()"
-              [disabled]="isCancellingBatch()"
-              class="!text-xs !rounded-xl !border-rose-200 !text-rose-600 hover:!bg-rose-50 cursor-pointer"
-            >
-              Cancel
-            </button>
-          } @else {
-            <button
-              mat-stroked-button
-              (click)="loadLessons(); loadStats(); dismissBatchBanner()"
-              class="!text-xs !rounded-xl !border-slate-300 !text-slate-700 cursor-pointer"
-            >
-              Dismiss
-            </button>
-          }
-        </div>
-      </div>
-
-      <!-- Live Determinate Progress Bar for the Batch -->
-      @if (batch.status === 'IN_PROGRESS' || batch.status === 'QUEUED') {
-        <div class="mt-3 space-y-1">
-          <div class="flex justify-between text-[11px] font-semibold text-slate-600">
-            <span>Processed: {{ (batch.totalGenerated || 0) + (batch.totalFailed || 0) }} / {{ batch.totalQueued }} subtopics</span>
-            <span class="text-purple-700 font-bold">{{ batch.percentComplete ?? 0 }}%</span>
-          </div>
-          <mat-progress-bar
-            mode="determinate"
-            [value]="batch.percentComplete ?? 0"
-            class="!rounded-full !h-2"
-          ></mat-progress-bar>
-        </div>
-      }
-    </div>
-  }
+  <app-micro-lesson-batch-banner
+    [batchJob]="activeBatchJob()"
+    [isCancelling]="isCancellingBatch()"
+    (viewProgress)="openBatchGenerateDialog()"
+    (cancel)="cancelActiveBatch()"
+    (dismiss)="loadLessons(); loadStats(); dismissBatchBanner()"
+  ></app-micro-lesson-batch-banner>
 
   <!-- KPI Metrics Ribbon (Dynamic Server Aggregates) -->
-  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
-      <div>
-        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Micro-Lessons</p>
-        <p class="text-2xl font-black text-slate-900 mt-1">{{ totalCount() }}</p>
-      </div>
-      <div class="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-600">
-        <mat-icon>menu_book</mat-icon>
-      </div>
-    </div>
-    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
-      <div>
-        <p class="text-xs font-semibold text-purple-600 uppercase tracking-wider">AI Generated (Pending Review)</p>
-        <p class="text-2xl font-black text-purple-700 mt-1">{{ aiGeneratedCount() }}</p>
-      </div>
-      <div class="w-10 h-10 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600">
-        <mat-icon>psychology</mat-icon>
-      </div>
-    </div>
-    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
-      <div>
-        <p class="text-xs font-semibold text-emerald-600 uppercase tracking-wider">Approved / Published</p>
-        <p class="text-2xl font-black text-emerald-700 mt-1">{{ approvedCount() }}</p>
-      </div>
-      <div class="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">
-        <mat-icon>verified</mat-icon>
-      </div>
-    </div>
-  </div>
+  <app-micro-lesson-stats
+    [total]="totalCount()"
+    [aiGenerated]="aiGeneratedCount()"
+    [approved]="approvedCount()"
+  ></app-micro-lesson-stats>
 
   <!-- Search and Cascading Filter Bar (Database Dynamic) -->
-  <div class="bg-white p-4 rounded-xl border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4 shadow-xs">
-    <div class="flex items-center gap-2 w-full md:w-80 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl">
-      <mat-icon class="text-slate-400 !w-4 !h-4 !text-base !leading-none flex items-center justify-center shrink-0">search</mat-icon>
-      <input
-        type="text"
-        [ngModel]="searchQuery()"
-        (ngModelChange)="onSearchInput($event)"
-        placeholder="Search subtopic, topic, subject..."
-        class="bg-transparent text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none w-full font-medium"
-      />
-      @if (searchQuery().trim()) {
-        <button
-          type="button"
-          (click)="onSearchInput('')"
-          class="text-slate-400 hover:text-slate-600 cursor-pointer flex items-center justify-center shrink-0"
-        >
-          <mat-icon class="!w-4 !h-4 !text-base !leading-none flex items-center justify-center shrink-0">close</mat-icon>
-        </button>
-      }
-    </div>
-
-    <!-- Taxonomy Filters (Dynamic Subject & Topic from DB) -->
-    <div class="flex items-center gap-2 flex-wrap">
-      <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5">
-        <span class="text-[11px] font-bold text-slate-400 uppercase">Subject:</span>
-        <select
-          [ngModel]="selectedSubject()"
-          (ngModelChange)="onSubjectChange($event)"
-          class="bg-transparent text-xs text-slate-700 font-semibold focus:outline-none cursor-pointer"
-        >
-          @for (subj of distinctSubjects(); track subj) {
-            <option [value]="subj">{{ subj === 'ALL' ? 'All Subjects' : subj }}</option>
-          }
-        </select>
-      </div>
-
-      <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5">
-        <span class="text-[11px] font-bold text-slate-400 uppercase">Topic:</span>
-        <select
-          [ngModel]="selectedTopic()"
-          (ngModelChange)="onTopicChange($event)"
-          class="bg-transparent text-xs text-slate-700 font-semibold focus:outline-none cursor-pointer"
-        >
-          @for (tpc of distinctTopics(); track tpc) {
-            <option [value]="tpc">{{ tpc === 'ALL' ? 'All Topics' : tpc }}</option>
-          }
-        </select>
-      </div>
-
-      <!-- Status Filters -->
-      <div class="flex items-center bg-slate-100 p-1 rounded-xl flex-wrap gap-1">
-        @for (opt of statusOptions; track opt.value) {
-          <button
-            type="button"
-            (click)="onStatusChange(opt.value)"
-            [class.bg-white]="statusFilter() === opt.value"
-            [class.shadow-xs]="statusFilter() === opt.value"
-            class="px-2.5 py-1 text-xs font-semibold rounded-lg transition-all text-slate-700 cursor-pointer"
-          >
-            {{ opt.label }}
-          </button>
-        }
-      </div>
-    </div>
-  </div>
+  <app-micro-lesson-filters
+    [searchQuery]="searchQuery()"
+    [selectedSubject]="selectedSubject()"
+    [selectedTopic]="selectedTopic()"
+    [statusFilter]="statusFilter()"
+    [distinctSubjects]="distinctSubjects()"
+    [distinctTopics]="distinctTopics()"
+    [statusOptions]="statusOptions"
+    (searchChange)="onSearchInput($event)"
+    (subjectChange)="onSubjectChange($event)"
+    (topicChange)="onTopicChange($event)"
+    (statusChange)="onStatusChange($event)"
+  ></app-micro-lesson-filters>
 
   <!-- Bulk Moderation & Bulk Delete Toolbar -->
-  @if (selectedIds().size > 0) {
-    <div class="bg-slate-900 text-white px-5 py-3 rounded-2xl flex flex-wrap items-center justify-between gap-3 shadow-lg sticky top-4 z-20">
-      <div class="flex items-center gap-3">
-        <span class="w-6 h-6 rounded-full bg-purple-600 flex items-center justify-center font-bold text-xs">
-          {{ selectedIds().size }}
-        </span>
-        <span class="text-xs font-semibold">
-          {{ selectedIds().size }} micro-lesson{{ selectedIds().size > 1 ? 's' : '' }} selected
-        </span>
-      </div>
-      <div class="flex items-center gap-2 flex-wrap">
-        <button
-          type="button"
-          (click)="bulkSubmit('APPROVE')"
-          [disabled]="isBulkSubmitting() || isBulkDeleting()"
-          class="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold cursor-pointer transition-all disabled:opacity-50"
-        >
-          Approve Selected
-        </button>
-        <button
-          type="button"
-          (click)="bulkSubmit('PUBLISH')"
-          [disabled]="isBulkSubmitting() || isBulkDeleting()"
-          class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer transition-all disabled:opacity-50"
-        >
-          Publish Selected
-        </button>
-        <button
-          type="button"
-          (click)="bulkSubmit('REJECT')"
-          [disabled]="isBulkSubmitting() || isBulkDeleting()"
-          class="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold cursor-pointer transition-all disabled:opacity-50"
-        >
-          Reject Selected
-        </button>
-        <button
-          type="button"
-          (click)="bulkDeleteSelected()"
-          [disabled]="isBulkSubmitting() || isBulkDeleting()"
-          class="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold cursor-pointer transition-all disabled:opacity-50 flex items-center gap-1.5"
-        >
-          @if (isBulkDeleting()) {
-            <mat-progress-spinner diameter="14" mode="indeterminate" class="!inline-block"></mat-progress-spinner>
-            <span>Deleting...</span>
-          } @else {
-            <mat-icon class="!text-sm leading-none">delete</mat-icon>
-            <span>Delete Selected</span>
-          }
-        </button>
-        <button
-          type="button"
-          (click)="clearSelection()"
-          class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium cursor-pointer"
-        >
-          Deselect All
-        </button>
-      </div>
-    </div>
-  }
+  <app-micro-lesson-bulk-toolbar
+    [selectedCount]="selectedIds().size"
+    [isBulkSubmitting]="isBulkSubmitting()"
+    [isBulkDeleting]="isBulkDeleting()"
+    (bulkSubmit)="bulkSubmit($event)"
+    (bulkDelete)="bulkDeleteSelected()"
+    (clearSelection)="clearSelection()"
+  ></app-micro-lesson-bulk-toolbar>
 
   <!-- Main Content Layout (Table & Live KaTeX Preview Drawer) -->
   @if (isLoading()) {
@@ -357,407 +125,53 @@
   } @else {
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
       <!-- Left Column: Micro-Lesson List Table -->
-      <div [class]="selectedLesson() ? 'lg:col-span-5' : 'lg:col-span-12'" class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
-        @if (filteredLessons().length === 0) {
-          <div class="p-12 text-center text-slate-400">
-            <mat-icon class="!text-4xl text-slate-300 mb-2">find_in_page</mat-icon>
-            <p class="text-sm font-semibold text-slate-600">No micro-lessons match the current filter</p>
-            <p class="text-xs text-slate-400 mt-1">Try selecting another status, resetting filters, or generating new micro-lessons.</p>
-          </div>
-        } @else {
-          <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr class="bg-slate-50/80 border-b border-slate-200 text-slate-400 font-semibold uppercase tracking-wider">
-                  <th class="py-3 px-3 w-10 text-center">
-                    <input
-                      type="checkbox"
-                      [checked]="isAllSelected()"
-                      (change)="toggleSelectAll($any($event.target).checked)"
-                      class="rounded border-slate-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
-                    />
-                  </th>
-                  <th class="py-3 px-4">Subtopic / Subject</th>
-                  <th class="py-3 px-4">Status</th>
-                  @if (!selectedLesson()) {
-                    <th class="py-3 px-4">Exam</th>
-                    <th class="py-3 px-4">Version</th>
-                    <th class="py-3 px-4">Updated</th>
-                  }
-                  <th class="py-3 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-slate-100">
-                @for (item of filteredLessons(); track item.id) {
-                  <tr
-                    (click)="selectLesson(item)"
-                    [class.bg-purple-50]="selectedLesson()?.id === item.id"
-                    [class.bg-purple-50/40]="selectedIds().has(item.id) && selectedLesson()?.id !== item.id"
-                    class="hover:bg-slate-50/80 transition-colors cursor-pointer"
-                  >
-                    <td class="py-3 px-3 text-center" (click)="$event.stopPropagation()">
-                      <input
-                        type="checkbox"
-                        [checked]="selectedIds().has(item.id)"
-                        (change)="toggleSelect(item.id, $event)"
-                        class="rounded border-slate-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
-                      />
-                    </td>
-                    <td class="py-3 px-4">
-                      <p class="font-bold text-slate-900 line-clamp-1"><nag-math-renderer [content]="item.subtopicName || item.subtopic || ''" [inline]="true"></nag-math-renderer></p>
-                      <p class="text-[11px] text-slate-400 mt-0.5">{{ item.subjectName || item.subject }} &bull; {{ item.topicName || item.topic }}</p>
-                    </td>
-                    <td class="py-3 px-4 whitespace-nowrap">
-                      <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border" [ngClass]="getStatusBadgeClass(item.status)">
-                        {{ item.status }}
-                      </span>
-                    </td>
-                    @if (!selectedLesson()) {
-                      <td class="py-3 px-4 text-slate-600 font-medium">{{ item.targetExam || 'General' }}</td>
-                      <td class="py-3 px-4 text-slate-500 font-mono">v{{ item.contentVersion || 1 }}</td>
-                      <td class="py-3 px-4 text-slate-400">{{ item.updatedAt ? (item.updatedAt | date:'shortDate') : '-' }}</td>
-                    }
-                    <td class="py-3 px-4 text-right whitespace-nowrap">
-                      <div class="inline-flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          (click)="selectLesson(item); $event.stopPropagation()"
-                          class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer transition-colors"
-                        >
-                          Inspect &rarr;
-                        </button>
-                        <button
-                          type="button"
-                          (click)="deleteLesson(item, $event)"
-                          title="Delete Micro-Lesson"
-                          class="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer transition-colors inline-flex items-center"
-                        >
-                          <mat-icon class="!text-base">delete_outline</mat-icon>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                }
-              </tbody>
-            </table>
-          </div>
-
-          <!-- Server-side Pagination Bar -->
-          <div class="px-5 py-3.5 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-            <div class="flex items-center gap-2 text-slate-500 font-medium">
-              <span>Showing</span>
-              <span class="font-bold text-slate-800">{{ displayStart() }}</span>
-              <span>to</span>
-              <span class="font-bold text-slate-800">{{ displayEnd() }}</span>
-              <span>of</span>
-              <span class="font-bold text-slate-900">{{ totalElements() }}</span>
-              <span>micro-lessons</span>
-            </div>
-
-            <div class="flex items-center gap-3">
-              <!-- Page Size Selector -->
-              <div class="flex items-center gap-1.5">
-                <span class="text-slate-400 font-medium">Per page:</span>
-                <select
-                  [ngModel]="pageSize()"
-                  (ngModelChange)="onPageSizeChange($event)"
-                  class="bg-white border border-slate-200 rounded-lg px-2 py-1 text-slate-700 font-bold focus:outline-none cursor-pointer"
-                >
-                  @for (size of pageSizeOptions; track size) {
-                    <option [value]="size">{{ size }}</option>
-                  }
-                </select>
-              </div>
-
-              <!-- Page Navigation Controls -->
-              <div class="flex items-center gap-1">
-                <button
-                  type="button"
-                  (click)="firstPage()"
-                  [disabled]="pageIndex() === 0 || isLoading()"
-                  class="p-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
-                  title="First Page"
-                >
-                  <mat-icon class="!text-base !w-4 !h-4 flex items-center justify-center">first_page</mat-icon>
-                </button>
-                <button
-                  type="button"
-                  (click)="prevPage()"
-                  [disabled]="pageIndex() === 0 || isLoading()"
-                  class="p-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
-                  title="Previous Page"
-                >
-                  <mat-icon class="!text-base !w-4 !h-4 flex items-center justify-center">chevron_left</mat-icon>
-                </button>
-
-                <span class="px-2 font-semibold text-slate-700">
-                  Page {{ totalPages() === 0 ? 0 : pageIndex() + 1 }} of {{ totalPages() }}
-                </span>
-
-                <button
-                  type="button"
-                  (click)="nextPage()"
-                  [disabled]="pageIndex() >= totalPages() - 1 || isLoading()"
-                  class="p-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
-                  title="Next Page"
-                >
-                  <mat-icon class="!text-base !w-4 !h-4 flex items-center justify-center">chevron_right</mat-icon>
-                </button>
-                <button
-                  type="button"
-                  (click)="lastPage()"
-                  [disabled]="pageIndex() >= totalPages() - 1 || isLoading()"
-                  class="p-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
-                  title="Last Page"
-                >
-                  <mat-icon class="!text-base !w-4 !h-4 flex items-center justify-center">last_page</mat-icon>
-                </button>
-              </div>
-            </div>
-          </div>
-        }
-      </div>
+      <app-micro-lesson-table
+        [class]="selectedLesson() ? 'lg:col-span-5' : 'lg:col-span-12'"
+        [lessons]="filteredLessons()"
+        [selectedLessonId]="selectedLesson()?.id ?? null"
+        [selectedIds]="selectedIds()"
+        [isAllSelected]="isAllSelected()"
+        [displayStart]="displayStart()"
+        [displayEnd]="displayEnd()"
+        [totalElements]="totalElements()"
+        [totalPages]="totalPages()"
+        [pageIndex]="pageIndex()"
+        [pageSize]="pageSize()"
+        [pageSizeOptions]="pageSizeOptions"
+        [isLoading]="isLoading()"
+        (lessonSelect)="selectLesson($event)"
+        (toggleSelect)="toggleSelect($event.id, $event.event)"
+        (toggleSelectAll)="toggleSelectAll($event)"
+        (deleteLesson)="deleteLesson($event.lesson, $event.event)"
+        (pageSizeChange)="onPageSizeChange($event)"
+        (firstPage)="firstPage()"
+        (prevPage)="prevPage()"
+        (nextPage)="nextPage()"
+        (lastPage)="lastPage()"
+      ></app-micro-lesson-table>
 
       <!-- Right Column: Live KaTeX Preview & Review Desk -->
       @if (selectedLesson(); as lesson) {
-        <div class="lg:col-span-7 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col space-y-4 p-6">
-          <!-- Drawer Header -->
-          <div class="flex items-start justify-between border-b border-slate-100 pb-4">
-            <div>
-              <div class="flex items-center gap-2">
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border" [ngClass]="getStatusBadgeClass(lesson.status)">
-                  {{ lesson.status }}
-                </span>
-                <span class="text-xs text-slate-400 font-mono">v{{ lesson.contentVersion || 1 }}</span>
-              </div>
-              <h2 class="text-lg font-bold text-slate-900 mt-1.5"><nag-math-renderer [content]="lesson.subtopicName || lesson.subtopic || ''" [inline]="true"></nag-math-renderer></h2>
-              <p class="text-xs text-slate-500">{{ lesson.subjectName || lesson.subject }} &rsaquo; {{ lesson.topicName || lesson.topic }} &bull; Target: {{ lesson.targetExam || 'General' }}</p>
-            </div>
-            <div class="flex items-center gap-2">
-              @if (!isEditingContent()) {
-                <button
-                  type="button"
-                  (click)="startEditing(lesson)"
-                  class="text-xs font-bold px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 flex items-center gap-1 cursor-pointer transition-colors"
-                >
-                  <mat-icon class="!text-sm">edit</mat-icon>
-                  Edit KaTeX Content
-                </button>
-              } @else {
-                <button
-                  type="button"
-                  (click)="cancelEditing()"
-                  class="text-xs font-bold px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  (click)="saveEditedContent()"
-                  [disabled]="isSubmitting()"
-                  class="text-xs font-bold px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-1 cursor-pointer shadow-xs"
-                >
-                  <mat-icon class="!text-sm">save</mat-icon>
-                  Save Changes
-                </button>
-              }
-              <button
-                type="button"
-                (click)="deleteLesson(lesson)"
-                class="text-xs font-bold px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 flex items-center gap-1 cursor-pointer transition-colors"
-                title="Delete this micro-lesson"
-              >
-                <mat-icon class="!text-sm">delete_outline</mat-icon>
-                Delete
-              </button>
-              <button
-                type="button"
-                (click)="closePreview()"
-                class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 cursor-pointer"
-                title="Close Preview"
-              >
-                <mat-icon class="!text-lg">close</mat-icon>
-              </button>
-            </div>
-          </div>
-
-          <!-- Remedial 4-Part Content Preview / Live KaTeX Editor -->
-          <div class="space-y-5 max-h-[600px] overflow-y-auto pr-2">
-            <!-- 1. Core Concept -->
-            <div class="bg-indigo-50/40 rounded-xl p-4 border border-indigo-100">
-              <h3 class="text-xs font-bold uppercase tracking-wider text-indigo-700 flex items-center gap-1.5 mb-2">
-                <mat-icon class="!text-sm">lightbulb</mat-icon>
-                1. Core Concept
-              </h3>
-              @if (isEditingContent()) {
-                <textarea
-                  [ngModel]="editedCoreConcept()"
-                  (ngModelChange)="editedCoreConcept.set($event)"
-                  rows="3"
-                  class="w-full text-xs font-mono bg-white border border-indigo-200 rounded-lg p-2.5 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
-                  placeholder="Core Concept text with LaTeX formulas (e.g. $E = mc^2$)"
-                ></textarea>
-                <p class="text-[10px] text-slate-400 mt-1">Live LaTeX preview below:</p>
-                <div class="mt-2 bg-white/80 p-3 rounded-lg border border-indigo-100/60">
-                  <nag-math-renderer [content]="editedCoreConcept()"></nag-math-renderer>
-                </div>
-              } @else {
-                <div class="text-xs text-slate-800 leading-relaxed font-sans">
-                  <nag-math-renderer [content]="lesson.content?.coreConcept || lesson.coreConcept || 'No core concept available.'"></nag-math-renderer>
-                </div>
-              }
-            </div>
-
-            <!-- 2. Trap Alert -->
-            <div class="bg-amber-50/40 rounded-xl p-4 border border-amber-100">
-              <h3 class="text-xs font-bold uppercase tracking-wider text-amber-700 flex items-center gap-1.5 mb-2">
-                <mat-icon class="!text-sm">warning_amber</mat-icon>
-                2. Trap Alert (Common Misconception)
-              </h3>
-              @if (isEditingContent()) {
-                <textarea
-                  [ngModel]="editedTrapAlert()"
-                  (ngModelChange)="editedTrapAlert.set($event)"
-                  rows="2"
-                  class="w-full text-xs font-mono bg-white border border-amber-200 rounded-lg p-2.5 focus:ring-1 focus:ring-amber-500 focus:outline-none"
-                  placeholder="Trap description with LaTeX formulas"
-                ></textarea>
-                <p class="text-[10px] text-slate-400 mt-1">Live LaTeX preview below:</p>
-                <div class="mt-2 bg-white/80 p-3 rounded-lg border border-amber-100/60">
-                  <nag-math-renderer [content]="editedTrapAlert()"></nag-math-renderer>
-                </div>
-              } @else {
-                <div class="text-xs text-amber-900 leading-relaxed">
-                  <nag-math-renderer [content]="lesson.content?.trapAlert || lesson.trap || 'No trap warnings recorded.'"></nag-math-renderer>
-                </div>
-              }
-            </div>
-
-            <!-- 3. Formula Cheat Sheet -->
-            <div class="bg-emerald-50/40 rounded-xl p-4 border border-emerald-100">
-              <h3 class="text-xs font-bold uppercase tracking-wider text-emerald-700 flex items-center gap-1.5 mb-2">
-                <mat-icon class="!text-sm">functions</mat-icon>
-                3. Formula Cheat Sheet
-              </h3>
-              @if (isEditingContent()) {
-                <textarea
-                  [ngModel]="editedFormulaCheatSheet()"
-                  (ngModelChange)="editedFormulaCheatSheet.set($event)"
-                  rows="3"
-                  class="w-full text-xs font-mono bg-white border border-emerald-200 rounded-lg p-2.5 focus:ring-1 focus:ring-emerald-500 focus:outline-none"
-                  placeholder="Key formulas, separated by double newlines: e.g. $$I = m r^2$$"
-                ></textarea>
-                <p class="text-[10px] text-slate-400 mt-1">Live KaTeX preview below:</p>
-                <div class="mt-2 bg-white/80 p-3 rounded-lg border border-emerald-100/60">
-                  <nag-math-renderer [content]="editedFormulaCheatSheet()"></nag-math-renderer>
-                </div>
-              } @else {
-                <div class="text-xs text-slate-800 leading-relaxed">
-                  <nag-math-renderer [content]="lesson.content?.formulaCheatSheet || 'No formulas provided.'"></nag-math-renderer>
-                </div>
-              }
-            </div>
-
-            <!-- 4. Step-by-Step Breakdown -->
-            @if (lesson.content?.stepByStepBreakdown; as breakdown) {
-              <div class="bg-purple-50/40 rounded-xl p-4 border border-purple-100 space-y-3">
-                <h3 class="text-xs font-bold uppercase tracking-wider text-purple-700 flex items-center gap-1.5">
-                  <mat-icon class="!text-sm">format_list_numbered</mat-icon>
-                  4. Exemplar Breakdown
-                </h3>
-                @if (breakdown.problemStatement) {
-                  <div class="bg-white p-3 rounded-lg border border-purple-100/80">
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Problem Statement</p>
-                    <div class="text-xs font-medium text-slate-800">
-                      <nag-math-renderer [content]="breakdown.problemStatement"></nag-math-renderer>
-                    </div>
-                  </div>
-                }
-                @if (breakdown.steps && breakdown.steps.length > 0) {
-                  <div class="space-y-2">
-                    @for (st of breakdown.steps; track st.stepNumber || $index) {
-                      <div class="bg-white p-3 rounded-lg border border-slate-100 flex items-start gap-2.5">
-                        <span class="w-5 h-5 rounded-full bg-purple-100 text-purple-700 font-bold text-[11px] flex items-center justify-center shrink-0">
-                          {{ st.stepNumber || ($index + 1) }}
-                        </span>
-                        <div class="space-y-1 w-full">
-                          <p class="text-xs font-bold text-slate-900">{{ st.title }}</p>
-                          @if (st.explanation) {
-                            <div class="text-xs text-slate-600">
-                              <nag-math-renderer [content]="st.explanation"></nag-math-renderer>
-                            </div>
-                          }
-                          @if (st.formula) {
-                            <div class="mt-1 bg-slate-50 p-2 rounded border border-slate-200/60 font-mono text-xs">
-                              <nag-math-renderer [content]="st.formula" [inline]="true"></nag-math-renderer>
-                            </div>
-                          }
-                        </div>
-                      </div>
-                    }
-                  </div>
-                }
-                @if (breakdown.finalAnswer) {
-                  <div class="bg-emerald-50 border border-emerald-200 p-2.5 rounded-lg flex items-center gap-2">
-                    <mat-icon class="!text-base text-emerald-600">task_alt</mat-icon>
-                    <div class="text-xs font-bold text-emerald-800">
-                      <nag-math-renderer [content]="breakdown.finalAnswer" [inline]="true"></nag-math-renderer>
-                    </div>
-                  </div>
-                }
-              </div>
-            }
-          </div>
-
-          <!-- Moderation Decision & Reviewer Notes Panel -->
-          <div class="border-t border-slate-100 pt-4 space-y-3">
-            <div>
-              <label class="block text-xs font-bold text-slate-700 mb-1">Reviewer Feedback & Audit Comments</label>
-              <textarea
-                [ngModel]="reviewerNotes()"
-                (ngModelChange)="reviewerNotes.set($event)"
-                rows="2"
-                placeholder="Optional notes for faculty review trail or rejection reason..."
-                class="w-full text-xs rounded-xl border border-slate-200 p-2.5 bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-purple-500 transition-colors"
-              ></textarea>
-            </div>
-
-            <!-- Decision Action Bar -->
-            <div class="flex items-center justify-end gap-2 pt-1">
-              <button
-                type="button"
-                mat-stroked-button
-                color="warn"
-                (click)="submitReview('REJECT')"
-                [disabled]="isSubmitting()"
-                class="!rounded-xl text-xs font-bold !text-rose-600 !border-rose-200 hover:!bg-rose-50 cursor-pointer"
-              >
-                <mat-icon class="!text-sm">close</mat-icon>
-                Reject
-              </button>
-              <button
-                type="button"
-                mat-flat-button
-                (click)="submitReview('APPROVE')"
-                [disabled]="isSubmitting()"
-                class="!bg-blue-600 hover:!bg-blue-700 !text-white !rounded-xl text-xs font-bold cursor-pointer"
-              >
-                <mat-icon class="!text-sm">check</mat-icon>
-                Approve
-              </button>
-              <button
-                type="button"
-                mat-flat-button
-                (click)="submitReview('PUBLISH')"
-                [disabled]="isSubmitting()"
-                class="!bg-emerald-600 hover:!bg-emerald-700 !text-white !rounded-xl text-xs font-bold cursor-pointer"
-              >
-                <mat-icon class="!text-sm">publish</mat-icon>
-                Publish Live
-              </button>
-            </div>
-          </div>
-        </div>
+        <app-micro-lesson-detail-drawer
+          class="lg:col-span-7"
+          [lesson]="lesson"
+          [isEditingContent]="isEditingContent()"
+          [isSubmitting]="isSubmitting()"
+          [reviewerNotes]="reviewerNotes()"
+          [editedCoreConcept]="editedCoreConcept()"
+          [editedTrapAlert]="editedTrapAlert()"
+          [editedFormulaCheatSheet]="editedFormulaCheatSheet()"
+          (close)="closePreview()"
+          (startEdit)="startEditing($event)"
+          (cancelEdit)="cancelEditing()"
+          (saveEdit)="saveEditedContent()"
+          (delete)="deleteLesson($event)"
+          (submitReview)="submitReview($event)"
+          (reviewerNotesChange)="reviewerNotes.set($event)"
+          (coreConceptChange)="editedCoreConcept.set($event)"
+          (trapAlertChange)="editedTrapAlert.set($event)"
+          (formulaCheatSheetChange)="editedFormulaCheatSheet.set($event)"
+        ></app-micro-lesson-detail-drawer>
       }
     </div>
   }

@@ -32,6 +32,14 @@ import { GenerateMicroLessonDialogComponent } from '../generate-micro-lesson-dia
 import { BatchGenerateMicroLessonDialogComponent } from '../batch-generate-dialog/batch-generate-dialog.component';
 import { Subscription, timer } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
+import {
+  MicroLessonStatsComponent,
+  MicroLessonBatchBannerComponent,
+  MicroLessonFiltersComponent,
+  MicroLessonBulkToolbarComponent,
+  MicroLessonTableComponent,
+  MicroLessonDetailDrawerComponent,
+} from './components';
 
 @Component({
   selector: 'app-micro-lesson-review',
@@ -45,7 +53,12 @@ import { switchMap } from 'rxjs/operators';
     MatProgressSpinnerModule,
     MatProgressBarModule,
     MatDialogModule,
-    MathRendererComponent,
+    MicroLessonStatsComponent,
+    MicroLessonBatchBannerComponent,
+    MicroLessonFiltersComponent,
+    MicroLessonBulkToolbarComponent,
+    MicroLessonTableComponent,
+    MicroLessonDetailDrawerComponent,
   ],
   templateUrl: './micro-lesson-review.component.html',
   styleUrls: ['./micro-lesson-review.component.scss'],
