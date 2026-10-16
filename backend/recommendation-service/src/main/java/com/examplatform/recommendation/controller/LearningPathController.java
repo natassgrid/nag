@@ -89,6 +89,19 @@ public class LearningPathController {
     }
 
     /**
+     * Synthesizes and launches a multi-topic Baseline Diagnostic Practice Set for cold-start candidates.
+     */
+    @PostMapping("/diagnostic-test/start")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<StartAdaptiveQuizResponse> startDiagnosticTest(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(required = false) String examTarget) {
+        UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
+        StartAdaptiveQuizResponse response = milestoneProgressionService.startDiagnosticTest(candidateId, examTarget);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
      * Spawns Phase 2 adaptive mini-quiz once Phase 1 remediation is complete.
      */
     @PostMapping("/adaptive-quiz/start")

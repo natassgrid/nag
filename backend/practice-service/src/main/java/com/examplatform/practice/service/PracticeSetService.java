@@ -20,7 +20,10 @@ public class PracticeSetService {
     @Transactional(readOnly = true)
     public List<PracticeSetDto> getPublishedSets() {
         return practiceSetRepository.findByPublishedTrue().stream()
-                .filter(ps -> ps.getSource() == null || (!"ADAPTIVE_QUIZ".equalsIgnoreCase(ps.getSource()) && !"GATEKEEPER_TEST".equalsIgnoreCase(ps.getSource())))
+                .filter(ps -> ps.getSource() == null || (
+                        !"ADAPTIVE_QUIZ".equalsIgnoreCase(ps.getSource())
+                        && !"GATEKEEPER_TEST".equalsIgnoreCase(ps.getSource())
+                        && !"DIAGNOSTIC_TEST".equalsIgnoreCase(ps.getSource())))
                 .map(this::toDto)
                 .toList();
     }
