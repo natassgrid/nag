@@ -24,22 +24,24 @@ Formatting & KaTeX Rules:
 
 CRITICAL INSTRUCTION:
 Output must be strictly raw, valid JSON only.
+Always close both the nested "stepByStepBreakdown" object "\}" and the root JSON object "\}".
+NEVER copy the example placeholder formulas from the schema below; generate formulas, concepts, and problems strictly for the requested Sub-Topic.
 Do NOT wrap in markdown code blocks or fences (no ``` or ```json).
 Do NOT include any greetings, introductory text, commentary, preambles, or explanations outside the JSON object.
 Ensure all LaTeX backslashes inside JSON strings are properly escaped (e.g., \\ce, \\Delta, \\%, \\frac, \\times).
 
 The output must match this exact schema:
 \{
-  "coreConcept": "3 simple sentences with native Indian analogy and $$formula$$ notations if applicable",
-  "trap": "Common pitfall or exam trap highlighting $$notations$$",
-  "cheatSheet": ["$$[1 - x] = \\frac\{1\}\{100\}$$", "$$\\Delta K + \\Delta U = W_\{ext\}$$"],
+  "coreConcept": "3 simple sentences with native Indian analogy and $$formula$$ notations specific to the subtopic",
+  "trap": "Common pitfall or exam trap highlighting $$notations$$ specific to the subtopic",
+  "cheatSheet": ["$$\\text\{Formula 1 strictly for the subtopic\}$$", "$$\\text\{Formula 2 strictly for the subtopic\}$$"],
   "stepByStepBreakdown": \{
-    "questionStem": "Problem statement with $$formulas$$",
+    "questionStem": "Problem statement with $$formulas$$ strictly for the subtopic",
     "steps": [
-      "Step 1: Convert the interest rate per annum to a decimal: $$r = \\frac\{500\}\{500 \\times 365\}$$ per year.",
-      "Step 2: Calculate the effective annual interest rate: $$r_\{eff\} = \\frac\{1 + \\frac\{500\}\{500 \\times 365\}\}\{1 + \\frac\{500\}\{500 \\times 365\}\} - 1$$.",
-      "Step 3: Find the annual interest rate: $$r_\{eff\} \\times 100 = 4.025\\%$$, yielding the exact annual percentage."
+      "Step 1: Identify given parameters and state the governing formula in $$...$$ syntax.",
+      "Step 2: Substitute the numerical values and simplify step-by-step in $$...$$ syntax.",
+      "Step 3: Compute the final result with proper units or percentage in $$...$$ syntax."
     ],
-    "finalAnswer": "$$r_\{eff\} = 4.025\\%$$"
+    "finalAnswer": "$$\\text\{Final Answer with units in KaTeX\}$$"
   \}
 \}

@@ -134,7 +134,7 @@ class MicroLessonGeneratorServiceTest {
     }
 
     @Test
-    @DisplayName("Falls back to high-yield pedagogical template when ChatClient fails")
+    @DisplayName("Falls back to domain-specific DeterministicMicroLessonAgent template when ChatClient fails")
     void testFallbackOnChatFailure() {
         when(modelRouter.selectModel(anyString())).thenReturn("nova-lite");
         when(chatClient.prompt()).thenThrow(new RuntimeException("LLM network timeout"));
@@ -155,7 +155,9 @@ class MicroLessonGeneratorServiceTest {
         assertThat(result.getStatus()).isEqualTo("AI_GENERATED");
         // Incremented version
         assertThat(result.getContentVersion()).isEqualTo(2);
-        assertThat(result.getCoreConcept()).contains("Chemical Equilibrium");
+        // Domain-specific chemistry content (mole concept / equilibrium), NOT generic bicycle chain rotational mechanics!
+        assertThat(result.getCoreConcept()).doesNotContain("bicycle chain");
+        assertThat(result.getCheatSheetJson()).contains("\\Delta G");
     }
 
     @Test
@@ -223,8 +225,93 @@ class MicroLessonGeneratorServiceTest {
         );
 
         assertThat(result).isNotNull();
-        // Verifies it did NOT fall back to "Indian bicycle chain" fallback template!
         assertThat(result.getCoreConcept()).contains("Percentage calculation involves fraction");
         assertThat(result.getCoreConcept()).doesNotContain("bicycle chain");
+        // Verify \(...\) was deterministically refined to $$...$$
+        assertThat(result.getTrap()).contains("$$r$$");
+    }
+
+    @Test
+    @DisplayName("Recovers deterministically when qwen2.5:1.5b truncates closing JSON braces at line 14 for 'Carbon and its Compounds' and 'Organic'")
+    void testTruncatedJsonAtLine14Recovery() {
+        // Exact reproduction of the production log error:
+        // Unexpected end-of-input: expected close marker for Object (start marker at line 1, col 1) at [line: 14, column: 4]
+        String truncatedLlmOutput = "{\n"
+                + "  \"coreConcept\": \"Carbon exhibits catenation and tetravalency ($$Z = 6$$). Like interlocking links of a gold chain, carbon forms long chains and rings. This creates millions of organic compounds.\",\n"
+                + "  \"trap\": \"Confusing saturated alkanes ($$\\ce{C_nH_{2n+2}}$$) with unsaturated alkenes ($$\\ce{C_nH_{2n}}$$).\",\n"
+                + "  \"cheatSheet\": [\n"
+                + "    \"$$\\ce{C_nH_{2n+2}}$$\",\n"
+                + "    \"$$\\ce{CH4 + 2O2 -> CO2 + 2H2O}$$\"\n"
+                + "  ],\n"
+                + "  \"stepByStepBreakdown\": {\n"
+                + "    \"questionStem\": \"Find the molecular mass of butane ($$\\ce{C4H10}$$).\",\n"
+                + "    \"steps\": [\n"
+                + "      \"Step 1: Multiply 4 carbon atoms by 12 u: $$4 \\times 12 = 48\\text{ u}$$.\",\n"
+                + "      \"Step 2: Add 10 hydrogen atoms: $$48 + 10 = 58\\text{ u}$$.\"\n"
+                + "    ],\n"
+                + "    \"finalAnswer\": \"$$58\\text{ u}$$\"\n"
+                + "  }"; // <-- Missing root closing '}' at line 14, col 4!
+
+        when(modelRouter.selectModel(anyString())).thenReturn("qwen2.5:1.5b");
+        when(chatClient.prompt()).thenReturn(requestSpec);
+        when(requestSpec.system(anyString())).thenReturn(requestSpec);
+        when(requestSpec.user(anyString())).thenReturn(requestSpec);
+        when(requestSpec.options(any())).thenReturn(requestSpec);
+        when(requestSpec.call()).thenReturn(callResponseSpec);
+        when(callResponseSpec.content()).thenReturn(truncatedLlmOutput);
+
+        when(repository.findTopBySubtopicIdAndTargetExamOrderByContentVersionDesc(301L, "IBPS-PO-PRE-2027"))
+                .thenReturn(Optional.empty());
+        when(repository.save(any(SubtopicMicroLesson.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        SubtopicMicroLesson result = service.generateForSubtopic(
+                11L, "General Science", 110L, "Chemistry", 301L, "Carbon and its Compounds", "IBPS-PO-PRE-2027"
+        );
+
+        assertThat(result).isNotNull();
+        assertThat(result.getCoreConcept()).contains("Carbon exhibits catenation");
+        assertThat(result.getCheatSheetJson()).contains("\\\\ce{C_nH_{2n+2}}");
+        assertThat(result.getStepByStepBreakdownJson()).contains("\\\\frac".substring(0, 2)); // escaped properly
+        assertThat(result.getStepByStepBreakdownJson()).contains("58\\\\text{ u}");
+    }
+
+    @Test
+    @DisplayName("Strips leaked physics schema formula and replaces with domain-specific Percentage formula when Rubric 3 fires")
+    void testRubric3LeakedPhysicsFormulaReplacedWithDomainCheatSheet() {
+        String llmOutputWithLeakedPhysicsFormula = """
+            {
+              "coreConcept": "Percentage calculation involves fraction multiplication by 100.",
+              "trap": "Forgetting that rate \\(r\\) is divided by 100.",
+              "cheatSheet": ["$$P = \\\\frac{part}{total} \\\\times 100\\\\%$$", "$$\\\\Delta K + \\\\Delta U = W_{ext}$$"],
+              "stepByStepBreakdown": {
+                "questionStem": "What is 20% of 80?",
+                "steps": ["Step 1: Write equation \\(x = 0.20 \\\\times 80\\)", "Step 2: Solve x = 16"],
+                "finalAnswer": "16"
+              }
+            }
+            """;
+
+        when(modelRouter.selectModel(anyString())).thenReturn("qwen2.5:1.5b");
+        when(chatClient.prompt()).thenReturn(requestSpec);
+        when(requestSpec.system(anyString())).thenReturn(requestSpec);
+        when(requestSpec.user(anyString())).thenReturn(requestSpec);
+        when(requestSpec.options(any())).thenReturn(requestSpec);
+        when(requestSpec.call()).thenReturn(callResponseSpec);
+        when(callResponseSpec.content()).thenReturn(llmOutputWithLeakedPhysicsFormula);
+
+        when(repository.findTopBySubtopicIdAndTargetExamOrderByContentVersionDesc(176L, "IBPS-PO-PRE-2027"))
+                .thenReturn(Optional.empty());
+        when(repository.save(any(SubtopicMicroLesson.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        SubtopicMicroLesson result = service.generateForSubtopic(
+                8L, "Quantitative Aptitude", 80L, "Arithmetic", 176L, "Percentage", "IBPS-PO-PRE-2027"
+        );
+
+        assertThat(result).isNotNull();
+        // Leaked physics formula \Delta K + \Delta U = W_{ext} was stripped and replaced with domain Percentage formula
+        assertThat(result.getCheatSheetJson()).doesNotContain("W_{ext}");
+        assertThat(result.getCheatSheetJson()).contains("Net Change");
+        // Rubric 2 converted \(r\) to $$r$$
+        assertThat(result.getTrap()).contains("$$r$$");
     }
 }
