@@ -23,6 +23,18 @@ public record MilestonePhaseDto(
         List<MilestoneItemDto> items
 ) implements Serializable {
 
+    public UUID getQuizSessionId() {
+        return quizSessionId;
+    }
+
+    public UUID getGatekeeperSessionId() {
+        return gatekeeperSessionId;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
     public MilestonePhaseDto(
             int phaseNumber,
             String phaseName,

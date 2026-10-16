@@ -92,7 +92,12 @@ class MicroLessonControllerIntegrationTest extends AbstractIntegrationTest {
                     .andExpect(jsonPath("$.targetExam").value("JEE_MAIN"))
                     .andExpect(jsonPath("$.coreConcept").isNotEmpty())
                     .andExpect(jsonPath("$.cheatSheet").isArray())
-                    .andExpect(jsonPath("$.stepByStepBreakdown.steps").isArray());
+                    .andExpect(jsonPath("$.stepByStepBreakdown.steps").isArray())
+                    .andExpect(jsonPath("$.content.coreConcept").isNotEmpty())
+                    .andExpect(jsonPath("$.content.trapAlert.title").isNotEmpty())
+                    .andExpect(jsonPath("$.content.formulaCheatSheet").isArray())
+                    .andExpect(jsonPath("$.content.stepByStepBreakdown").isArray())
+                    .andExpect(jsonPath("$.content.keyTakeaways").isArray());
 
             verify(cacheService).getCached(100L);
             verifyNoInteractions(repository);
@@ -121,7 +126,8 @@ class MicroLessonControllerIntegrationTest extends AbstractIntegrationTest {
                             .param("targetExam", "JEE_MAIN")
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.subtopic").value("Rotational Motion"));
+                    .andExpect(jsonPath("$.subtopic").value("Rotational Motion"))
+                    .andExpect(jsonPath("$.content.coreConcept").isNotEmpty());
 
             verify(cacheService).getCached(100L);
             verify(cacheService).put(eq(100L), any(MicroLessonResponse.class));
@@ -142,6 +148,45 @@ class MicroLessonControllerIntegrationTest extends AbstractIntegrationTest {
                             .param("targetExam", "JEE_MAIN")
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))))
                     .andExpect(status().isNotFound());
+        }
+
+        @Test
+        @DisplayName("200 OK - Synthesizes micro-lesson on demand when subtopicName is provided")
+        void testOnDemandSynthesisWhenTaxonomyProvided() throws Exception {
+            when(cacheService.getCached(555L)).thenReturn(Optional.empty());
+            when(repository.findFirstBySubtopicIdAndTargetExamAndStatusOrderByContentVersionDesc(
+                    555L, "JEE_MAIN", "PUBLISHED"))
+                    .thenReturn(Optional.empty());
+            when(repository.findFirstBySubtopicIdAndStatusOrderByContentVersionDesc(
+                    555L, "PUBLISHED"))
+                    .thenReturn(Optional.empty());
+            when(repository.findTopBySubtopicIdAndTargetExamOrderByContentVersionDesc(
+                    555L, "JEE_MAIN"))
+                    .thenReturn(Optional.empty());
+            when(repository.findTopBySubtopicIdOrderByContentVersionDesc(555L))
+                    .thenReturn(Optional.empty());
+
+            SubtopicMicroLesson generatedEntity = SubtopicMicroLesson.builder()
+                    .subtopicId(555L)
+                    .targetExam("JEE_MAIN")
+                    .status("AI_GENERATED")
+                    .build();
+            when(generatorService.generateForSubtopic(eq(1L), eq("Physics"), eq(1L), eq("Mechanics"), eq(555L), eq("Friction"), eq("JEE_MAIN")))
+                    .thenReturn(generatedEntity);
+
+            MicroLessonResponse generatedResponse = buildSampleResponse();
+            when(generatorService.toResponse(generatedEntity)).thenReturn(generatedResponse);
+
+            mockMvc.perform(get("/api/micro-lessons/subtopic/555")
+                            .param("targetExam", "JEE_MAIN")
+                            .param("subtopicName", "Friction")
+                            .param("topicName", "Mechanics")
+                            .param("subjectName", "Physics")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.content.coreConcept").isNotEmpty());
+
+            verify(generatorService).generateForSubtopic(eq(1L), eq("Physics"), eq(1L), eq("Mechanics"), eq(555L), eq("Friction"), eq("JEE_MAIN"));
         }
     }
 }

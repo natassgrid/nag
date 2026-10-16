@@ -1,20 +1,47 @@
-<div class="weak-topics-container">
-  @for (topic of topics(); track topic.topicName) {
-    <mat-card class="topic-card" appearance="outlined">
-      <mat-card-header>
-        <mat-card-title>{{ topic.topicName }}</mat-card-title>
-        <mat-card-subtitle>Accuracy: {{ topic.currentAccuracy | percent:'1.0-1' }}</mat-card-subtitle>
+<div class="weak-topics-container space-y-4">
+  @for (topic of topics(); track getTopicTitle(topic)) {
+    <mat-card class="topic-card !rounded-2xl !border !border-slate-200 !shadow-2xs" appearance="outlined">
+      <mat-card-header class="flex items-center justify-between">
+        <div>
+          <mat-card-title class="!text-base !font-bold text-slate-900">{{ getTopicTitle(topic) }}</mat-card-title>
+          <mat-card-subtitle class="text-xs text-rose-600 font-semibold mt-0.5">
+            Accuracy: {{ getAccuracy(topic) | percent:'1.0-1' }}
+          </mat-card-subtitle>
+        </div>
       </mat-card-header>
-      <mat-card-content>
-        <p class="subtopics-title">Focus Areas:</p>
-        <mat-chip-set>
-          @for (sub of topic.subtopicsToRevise; track sub) {
-            <mat-chip>{{ sub }}</mat-chip>
-          }
-        </mat-chip-set>
+      <mat-card-content class="pt-3">
+        @if (getSubtopics(topic).length > 0) {
+          <p class="subtopics-title text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Focus Areas:</p>
+          <mat-chip-set>
+            @for (sub of getSubtopics(topic); track sub) {
+              <mat-chip class="!text-xs">{{ sub }}</mat-chip>
+            }
+          </mat-chip-set>
+        }
       </mat-card-content>
+      <mat-card-actions class="flex items-center gap-2 pt-2 px-4 pb-4">
+        <button
+          mat-flat-button
+          color="primary"
+          type="button"
+          class="!bg-indigo-600 !text-white !font-bold !text-xs !rounded-xl !px-4 !py-1.5 cursor-pointer shadow-xs"
+          (click)="onStudyLesson(topic)"
+        >
+          <mat-icon class="!w-4 !h-4 !text-[16px] mr-1">menu_book</mat-icon>
+          Study Lesson
+        </button>
+        <button
+          mat-stroked-button
+          type="button"
+          class="!text-xs !font-bold !rounded-xl !px-4 !py-1.5 cursor-pointer"
+          (click)="onPractice(topic)"
+        >
+          <mat-icon class="!w-4 !h-4 !text-[16px] mr-1">play_arrow</mat-icon>
+          Practice
+        </button>
+      </mat-card-actions>
     </mat-card>
   } @empty {
-    <p class="empty-state">No weak topics identified yet.</p>
+    <p class="empty-state text-sm text-slate-500 p-4">No weak topics identified yet.</p>
   }
 </div>

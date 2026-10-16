@@ -134,14 +134,28 @@ public class LearnerProfileService {
                             return p;
                         });
 
+                int oldAttempts = perf.getTotalAttempts();
+                double oldRollingAccuracy = perf.getAvgAccuracyPercent();
+
+                int newAttempts = oldAttempts + dto.attemptedCount();
+                int newCorrect = perf.getTotalCorrect() + dto.correctCount();
+
                 perf.setTotalQuestions(perf.getTotalQuestions() + dto.totalQuestions());
-                perf.setTotalAttempts(perf.getTotalAttempts() + dto.attemptedCount());
-                perf.setTotalCorrect(perf.getTotalCorrect() + dto.correctCount());
+                perf.setTotalAttempts(newAttempts);
+                perf.setTotalCorrect(newCorrect);
                 perf.setTotalSkipped(perf.getTotalSkipped() + dto.skippedCount());
 
-                double rollingAcc = perf.getTotalAttempts() > 0
-                        ? (double) perf.getTotalCorrect() * 100.0 / perf.getTotalAttempts()
-                        : 0.0;
+                double rollingAcc;
+                if (oldAttempts > 0 && dto.attemptedCount() > 0) {
+                    double cumulativeAcc = (newCorrect * 100.0) / newAttempts;
+                    double sessionAcc = (dto.correctCount() * 100.0) / dto.attemptedCount();
+                    double ewmaAcc = (0.6 * sessionAcc) + (0.4 * oldRollingAccuracy);
+                    rollingAcc = Math.max(cumulativeAcc, ewmaAcc);
+                } else if (newAttempts > 0) {
+                    rollingAcc = (double) newCorrect * 100.0 / newAttempts;
+                } else {
+                    rollingAcc = 0.0;
+                }
                 perf.setAvgAccuracyPercent(Math.round(rollingAcc * 100.0) / 100.0);
 
                 // Exponentially weighted moving average for pace ratio (alpha = 0.3)

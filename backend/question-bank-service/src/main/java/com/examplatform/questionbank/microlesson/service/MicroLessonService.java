@@ -10,8 +10,15 @@ import com.examplatform.questionbank.microlesson.repository.SubtopicMicroLessonR
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.examplatform.questionbank.domain.Subject;
+import com.examplatform.questionbank.domain.Subtopic;
+import com.examplatform.questionbank.domain.Topic;
+import com.examplatform.questionbank.repository.SubjectRepository;
+import com.examplatform.questionbank.repository.SubtopicRepository;
+import com.examplatform.questionbank.repository.TopicRepository;
 import jakarta.persistence.criteria.Predicate;
-import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -27,8 +34,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+@Slf4j
 @Service
-@RequiredArgsConstructor
 public class MicroLessonService {
 
     private final SubtopicMicroLessonRepository repository;
@@ -36,6 +43,38 @@ public class MicroLessonService {
     private final MicroLessonCacheService cacheService;
     private final KaTexValidator kaTexValidator;
     private final ObjectMapper objectMapper;
+    private final SubtopicRepository subtopicRepository;
+    private final TopicRepository topicRepository;
+    private final SubjectRepository subjectRepository;
+
+    public MicroLessonService(
+            SubtopicMicroLessonRepository repository,
+            MicroLessonGeneratorService generatorService,
+            MicroLessonCacheService cacheService,
+            KaTexValidator kaTexValidator,
+            ObjectMapper objectMapper) {
+        this(repository, generatorService, cacheService, kaTexValidator, objectMapper, null, null, null);
+    }
+
+    @Autowired
+    public MicroLessonService(
+            SubtopicMicroLessonRepository repository,
+            MicroLessonGeneratorService generatorService,
+            MicroLessonCacheService cacheService,
+            KaTexValidator kaTexValidator,
+            ObjectMapper objectMapper,
+            @Autowired(required = false) SubtopicRepository subtopicRepository,
+            @Autowired(required = false) TopicRepository topicRepository,
+            @Autowired(required = false) SubjectRepository subjectRepository) {
+        this.repository = repository;
+        this.generatorService = generatorService;
+        this.cacheService = cacheService;
+        this.kaTexValidator = kaTexValidator;
+        this.objectMapper = objectMapper;
+        this.subtopicRepository = subtopicRepository;
+        this.topicRepository = topicRepository;
+        this.subjectRepository = subjectRepository;
+    }
 
     @Transactional(readOnly = true)
     public Page<MicroLessonResponse> listForReview(String status, Long subjectId, Pageable pageable) {
@@ -277,24 +316,152 @@ public class MicroLessonService {
         return generatorService.toResponse(lesson);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public Optional<MicroLessonResponse> getPublishedMicroLesson(Long subtopicId, String targetExam) {
+        return getPublishedMicroLesson(subtopicId, targetExam, null, null, null);
+    }
+
+    @Transactional
+    public Optional<MicroLessonResponse> getPublishedMicroLesson(
+            Long subtopicId,
+            String targetExam,
+            String subjectName,
+            String topicName,
+            String subtopicName) {
+
         // 1. Check Redis cache first
-        Optional<MicroLessonResponse> cached = cacheService.getCached(subtopicId);
-        if (cached.isPresent()) {
-            return cached;
+        if (subtopicId != null && subtopicId > 0) {
+            Optional<MicroLessonResponse> cached = cacheService.getCached(subtopicId);
+            if (cached.isPresent()) {
+                return cached;
+            }
         }
 
-        // 2. Fetch from database if cache miss
         String exam = (targetExam != null && !targetExam.isBlank()) ? targetExam : "JEE_MAIN";
-        return repository.findFirstBySubtopicIdAndTargetExamAndStatusOrderByContentVersionDesc(
-                        subtopicId, exam, MicroLessonStatus.PUBLISHED.name())
-                .or(() -> repository.findFirstBySubtopicIdAndStatusOrderByContentVersionDesc(
-                        subtopicId, MicroLessonStatus.PUBLISHED.name()))
-                .map(lesson -> {
-                    MicroLessonResponse response = generatorService.toResponse(lesson);
-                    cacheService.put(subtopicId, response);
-                    return response;
-                });
+
+        // 2. Fetch PUBLISHED from database if available
+        if (subtopicId != null && subtopicId > 0) {
+            Optional<SubtopicMicroLesson> publishedLesson = repository
+                    .findFirstBySubtopicIdAndTargetExamAndStatusOrderByContentVersionDesc(
+                            subtopicId, exam, MicroLessonStatus.PUBLISHED.name())
+                    .or(() -> repository.findFirstBySubtopicIdAndStatusOrderByContentVersionDesc(
+                            subtopicId, MicroLessonStatus.PUBLISHED.name()));
+            if (publishedLesson.isPresent()) {
+                MicroLessonResponse response = generatorService.toResponse(publishedLesson.get());
+                cacheService.put(subtopicId, response);
+                return Optional.of(response);
+            }
+
+            // 3. Next check if any micro-lesson (AI_GENERATED, PENDING_REVIEW, PUBLISHED) exists
+            Optional<SubtopicMicroLesson> anyLesson = repository
+                    .findTopBySubtopicIdAndTargetExamOrderByContentVersionDesc(subtopicId, exam)
+                    .or(() -> repository.findTopBySubtopicIdOrderByContentVersionDesc(subtopicId));
+            if (anyLesson.isPresent()) {
+                MicroLessonResponse response = generatorService.toResponse(anyLesson.get());
+                return Optional.of(response);
+            }
+        }
+
+        // 4. Resolve taxonomy names (from repositories or query parameter fallbacks)
+        Long resolvedSubjectId = 1L;
+        String resolvedSubject = (subjectName != null && !subjectName.isBlank()) ? subjectName.trim() : null;
+        Long resolvedTopicId = 1L;
+        String resolvedTopic = (topicName != null && !topicName.isBlank()) ? topicName.trim() : null;
+        String resolvedSubtopic = (subtopicName != null && !subtopicName.isBlank()) ? subtopicName.trim() : null;
+        Long effectiveSubtopicId = (subtopicId != null && subtopicId > 0) ? subtopicId : null;
+
+        if (subtopicRepository != null && effectiveSubtopicId != null) {
+            try {
+                Optional<Subtopic> stOpt = subtopicRepository.findById(effectiveSubtopicId);
+                if (stOpt.isPresent()) {
+                    Subtopic st = stOpt.get();
+                    if (resolvedSubtopic == null) {
+                        resolvedSubtopic = st.getName();
+                    }
+                    if (st.getTopicId() != null) {
+                        resolvedTopicId = st.getTopicId();
+                        if (topicRepository != null) {
+                            Optional<Topic> topOpt = topicRepository.findById(resolvedTopicId);
+                            if (topOpt.isPresent()) {
+                                Topic top = topOpt.get();
+                                if (resolvedTopic == null) {
+                                    resolvedTopic = top.getName();
+                                }
+                                if (top.getSubjectId() != null) {
+                                    resolvedSubjectId = top.getSubjectId();
+                                    if (subjectRepository != null) {
+                                        Optional<Subject> subOpt = subjectRepository.findById(resolvedSubjectId);
+                                        if (subOpt.isPresent() && resolvedSubject == null) {
+                                            resolvedSubject = subOpt.get().getName();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (Exception ex) {
+                log.debug("Could not resolve subtopic from DB repository for ID {}: {}", effectiveSubtopicId, ex.getMessage());
+            }
+        }
+
+        // If subtopic name cannot be determined, return empty (404 Not Found)
+        if (resolvedSubtopic == null || resolvedSubtopic.isBlank()) {
+            return Optional.empty();
+        }
+
+        if (effectiveSubtopicId == null) {
+            long hash = Math.abs((long) resolvedSubtopic.toLowerCase().trim().hashCode());
+            effectiveSubtopicId = hash > 0 ? hash : 1L;
+        }
+
+        if (resolvedSubject == null || resolvedSubject.isBlank()) {
+            resolvedSubject = "General";
+        }
+        if (resolvedTopic == null || resolvedTopic.isBlank()) {
+            resolvedTopic = "General";
+        }
+
+        // 5. Synthesize on demand
+        try {
+            SubtopicMicroLesson generated = generatorService.generateForSubtopic(
+                    resolvedSubjectId,
+                    resolvedSubject,
+                    resolvedTopicId,
+                    resolvedTopic,
+                    effectiveSubtopicId,
+                    resolvedSubtopic,
+                    exam
+            );
+            MicroLessonResponse response = generatorService.toResponse(generated);
+            cacheService.put(effectiveSubtopicId, response);
+            return Optional.of(response);
+        } catch (Exception ex) {
+            log.warn("On-demand synthesis failed for subtopic {}: {}. Generating fallback content.",
+                    effectiveSubtopicId, ex.getMessage());
+            try {
+                MicroLessonContentDto fallbackContent = generatorService.buildFallbackContent(
+                        resolvedSubject, resolvedTopic, resolvedSubtopic, exam);
+                SubtopicMicroLesson transientLesson = SubtopicMicroLesson.builder()
+                        .subjectId(resolvedSubjectId)
+                        .topicId(resolvedTopicId)
+                        .subtopicId(effectiveSubtopicId)
+                        .subject(resolvedSubject)
+                        .topic(resolvedTopic)
+                        .subtopic(resolvedSubtopic)
+                        .targetExam(exam)
+                        .coreConcept(fallbackContent.coreConcept())
+                        .trap(fallbackContent.trap())
+                        .cheatSheetJson(objectMapper.writeValueAsString(fallbackContent.cheatSheet()))
+                        .stepByStepBreakdownJson(objectMapper.writeValueAsString(fallbackContent.stepByStepBreakdown()))
+                        .status(MicroLessonStatus.AI_GENERATED.name())
+                        .contentVersion(1)
+                        .build();
+                return Optional.of(generatorService.toResponse(transientLesson));
+            } catch (Exception e2) {
+                log.error("Failed to construct fallback micro-lesson: {}", e2.getMessage());
+                return Optional.empty();
+            }
+        }
     }
 }

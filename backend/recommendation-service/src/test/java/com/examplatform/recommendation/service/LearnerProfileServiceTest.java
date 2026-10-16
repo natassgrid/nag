@@ -117,4 +117,58 @@ class LearnerProfileServiceTest {
         assertThat(dto.overallAccuracy()).isEqualTo(0.0);
         assertThat(dto.subtopicAccuracyMap()).isEqualTo("{}");
     }
+
+    @Test
+    @DisplayName("updateProfile - applies recency-weighted EWMA when prior attempts exist")
+    void testUpdateProfileWithEwmaPriorAttempts() throws Exception {
+        LearnerProfile existingProfile = LearnerProfile.builder()
+                .candidateId(candidateId)
+                .totalPracticeSessions(1)
+                .totalQuestionsAttempted(10)
+                .overallAccuracy(0.2)
+                .build();
+
+        when(profileRepository.findByCandidateId(candidateId)).thenReturn(Optional.of(existingProfile));
+        when(profileRepository.save(any(LearnerProfile.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        LearnerSubtopicPerformance existingPerf = LearnerSubtopicPerformance.builder()
+                .candidateId(candidateId)
+                .subtopicName("Limits")
+                .totalQuestions(10)
+                .totalAttempts(10)
+                .totalCorrect(2)
+                .totalSkipped(0)
+                .avgAccuracyPercent(20.0)
+                .avgPaceRatio(1.0)
+                .avgSkipRatePercent(0.0)
+                .build();
+
+        when(subtopicRepository.findByCandidateIdAndSubtopicName(candidateId, "Limits"))
+                .thenReturn(Optional.of(existingPerf));
+
+        SubtopicPerformanceDto subtopicDto = new SubtopicPerformanceDto(
+                100L, "Math", 10L, "Calculus", 501L, "Limits",
+                10, 10, 10, 0, 0,
+                300000L, 30000L, 30000L,
+                100.0, 0.0, 1.0
+        );
+
+        String subtopicJson = objectMapper.writeValueAsString(List.of(subtopicDto));
+        PracticeSessionCompletedEvent event = new PracticeSessionCompletedEvent(
+                UUID.randomUUID(), candidateId, UUID.randomUUID(),
+                10, 0, 0, 10, 10, "{}", subtopicJson
+        );
+
+        learnerProfileService.updateProfile(event);
+
+        ArgumentCaptor<LearnerSubtopicPerformance> perfCaptor =
+                ArgumentCaptor.forClass(LearnerSubtopicPerformance.class);
+        verify(subtopicRepository).save(perfCaptor.capture());
+
+        LearnerSubtopicPerformance saved = perfCaptor.getValue();
+        assertThat(saved.getTotalAttempts()).isEqualTo(20);
+        assertThat(saved.getTotalCorrect()).isEqualTo(12);
+        // cumulative = 60.0%, ewma = 0.6 * 100 + 0.4 * 20 = 68.0% -> max = 68.0%
+        assertThat(saved.getAvgAccuracyPercent()).isEqualTo(68.0);
+    }
 }

@@ -16,6 +16,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -248,5 +249,99 @@ class MilestoneProgressionServiceTest {
         StartGatekeeperResponse response = serviceWithGen.startGatekeeperTest(CANDIDATE_ID);
         assertThat(response.practiceSetId()).isEqualTo(expectedSetId);
         assertThat(response.practiceLauncherUrl()).contains(expectedSetId.toString());
+    }
+
+    @Test
+    @DisplayName("getGatekeeperStatus returns cleared when currentPhase is DIAGNOSTIC_REQUIRED")
+    void testGatekeeperStatusDiagnosticRequired() throws Exception {
+        MilestoneGraphDto diagGraph = new MilestoneGraphDto(
+                "DIAGNOSTIC_REQUIRED",
+                "JEE_MAIN",
+                false,
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                0,
+                0.0
+        );
+        DynamicLearningPath dlp = DynamicLearningPath.builder()
+                .candidateId(CANDIDATE_ID)
+                .status("ACTIVE")
+                .milestoneGraphJson(objectMapper.writeValueAsString(diagGraph))
+                .build();
+
+        when(dlpRepository.findFirstByCandidateIdAndStatusOrderByCreatedAtDesc(CANDIDATE_ID, "ACTIVE"))
+                .thenReturn(Optional.of(dlp));
+
+        GatekeeperStatusResponse status = service.getGatekeeperStatus(CANDIDATE_ID);
+        assertThat(status.gatekeeperRequired()).isFalse();
+        assertThat(status.clearedForFullMock()).isTrue();
+        assertThat(status.currentPhase()).isEqualTo("DIAGNOSTIC_REQUIRED");
+    }
+
+    @Test
+    @DisplayName("getGatekeeperStatus populates conceptualGaps and applicationGaps")
+    void testGatekeeperStatusPopulatesGaps() throws Exception {
+        DynamicLearningPath dlp = createSampleDlp("IN_PROGRESS", "LOCKED", "LOCKED", false);
+        when(dlpRepository.findFirstByCandidateIdAndStatusOrderByCreatedAtDesc(CANDIDATE_ID, "ACTIVE"))
+                .thenReturn(Optional.of(dlp));
+
+        GatekeeperStatusResponse status = service.getGatekeeperStatus(CANDIDATE_ID);
+        assertThat(status.gatekeeperRequired()).isTrue();
+        assertThat(status.clearedForFullMock()).isFalse();
+        assertThat(status.conceptualGaps()).contains("Moment of Inertia");
+        assertThat(status.applicationGaps()).contains("Work Energy Theorem");
+        assertThat(status.remedialSubtopics()).contains("Moment of Inertia");
+    }
+
+    @Test
+    @DisplayName("handleCompletedSessionIfApplicable completes Phase 2 quiz when in PHASE_2_ADAPTIVE_QUIZ")
+    void testHandleCompletedSessionPhase2() throws Exception {
+        UUID quizSessionId = UUID.randomUUID();
+        DynamicLearningPath dlp = createSampleDlp("COMPLETED", "IN_PROGRESS", "LOCKED", true);
+
+        // Update phase2 with quizSessionId
+        MilestoneGraphDto graph = objectMapper.readValue(dlp.getMilestoneGraphJson(), MilestoneGraphDto.class);
+        List<MilestonePhaseDto> phases = new ArrayList<>();
+        for (MilestonePhaseDto p : graph.phases()) {
+            if (p.phaseNumber() == 2) {
+                phases.add(new MilestonePhaseDto(
+                        p.phaseNumber(), p.phaseName(), p.targetDescription(), p.durationWeeks(),
+                        p.status(), p.targetAccuracy(), p.achievedAccuracy(), quizSessionId,
+                        p.passThreshold(), p.gatekeeperSessionId(), p.passed(), p.items()
+                ));
+            } else {
+                phases.add(p);
+            }
+        }
+        MilestoneGraphDto updatedGraph = new MilestoneGraphDto(
+                "PHASE_2_ADAPTIVE_QUIZ", graph.targetExam(), false, phases,
+                graph.conceptualGaps(), graph.applicationGaps(), graph.proficientTopics(),
+                graph.totalSubtopicsEvaluated(), graph.overallReadinessScore()
+        );
+        dlp.setMilestoneGraphJson(objectMapper.writeValueAsString(updatedGraph));
+
+        when(dlpRepository.findFirstByCandidateIdAndStatusOrderByCreatedAtDesc(CANDIDATE_ID, "ACTIVE"))
+                .thenReturn(Optional.of(dlp));
+        when(dlpRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        boolean handled = service.handleCompletedSessionIfApplicable(CANDIDATE_ID, quizSessionId, 85.0);
+        assertThat(handled).isTrue();
+
+        MilestoneGraphDto savedGraph = objectMapper.readValue(dlp.getMilestoneGraphJson(), MilestoneGraphDto.class);
+        assertThat(savedGraph.getPhase2().status()).isEqualTo("COMPLETED");
+        assertThat(savedGraph.currentPhase()).isEqualTo("PHASE_3_GATEKEEPER");
+    }
+
+    @Test
+    @DisplayName("handleCompletedSessionIfApplicable returns false when in Phase 1")
+    void testHandleCompletedSessionPhase1ReturnsFalse() throws Exception {
+        DynamicLearningPath dlp = createSampleDlp("IN_PROGRESS", "LOCKED", "LOCKED", false);
+        when(dlpRepository.findFirstByCandidateIdAndStatusOrderByCreatedAtDesc(CANDIDATE_ID, "ACTIVE"))
+                .thenReturn(Optional.of(dlp));
+
+        boolean handled = service.handleCompletedSessionIfApplicable(CANDIDATE_ID, UUID.randomUUID(), 85.0);
+        assertThat(handled).isFalse();
     }
 }

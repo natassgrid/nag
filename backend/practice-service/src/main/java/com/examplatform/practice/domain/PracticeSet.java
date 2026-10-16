@@ -46,4 +46,15 @@ public class PracticeSet extends BaseEntity {
     @Column(name = "total_questions", nullable = false)
     @Builder.Default
     private int totalQuestions = 0;
+
+    @jakarta.persistence.Transient
+    private String examTitle;
+
+    public String getExamTitle() {
+        return examTitle != null ? examTitle : name;
+    }
+
+    public void setExamTitle(String examTitle) {
+        this.examTitle = examTitle;
+    }
 }

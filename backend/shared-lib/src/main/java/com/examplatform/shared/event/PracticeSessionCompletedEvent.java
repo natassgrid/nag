@@ -14,8 +14,26 @@ public record PracticeSessionCompletedEvent(
     int obtainedMarks,
     int totalMarks,
     String topicWiseBreakdown,
-    String subtopicWiseBreakdown
+    String subtopicWiseBreakdown,
+    String practiceSetSource,
+    String targetExam
 ) implements Serializable {
+
+    public PracticeSessionCompletedEvent(
+        UUID sessionId,
+        UUID candidateId,
+        UUID practiceSetId,
+        int correctCount,
+        int incorrectCount,
+        int skippedCount,
+        int obtainedMarks,
+        int totalMarks,
+        String topicWiseBreakdown,
+        String subtopicWiseBreakdown
+    ) {
+        this(sessionId, candidateId, practiceSetId, correctCount, incorrectCount, skippedCount, obtainedMarks, totalMarks, topicWiseBreakdown, subtopicWiseBreakdown, null, null);
+    }
+
     public PracticeSessionCompletedEvent(
         UUID sessionId,
         UUID candidateId,
@@ -27,6 +45,19 @@ public record PracticeSessionCompletedEvent(
         int totalMarks,
         String topicWiseBreakdown
     ) {
-        this(sessionId, candidateId, practiceSetId, correctCount, incorrectCount, skippedCount, obtainedMarks, totalMarks, topicWiseBreakdown, null);
+        this(sessionId, candidateId, practiceSetId, correctCount, incorrectCount, skippedCount, obtainedMarks, totalMarks, topicWiseBreakdown, null, null, null);
+    }
+
+    public PracticeSessionCompletedEvent(
+        UUID sessionId,
+        UUID candidateId,
+        int correctCount,
+        int incorrectCount,
+        int skippedCount,
+        int obtainedMarks,
+        int totalMarks,
+        String topicWiseBreakdown
+    ) {
+        this(sessionId, candidateId, null, correctCount, incorrectCount, skippedCount, obtainedMarks, totalMarks, topicWiseBreakdown, null, null, null);
     }
 }

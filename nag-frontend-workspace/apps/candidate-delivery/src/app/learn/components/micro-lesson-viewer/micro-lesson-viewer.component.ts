@@ -17,9 +17,16 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatChipsModule } from '@angular/material/chips';
 import { MathRendererComponent } from '@nag-frontend-workspace/shared-ui-components';
-import { SubtopicMicroLesson } from '../../models/micro-lesson.model';
+import {
+  SubtopicMicroLesson,
+  TrapAlert,
+  FormulaEntry,
+} from '../../models/micro-lesson.model';
 import { ExplanationIr } from '../../models/explanation-ir.model';
-import { MicroLessonService } from '../../services/micro-lesson.service';
+import {
+  MicroLessonService,
+  MicroLessonQueryParams,
+} from '../../services/micro-lesson.service';
 import { LearningPathService } from '../../services/learning-path.service';
 import { ExplanationPlayerComponent } from '../explanation-player/explanation-player.component';
 
@@ -63,25 +70,48 @@ export class MicroLessonViewerComponent implements OnInit {
     const l = this.lesson();
     if (!l?.content?.stepByStepBreakdown) return null;
     const b = l.content.stepByStepBreakdown;
+    const steps = b.steps || [];
+    if (steps.length === 0) return null;
+
+    const trapText =
+      typeof l.content.trapAlert === 'object' && l.content.trapAlert
+        ? l.content.trapAlert.description
+        : typeof l.content.trapAlert === 'string'
+        ? l.content.trapAlert
+        : '';
+
     return {
       explanationId: l.id,
       questionId: String(l.subtopicId),
       status: 'APPROVED',
       problem: {
-        statement: b.problemStatement,
+        statement: b.problemStatement || b.questionStem || '',
       },
-      concepts: [l.subtopicName, l.topicName],
-      steps: b.steps.map((s, idx) => ({
+      concepts: [l.subtopicName, l.topicName].filter(Boolean),
+      steps: steps.map((s, idx) => ({
         id: `step-${s.stepNumber}`,
         sequence: s.stepNumber,
-        type: idx === 0 ? 'GIVEN' : (idx === b.steps.length - 1 ? 'CONCLUDE' : 'TRANSFORM'),
+        type:
+          idx === 0
+            ? 'GIVEN'
+            : idx === steps.length - 1
+            ? 'CONCLUDE'
+            : 'TRANSFORM',
         after: s.explanation,
         math: s.formula ? { latex: s.formula } : undefined,
         justification: { why: s.title, formula: s.formula },
       })),
       hints: [
-        { id: 'h1', level: 1, text: 'Review the formula cheat sheet in Part 3 above.' },
-        { id: 'h2', level: 2, text: 'Avoid the common trap: ' + (l.content.trapAlert || '') },
+        {
+          id: 'h1',
+          level: 1,
+          text: 'Review the formula cheat sheet in Part 3 above.',
+        },
+        {
+          id: 'h2',
+          level: 2,
+          text: 'Avoid the common trap: ' + trapText,
+        },
       ],
       verification: {
         passed: true,
@@ -93,39 +123,67 @@ export class MicroLessonViewerComponent implements OnInit {
 
   resolvedSubtopicId: number | null = null;
   resolvedMilestoneId: string | null = null;
+  resolvedQueryParams: MicroLessonQueryParams = {};
 
   ngOnInit(): void {
     const routeSubtopicId = this.route.snapshot?.paramMap?.get('subtopicId');
-    const routeMilestoneId = this.route.snapshot?.queryParamMap?.get('milestoneId');
+    const qp = this.route.snapshot?.queryParamMap;
+    const routeMilestoneId = qp?.get('milestoneId');
+    const subtopicName = qp?.get('subtopicName') || undefined;
+    const topicName = qp?.get('topicName') || undefined;
+    const subjectName = qp?.get('subjectName') || undefined;
+    const targetExam = qp?.get('targetExam') || undefined;
 
-    this.resolvedSubtopicId = this.subtopicIdInput() || (routeSubtopicId ? Number(routeSubtopicId) : null);
-    this.resolvedMilestoneId = this.milestoneIdInput() || routeMilestoneId || null;
+    this.resolvedSubtopicId =
+      this.subtopicIdInput() || (routeSubtopicId ? Number(routeSubtopicId) : null);
+    this.resolvedMilestoneId =
+      this.milestoneIdInput() || routeMilestoneId || null;
+    this.resolvedQueryParams = {
+      subtopicName,
+      topicName,
+      subjectName,
+      targetExam,
+    };
 
     if (this.resolvedSubtopicId) {
-      this.loadLesson(this.resolvedSubtopicId);
+      this.loadLesson(this.resolvedSubtopicId, this.resolvedQueryParams);
     } else {
       this.error.set('No subtopic identifier specified for micro-lesson.');
       this.loading.set(false);
     }
   }
 
-  loadLesson(subtopicId: number): void {
+  loadLesson(subtopicId: number, params?: MicroLessonQueryParams): void {
     this.loading.set(true);
     this.error.set(null);
 
-    this.microLessonService.getPublishedMicroLesson(subtopicId).subscribe({
-      next: (data) => {
-        this.lesson.set(data);
-        this.loading.set(false);
-      },
-      error: (err) => {
-        this.error.set(
-          err?.error?.message ||
-            'Micro-lesson content is currently being prepared for this subtopic.'
-        );
-        this.loading.set(false);
-      },
-    });
+    this.microLessonService
+      .getPublishedMicroLesson(subtopicId, params)
+      .subscribe({
+        next: (data) => {
+          this.lesson.set(data);
+          this.loading.set(false);
+        },
+        error: (err) => {
+          this.error.set(
+            err?.error?.message ||
+              'Micro-lesson content is currently being prepared for this subtopic.'
+          );
+          this.loading.set(false);
+        },
+      });
+  }
+
+  isTrapObject(trap: any): trap is TrapAlert {
+    return typeof trap === 'object' && trap !== null && 'title' in trap;
+  }
+
+  isFormulaArray(sheet: any): sheet is FormulaEntry[] {
+    return Array.isArray(sheet);
+  }
+
+  asString(val: any): string {
+    return typeof val === 'string' ? val : '';
   }
 
   toggleInteractivePlayer(): void {
@@ -140,19 +198,21 @@ export class MicroLessonViewerComponent implements OnInit {
     }
 
     this.completing.set(true);
-    this.learningPathService.completeMilestone(this.resolvedMilestoneId).subscribe({
-      next: () => {
-        this.completing.set(false);
-        this.isCompleted.set(true);
-        this.completed.emit(this.resolvedMilestoneId!);
-      },
-      error: () => {
-        this.completing.set(false);
-        // Fallback optimistic completion
-        this.isCompleted.set(true);
-        this.completed.emit(this.resolvedMilestoneId!);
-      },
-    });
+    this.learningPathService
+      .completeMilestone(this.resolvedMilestoneId)
+      .subscribe({
+        next: () => {
+          this.completing.set(false);
+          this.isCompleted.set(true);
+          this.completed.emit(this.resolvedMilestoneId!);
+        },
+        error: () => {
+          this.completing.set(false);
+          // Fallback optimistic completion
+          this.isCompleted.set(true);
+          this.completed.emit(this.resolvedMilestoneId!);
+        },
+      });
   }
 
   onBackToRoadmap(): void {

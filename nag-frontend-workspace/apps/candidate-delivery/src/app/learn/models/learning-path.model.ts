@@ -1,11 +1,13 @@
 export interface MilestoneItem {
-  milestoneId: string;
-  subtopicId: number;
-  subtopicName: string;
-  topicName: string;
-  subjectName: string;
-  status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
-  targetScore: number;
+  id?: string;
+  milestoneId?: string;
+  subtopicId?: number;
+  subtopicName?: string;
+  topicName?: string;
+  subjectName?: string;
+  completed?: boolean;
+  status?: 'NOT_STARTED' | 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+  targetScore?: number;
   microLessonId?: string | null;
   completedAt?: string | null;
 }
@@ -28,22 +30,26 @@ export interface MilestonePhase {
 export interface MilestoneGraph {
   phases: MilestonePhase[];
   currentPhase: number | string;
-  targetExam: string;
-  gatekeeperPassed: boolean;
+  currentPhaseNumber?: number;
+  targetExam?: string;
+  gatekeeperPassed?: boolean;
 }
 
 export interface DynamicLearningPath {
   id: string;
   candidateId: string;
   status: 'ACTIVE' | 'IN_PROGRESS' | 'COMPLETED' | 'SUPERSEDED' | 'ARCHIVED';
-  targetExam: string;
+  targetExam?: string;
+  examTarget?: string;
   createdAt: string;
   updatedAt?: string;
   milestoneGraph: MilestoneGraph;
-  conceptualGaps?: Array<{ subtopicId?: number; subtopicName: string; accuracyPercent?: number }>;
-  applicationGaps?: Array<{ subtopicId?: number; subtopicName: string; accuracyPercent?: number }>;
+  conceptualGaps?: Array<{ subtopicId?: number; subtopicName: string; accuracyPercent?: number }> | string[];
+  applicationGaps?: Array<{ subtopicId?: number; subtopicName: string; accuracyPercent?: number }> | string[];
   gatekeeperPassed: boolean;
 }
+
+export type DynamicLearningPathResponse = DynamicLearningPath;
 
 export interface GatekeeperStatusResponse {
   allowed?: boolean;
@@ -56,8 +62,8 @@ export interface GatekeeperStatusResponse {
   remedialSubtopics?: string[];
   active?: boolean;
   hasGaps?: boolean;
-  conceptualGaps?: Array<{ subtopicId?: number; subtopicName: string; accuracyPercent?: number }>;
-  applicationGaps?: Array<{ subtopicId?: number; subtopicName: string; accuracyPercent?: number }>;
+  conceptualGaps?: Array<{ subtopicId?: number; subtopicName: string; accuracyPercent?: number }> | string[];
+  applicationGaps?: Array<{ subtopicId?: number; subtopicName: string; accuracyPercent?: number }> | string[];
   message?: string;
 }
 

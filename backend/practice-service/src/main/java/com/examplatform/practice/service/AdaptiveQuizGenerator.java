@@ -128,10 +128,9 @@ public class AdaptiveQuizGenerator {
             int totalCount,
             String questionIdsJson) {
 
-        String typePrefix = isGatekeeper ? "Gatekeeper Test" : "Adaptive Remedial Drill";
-        String subtopicLabel = subtopics.isEmpty() ? "Weak Areas" : subtopics.getFirst();
-        String examLabel = targetExam != null ? targetExam : "General";
-        String setName = String.format("%s - %s (%s)", typePrefix, subtopicLabel, examLabel);
+        String setName = isGatekeeper
+                ? ((targetExam != null && !targetExam.isBlank()) ? String.format("%s Gatekeeper Test", targetExam) : "Gatekeeper Test")
+                : "Adaptive Practice Quiz";
         String source = isGatekeeper ? "GATEKEEPER_TEST" : "ADAPTIVE_QUIZ";
 
         return PracticeSet.builder()

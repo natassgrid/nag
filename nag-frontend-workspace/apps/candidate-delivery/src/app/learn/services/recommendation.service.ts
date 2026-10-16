@@ -68,4 +68,19 @@ export class RecommendationService {
       })
     );
   }
+
+  toggleStudyPlanDay(dayNumber: number, completed: boolean): Observable<Recommendation> {
+    const params = new HttpParams().set('completed', completed.toString());
+    return this.http.patch<any>(`${this.apiUrl}/study-plan/days/${dayNumber}`, {}, { params }).pipe(
+      map(res => {
+        if (!res) return res;
+        return {
+          ...res,
+          weakTopicRecommendations: this.tryParseJson(res.weakTopicRecommendations, []),
+          studyPlanItems: this.tryParseJson(res.studyPlanItems, []),
+          suggestedPracticeSetIds: this.tryParseJson(res.suggestedPracticeSetIds, [])
+        } as Recommendation;
+      })
+    );
+  }
 }
