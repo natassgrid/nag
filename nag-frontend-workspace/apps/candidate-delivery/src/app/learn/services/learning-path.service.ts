@@ -39,6 +39,18 @@ export class LearningPathService {
     );
   }
 
+  startDiagnosticTest(
+    examTarget?: string
+  ): Observable<StartAdaptiveQuizResponse> {
+    const params = examTarget
+      ? `?examTarget=${encodeURIComponent(examTarget)}`
+      : '';
+    return this.http.post<StartAdaptiveQuizResponse>(
+      `${this.apiUrl}/diagnostic-test/start${params}`,
+      {}
+    );
+  }
+
   startAdaptiveQuiz(): Observable<StartAdaptiveQuizResponse> {
     return this.http.post<StartAdaptiveQuizResponse>(
       `${this.apiUrl}/adaptive-quiz/start`,

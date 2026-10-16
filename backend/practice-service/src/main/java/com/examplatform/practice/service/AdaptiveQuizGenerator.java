@@ -61,6 +61,65 @@ public class AdaptiveQuizGenerator {
         return practiceSetService.toDto(saved);
     }
 
+    /**
+     * Synthesizes a multi-topic Baseline Diagnostic Practice Set for cold-start candidates
+     * with a balanced 40% Easy, 40% Medium, 20% Hard distribution across published questions.
+     */
+    @Transactional
+    public PracticeSetDto generateDiagnosticSet(
+            UUID candidateId,
+            String targetExam,
+            int totalQuestions) {
+
+        int targetTotal = Math.clamp(totalQuestions, 10, 30);
+        int easyTarget = (int) Math.round(targetTotal * 0.40);
+        int mediumTarget = (int) Math.round(targetTotal * 0.40);
+        int hardTarget = Math.max(1, targetTotal - easyTarget - mediumTarget);
+
+        Set<UUID> selectedIds = new LinkedHashSet<>();
+        addQuestions(selectedIds, questionBankClient.findQuestionsForAdaptiveQuiz(Collections.emptyList(), "EASY", easyTarget), easyTarget);
+        addQuestions(selectedIds, questionBankClient.findQuestionsForAdaptiveQuiz(Collections.emptyList(), "MEDIUM", mediumTarget), easyTarget + mediumTarget);
+        addQuestions(selectedIds, questionBankClient.findQuestionsForAdaptiveQuiz(Collections.emptyList(), "HARD", hardTarget), targetTotal);
+
+        if (selectedIds.size() < targetTotal) {
+            List<UUID> anyQuestions = questionBankClient.findQuestionsForAdaptiveQuiz(
+                    Collections.emptyList(), null, targetTotal - selectedIds.size());
+            selectedIds.addAll(anyQuestions);
+        }
+
+        if (selectedIds.isEmpty()) {
+            for (int i = 0; i < targetTotal; i++) {
+                selectedIds.add(UUID.randomUUID());
+            }
+        }
+
+        List<UUID> finalQuestionIds = new ArrayList<>(selectedIds);
+        String questionIdsJson = serializeQuestionIds(finalQuestionIds);
+
+        String effectiveExam = (targetExam != null && !targetExam.isBlank()) ? targetExam.trim() : "JEE_MAIN";
+        String setName = String.format("%s — Baseline Diagnostic Assessment", effectiveExam);
+
+        PracticeSet practiceSet = PracticeSet.builder()
+                .name(setName)
+                .description(String.format(
+                        "Multi-topic baseline diagnostic assessment for %s (40%% Easy, 40%% Medium, 20%% Hard) to calibrate your 3-Phase Dynamic Learning Path and 7-Day AI Study Plan.",
+                        effectiveExam))
+                .createdBy(candidateId)
+                .source("DIAGNOSTIC_TEST")
+                .questionIds(questionIdsJson)
+                .durationMinutes(25)
+                .subjectSlug("diagnostic")
+                .published(true)
+                .totalQuestions(finalQuestionIds.size())
+                .build();
+
+        PracticeSet saved = practiceSetRepository.save(practiceSet);
+        log.info("Synthesized DIAGNOSTIC_TEST practice set {} with {} questions for candidate {} (exam: {})",
+                saved.getId(), finalQuestionIds.size(), candidateId, effectiveExam);
+
+        return practiceSetService.toDto(saved);
+    }
+
     private List<String> sanitizeSubtopics(List<String> targetSubtopics) {
         if (targetSubtopics == null || targetSubtopics.isEmpty()) {
             return Collections.emptyList();

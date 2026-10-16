@@ -7,7 +7,7 @@ import {
   computed,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -26,6 +26,7 @@ import { LearningPathService } from '../../services/learning-path.service';
   standalone: true,
   imports: [
     CommonModule,
+    RouterModule,
     MatCardModule,
     MatButtonModule,
     MatIconModule,
@@ -178,6 +179,25 @@ export class DlpRoadmapComponent implements OnInit {
           this.learningPath()?.targetExam ||
           this.learningPath()?.examTarget ||
           'JEE_MAIN',
+      },
+    });
+  }
+
+  onStartDiagnosticTest(): void {
+    this.actionInProgress.set(true);
+    const targetExam =
+      this.learningPath()?.targetExam ||
+      this.learningPath()?.examTarget ||
+      'JEE_MAIN';
+    this.learningPathService.startDiagnosticTest(targetExam).subscribe({
+      next: (res) => {
+        this.actionInProgress.set(false);
+        const setId = res.practiceSetId || res.quizSessionId;
+        this.router.navigate(['/practice'], { queryParams: { setId } });
+      },
+      error: () => {
+        this.actionInProgress.set(false);
+        this.router.navigate(['/practice']);
       },
     });
   }

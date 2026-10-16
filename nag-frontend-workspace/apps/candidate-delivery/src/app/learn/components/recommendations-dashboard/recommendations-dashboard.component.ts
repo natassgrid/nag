@@ -188,6 +188,22 @@ export class RecommendationsDashboardComponent {
     this.onRefreshRecommendations();
   }
 
+  onStartDiagnosticTest(): void {
+    this.isGenerating.set(true);
+    const target = this.selectedExam();
+    this.learningPathService.startDiagnosticTest(target).subscribe({
+      next: (res) => {
+        this.isGenerating.set(false);
+        const setId = res.practiceSetId || res.quizSessionId;
+        this.router.navigate(['/practice'], { queryParams: { setId } });
+      },
+      error: () => {
+        this.isGenerating.set(false);
+        this.router.navigate(['/practice']);
+      },
+    });
+  }
+
   scrollToStudyPlan(): void {
     const el = document.getElementById('study-plan');
     if (el) {

@@ -415,15 +415,17 @@
               </div>
 
               <!-- Primary CTA: Take Baseline Diagnostic Test -->
-              <a
-                routerLink="/practice"
+              <button
+                type="button"
                 mat-flat-button
                 color="primary"
+                [disabled]="isGenerating()"
+                (click)="onStartDiagnosticTest()"
                 class="!bg-indigo-500 hover:!bg-indigo-600 !text-white !font-bold !text-xs !py-3 !px-5 !rounded-xl shadow-lg cursor-pointer flex items-center justify-center gap-1.5"
               >
                 <mat-icon class="!text-base">play_arrow</mat-icon>
                 <span>Take Baseline Diagnostic Test</span>
-              </a>
+              </button>
 
               <!-- Secondary CTA: Generate Starter 7-Day Study Plan -->
               <button

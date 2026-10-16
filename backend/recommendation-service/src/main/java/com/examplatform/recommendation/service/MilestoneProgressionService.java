@@ -160,6 +160,47 @@ public class MilestoneProgressionService {
     }
 
     @Transactional
+    public StartAdaptiveQuizResponse startDiagnosticTest(UUID candidateId, String requestedExamTarget) {
+        DynamicLearningPath dlp = dlpRepository.findFirstByCandidateIdAndStatusOrderByCreatedAtDesc(candidateId, "ACTIVE")
+                .orElseGet(() -> generatorService.generateOrRecalculate(candidateId, null, requestedExamTarget));
+
+        String effectiveExam = (requestedExamTarget != null && !requestedExamTarget.isBlank())
+                ? requestedExamTarget.trim()
+                : (dlp.getExamTarget() != null && !dlp.getExamTarget().isBlank() ? dlp.getExamTarget() : "JEE_MAIN");
+
+        UUID practiceSetId = null;
+        if (adaptiveQuizGeneratorProvider != null) {
+            var generator = adaptiveQuizGeneratorProvider.getIfAvailable();
+            if (generator != null) {
+                try {
+                    var setDto = generator.generateDiagnosticSet(candidateId, effectiveExam, 20);
+                    if (setDto != null && setDto.id() != null) {
+                        practiceSetId = setDto.id();
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to generate diagnostic set via AdaptiveQuizGenerator: {}", e.getMessage());
+                }
+            }
+        }
+
+        if (practiceSetId == null) {
+            practiceSetId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        }
+
+        String launcherUrl = "/practice?setId=" + practiceSetId;
+        return new StartAdaptiveQuizResponse(
+                practiceSetId,
+                practiceSetId,
+                launcherUrl,
+                "DIAGNOSTIC_REQUIRED",
+                60.0,
+                20,
+                Collections.emptyList(),
+                String.format("Baseline diagnostic assessment for %s initialized (20 multi-topic questions).", effectiveExam)
+        );
+    }
+
+    @Transactional
     public StartAdaptiveQuizResponse startAdaptiveQuiz(UUID candidateId) {
         DynamicLearningPath dlp = getActiveDlp(candidateId);
         MilestoneGraphDto graph = parseGraph(dlp);
