@@ -276,7 +276,7 @@
                       />
                     </td>
                     <td class="py-3 px-4">
-                      <p class="font-bold text-slate-900 line-clamp-1">{{ item.subtopicName || item.subtopic }}</p>
+                      <p class="font-bold text-slate-900 line-clamp-1"><nag-math-renderer [content]="item.subtopicName || item.subtopic || ''" [inline]="true"></nag-math-renderer></p>
                       <p class="text-[11px] text-slate-400 mt-0.5">{{ item.subjectName || item.subject }} &bull; {{ item.topicName || item.topic }}</p>
                     </td>
                     <td class="py-3 px-4 whitespace-nowrap">
@@ -318,7 +318,7 @@
                 </span>
                 <span class="text-xs text-slate-400 font-mono">v{{ lesson.contentVersion || 1 }}</span>
               </div>
-              <h2 class="text-lg font-bold text-slate-900 mt-1.5">{{ lesson.subtopicName || lesson.subtopic }}</h2>
+              <h2 class="text-lg font-bold text-slate-900 mt-1.5"><nag-math-renderer [content]="lesson.subtopicName || lesson.subtopic || ''" [inline]="true"></nag-math-renderer></h2>
               <p class="text-xs text-slate-500">{{ lesson.subjectName || lesson.subject }} &rsaquo; {{ lesson.topicName || lesson.topic }} &bull; Target: {{ lesson.targetExam || 'General' }}</p>
             </div>
             <div class="flex items-center gap-2">
