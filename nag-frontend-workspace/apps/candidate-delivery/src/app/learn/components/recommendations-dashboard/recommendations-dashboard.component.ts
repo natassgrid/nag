@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, inject, signal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -12,7 +12,7 @@ import { LearningPathService } from '../../services/learning-path.service';
 import { RecommendationCardComponent } from '../recommendation-card/recommendation-card.component';
 import { LearnerProfileInsightsComponent } from '../learner-profile-insights/learner-profile-insights.component';
 import { DynamicLearningPath, LearningPathSummary } from '../../models/learning-path.model';
-import { catchError, of, combineLatest, map } from 'rxjs';
+import { catchError, of, combineLatest, map, switchMap, forkJoin, BehaviorSubject } from 'rxjs';
 import { toSignal } from '@angular/core/rxjs-interop';
 
 @Component({
@@ -41,23 +41,40 @@ export class RecommendationsDashboardComponent {
 
   readonly isGenerating = signal<boolean>(false);
   readonly selectedExam = signal<string>('JEE_MAIN');
+  readonly selectedExamTarget = this.selectedExam;
   readonly generateError = signal<string | null>(null);
 
-  private readonly refreshTrigger$ = signal<number>(0);
+  readonly examTargets = [
+    { value: 'JEE_MAIN', label: 'JEE Main' },
+    { value: 'JEE_ADVANCED', label: 'JEE Advanced' },
+    { value: 'NEET', label: 'NEET UG' },
+    { value: 'UPSC_PRELIMS', label: 'UPSC CSE Prelims' },
+    { value: 'IBPS_PO', label: 'IBPS PO / Banking' },
+    { value: 'SSC_CGL', label: 'SSC CGL' },
+    { value: 'GATE_CS', label: 'GATE CS / Engineering' },
+    { value: 'CAT', label: 'CAT / Management' },
+    { value: 'GENERAL_COMPETITIVE', label: 'General Competitive' },
+  ];
 
-  private readonly dashboardData$ = combineLatest([
-    this.recommendationService.getLatest().pipe(catchError(() => of(null))),
-    this.recommendationService.getLearnerProfile().pipe(catchError(() => of(null))),
-    this.learningPathService.getLearningPath().pipe(catchError(() => of(null))),
-    this.learningPathService.getSummary().pipe(catchError(() => of(null))),
-  ]).pipe(
-    map(([recommendation, profile, learningPath, summary]) => ({
-      recommendation,
-      profile,
-      learningPath: learningPath as DynamicLearningPath | null,
-      summary: summary as LearningPathSummary | null,
-      loading: false,
-    }))
+  private readonly refresh$ = new BehaviorSubject<void>(undefined);
+
+  private readonly dashboardData$ = this.refresh$.pipe(
+    switchMap(() =>
+      combineLatest([
+        this.recommendationService.getLatest().pipe(catchError(() => of(null))),
+        this.recommendationService.getLearnerProfile().pipe(catchError(() => of(null))),
+        this.learningPathService.getLearningPath().pipe(catchError(() => of(null))),
+        this.learningPathService.getSummary().pipe(catchError(() => of(null))),
+      ]).pipe(
+        map(([recommendation, profile, learningPath, summary]) => ({
+          recommendation,
+          profile,
+          learningPath: learningPath as DynamicLearningPath | null,
+          summary: summary as LearningPathSummary | null,
+          loading: false,
+        }))
+      )
+    )
   );
 
   dashboardData = toSignal(this.dashboardData$, {
@@ -68,6 +85,54 @@ export class RecommendationsDashboardComponent {
       summary: null,
       loading: true,
     },
+  });
+
+  readonly isColdStart = computed<boolean>(() => {
+    const data = this.dashboardData();
+    const phase = data.learningPath?.milestoneGraph?.currentPhase;
+    const isDiag =
+      !data.learningPath ||
+      phase === 'DIAGNOSTIC_REQUIRED' ||
+      phase === 0;
+    const totalSessions =
+      data.profile?.totalPracticeSessions ??
+      (data.profile as any)?.totalSessionsCompleted ??
+      0;
+    return isDiag && totalSessions === 0;
+  });
+
+  readonly activeJourneyStep = computed<number>(() => {
+    if (this.isColdStart()) {
+      return 1;
+    }
+    const data = this.dashboardData();
+    const phase = data.learningPath?.milestoneGraph?.currentPhase;
+    if (phase === 'PHASE_1_REMEDIATION' || phase === 1) {
+      return 3;
+    }
+    if (
+      phase === 'PHASE_2_ADAPTIVE_QUIZ' ||
+      phase === 2 ||
+      phase === 'PHASE_3_GATEKEEPER' ||
+      phase === 3 ||
+      phase === 'COMPLETED' ||
+      phase === 4
+    ) {
+      return 4;
+    }
+    return 2;
+  });
+
+  readonly hasNoRecommendations = computed<boolean>(() => {
+    const rec = this.dashboardData().recommendation;
+    if (!rec) return true;
+    const weakCount = rec.weakTopicRecommendations?.length ?? 0;
+    const planCount = rec.studyPlanItems?.length ?? 0;
+    return (
+      (rec.status === 'PENDING' || !rec.status || weakCount === 0) &&
+      weakCount === 0 &&
+      planCount === 0
+    );
   });
 
   getTargetExam(lp: DynamicLearningPath | null): string {
@@ -89,34 +154,45 @@ export class RecommendationsDashboardComponent {
     return phase ? `Phase ${phase}` : 'Phase 1: Remediation';
   }
 
-  isColdStart(): boolean {
-    const data = this.dashboardData();
-    const isDiag =
-      !data.learningPath ||
-      data.learningPath?.milestoneGraph?.currentPhase === 'DIAGNOSTIC_REQUIRED';
-    const noSessions =
-      !data.profile ||
-      (data.profile as any)?.totalSessionsCompleted === 0 ||
-      data.profile.totalPracticeSessions === 0;
-    return isDiag && noSessions;
-  }
-
-  onGenerateLearningPath(): void {
+  onRefreshRecommendations(): void {
     this.isGenerating.set(true);
     this.generateError.set(null);
-    this.learningPathService.generateLearningPath(this.selectedExam()).subscribe({
+    const target = this.selectedExam();
+    forkJoin([
+      this.learningPathService.recalculate(target).pipe(catchError(() => of(null))),
+      this.recommendationService.generate(target).pipe(
+        catchError((err) => {
+          this.generateError.set(
+            err?.error?.message ||
+              'Unable to generate recommendations. Please try again.'
+          );
+          return of(null);
+        })
+      ),
+    ]).subscribe({
       next: () => {
         this.isGenerating.set(false);
-        this.router.navigate(['/learn/roadmap']);
+        this.refresh$.next();
       },
       error: (err) => {
         this.isGenerating.set(false);
         this.generateError.set(
           err?.error?.message ||
-            'Unable to initialize Dynamic Learning Path. Please try taking a practice test first.'
+            'Unable to refresh learning path and recommendations.'
         );
       },
     });
+  }
+
+  onGenerateLearningPath(): void {
+    this.onRefreshRecommendations();
+  }
+
+  scrollToStudyPlan(): void {
+    const el = document.getElementById('study-plan');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   }
 
   getSubjectSummaryList(summary: LearningPathSummary | null) {

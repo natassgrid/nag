@@ -28,6 +28,10 @@ export class LearningPathService {
     });
   }
 
+  recalculate(targetExam?: string): Observable<DynamicLearningPath> {
+    return this.generateLearningPath(targetExam);
+  }
+
   completeMilestone(milestoneId: string): Observable<DynamicLearningPath> {
     return this.http.post<DynamicLearningPath>(
       `${this.apiUrl}/milestones/${encodeURIComponent(milestoneId)}/complete`,

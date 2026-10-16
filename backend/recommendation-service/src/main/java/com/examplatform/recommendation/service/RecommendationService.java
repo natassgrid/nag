@@ -1,17 +1,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.examplatform.recommendation.service;
 
+import com.examplatform.recommendation.domain.LearnerProfile;
 import com.examplatform.recommendation.domain.Recommendation;
 import com.examplatform.recommendation.dto.RecommendationDto;
 import com.examplatform.recommendation.dto.RecommendationResponse;
 import com.examplatform.recommendation.dto.WeakTopicItemDto;
 import com.examplatform.recommendation.repository.LearnerProfileRepository;
+import com.examplatform.recommendation.repository.LearnerSubtopicPerformanceRepository;
 import com.examplatform.recommendation.repository.RecommendationRepository;
 import com.examplatform.shared.event.PracticeSessionCompletedEvent;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -27,17 +29,94 @@ import java.util.UUID;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class RecommendationService {
     private final RecommendationRepository recommendationRepository;
     private final ObjectMapper objectMapper;
     private final RecommendationAiService recommendationAiService;
     private final LearnerProfileRepository learnerProfileRepository;
+    private final LearnerProfileService learnerProfileService;
+    private final LearnerSubtopicPerformanceRepository subtopicPerformanceRepository;
+
+    @Autowired
+    public RecommendationService(
+            RecommendationRepository recommendationRepository,
+            ObjectMapper objectMapper,
+            RecommendationAiService recommendationAiService,
+            LearnerProfileRepository learnerProfileRepository,
+            @Autowired(required = false) LearnerProfileService learnerProfileService,
+            @Autowired(required = false) LearnerSubtopicPerformanceRepository subtopicPerformanceRepository) {
+        this.recommendationRepository = recommendationRepository;
+        this.objectMapper = objectMapper;
+        this.recommendationAiService = recommendationAiService;
+        this.learnerProfileRepository = learnerProfileRepository;
+        this.learnerProfileService = learnerProfileService;
+        this.subtopicPerformanceRepository = subtopicPerformanceRepository;
+    }
+
+    public RecommendationService(
+            RecommendationRepository recommendationRepository,
+            ObjectMapper objectMapper,
+            RecommendationAiService recommendationAiService,
+            LearnerProfileRepository learnerProfileRepository) {
+        this(recommendationRepository, objectMapper, recommendationAiService, learnerProfileRepository, null, null);
+    }
     
-    @Transactional(readOnly = true)
+    @Transactional
     public Optional<RecommendationDto> getLatest(UUID candidateId) {
-        return recommendationRepository.findTopByCandidateIdOrderByCreatedAtDesc(candidateId)
-            .map(this::toDto);
+        Optional<Recommendation> latestOpt = recommendationRepository.findTopByCandidateIdOrderByCreatedAtDesc(candidateId);
+        if (latestOpt.isPresent()) {
+            Recommendation rec = latestOpt.get();
+            if ("PENDING".equals(rec.getStatus()) && (rec.getWeakTopicRecommendations() == null || rec.getStudyPlanItems() == null)) {
+                LearnerProfile profile = learnerProfileRepository != null
+                        ? learnerProfileRepository.findByCandidateId(candidateId).orElse(null)
+                        : null;
+                if (profile != null && recommendationAiService != null) {
+                    recommendationAiService.populateDeterministicFallback(rec, profile, null);
+                    rec = recommendationRepository.save(rec);
+                }
+            }
+            return Optional.of(toDto(rec));
+        }
+
+        LearnerProfile profile = learnerProfileRepository != null
+                ? learnerProfileRepository.findByCandidateId(candidateId).orElse(null)
+                : null;
+        boolean hasPracticeHistory = profile != null && profile.getTotalPracticeSessions() > 0;
+        if (!hasPracticeHistory && subtopicPerformanceRepository != null) {
+            hasPracticeHistory = !subtopicPerformanceRepository.findByCandidateId(candidateId).isEmpty();
+        }
+
+        if (hasPracticeHistory && recommendationAiService != null && profile != null) {
+            Recommendation rec = recommendationAiService.buildDeterministicRecommendation(profile, null, null);
+            return Optional.of(toDto(rec));
+        }
+
+        return Optional.empty();
+    }
+
+    @Transactional
+    public RecommendationDto generateOrRefresh(UUID candidateId, String examTarget) {
+        LearnerProfile profile;
+        if (learnerProfileService != null) {
+            profile = learnerProfileService.getOrCreateProfile(candidateId);
+        } else if (learnerProfileRepository != null) {
+            profile = learnerProfileRepository.findByCandidateId(candidateId)
+                    .orElseGet(() -> learnerProfileRepository.save(LearnerProfile.builder()
+                            .candidateId(candidateId)
+                            .totalPracticeSessions(0)
+                            .totalQuestionsAttempted(0)
+                            .overallAccuracy(0.0)
+                            .topicAccuracyMap("{}")
+                            .subtopicAccuracyMap("{}")
+                            .weakTopics("[]")
+                            .strongTopics("[]")
+                            .build()));
+        } else {
+            profile = LearnerProfile.builder().candidateId(candidateId).build();
+        }
+
+        Recommendation rec = recommendationAiService.generateOnDemand(profile, examTarget);
+        return toDto(rec);
     }
     
     @Transactional(readOnly = true)
@@ -56,7 +135,7 @@ public class RecommendationService {
             });
     }
     
-    private RecommendationDto toDto(Recommendation r) {
+    public RecommendationDto toDto(Recommendation r) {
         return new RecommendationDto(
             r.getId(),
             r.getCandidateId(),

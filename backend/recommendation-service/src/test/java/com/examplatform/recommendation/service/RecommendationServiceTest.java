@@ -3,6 +3,7 @@ package com.examplatform.recommendation.service;
 
 import com.examplatform.recommendation.domain.LearnerProfile;
 import com.examplatform.recommendation.domain.Recommendation;
+import com.examplatform.recommendation.dto.RecommendationDto;
 import com.examplatform.recommendation.dto.RecommendationResponse;
 import com.examplatform.recommendation.repository.LearnerProfileRepository;
 import com.examplatform.recommendation.repository.RecommendationRepository;
@@ -131,5 +132,71 @@ class RecommendationServiceTest {
         recommendationService.generateRecommendationsAsync(event);
 
         verify(recommendationAiService).generateAndSave(profile, sessionId);
+    }
+
+    @Test
+    @DisplayName("generateOrRefresh creates or fetches profile and invokes generateOnDemand")
+    void testGenerateOrRefresh() {
+        LearnerProfile profile = LearnerProfile.builder().candidateId(CANDIDATE_ID).build();
+        when(learnerProfileRepository.findByCandidateId(CANDIDATE_ID)).thenReturn(Optional.of(profile));
+
+        Recommendation rec = Recommendation.builder()
+                .candidateId(CANDIDATE_ID)
+                .status("GENERATED")
+                .motivationalMessage("Custom message")
+                .build();
+        when(recommendationAiService.generateOnDemand(profile, "JEE_MAIN")).thenReturn(rec);
+
+        RecommendationDto result = recommendationService.generateOrRefresh(CANDIDATE_ID, "JEE_MAIN");
+
+        assertThat(result).isNotNull();
+        assertThat(result.candidateId()).isEqualTo(CANDIDATE_ID);
+        assertThat(result.status()).isEqualTo("GENERATED");
+        assertThat(result.motivationalMessage()).isEqualTo("Custom message");
+    }
+
+    @Test
+    @DisplayName("getLatest heals PENDING recommendations missing weak topic data")
+    void testGetLatestHealsPendingRecommendation() {
+        Recommendation pendingRec = Recommendation.builder()
+                .candidateId(CANDIDATE_ID)
+                .status("PENDING")
+                .weakTopicRecommendations(null)
+                .studyPlanItems(null)
+                .build();
+
+        LearnerProfile profile = LearnerProfile.builder().candidateId(CANDIDATE_ID).totalPracticeSessions(1).build();
+
+        when(recommendationRepository.findTopByCandidateIdOrderByCreatedAtDesc(CANDIDATE_ID))
+                .thenReturn(Optional.of(pendingRec));
+        when(learnerProfileRepository.findByCandidateId(CANDIDATE_ID)).thenReturn(Optional.of(profile));
+        when(recommendationRepository.save(any(Recommendation.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Optional<RecommendationDto> result = recommendationService.getLatest(CANDIDATE_ID);
+
+        assertThat(result).isPresent();
+        verify(recommendationAiService).populateDeterministicFallback(pendingRec, profile, null);
+    }
+
+    @Test
+    @DisplayName("getLatest auto-synthesizes when no recommendation exists but practice history is present")
+    void testGetLatestAutoSynthesizesWhenHistoryExists() {
+        LearnerProfile profile = LearnerProfile.builder().candidateId(CANDIDATE_ID).totalPracticeSessions(2).build();
+
+        when(recommendationRepository.findTopByCandidateIdOrderByCreatedAtDesc(CANDIDATE_ID))
+                .thenReturn(Optional.empty());
+        when(learnerProfileRepository.findByCandidateId(CANDIDATE_ID)).thenReturn(Optional.of(profile));
+
+        Recommendation synthesized = Recommendation.builder()
+                .candidateId(CANDIDATE_ID)
+                .status("GENERATED")
+                .motivationalMessage("Auto synthesized")
+                .build();
+        when(recommendationAiService.buildDeterministicRecommendation(profile, null, null)).thenReturn(synthesized);
+
+        Optional<RecommendationDto> result = recommendationService.getLatest(CANDIDATE_ID);
+
+        assertThat(result).isPresent();
+        assertThat(result.get().motivationalMessage()).isEqualTo("Auto synthesized");
     }
 }

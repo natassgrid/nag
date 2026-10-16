@@ -2,6 +2,7 @@
 package com.examplatform.recommendation.dto;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -46,17 +47,17 @@ public record RecommendationResponse(
             this(day, focusTopic, tasks, durationMinutes, false);
         }
 
-        @JsonProperty("topicName")
+        @JsonIgnore
         public String getTopicName() {
             return focusTopic;
         }
 
-        @JsonProperty("estimatedMinutes")
+        @JsonIgnore
         public int getEstimatedMinutes() {
             return durationMinutes;
         }
 
-        @JsonProperty("completed")
+        @JsonIgnore
         public Boolean getCompleted() {
             return completed != null && completed;
         }

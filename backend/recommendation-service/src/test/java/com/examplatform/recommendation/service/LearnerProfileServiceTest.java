@@ -171,4 +171,52 @@ class LearnerProfileServiceTest {
         // cumulative = 60.0%, ewma = 0.6 * 100 + 0.4 * 20 = 68.0% -> max = 68.0%
         assertThat(saved.getAvgAccuracyPercent()).isEqualTo(68.0);
     }
+
+    @Test
+    @DisplayName("updateProfile - computes weak and strong topics across all merged topics in existingMap")
+    void testUpdateProfileTopicAccuracyCumulativeMerge() throws Exception {
+        LearnerProfile existingProfile = LearnerProfile.builder()
+                .candidateId(candidateId)
+                .totalPracticeSessions(1)
+                .totalQuestionsAttempted(10)
+                .overallAccuracy(0.8)
+                .topicAccuracyMap("{\"Thermodynamics\":{\"accuracy\":0.85,\"attempts\":10}}")
+                .strongTopics("[\"Thermodynamics\"]")
+                .weakTopics("[]")
+                .build();
+
+        when(profileRepository.findByCandidateId(candidateId)).thenReturn(Optional.of(existingProfile));
+        when(profileRepository.save(any(LearnerProfile.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        String newTopicJson = "{\"Mechanics\":{\"correct\":2,\"total\":10}}"; // 20% -> weak
+        PracticeSessionCompletedEvent event = new PracticeSessionCompletedEvent(
+                UUID.randomUUID(), candidateId, UUID.randomUUID(),
+                2, 8, 0, 2, 10, newTopicJson, "[]"
+        );
+
+        LearnerProfile updated = learnerProfileService.updateProfile(event);
+
+        assertThat(updated.getTopicAccuracyMap()).contains("Thermodynamics").contains("Mechanics");
+        assertThat(updated.getWeakTopics()).contains("Mechanics");
+        assertThat(updated.getStrongTopics()).contains("Thermodynamics");
+    }
+
+    @Test
+    @DisplayName("getOrCreateProfile - returns existing profile when present or creates default when absent")
+    void testGetOrCreateProfile() {
+        LearnerProfile profile = LearnerProfile.builder().candidateId(candidateId).build();
+        when(profileRepository.findByCandidateId(candidateId)).thenReturn(Optional.of(profile));
+
+        LearnerProfile result = learnerProfileService.getOrCreateProfile(candidateId);
+        assertThat(result).isSameAs(profile);
+
+        UUID newCandidateId = UUID.randomUUID();
+        when(profileRepository.findByCandidateId(newCandidateId)).thenReturn(Optional.empty());
+        when(profileRepository.save(any(LearnerProfile.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        LearnerProfile created = learnerProfileService.getOrCreateProfile(newCandidateId);
+        assertThat(created.getCandidateId()).isEqualTo(newCandidateId);
+        assertThat(created.getTotalPracticeSessions()).isEqualTo(0);
+        assertThat(created.getWeakTopics()).isEqualTo("[]");
+    }
 }

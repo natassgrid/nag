@@ -56,3 +56,11 @@
     color: var(--mat-sys-on-surface);
   }
 }
+
+.step-card {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+  }
+}
