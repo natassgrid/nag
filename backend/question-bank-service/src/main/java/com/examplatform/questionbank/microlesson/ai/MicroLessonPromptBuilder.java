@@ -2,6 +2,7 @@
 package com.examplatform.questionbank.microlesson.ai;
 
 import com.examplatform.questionbank.ai.prompt.PromptTemplateService;
+import com.examplatform.questionbank.microlesson.ai.agent.MicroLessonBlueprint;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -13,7 +14,7 @@ public class MicroLessonPromptBuilder {
 
     public static final String SYSTEM_PROMPT = """
         You are an expert master faculty and pedagogical content designer for Indian Competitive Examinations
-        (including JEE Main & Advanced, NEET-UG, UPSC Civil Services, and SSC CGL).
+        (including JEE Main & Advanced, NEET-UG, UPSC Civil Services, IBPS/SBI PO, RRB NTPC, and SSC CGL).
         Your task is to produce high-impact, modular remedial micro-lessons designed to cure conceptual gaps
         diagnosed during mock test evaluation.
 
@@ -38,23 +39,25 @@ public class MicroLessonPromptBuilder {
 
         CRITICAL INSTRUCTION:
         Output must be strictly raw, valid JSON only.
+        Always close both the nested "stepByStepBreakdown" object "}" and the root JSON object "}".
+        NEVER copy the example placeholder formulas from the schema below; generate formulas, concepts, and problems strictly for the requested Sub-Topic.
         Do NOT wrap in markdown code blocks or fences (no ``` or ```json).
         Do NOT include any greetings, introductory text, commentary, preambles, or explanations outside the JSON object.
         Ensure all LaTeX backslashes inside JSON strings are properly escaped (e.g., \\ce, \\Delta, \\%, \\frac, \\times).
 
         The output must match this exact schema:
         {
-          "coreConcept": "3 simple sentences with native Indian analogy and $$formula$$ notations if applicable",
-          "trap": "Common pitfall or exam trap highlighting $$notations$$",
-          "cheatSheet": ["$$[1 - x] = \\frac{1}{100}$$", "$$\\Delta K + \\Delta U = W_{ext}$$"],
+          "coreConcept": "3 simple sentences with native Indian analogy and $$formula$$ notations specific to the subtopic",
+          "trap": "Common pitfall or exam trap highlighting $$notations$$ specific to the subtopic",
+          "cheatSheet": ["$$\\text{Formula 1 strictly for the subtopic}$$", "$$\\text{Formula 2 strictly for the subtopic}$$"],
           "stepByStepBreakdown": {
-            "questionStem": "Problem statement with $$formulas$$",
+            "questionStem": "Problem statement with $$formulas$$ strictly for the subtopic",
             "steps": [
-              "Step 1: Convert the interest rate per annum to a decimal: $$r = \\frac{500}{500 \\times 365}$$ per year.",
-              "Step 2: Calculate the effective annual interest rate: $$r_{eff} = \\frac{1 + \\frac{500}{500 \\times 365}}{1 + \\frac{500}{500 \\times 365}} - 1$$.",
-              "Step 3: Find the annual interest rate: $$r_{eff} \\times 100 = 4.025\\%$$, yielding the exact annual percentage."
+              "Step 1: Identify given parameters and state the governing formula in $$...$$ syntax.",
+              "Step 2: Substitute the numerical values and simplify step-by-step in $$...$$ syntax.",
+              "Step 3: Compute the final result with proper units or percentage in $$...$$ syntax."
             ],
-            "finalAnswer": "$$r_{eff} = 4.025\\%$$"
+            "finalAnswer": "$$\\text{Final Answer with units in KaTeX}$$"
           }
         }
         """;
@@ -66,14 +69,17 @@ public class MicroLessonPromptBuilder {
     }
 
     @Autowired
-    public MicroLessonPromptBuilder(PromptTemplateService promptTemplateService) {
+    public MicroLessonPromptBuilder(@Autowired(required = false) PromptTemplateService promptTemplateService) {
         this.promptTemplateService = promptTemplateService;
     }
 
     public String getSystemPrompt() {
         if (promptTemplateService != null) {
             try {
-                return promptTemplateService.render("microlesson/system-prompt", Map.of());
+                String rendered = promptTemplateService.render("microlesson/system-prompt", Map.of());
+                if (rendered != null && !rendered.isBlank()) {
+                    return rendered.replace("\\{", "{").replace("\\}", "}");
+                }
             } catch (Exception ignored) {}
         }
         return SYSTEM_PROMPT;
@@ -84,26 +90,45 @@ public class MicroLessonPromptBuilder {
     }
 
     public String buildUserPrompt(String subject, String topic, String subtopic, String targetExam) {
-        return buildUserPrompt(subject, topic, subtopic, targetExam, null);
+        return buildUserPrompt(subject, topic, subtopic, targetExam, null, null);
     }
 
     public String buildUserPrompt(String subject, String topic, String subtopic, String targetExam, String referenceText) {
+        return buildUserPrompt(subject, topic, subtopic, targetExam, referenceText, null);
+    }
+
+    public String buildUserPrompt(
+            String subject,
+            String topic,
+            String subtopic,
+            String targetExam,
+            String referenceText,
+            MicroLessonBlueprint blueprint) {
         String exam = (targetExam != null && !targetExam.isBlank()) ? targetExam : "JEE_MAIN";
+
+        StringBuilder extraContext = new StringBuilder();
+        if (blueprint != null && blueprint.formattedBlueprintPrompt() != null && !blueprint.formattedBlueprintPrompt().isBlank()) {
+            extraContext.append("\n").append(blueprint.formattedBlueprintPrompt().trim()).append("\n");
+        }
+        if (referenceText != null && !referenceText.isBlank()) {
+            extraContext.append("\nAdditional Faculty Reference Context / Steering Notes:\n")
+                    .append(referenceText.trim())
+                    .append("\n");
+        }
 
         if (promptTemplateService != null) {
             try {
-                String referenceSection = "";
-                if (referenceText != null && !referenceText.isBlank()) {
-                    referenceSection = "\nAdditional Faculty Reference Context / Steering Notes:\n" + referenceText.trim() + "\n";
-                }
                 Map<String, Object> vars = new HashMap<>();
                 vars.put("subject", subject != null ? subject : "General");
                 vars.put("topic", topic != null ? topic : "General");
                 vars.put("subtopic", subtopic != null ? subtopic : "General");
                 vars.put("targetExam", exam);
-                vars.put("referenceSection", referenceSection);
+                vars.put("referenceSection", extraContext.toString());
 
-                return promptTemplateService.render("microlesson/user-prompt", vars);
+                String rendered = promptTemplateService.render("microlesson/user-prompt", vars);
+                if (rendered != null && !rendered.isBlank()) {
+                    return rendered.replace("\\{", "{").replace("\\}", "}");
+                }
             } catch (Exception ignored) {}
         }
 
@@ -116,13 +141,11 @@ public class MicroLessonPromptBuilder {
             - Target Exam: %s
             """, subject, topic, subtopic, exam));
 
-        if (referenceText != null && !referenceText.isBlank()) {
-            sb.append("\nAdditional Faculty Reference Context / Steering Notes:\n");
-            sb.append(referenceText.trim());
-            sb.append("\n");
+        if (!extraContext.isEmpty()) {
+            sb.append(extraContext);
         }
 
-        sb.append("\nEnsure KaTeX notation is syntactically balanced and accurate. Ensure all formulas and chemical reactions in cheatSheet, steps, and finalAnswer are enclosed in $$...$$ with double-escaped backslashes (\\ce, \\frac, \\times, \\%). Return ONLY the raw valid JSON object with no markdown fences.\n");
+        sb.append("\nEnsure KaTeX notation is syntactically balanced and accurate. Ensure all formulas and chemical reactions in cheatSheet, steps, and finalAnswer are enclosed in $$...$$ with double-escaped backslashes (\\ce, \\frac, \\times, \\%). Always close both the stepByStepBreakdown object and the root JSON object with '}}'. Return ONLY the raw valid JSON object with no markdown fences.\n");
         return sb.toString();
     }
 }

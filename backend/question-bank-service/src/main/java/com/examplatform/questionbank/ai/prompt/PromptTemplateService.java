@@ -201,6 +201,6 @@ public class PromptTemplateService {
             String placeholder = "{" + entry.getKey() + "}";
             result = result.replace(placeholder, String.valueOf(entry.getValue()));
         }
-        return result;
+        return result.replace("\\{", "{").replace("\\}", "}");
     }
 }

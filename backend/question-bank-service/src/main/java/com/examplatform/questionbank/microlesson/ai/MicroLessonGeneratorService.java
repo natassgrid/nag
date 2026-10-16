@@ -2,6 +2,7 @@
 package com.examplatform.questionbank.microlesson.ai;
 
 import com.examplatform.questionbank.ai.generation.ModelRouter;
+import com.examplatform.questionbank.microlesson.ai.agent.*;
 import com.examplatform.questionbank.microlesson.domain.MicroLessonStatus;
 import com.examplatform.questionbank.microlesson.domain.SubtopicMicroLesson;
 import com.examplatform.questionbank.microlesson.dto.MicroLessonContentDto;
@@ -25,14 +26,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Service
 public class MicroLessonGeneratorService {
 
     private static final Logger log = LoggerFactory.getLogger(MicroLessonGeneratorService.class);
-    private static final Pattern JSON_BLOCK_PATTERN = Pattern.compile("```(?:json)?\\s*([\\s\\S]*?)\\s*```");
+    private static final double DETERMINISTIC_TEMPERATURE = 0.2;
 
     private final ChatClient chatClient;
     private final MicroLessonPromptBuilder promptBuilder;
@@ -41,6 +40,12 @@ public class MicroLessonGeneratorService {
     private final ObjectMapper objectMapper;
     private final ObjectMapper aiObjectMapper;
     private final ModelRouter modelRouter;
+
+    private final MicroLessonBlueprintAgent blueprintAgent;
+    private final DeterministicJsonRepairEngine jsonRepairEngine;
+    private final MicroLessonCriticAgent criticAgent;
+    private final MicroLessonRefinementAgent refinementAgent;
+    private final DeterministicMicroLessonAgent deterministicAgent;
 
     public MicroLessonGeneratorService(
             ChatClient chatClient,
@@ -51,7 +56,6 @@ public class MicroLessonGeneratorService {
         this(chatClient, promptBuilder, kaTexValidator, repository, objectMapper, null);
     }
 
-    @Autowired
     public MicroLessonGeneratorService(
             ChatClient chatClient,
             MicroLessonPromptBuilder promptBuilder,
@@ -59,6 +63,27 @@ public class MicroLessonGeneratorService {
             SubtopicMicroLessonRepository repository,
             ObjectMapper objectMapper,
             ModelRouter modelRouter) {
+        this(chatClient, promptBuilder, kaTexValidator, repository, objectMapper, modelRouter,
+                new MicroLessonBlueprintAgent(),
+                new DeterministicJsonRepairEngine(),
+                new MicroLessonCriticAgent(kaTexValidator),
+                new MicroLessonRefinementAgent(),
+                new DeterministicMicroLessonAgent());
+    }
+
+    @Autowired
+    public MicroLessonGeneratorService(
+            ChatClient chatClient,
+            MicroLessonPromptBuilder promptBuilder,
+            KaTexValidator kaTexValidator,
+            SubtopicMicroLessonRepository repository,
+            ObjectMapper objectMapper,
+            @Autowired(required = false) ModelRouter modelRouter,
+            @Autowired(required = false) MicroLessonBlueprintAgent blueprintAgent,
+            @Autowired(required = false) DeterministicJsonRepairEngine jsonRepairEngine,
+            @Autowired(required = false) MicroLessonCriticAgent criticAgent,
+            @Autowired(required = false) MicroLessonRefinementAgent refinementAgent,
+            @Autowired(required = false) DeterministicMicroLessonAgent deterministicAgent) {
         this.chatClient = chatClient;
         this.promptBuilder = promptBuilder;
         this.kaTexValidator = kaTexValidator;
@@ -71,6 +96,11 @@ public class MicroLessonGeneratorService {
                 .configure(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature(), true)
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         this.modelRouter = modelRouter;
+        this.blueprintAgent = blueprintAgent != null ? blueprintAgent : new MicroLessonBlueprintAgent();
+        this.jsonRepairEngine = jsonRepairEngine != null ? jsonRepairEngine : new DeterministicJsonRepairEngine();
+        this.criticAgent = criticAgent != null ? criticAgent : new MicroLessonCriticAgent(kaTexValidator);
+        this.refinementAgent = refinementAgent != null ? refinementAgent : new MicroLessonRefinementAgent();
+        this.deterministicAgent = deterministicAgent != null ? deterministicAgent : new DeterministicMicroLessonAgent(this.blueprintAgent);
     }
 
     /**
@@ -123,12 +153,16 @@ public class MicroLessonGeneratorService {
         String difficulty = resolveDifficulty(subject, topic, subtopic, exam);
         String targetModel = (modelRouter != null) ? modelRouter.selectModel(difficulty) : null;
 
-        log.info("Generating remedial micro-lesson for subtopic: '{}' in topic: '{}' (Exam: {}, Difficulty: {}, Model: {})",
-                subtopic, topic, exam, difficulty, targetModel);
+        // Stage 1: Synthesize domain-grounded pedagogical blueprint (with RAG sample question lookup)
+        MicroLessonBlueprint blueprint = blueprintAgent.createBlueprint(subject, topic, subtopic, exam, difficulty);
+
+        log.info("Generating remedial micro-lesson for subtopic: '{}' in topic: '{}' (Exam: {}, Difficulty: {}, Domain: {}, Model: {})",
+                subtopic, topic, exam, difficulty, blueprint.domainCategory(), targetModel);
 
         MicroLessonContentDto content;
         try {
-            String userPrompt = promptBuilder.buildUserPrompt(subject, topic, subtopic, exam, referenceText);
+            // Stage 2: Build clean prompt with blueprint directives and no ST4 brace corruption
+            String userPrompt = promptBuilder.buildUserPrompt(subject, topic, subtopic, exam, referenceText, blueprint);
             var promptSpec = chatClient.prompt()
                     .system(promptBuilder.getSystemPrompt())
                     .user(userPrompt);
@@ -136,14 +170,16 @@ public class MicroLessonGeneratorService {
             if (targetModel != null && !targetModel.isBlank()) {
                 promptSpec = promptSpec.options(ChatOptions.builder()
                         .model(targetModel)
-                        .temperature(0.7));
+                        .temperature(DETERMINISTIC_TEMPERATURE));
             }
 
+            // Stage 3: Execute LLM call and run Deterministic JSON & LaTeX Repair Engine
             String rawResponse = promptSpec.call().content();
-            content = parseAndValidate(rawResponse);
+            content = parseAndValidate(rawResponse, subject, topic, subtopic);
         } catch (Exception e) {
-            log.warn("AI generation failed for subtopic '{}': {}. Generating high-yield pedagogical fallback template.", subtopic, e.getMessage());
-            content = buildFallbackContent(subject, topic, subtopic, exam);
+            log.warn("AI generation failed for subtopic '{}': {}. Synthesizing domain-specific lesson via DeterministicMicroLessonAgent.",
+                    subtopic, e.getMessage());
+            content = deterministicAgent.synthesize(blueprint);
         }
 
         // Determine next version
@@ -179,65 +215,50 @@ public class MicroLessonGeneratorService {
         return repository.save(entity);
     }
 
-    private MicroLessonContentDto parseAndValidate(String responseText) throws JsonProcessingException {
+    public MicroLessonContentDto parseAndValidate(String responseText) throws JsonProcessingException {
+        return parseAndValidate(responseText, null, null, null);
+    }
+
+    public MicroLessonContentDto parseAndValidate(
+            String responseText,
+            String subject,
+            String topic,
+            String subtopic) throws JsonProcessingException {
         if (responseText == null || responseText.isBlank()) {
             throw new IllegalArgumentException("Empty response from AI chat client");
         }
 
-        String jsonText = responseText.trim();
-        Matcher matcher = JSON_BLOCK_PATTERN.matcher(jsonText);
-        if (matcher.find()) {
-            jsonText = matcher.group(1).trim();
-        }
+        // Stage 4: Self-healing JSON & LaTeX repair (fixes truncated objects at line 14, \frac/\times/\text escapes, ST4 \{ braces)
+        MicroLessonContentDto content = jsonRepairEngine.parseAndRepair(responseText, aiObjectMapper);
 
-        MicroLessonContentDto content;
-        try {
-            content = aiObjectMapper.readValue(jsonText, MicroLessonContentDto.class);
-        } catch (JsonProcessingException e) {
-            log.warn("Direct parse failed ({}), applying LaTeX JSON sanitization and retrying...", e.getMessage());
-            String sanitized = sanitizeLatexJson(jsonText);
-            content = aiObjectMapper.readValue(sanitized, MicroLessonContentDto.class);
+        // Stage 5: Critic review and deterministic KaTeX / domain refinement
+        MicroLessonCriticResult criticResult = criticAgent.review(content, subject, topic, subtopic);
+        if (!criticResult.isApproved()) {
+            log.debug("Refining generated micro-lesson for subtopic '{}' (critic score={}, issues={})",
+                    subtopic, criticResult.score(), criticResult.issues());
+            boolean hasDomainIssue = criticResult.issues() != null
+                    && criticResult.issues().stream().anyMatch(i -> i != null && i.startsWith("Rubric 3:"));
+            MicroLessonContentDto domainFallback = hasDomainIssue
+                    ? buildFallbackContent(subject, topic, subtopic, "JEE_MAIN")
+                    : null;
+            content = refinementAgent.refine(content, criticResult, domainFallback);
         }
 
         List<String> errors = kaTexValidator.validateContent(content);
         if (!errors.isEmpty()) {
-            log.warn("KaTeX / validation warnings in generated micro-lesson: {}", errors);
+            log.warn("KaTeX / validation warnings in generated micro-lesson after refinement: {}", errors);
         }
         return content;
     }
 
     public static String sanitizeLatexJson(String json) {
-        if (json == null) return null;
-        return json.replaceAll("(?<!\\\\)\\\\(?![\"\\\\/bfnrtu]|u[0-9a-fA-F]{4})", "\\\\\\\\");
+        return DeterministicJsonRepairEngine.sanitizeLatexJson(json);
     }
 
     public MicroLessonContentDto buildFallbackContent(String subject, String topic, String subtopic, String targetExam) {
-        String coreConcept = String.format(
-                "%s forms the bedrock principle connecting %s within %s. Think of it like adjusting the tension in a traditional Indian bicycle chain; too loose causes slipping while too tight restricts motion. Mastering this relation allows swift mental decomposition of complex numerical problems.",
-                subtopic, topic, subject
-        );
-
-        String trap = String.format(
-                "Students frequently forget sign conventions and fail to verify boundary units for %s during high-pressure timed exams.",
-                subtopic
-        );
-
-        List<String> cheatSheet = List.of(
-                "$$\\Delta K + \\Delta U = W_{ext}$$",
-                "$$I = \\int r^2 \\, dm$$"
-        );
-
-        StepByStepBreakdownDto breakdown = new StepByStepBreakdownDto(
-                String.format("Evaluate the governing parameter for %s given standard baseline equilibrium conditions.", subtopic),
-                List.of(
-                        "Step 1: Write down the primary governing conservation equation and mark known boundary conditions.",
-                        "Step 2: Substitute dimensionally consistent SI values and simplify algebraic radicals.",
-                        "Step 3: Check dimensional homogeneity and verify limiting edge cases."
-                ),
-                "4.5 \\times 10^3 \\text{ J}"
-        );
-
-        return new MicroLessonContentDto(coreConcept, trap, cheatSheet, breakdown);
+        String difficulty = resolveDifficulty(subject, topic, subtopic, targetExam);
+        MicroLessonBlueprint blueprint = blueprintAgent.createBlueprint(subject, topic, subtopic, targetExam, difficulty);
+        return deterministicAgent.synthesize(blueprint);
     }
 
     public MicroLessonResponse toResponse(SubtopicMicroLesson entity) {
