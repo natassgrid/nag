@@ -2,15 +2,53 @@
   <!-- Header -->
   <div class="flex items-center justify-between border-b border-slate-200 pb-4">
     <div class="flex items-center gap-3">
-      <div class="w-10 h-10 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600">
-        <mat-icon class="!text-xl">auto_mode</mat-icon>
+      <div
+        class="w-10 h-10 rounded-xl flex items-center justify-center border shadow-2xs"
+        [ngClass]="{
+          'bg-purple-50 border-purple-100 text-purple-600': !isMonitoring() || currentJob()?.status === 'IN_PROGRESS' || currentJob()?.status === 'QUEUED',
+          'bg-emerald-50 border-emerald-100 text-emerald-600': isMonitoring() && currentJob()?.status === 'COMPLETED',
+          'bg-rose-50 border-rose-100 text-rose-600': isMonitoring() && (currentJob()?.status === 'FAILED' || currentJob()?.status === 'CANCELLED')
+        }"
+      >
+        @if (isMonitoring() && (currentJob()?.status === 'IN_PROGRESS' || currentJob()?.status === 'QUEUED')) {
+          <mat-icon class="!text-xl animate-spin">sync</mat-icon>
+        } @else if (isMonitoring() && currentJob()?.status === 'COMPLETED') {
+          <mat-icon class="!text-xl">task_alt</mat-icon>
+        } @else if (isMonitoring() && (currentJob()?.status === 'CANCELLED' || currentJob()?.status === 'FAILED')) {
+          <mat-icon class="!text-xl">cancel</mat-icon>
+        } @else {
+          <mat-icon class="!text-xl">auto_mode</mat-icon>
+        }
       </div>
       <div>
-        <h2 class="text-base font-bold text-slate-900">Batch Generate Micro-Lessons</h2>
-        <p class="text-xs text-slate-500">Synthesize remedial micro-lessons across subtopics in bulk</p>
+        <h2 class="text-base font-bold text-slate-900">
+          @if (!isMonitoring()) {
+            Batch Generate Micro-Lessons
+          } @else if (currentJob()?.status === 'COMPLETED') {
+            Batch Generation Complete
+          } @else if (currentJob()?.status === 'CANCELLED') {
+            Batch Generation Cancelled
+          } @else if (currentJob()?.status === 'FAILED') {
+            Batch Generation Failed
+          } @else {
+            Generating Micro-Lessons...
+          }
+        </h2>
+        <p class="text-xs text-slate-500">
+          @if (!isMonitoring()) {
+            Synthesize remedial micro-lessons across subtopics in bulk
+          } @else {
+            {{ currentJob()?.message || 'Processing subtopic micro-lessons in the background' }}
+          }
+        </p>
       </div>
     </div>
-    <button type="button" (click)="onCancel()" class="text-slate-400 hover:text-slate-600 cursor-pointer">
+    <button
+      type="button"
+      (click)="isMonitoring() ? onRunInBackground() : onCancel()"
+      class="text-slate-400 hover:text-slate-600 cursor-pointer"
+      title="Close"
+    >
       <mat-icon class="!text-xl">close</mat-icon>
     </button>
   </div>
@@ -22,153 +60,289 @@
     </div>
   }
 
-  <!-- Form Fields -->
-  <div class="space-y-4 text-xs font-medium text-slate-700">
-    <!-- Subject Selection -->
-    <div>
-      <div class="flex items-center justify-between mb-1">
-        <label class="text-slate-600 font-semibold">Subject Filter</label>
-        @if (isLoadingTaxonomy()) {
-          <span class="text-[10px] text-indigo-600 flex items-center gap-1 font-normal">
-            <mat-progress-spinner diameter="10" mode="indeterminate"></mat-progress-spinner>
-            Loading taxonomy...
-          </span>
-        }
-      </div>
-      <select
-        [ngModel]="selectedSubjectId() ?? 'ALL'"
-        (ngModelChange)="onSubjectChange($event)"
-        class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-indigo-500 text-xs"
-      >
-        <option value="ALL">All Subjects (Whole Catalog)</option>
-        @for (s of hierarchy(); track s.id) {
-          <option [value]="s.id">{{ s.name }} ({{ s.topics.length }} topics)</option>
-        }
-      </select>
-    </div>
-
-    <!-- Topic Selection -->
-    <div>
-      <label class="block mb-1 text-slate-600 font-semibold">Topic Scope</label>
-      <select
-        [disabled]="!selectedSubjectId() || availableTopics().length === 0"
-        [ngModel]="selectedTopicId() ?? 'ALL'"
-        (ngModelChange)="onTopicChange($event)"
-        class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-indigo-500 text-xs disabled:opacity-50 disabled:bg-slate-100"
-      >
-        <option value="ALL">All Topics in Selected Subject</option>
-        @for (t of availableTopics(); track t.id) {
-          <option [value]="t.id">{{ t.name }} ({{ t.subtopics.length }} subtopics)</option>
-        }
-      </select>
-      @if (selectedSubjectId() && availableTopics().length === 0) {
-        <p class="text-[10px] text-amber-600 mt-1">No topics defined yet for this subject.</p>
-      }
-    </div>
-
-    <!-- Target Exam & Batch Size -->
-    <div class="grid grid-cols-2 gap-3">
+  <!-- VIEW 1: CONFIGURATION FORM -->
+  @if (!isMonitoring()) {
+    <div class="space-y-4 text-xs font-medium text-slate-700">
+      <!-- Subject Selection -->
       <div>
         <div class="flex items-center justify-between mb-1">
-          <label class="text-slate-600 font-semibold">Target Examination</label>
-          @if (isLoadingExams()) {
-            <span class="text-[10px] text-purple-600 flex items-center gap-1 font-normal">
+          <label class="text-slate-600 font-semibold">Subject Filter</label>
+          @if (isLoadingTaxonomy()) {
+            <span class="text-[10px] text-indigo-600 flex items-center gap-1 font-normal">
               <mat-progress-spinner diameter="10" mode="indeterminate"></mat-progress-spinner>
-              Loading...
+              Loading taxonomy...
             </span>
           }
         </div>
-        @if (!isCustomExam()) {
-          <select
-            [ngModel]="targetExam()"
-            (ngModelChange)="onExamChange($event)"
-            class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-indigo-500 text-xs"
-          >
-            @for (opt of examOptions(); track opt.value) {
-              <option [value]="opt.value">{{ opt.label }}</option>
-            }
-            <option value="__CUSTOM__">+ Custom / Enter Exam Code</option>
-          </select>
-        } @else {
-          <div class="space-y-1">
-            <input
-              type="text"
-              [ngModel]="targetExam()"
-              (ngModelChange)="targetExam.set($event)"
-              placeholder="e.g. UPSC_CSAT or GATE_CS"
-              class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-indigo-500 text-xs"
-            />
-            @if (examOptions().length > 0) {
-              <button
-                type="button"
-                (click)="isCustomExam.set(false); targetExam.set(examOptions()[0].value)"
-                class="text-[10px] text-purple-600 hover:underline cursor-pointer"
-              >
-                &larr; Choose from configured exams
-              </button>
-            }
-          </div>
-        }
-      </div>
-
-      <div>
-        <label class="block mb-1 text-slate-600 font-semibold">Batch Generation Limit</label>
         <select
-          [ngModel]="maxCount()"
-          (ngModelChange)="maxCount.set(+$event)"
+          [ngModel]="selectedSubjectId() ?? 'ALL'"
+          (ngModelChange)="onSubjectChange($event)"
           class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-indigo-500 text-xs"
         >
-          @for (c of countOptions; track c) {
-            <option [value]="c">{{ c }} micro-lessons</option>
+          <option value="ALL">All Subjects (Whole Catalog)</option>
+          @for (s of hierarchy(); track s.id) {
+            <option [value]="s.id">{{ s.name }} ({{ s.topics.length }} topics)</option>
           }
         </select>
       </div>
+
+      <!-- Topic Selection -->
+      <div>
+        <label class="block mb-1 text-slate-600 font-semibold">Topic Scope</label>
+        <select
+          [disabled]="!selectedSubjectId() || availableTopics().length === 0"
+          [ngModel]="selectedTopicId() ?? 'ALL'"
+          (ngModelChange)="onTopicChange($event)"
+          class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-indigo-500 text-xs disabled:opacity-50 disabled:bg-slate-100"
+        >
+          <option value="ALL">All Topics in Selected Subject</option>
+          @for (t of availableTopics(); track t.id) {
+            <option [value]="t.id">{{ t.name }} ({{ t.subtopics.length }} subtopics)</option>
+          }
+        </select>
+        @if (selectedSubjectId() && availableTopics().length === 0) {
+          <p class="text-[10px] text-amber-600 mt-1">No topics defined yet for this subject.</p>
+        }
+      </div>
+
+      <!-- Target Exam & Batch Size -->
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="text-slate-600 font-semibold">Target Examination</label>
+            @if (isLoadingExams()) {
+              <span class="text-[10px] text-purple-600 flex items-center gap-1 font-normal">
+                <mat-progress-spinner diameter="10" mode="indeterminate"></mat-progress-spinner>
+                Loading...
+              </span>
+            }
+          </div>
+          @if (!isCustomExam()) {
+            <select
+              [ngModel]="targetExam()"
+              (ngModelChange)="onExamChange($event)"
+              class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-indigo-500 text-xs"
+            >
+              @for (opt of examOptions(); track opt.value) {
+                <option [value]="opt.value">{{ opt.label }}</option>
+              }
+              <option value="__CUSTOM__">+ Custom / Enter Exam Code</option>
+            </select>
+          } @else {
+            <div class="space-y-1">
+              <input
+                type="text"
+                [ngModel]="targetExam()"
+                (ngModelChange)="targetExam.set($event)"
+                placeholder="e.g. UPSC_CSAT or GATE_CS"
+                class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-indigo-500 text-xs"
+              />
+              @if (examOptions().length > 0) {
+                <button
+                  type="button"
+                  (click)="isCustomExam.set(false); targetExam.set(examOptions()[0].value)"
+                  class="text-[10px] text-purple-600 hover:underline cursor-pointer"
+                >
+                  &larr; Choose from configured exams
+                </button>
+              }
+            </div>
+          }
+        </div>
+
+        <div>
+          <label class="block mb-1 text-slate-600 font-semibold">Batch Generation Limit</label>
+          <select
+            [ngModel]="maxCount()"
+            (ngModelChange)="maxCount.set(+$event)"
+            class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-indigo-500 text-xs"
+          >
+            @for (c of countOptions; track c) {
+              <option [value]="c">{{ c }} micro-lessons</option>
+            }
+          </select>
+        </div>
+      </div>
+
+      <!-- Force Regenerate Option -->
+      <div class="pt-2">
+        <label class="flex items-center gap-2 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            [ngModel]="forceRegenerate()"
+            (ngModelChange)="forceRegenerate.set($event)"
+            class="rounded text-purple-600 focus:ring-purple-500 h-4 w-4 border-slate-300"
+          />
+          <span class="text-slate-600 text-xs">
+            Force regenerate existing published/approved lessons
+          </span>
+        </label>
+        <p class="text-[10px] text-slate-400 ml-6 mt-0.5">
+          By default, only subtopics without approved micro-lessons will be queued for synthesis.
+        </p>
+      </div>
     </div>
 
-    <!-- Force Regenerate Option -->
-    <div class="pt-2">
-      <label class="flex items-center gap-2 cursor-pointer select-none">
-        <input
-          type="checkbox"
-          [ngModel]="forceRegenerate()"
-          (ngModelChange)="forceRegenerate.set($event)"
-          class="rounded text-purple-600 focus:ring-purple-500 h-4 w-4 border-slate-300"
-        />
-        <span class="text-slate-600 text-xs">
-          Force regenerate existing published/approved lessons
-        </span>
-      </label>
-      <p class="text-[10px] text-slate-400 ml-6 mt-0.5">
-        By default, only subtopics without approved micro-lessons will be queued for synthesis.
-      </p>
+    <!-- Form Footer Actions -->
+    <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-200">
+      <button
+        type="button"
+        mat-stroked-button
+        (click)="onCancel()"
+        [disabled]="isGenerating()"
+        class="!rounded-xl !text-xs !border-slate-300"
+      >
+        Cancel
+      </button>
+      <button
+        type="button"
+        mat-flat-button
+        (click)="onStartBatch()"
+        [disabled]="isGenerating()"
+        class="!rounded-xl !text-xs !font-bold flex items-center gap-2 !px-4 !py-2 !bg-purple-600 hover:!bg-purple-700 !text-white shadow-md shadow-purple-500/20"
+      >
+        @if (isGenerating()) {
+          <mat-progress-spinner diameter="16" mode="indeterminate"></mat-progress-spinner>
+          <span>Queueing Batch...</span>
+        } @else {
+          <mat-icon class="!text-sm">auto_mode</mat-icon>
+          <span>Queue Batch Generation</span>
+        }
+      </button>
     </div>
-  </div>
+  }
 
-  <!-- Footer Actions -->
-  <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-200">
-    <button
-      type="button"
-      mat-stroked-button
-      (click)="onCancel()"
-      [disabled]="isGenerating()"
-      class="!rounded-xl !text-xs !border-slate-300"
-    >
-      Cancel
-    </button>
-    <button
-      type="button"
-      mat-flat-button
-      (click)="onStartBatch()"
-      [disabled]="isGenerating()"
-      class="!rounded-xl !text-xs !font-bold flex items-center gap-2 !px-4 !py-2 !bg-purple-600 hover:!bg-purple-700 !text-white shadow-md shadow-purple-500/20"
-    >
-      @if (isGenerating()) {
-        <mat-progress-spinner diameter="16" mode="indeterminate"></mat-progress-spinner>
-        <span>Queueing Batch...</span>
-      } @else {
-        <mat-icon class="!text-sm">auto_mode</mat-icon>
-        <span>Queue Batch Generation</span>
+  <!-- VIEW 2: LIVE PROGRESS MONITOR -->
+  @if (isMonitoring()) {
+    <div class="space-y-4">
+      <!-- Progress Bar & Percentage -->
+      <div class="space-y-1.5 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+        <div class="flex items-center justify-between text-xs font-bold text-slate-700">
+          <span class="flex items-center gap-1.5">
+            <mat-icon class="!text-sm text-purple-600">donut_large</mat-icon>
+            Overall Batch Progress
+          </span>
+          <span class="text-purple-700 font-extrabold">{{ currentJob()?.percentComplete ?? 0 }}%</span>
+        </div>
+        <mat-progress-bar
+          mode="determinate"
+          [value]="currentJob()?.percentComplete ?? 0"
+          class="!rounded-full !h-2.5"
+        ></mat-progress-bar>
+        <div class="flex items-center justify-between text-[11px] text-slate-500 pt-1 font-medium">
+          <span>Processed: {{ (currentJob()?.totalGenerated ?? 0) + (currentJob()?.totalFailed ?? 0) }} of {{ currentJob()?.totalQueued ?? 0 }}</span>
+          <span>Status: <strong class="uppercase text-slate-800">{{ currentJob()?.status }}</strong></span>
+        </div>
+      </div>
+
+      <!-- Currently Generating Subtopic Card -->
+      @if ((currentJob()?.status === 'IN_PROGRESS' || currentJob()?.status === 'QUEUED') && currentJob()?.currentSubtopic) {
+        <div class="p-3.5 bg-purple-50/80 border border-purple-200 rounded-xl flex items-center justify-between gap-3 shadow-2xs">
+          <div class="flex items-center gap-3 min-w-0">
+            <mat-progress-spinner diameter="18" mode="indeterminate" class="shrink-0"></mat-progress-spinner>
+            <div class="min-w-0">
+              <span class="text-[10px] font-bold text-purple-700 uppercase tracking-wider block">Currently Synthesizing</span>
+              <p class="text-xs font-extrabold text-slate-900 truncate">{{ currentJob()?.currentSubtopic }}</p>
+            </div>
+          </div>
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-200 text-purple-800 shrink-0">
+            AI Engine Active
+          </span>
+        </div>
       }
-    </button>
-  </div>
+
+      <!-- Counts Summary Grid -->
+      <div class="grid grid-cols-3 gap-2">
+        <div class="p-2.5 rounded-xl border border-slate-200 bg-white text-center">
+          <span class="text-[10px] text-slate-400 font-semibold block uppercase">Queued</span>
+          <span class="text-base font-black text-slate-800">{{ currentJob()?.totalQueued ?? 0 }}</span>
+        </div>
+        <div class="p-2.5 rounded-xl border border-emerald-200 bg-emerald-50/60 text-center">
+          <span class="text-[10px] text-emerald-700 font-semibold block uppercase">Generated</span>
+          <span class="text-base font-black text-emerald-800">{{ currentJob()?.totalGenerated ?? 0 }}</span>
+        </div>
+        <div class="p-2.5 rounded-xl border border-rose-200 bg-rose-50/60 text-center">
+          <span class="text-[10px] text-rose-700 font-semibold block uppercase">Failed</span>
+          <span class="text-base font-black text-rose-800">{{ currentJob()?.totalFailed ?? 0 }}</span>
+        </div>
+      </div>
+
+      <!-- Generated Subtopics Feed -->
+      @if (currentJob()?.generatedSubtopics && currentJob()!.generatedSubtopics!.length > 0) {
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between text-xs font-bold text-slate-700">
+            <span>Synthesized Micro-Lessons ({{ currentJob()!.generatedSubtopics!.length }})</span>
+            <span class="text-[10px] text-emerald-600 font-semibold">Ready for Review</span>
+          </div>
+          <div class="max-h-36 overflow-y-auto divide-y divide-slate-100 bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs">
+            @for (sub of currentJob()!.generatedSubtopics; track sub) {
+              <div class="py-1.5 px-2 flex items-center justify-between hover:bg-white rounded-lg transition-colors">
+                <div class="flex items-center gap-2 truncate">
+                  <mat-icon class="!text-sm text-emerald-600 shrink-0">check_circle</mat-icon>
+                  <span class="font-medium text-slate-800 truncate">{{ sub }}</span>
+                </div>
+                <span class="text-[10px] font-semibold text-slate-500 shrink-0 ml-2">Awaiting Review</span>
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+      <!-- Failed Subtopics List -->
+      @if (currentJob()?.failedSubtopics && currentJob()!.failedSubtopics!.length > 0) {
+        <div class="space-y-1.5">
+          <div class="text-xs font-bold text-rose-700 flex items-center gap-1">
+            <mat-icon class="!text-sm">error_outline</mat-icon>
+            <span>Failed Subtopics ({{ currentJob()!.failedSubtopics!.length }})</span>
+          </div>
+          <div class="max-h-24 overflow-y-auto bg-rose-50 border border-rose-200 rounded-xl p-2 text-xs divide-y divide-rose-100">
+            @for (sub of currentJob()!.failedSubtopics; track sub) {
+              <div class="py-1 text-rose-800 font-medium truncate">{{ sub }}</div>
+            }
+          </div>
+        </div>
+      }
+
+      <!-- Progress Monitor Footer Actions -->
+      <div class="flex items-center justify-between pt-3 border-t border-slate-200">
+        @if (currentJob()?.status === 'IN_PROGRESS' || currentJob()?.status === 'QUEUED') {
+          <button
+            type="button"
+            mat-stroked-button
+            (click)="onCancelJob()"
+            [disabled]="isCancelling()"
+            class="!text-xs !border-rose-200 !text-rose-600 hover:!bg-rose-50 !rounded-xl cursor-pointer"
+          >
+            @if (isCancelling()) {
+              <mat-progress-spinner diameter="14" mode="indeterminate" class="!inline-block"></mat-progress-spinner>
+              <span>Cancelling...</span>
+            } @else {
+              <mat-icon class="!text-sm">cancel</mat-icon>
+              <span>Cancel Batch</span>
+            }
+          </button>
+          <button
+            type="button"
+            mat-flat-button
+            (click)="onRunInBackground()"
+            class="!text-xs !font-bold !bg-slate-800 hover:!bg-slate-900 !text-white !rounded-xl !px-4 !py-2 cursor-pointer shadow-xs"
+          >
+            Run in Background &rarr;
+          </button>
+        } @else {
+          <div class="text-xs text-slate-500 font-medium">
+            Execution concluded.
+          </div>
+          <button
+            type="button"
+            mat-flat-button
+            (click)="onDone()"
+            class="!text-xs !font-bold !bg-purple-600 hover:!bg-purple-700 !text-white !rounded-xl !px-5 !py-2 cursor-pointer shadow-md shadow-purple-500/20"
+          >
+            Done &amp; View Lessons
+          </button>
+        }
+      </div>
+    </div>
+  }
 </div>

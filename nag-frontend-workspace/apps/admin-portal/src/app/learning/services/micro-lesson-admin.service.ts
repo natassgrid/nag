@@ -8,6 +8,9 @@ import {
   BatchGenerateMicroLessonsRequest,
   BatchGenerateResponse,
   GenerateMicroLessonRequest,
+  MicroLessonStats,
+  MicroLessonFilterOptions,
+  BulkDeleteResponse,
   adaptToReviewItem,
 } from '../models/micro-lesson.model';
 
@@ -19,26 +22,74 @@ export interface PageResponse<T> {
   size: number;
 }
 
+export interface MicroLessonQueryParams {
+  status?: string;
+  subjectId?: number;
+  subject?: string;
+  topic?: string;
+  targetExam?: string;
+  query?: string;
+  page?: number;
+  size?: number;
+  sortBy?: string;
+  direction?: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class MicroLessonAdminService {
   private readonly http = inject(HttpClient);
   private readonly apiUrl = '/api/admin/micro-lessons';
 
   listForReview(
-    status?: string,
+    paramsOrStatus?: MicroLessonQueryParams | string,
     subjectId?: number,
     page: number = 0,
     size: number = 20
   ): Observable<PageResponse<MicroLessonReviewItem>> {
-    let params = new HttpParams()
-      .set('page', page.toString())
-      .set('size', size.toString());
+    let params = new HttpParams();
 
-    if (status && status !== 'ALL') {
-      params = params.set('status', status);
-    }
-    if (subjectId != null) {
-      params = params.set('subjectId', subjectId.toString());
+    if (paramsOrStatus && typeof paramsOrStatus === 'object') {
+      const q = paramsOrStatus;
+      params = params
+        .set('page', (q.page ?? 0).toString())
+        .set('size', (q.size ?? 20).toString());
+
+      if (q.status && q.status !== 'ALL') {
+        params = params.set('status', q.status);
+      }
+      if (q.subjectId != null) {
+        params = params.set('subjectId', q.subjectId.toString());
+      }
+      if (q.subject && q.subject !== 'ALL') {
+        params = params.set('subject', q.subject);
+      }
+      if (q.topic && q.topic !== 'ALL') {
+        params = params.set('topic', q.topic);
+      }
+      if (q.targetExam && q.targetExam !== 'ALL') {
+        params = params.set('targetExam', q.targetExam);
+      }
+      if (q.query && q.query.trim()) {
+        params = params.set('query', q.query.trim());
+      }
+      if (q.sortBy) {
+        params = params.set('sortBy', q.sortBy);
+      }
+      if (q.direction) {
+        params = params.set('direction', q.direction);
+      }
+    } else {
+      const status = paramsOrStatus;
+      params = params
+        .set('page', page.toString())
+        .set('size', size.toString());
+
+      if (status && status !== 'ALL') {
+        params = params.set('status', status);
+      }
+      if (subjectId != null) {
+        params = params.set('subjectId', subjectId.toString());
+      }
     }
 
     return this.http
@@ -51,12 +102,40 @@ export class MicroLessonAdminService {
       );
   }
 
+  getStats(): Observable<MicroLessonStats> {
+    return this.http.get<MicroLessonStats>(`${this.apiUrl}/stats`);
+  }
+
+  getFilterOptions(subject?: string): Observable<MicroLessonFilterOptions> {
+    let params = new HttpParams();
+    if (subject && subject !== 'ALL') {
+      params = params.set('subject', subject);
+    }
+    return this.http.get<MicroLessonFilterOptions>(`${this.apiUrl}/filter-options`, { params });
+  }
+
+  deleteMicroLesson(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/${id}`);
+  }
+
+  bulkDelete(ids: string[]): Observable<BulkDeleteResponse> {
+    return this.http.post<BulkDeleteResponse>(`${this.apiUrl}/bulk-delete`, { ids });
+  }
+
   reviewMicroLesson(
     id: string,
     req: ReviewMicroLessonRequest
   ): Observable<MicroLessonReviewItem> {
+    let targetStatus = req.status;
+    const action = req.action ? req.action.toUpperCase() : undefined;
+    if (action === 'APPROVE' || targetStatus === 'APPROVE') targetStatus = 'APPROVED';
+    else if (action === 'REJECT' || targetStatus === 'REJECT') targetStatus = 'REJECTED';
+    else if (action === 'PUBLISH' || targetStatus === 'PUBLISH') targetStatus = 'PUBLISHED';
+    else if (action === 'EDIT' || targetStatus === 'EDIT') targetStatus = req.status || 'IN_REVIEW';
+    else if (!targetStatus && action) targetStatus = action;
+
     const payload: any = {
-      status: req.action === 'EDIT' ? (req.status || 'IN_REVIEW') : (req.action || req.status),
+      status: targetStatus,
       comments: req.reviewerNotes || req.comments,
       action: req.action,
       reviewerNotes: req.reviewerNotes,
@@ -101,5 +180,17 @@ export class MicroLessonAdminService {
       `${this.apiUrl}/batch-generate`,
       req || {}
     );
+  }
+
+  getBatchJobStatus(batchId: string): Observable<BatchGenerateResponse> {
+    return this.http.get<BatchGenerateResponse>(`${this.apiUrl}/batch-jobs/${batchId}`);
+  }
+
+  getActiveBatchJob(): Observable<BatchGenerateResponse | null> {
+    return this.http.get<BatchGenerateResponse | null>(`${this.apiUrl}/batch-jobs/active`);
+  }
+
+  cancelBatchJob(batchId: string): Observable<BatchGenerateResponse> {
+    return this.http.post<BatchGenerateResponse>(`${this.apiUrl}/batch-jobs/${batchId}/cancel`, {});
   }
 }

@@ -32,6 +32,9 @@ describe('BatchGenerateMicroLessonDialogComponent', () => {
   beforeEach(async () => {
     microLessonServiceMock = {
       triggerBatchGenerate: jest.fn(),
+      getActiveBatchJob: jest.fn().mockReturnValue(of(null)),
+      getBatchJobStatus: jest.fn().mockReturnValue(of(null)),
+      cancelBatchJob: jest.fn().mockReturnValue(of(null)),
     };
 
     const mockExams = [
@@ -70,6 +73,7 @@ describe('BatchGenerateMicroLessonDialogComponent', () => {
     expect(component.examOptions().length).toBe(2);
     expect(component.targetExam()).toBe('JEE_MAIN');
     expect(component.maxCount()).toBe(10);
+    expect(component.isMonitoring()).toBe(false);
   });
 
   it('should allow custom examination code entry', () => {
@@ -95,12 +99,15 @@ describe('BatchGenerateMicroLessonDialogComponent', () => {
     expect(component.availableTopics().length).toBe(0);
   });
 
-  it('should call triggerBatchGenerate with configured payload and close on success', () => {
+  it('should call triggerBatchGenerate with configured payload and transition to live monitoring mode', () => {
     const mockResponse: BatchGenerateResponse = {
       batchId: 'batch-123',
       totalQueued: 5,
-      status: 'QUEUED',
-      message: 'Queued 5 micro-lessons for batch generation',
+      totalGenerated: 0,
+      totalFailed: 0,
+      percentComplete: 0,
+      status: 'IN_PROGRESS',
+      message: 'Batch job queued with 5 subtopics',
     };
     microLessonServiceMock.triggerBatchGenerate.mockReturnValue(of(mockResponse));
 
@@ -119,8 +126,47 @@ describe('BatchGenerateMicroLessonDialogComponent', () => {
       maxCount: 5,
       forceRegenerate: true,
     });
-    expect(dialogRefMock.close).toHaveBeenCalledWith(mockResponse);
+    expect(component.isMonitoring()).toBe(true);
+    expect(component.currentJob()?.batchId).toBe('batch-123');
     expect(component.isGenerating()).toBe(false);
+  });
+
+  it('should allow running in background and close dialog with current job', () => {
+    const mockJob: BatchGenerateResponse = {
+      batchId: 'batch-bg-1',
+      totalQueued: 10,
+      totalGenerated: 2,
+      totalFailed: 0,
+      percentComplete: 20,
+      status: 'IN_PROGRESS',
+    };
+    component.currentJob.set(mockJob);
+    component.isMonitoring.set(true);
+
+    component.onRunInBackground();
+    expect(dialogRefMock.close).toHaveBeenCalledWith(mockJob);
+  });
+
+  it('should allow cancelling ongoing batch job', () => {
+    const mockJob: BatchGenerateResponse = {
+      batchId: 'batch-cancel-1',
+      totalQueued: 10,
+      totalGenerated: 2,
+      totalFailed: 0,
+      status: 'IN_PROGRESS',
+    };
+    component.currentJob.set(mockJob);
+
+    const cancelledJob: BatchGenerateResponse = {
+      ...mockJob,
+      status: 'CANCELLED',
+      message: 'Batch job cancelled by user.',
+    };
+    microLessonServiceMock.cancelBatchJob.mockReturnValue(of(cancelledJob));
+
+    component.onCancelJob();
+    expect(microLessonServiceMock.cancelBatchJob).toHaveBeenCalledWith('batch-cancel-1');
+    expect(component.currentJob()?.status).toBe('CANCELLED');
   });
 
   it('should set error message on batch generation failure', () => {
@@ -132,11 +178,26 @@ describe('BatchGenerateMicroLessonDialogComponent', () => {
 
     expect(component.errorMessage()).toBe('Quota exceeded for batch generation');
     expect(component.isGenerating()).toBe(false);
-    expect(dialogRefMock.close).not.toHaveBeenCalled();
+    expect(component.isMonitoring()).toBe(false);
   });
 
   it('should close dialog with null on cancel', () => {
     component.onCancel();
     expect(dialogRefMock.close).toHaveBeenCalledWith(null);
+  });
+
+  it('should close dialog on done when finished', () => {
+    const mockJob: BatchGenerateResponse = {
+      batchId: 'batch-done-1',
+      totalQueued: 5,
+      totalGenerated: 5,
+      totalFailed: 0,
+      percentComplete: 100,
+      status: 'COMPLETED',
+    };
+    component.currentJob.set(mockJob);
+
+    component.onDone();
+    expect(dialogRefMock.close).toHaveBeenCalledWith(mockJob);
   });
 });

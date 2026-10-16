@@ -5,24 +5,23 @@ import com.examplatform.questionbank.microlesson.ai.KaTexValidator;
 import com.examplatform.questionbank.microlesson.ai.MicroLessonGeneratorService;
 import com.examplatform.questionbank.microlesson.domain.MicroLessonStatus;
 import com.examplatform.questionbank.microlesson.domain.SubtopicMicroLesson;
-import com.examplatform.questionbank.microlesson.dto.GenerateMicroLessonRequest;
-import com.examplatform.questionbank.microlesson.dto.MicroLessonContentDto;
-import com.examplatform.questionbank.microlesson.dto.MicroLessonResponse;
-import com.examplatform.questionbank.microlesson.dto.ReviewMicroLessonRequest;
-import com.examplatform.questionbank.microlesson.dto.StepByStepBreakdownDto;
+import com.examplatform.questionbank.microlesson.dto.*;
 import com.examplatform.questionbank.microlesson.repository.SubtopicMicroLessonRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -40,19 +39,125 @@ public class MicroLessonService {
 
     @Transactional(readOnly = true)
     public Page<MicroLessonResponse> listForReview(String status, Long subjectId, Pageable pageable) {
-        Page<SubtopicMicroLesson> result;
+        return listForReview(status, subjectId, null, null, null, null, pageable);
+    }
 
-        if (status != null && !status.isBlank() && subjectId != null) {
-            result = repository.findByStatusAndSubjectId(status.toUpperCase(), subjectId, pageable);
-        } else if (status != null && !status.isBlank()) {
-            result = repository.findByStatus(status.toUpperCase(), pageable);
-        } else if (subjectId != null) {
-            result = repository.findBySubjectId(subjectId, pageable);
+    @Transactional(readOnly = true)
+    public Page<MicroLessonResponse> listForReview(
+            String status,
+            Long subjectId,
+            String subject,
+            String topic,
+            String targetExam,
+            String search,
+            Pageable pageable) {
+
+        Page<SubtopicMicroLesson> result;
+        boolean hasExtendedFilters = (subject != null && !subject.isBlank() && !"ALL".equalsIgnoreCase(subject))
+                || (topic != null && !topic.isBlank() && !"ALL".equalsIgnoreCase(topic))
+                || (targetExam != null && !targetExam.isBlank() && !"ALL".equalsIgnoreCase(targetExam))
+                || (search != null && !search.isBlank())
+                || (status != null && "ALL".equalsIgnoreCase(status.trim()));
+
+        if (!hasExtendedFilters) {
+            if (status != null && !status.isBlank() && subjectId != null) {
+                result = repository.findByStatusAndSubjectId(status.toUpperCase(), subjectId, pageable);
+            } else if (status != null && !status.isBlank()) {
+                result = repository.findByStatus(status.toUpperCase(), pageable);
+            } else if (subjectId != null) {
+                result = repository.findBySubjectId(subjectId, pageable);
+            } else {
+                result = repository.findByStatus(MicroLessonStatus.AI_GENERATED.name(), pageable);
+            }
         } else {
-            result = repository.findByStatus(MicroLessonStatus.AI_GENERATED.name(), pageable);
+            Specification<SubtopicMicroLesson> spec = buildSpecification(status, subjectId, subject, topic, targetExam, search);
+            result = repository.findAll(spec, pageable);
         }
 
         return result.map(generatorService::toResponse);
+    }
+
+    private Specification<SubtopicMicroLesson> buildSpecification(
+            String status,
+            Long subjectId,
+            String subject,
+            String topic,
+            String targetExam,
+            String search) {
+        return (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (status != null && !status.isBlank() && !"ALL".equalsIgnoreCase(status.trim())) {
+                predicates.add(cb.equal(cb.upper(root.get("status")), status.trim().toUpperCase()));
+            }
+
+            if (subjectId != null) {
+                predicates.add(cb.equal(root.get("subjectId"), subjectId));
+            }
+
+            if (subject != null && !subject.isBlank() && !"ALL".equalsIgnoreCase(subject.trim())) {
+                predicates.add(cb.equal(cb.lower(root.get("subject")), subject.trim().toLowerCase()));
+            }
+
+            if (topic != null && !topic.isBlank() && !"ALL".equalsIgnoreCase(topic.trim())) {
+                predicates.add(cb.equal(cb.lower(root.get("topic")), topic.trim().toLowerCase()));
+            }
+
+            if (targetExam != null && !targetExam.isBlank() && !"ALL".equalsIgnoreCase(targetExam.trim())) {
+                predicates.add(cb.equal(cb.upper(root.get("targetExam")), targetExam.trim().toUpperCase()));
+            }
+
+            if (search != null && !search.isBlank()) {
+                String term = "%" + search.trim().toLowerCase() + "%";
+                Predicate subtopicMatch = cb.like(cb.lower(root.get("subtopic")), term);
+                Predicate topicMatch = cb.like(cb.lower(root.get("topic")), term);
+                Predicate subjectMatch = cb.like(cb.lower(root.get("subject")), term);
+                Predicate coreConceptMatch = cb.like(cb.lower(root.get("coreConcept")), term);
+                predicates.add(cb.or(subtopicMatch, topicMatch, subjectMatch, coreConceptMatch));
+            }
+
+            return predicates.isEmpty() ? cb.conjunction() : cb.and(predicates.toArray(new Predicate[0]));
+        };
+    }
+
+    @Transactional(readOnly = true)
+    public MicroLessonStatsResponse getStats() {
+        long total = repository.count();
+        long aiGenerated = repository.countByStatus(MicroLessonStatus.AI_GENERATED.name());
+        long inReview = repository.countByStatus(MicroLessonStatus.IN_REVIEW.name());
+        long approved = repository.countByStatus(MicroLessonStatus.APPROVED.name());
+        long published = repository.countByStatus(MicroLessonStatus.PUBLISHED.name());
+        long rejected = repository.countByStatus(MicroLessonStatus.REJECTED.name());
+        return new MicroLessonStatsResponse(total, aiGenerated, inReview, approved, published, rejected);
+    }
+
+    @Transactional(readOnly = true)
+    public MicroLessonFilterOptionsResponse getFilterOptions(String subject) {
+        List<String> subjects = repository.findDistinctSubjects();
+        List<String> topics = repository.findDistinctTopics(subject);
+        List<String> statuses = List.of("ALL", "AI_GENERATED", "IN_REVIEW", "APPROVED", "PUBLISHED", "REJECTED");
+        return new MicroLessonFilterOptionsResponse(subjects, topics, statuses);
+    }
+
+    @Transactional
+    public void deleteMicroLesson(UUID id) {
+        SubtopicMicroLesson lesson = repository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Micro-lesson not found"));
+        cacheService.evict(lesson.getSubtopicId());
+        repository.delete(lesson);
+    }
+
+    @Transactional
+    public BulkDeleteResponse bulkDelete(List<UUID> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return new BulkDeleteResponse(0);
+        }
+        List<SubtopicMicroLesson> lessons = repository.findAllById(ids);
+        for (SubtopicMicroLesson lesson : lessons) {
+            cacheService.evict(lesson.getSubtopicId());
+        }
+        repository.deleteAll(lessons);
+        return new BulkDeleteResponse(lessons.size());
     }
 
     @Transactional
@@ -64,15 +169,23 @@ public class MicroLessonService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Status is required for review transition");
         }
 
-        String targetStatus = request.status().toUpperCase();
-        if ("EDIT".equals(targetStatus)) {
-            targetStatus = lesson.getStatus() != null ? lesson.getStatus() : MicroLessonStatus.IN_REVIEW.name();
-        }
-        try {
-            MicroLessonStatus.valueOf(targetStatus);
-        } catch (IllegalArgumentException e) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid status: " + request.status());
-        }
+        String rawStatus = request.status().trim().toUpperCase();
+        String targetStatus = switch (rawStatus) {
+            case "REJECT", "REJECTED" -> MicroLessonStatus.REJECTED.name();
+            case "APPROVE", "APPROVED" -> MicroLessonStatus.APPROVED.name();
+            case "PUBLISH", "PUBLISHED" -> MicroLessonStatus.PUBLISHED.name();
+            case "EDIT" -> lesson.getStatus() != null ? lesson.getStatus() : MicroLessonStatus.IN_REVIEW.name();
+            case "IN_REVIEW" -> MicroLessonStatus.IN_REVIEW.name();
+            case "AI_GENERATED" -> MicroLessonStatus.AI_GENERATED.name();
+            case "DRAFT" -> MicroLessonStatus.DRAFT.name();
+            default -> {
+                try {
+                    yield MicroLessonStatus.valueOf(rawStatus).name();
+                } catch (IllegalArgumentException e) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid status: " + request.status());
+                }
+            }
+        };
 
         // Apply content edits if provided
         if (request.coreConcept() != null && !request.coreConcept().isBlank()) {

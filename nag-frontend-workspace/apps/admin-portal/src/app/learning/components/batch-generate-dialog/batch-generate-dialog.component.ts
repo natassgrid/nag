@@ -1,13 +1,31 @@
-import { Component, ChangeDetectionStrategy, inject, OnInit, signal, computed } from '@angular/core';
+import {
+  Component,
+  ChangeDetectionStrategy,
+  inject,
+  OnInit,
+  OnDestroy,
+  signal,
+  computed,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatDialogRef, MatDialogModule } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { SubjectTopicService, SubjectHierarchy, TargetExaminationOption } from '@nag-frontend-workspace/questions-data-access';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
+import {
+  SubjectTopicService,
+  SubjectHierarchy,
+  TargetExaminationOption,
+} from '@nag-frontend-workspace/questions-data-access';
 import { MicroLessonAdminService } from '../../services/micro-lesson-admin.service';
-import { BatchGenerateMicroLessonsRequest, BatchGenerateResponse } from '../../models/micro-lesson.model';
+import {
+  BatchGenerateMicroLessonsRequest,
+  BatchGenerateResponse,
+} from '../../models/micro-lesson.model';
+import { Subscription, timer } from 'rxjs';
+import { switchMap } from 'rxjs/operators';
 
 @Component({
   selector: 'app-batch-generate-micro-lesson-dialog',
@@ -19,12 +37,13 @@ import { BatchGenerateMicroLessonsRequest, BatchGenerateResponse } from '../../m
     MatButtonModule,
     MatIconModule,
     MatProgressSpinnerModule,
+    MatProgressBarModule,
   ],
   templateUrl: './batch-generate-dialog.component.html',
   styleUrls: ['./batch-generate-dialog.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class BatchGenerateMicroLessonDialogComponent implements OnInit {
+export class BatchGenerateMicroLessonDialogComponent implements OnInit, OnDestroy {
   private readonly dialogRef = inject(MatDialogRef<BatchGenerateMicroLessonDialogComponent>);
   private readonly microLessonService = inject(MicroLessonAdminService);
   private readonly subjectTopicService = inject(SubjectTopicService);
@@ -46,6 +65,12 @@ export class BatchGenerateMicroLessonDialogComponent implements OnInit {
   readonly isGenerating = signal<boolean>(false);
   readonly errorMessage = signal<string | null>(null);
 
+  // Live progress monitoring state
+  readonly isMonitoring = signal<boolean>(false);
+  readonly currentJob = signal<BatchGenerateResponse | null>(null);
+  readonly isCancelling = signal<boolean>(false);
+  private pollSub?: Subscription;
+
   readonly countOptions = [5, 10, 15, 20, 25];
 
   readonly availableTopics = computed(() => {
@@ -58,6 +83,28 @@ export class BatchGenerateMicroLessonDialogComponent implements OnInit {
   ngOnInit(): void {
     this.loadTaxonomy();
     this.loadExaminations();
+    this.checkActiveBatch();
+  }
+
+  ngOnDestroy(): void {
+    this.stopPolling();
+  }
+
+  checkActiveBatch(): void {
+    this.microLessonService.getActiveBatchJob().subscribe({
+      next: (active) => {
+        if (active && (active.status === 'IN_PROGRESS' || active.status === 'QUEUED')) {
+          this.currentJob.set(active);
+          this.isMonitoring.set(true);
+          if (active.batchId) {
+            this.startPolling(active.batchId);
+          }
+        }
+      },
+      error: () => {
+        // Ignore failure on initial active job check
+      },
+    });
   }
 
   loadExaminations(): void {
@@ -150,7 +197,12 @@ export class BatchGenerateMicroLessonDialogComponent implements OnInit {
     this.microLessonService.triggerBatchGenerate(req).subscribe({
       next: (res: BatchGenerateResponse) => {
         this.isGenerating.set(false);
-        this.dialogRef.close(res);
+        this.currentJob.set(res);
+        this.isMonitoring.set(true);
+
+        if (res.batchId && (res.status === 'IN_PROGRESS' || res.status === 'QUEUED')) {
+          this.startPolling(res.batchId);
+        }
       },
       error: (err) => {
         this.isGenerating.set(false);
@@ -159,6 +211,60 @@ export class BatchGenerateMicroLessonDialogComponent implements OnInit {
         );
       },
     });
+  }
+
+  startPolling(batchId: string): void {
+    this.stopPolling();
+    this.pollSub = timer(1500, 1500)
+      .pipe(switchMap(() => this.microLessonService.getBatchJobStatus(batchId)))
+      .subscribe({
+        next: (status) => {
+          this.currentJob.set(status);
+          if (
+            status.status === 'COMPLETED' ||
+            status.status === 'FAILED' ||
+            status.status === 'CANCELLED'
+          ) {
+            this.stopPolling();
+          }
+        },
+        error: (err) => {
+          console.error('Failed to fetch batch job status', err);
+        },
+      });
+  }
+
+  stopPolling(): void {
+    if (this.pollSub) {
+      this.pollSub.unsubscribe();
+      this.pollSub = undefined;
+    }
+  }
+
+  onCancelJob(): void {
+    const batchId = this.currentJob()?.batchId;
+    if (!batchId) return;
+
+    this.isCancelling.set(true);
+    this.microLessonService.cancelBatchJob(batchId).subscribe({
+      next: (res) => {
+        this.isCancelling.set(false);
+        this.currentJob.set(res);
+        this.stopPolling();
+      },
+      error: (err) => {
+        this.isCancelling.set(false);
+        console.error('Failed to cancel batch job', err);
+      },
+    });
+  }
+
+  onRunInBackground(): void {
+    this.dialogRef.close(this.currentJob());
+  }
+
+  onDone(): void {
+    this.dialogRef.close(this.currentJob());
   }
 
   onCancel(): void {

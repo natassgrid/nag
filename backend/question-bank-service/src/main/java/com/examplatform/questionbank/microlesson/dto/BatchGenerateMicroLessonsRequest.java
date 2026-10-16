@@ -12,5 +12,16 @@ public record BatchGenerateMicroLessonsRequest(
         Long topicId,
         List<Long> subtopicIds,
         String targetExam, // defaults to JEE_MAIN
-        Integer maxCount
-) implements Serializable {}
+        Integer maxCount,
+        Boolean forceRegenerate
+) implements Serializable {
+
+    public BatchGenerateMicroLessonsRequest(
+            Long subjectId,
+            Long topicId,
+            List<Long> subtopicIds,
+            String targetExam,
+            Integer maxCount) {
+        this(subjectId, topicId, subtopicIds, targetExam, maxCount, false);
+    }
+}
