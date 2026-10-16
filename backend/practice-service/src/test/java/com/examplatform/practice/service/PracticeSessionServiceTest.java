@@ -169,6 +169,8 @@ class PracticeSessionServiceTest {
                 .thenReturn(Optional.of(practiceSession));
         when(practiceSessionRepository.findById(sessionId))
                 .thenReturn(Optional.of(practiceSession));
+        when(practiceSetRepository.findById(practiceSetId))
+                .thenReturn(Optional.of(practiceSet));
 
         PracticeResultDto mockResult = new PracticeResultDto(
                 sessionId, 15, 3, 2, 57, 80, 75.0, "{}", "{}", "{}",
@@ -182,7 +184,13 @@ class PracticeSessionServiceTest {
         assertThat(result.correctCount()).isEqualTo(15);
         assertThat(result.obtainedMarks()).isEqualTo(57);
         verify(practiceEvaluationService).evaluateSession(sessionId);
-        verify(eventPublisher).publishEvent(any(PracticeSessionCompletedEvent.class));
+
+        org.mockito.ArgumentCaptor<PracticeSessionCompletedEvent> captor = org.mockito.ArgumentCaptor.forClass(PracticeSessionCompletedEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        PracticeSessionCompletedEvent captured = captor.getValue();
+        assertThat(captured.practiceSetId()).isEqualTo(practiceSetId);
+        assertThat(captured.practiceSetSource()).isEqualTo("EXAM_CLONE");
+        assertThat(captured.targetExam()).isEqualTo("Calculus Practice");
     }
 
     @Test

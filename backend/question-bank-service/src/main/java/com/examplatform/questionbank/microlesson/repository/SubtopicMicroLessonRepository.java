@@ -26,6 +26,8 @@ public interface SubtopicMicroLessonRepository extends JpaRepository<SubtopicMic
     Optional<SubtopicMicroLesson> findTopBySubtopicIdAndTargetExamOrderByContentVersionDesc(
             Long subtopicId, String targetExam);
 
+    Optional<SubtopicMicroLesson> findTopBySubtopicIdOrderByContentVersionDesc(Long subtopicId);
+
     Page<SubtopicMicroLesson> findByStatus(String status, Pageable pageable);
 
     Page<SubtopicMicroLesson> findByStatusAndSubjectId(String status, Long subjectId, Pageable pageable);

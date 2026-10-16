@@ -1,14 +1,21 @@
 export interface WeakTopicRecommendation {
-  topicName: string;
-  currentAccuracy: number;
-  subtopicsToRevise: string[];
+  topicName?: string;
+  topic?: string;
+  subject?: string;
+  subjectName?: string;
+  currentAccuracy?: number;
+  subtopicsToRevise?: string[];
+  subtopics?: string[];
 }
 
 export interface StudyPlanItem {
   day: number;
   topicName: string;
   estimatedMinutes: number;
+  completed?: boolean;
 }
+
+export type StudyPlanDay = StudyPlanItem;
 
 export interface Recommendation {
   id: string;
@@ -22,9 +29,12 @@ export interface Recommendation {
   motivationalMessage: string | null;
 }
 
+export type RecommendationResponse = Recommendation;
+
 export interface LearnerProfile {
   candidateId: string;
   totalPracticeSessions: number;
+  totalSessionsCompleted?: number;
   overallAccuracy: number;
   weakTopics: string[];
   strongTopics: string[];

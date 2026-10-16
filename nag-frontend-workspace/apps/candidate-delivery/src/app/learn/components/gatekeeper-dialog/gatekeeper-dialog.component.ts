@@ -31,16 +31,32 @@ export class GatekeeperDialogComponent {
   readonly data: GatekeeperDialogData = inject(MAT_DIALOG_DATA, { optional: true }) || {};
   private readonly router = inject(Router);
 
-  get conceptualGaps() {
-    return this.data?.statusResponse?.conceptualGaps || [];
+  get conceptualGaps(): Array<{ subtopicName: string }> {
+    const gaps = this.data?.statusResponse?.conceptualGaps;
+    if (Array.isArray(gaps) && gaps.length > 0) {
+      return gaps.map((g) => (typeof g === 'string' ? { subtopicName: g } : g));
+    }
+    const rem = this.data?.statusResponse?.remedialSubtopics;
+    if (Array.isArray(rem) && rem.length > 0) {
+      return rem.map((s) => ({ subtopicName: s }));
+    }
+    return [];
   }
 
-  get applicationGaps() {
-    return this.data?.statusResponse?.applicationGaps || [];
+  get applicationGaps(): Array<{ subtopicName: string }> {
+    const gaps = this.data?.statusResponse?.applicationGaps;
+    if (Array.isArray(gaps) && gaps.length > 0) {
+      return gaps.map((g) => (typeof g === 'string' ? { subtopicName: g } : g));
+    }
+    return [];
   }
 
   get remedialSubtopics(): string[] {
-    return this.data?.statusResponse?.remedialSubtopics || [];
+    const gaps = this.data?.statusResponse?.conceptualGaps;
+    if (Array.isArray(gaps) && gaps.length > 0) {
+      return this.data?.statusResponse?.remedialSubtopics || [];
+    }
+    return [];
   }
 
   onGoToRoadmap(): void {

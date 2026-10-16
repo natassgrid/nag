@@ -53,25 +53,49 @@ export class DlpRoadmapComponent implements OnInit {
 
   readonly currentPhaseNumber = computed<number>(() => {
     const cp = this.learningPath()?.milestoneGraph?.currentPhase;
-    return typeof cp === 'number' ? cp : Number(cp) || 1;
+    if (cp === 'DIAGNOSTIC_REQUIRED') return 0;
+    if (cp === 'PHASE_1_REMEDIATION') return 1;
+    if (cp === 'PHASE_2_ADAPTIVE_QUIZ') return 2;
+    if (cp === 'PHASE_3_GATEKEEPER') return 3;
+    if (cp === 'COMPLETED') return 4;
+    if (typeof cp === 'number') return cp;
+    const num = Number(cp);
+    return isNaN(num) ? 1 : num;
+  });
+
+  readonly isDiagnosticRequired = computed<boolean>(() => {
+    const cp = this.learningPath()?.milestoneGraph?.currentPhase;
+    return cp === 'DIAGNOSTIC_REQUIRED' || this.currentPhaseNumber() === 0;
   });
 
   readonly gatekeeperPassed = computed<boolean>(() => {
-    return !!this.learningPath()?.milestoneGraph?.gatekeeperPassed;
+    const lp = this.learningPath();
+    return !!(lp?.gatekeeperPassed || lp?.milestoneGraph?.gatekeeperPassed);
   });
 
   readonly overallProgressPercent = computed<number>(() => {
     const lp = this.learningPath();
     if (!lp) return 0;
-    if (lp.status === 'COMPLETED' || lp.gatekeeperPassed) return 100;
+    const cp = lp.milestoneGraph?.currentPhase;
+    if (cp === 'DIAGNOSTIC_REQUIRED' || this.currentPhaseNumber() === 0) {
+      return 0;
+    }
+    if (
+      lp.status === 'COMPLETED' ||
+      lp.gatekeeperPassed ||
+      lp.milestoneGraph?.gatekeeperPassed ||
+      cp === 'COMPLETED'
+    ) {
+      return 100;
+    }
 
     const phase1 = lp.milestoneGraph?.phases?.find((p) => p.phaseNumber === 1);
     const items = phase1?.items || [];
-    const completedItems = items.filter((i) => i.status === 'COMPLETED').length;
-    const p1Progress = items.length > 0 ? (completedItems / items.length) * 40 : 40;
+    const completedItems = items.filter((i) => this.isItemCompleted(i)).length;
+    const p1Progress =
+      items.length > 0 ? (completedItems / items.length) * 40 : 40;
 
-    const cp = lp.milestoneGraph?.currentPhase;
-    const currentP = typeof cp === 'number' ? cp : Number(cp) || 1;
+    const currentP = this.currentPhaseNumber();
     if (currentP === 1) {
       return Math.round(p1Progress);
     } else if (currentP === 2) {
@@ -118,12 +142,44 @@ export class DlpRoadmapComponent implements OnInit {
     });
   }
 
-  onStudyMicroLesson(item: MilestoneItem): void {
-    if (item.subtopicId) {
-      this.router.navigate(['/learn/lesson', item.subtopicId], {
-        queryParams: { milestoneId: item.milestoneId },
-      });
+  isItemCompleted(item: MilestoneItem): boolean {
+    return item.completed === true || item.status === 'COMPLETED';
+  }
+
+  getItemId(item: MilestoneItem): string {
+    return (
+      item.milestoneId ||
+      item.id ||
+      String(item.subtopicId || item.subtopicName || '')
+    );
+  }
+
+  private hashString(str: string): number {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = (hash << 5) - hash + str.charCodeAt(i);
+      hash |= 0;
     }
+    return hash;
+  }
+
+  onStudyMicroLesson(item: MilestoneItem): void {
+    const milestoneId = item.milestoneId || item.id;
+    const subtopicId =
+      item.subtopicId ||
+      Math.abs(this.hashString(item.subtopicName || 'general'));
+    this.router.navigate(['/learn/lesson', subtopicId], {
+      queryParams: {
+        milestoneId,
+        subtopicName: item.subtopicName,
+        topicName: item.topicName,
+        subjectName: item.subjectName,
+        targetExam:
+          this.learningPath()?.targetExam ||
+          this.learningPath()?.examTarget ||
+          'JEE_MAIN',
+      },
+    });
   }
 
   onStartAdaptiveQuiz(): void {
@@ -131,7 +187,10 @@ export class DlpRoadmapComponent implements OnInit {
     this.learningPathService.startAdaptiveQuiz().subscribe({
       next: (res) => {
         this.message.set(
-          `Adaptive quiz session ${res.quizSessionId.slice(0, 8)} started! Pass score: ${res.targetAccuracy}%.`
+          `Adaptive quiz session ${res.quizSessionId.slice(
+            0,
+            8
+          )} started! Pass score: ${res.targetAccuracy}%.`
         );
         this.actionInProgress.set(false);
         const setId = res.practiceSetId || res.quizSessionId;
@@ -144,63 +203,24 @@ export class DlpRoadmapComponent implements OnInit {
     });
   }
 
-  onSubmitAdaptiveQuizScore(score: number): void {
-    const phase2 = this.phases().find((p) => p.phaseNumber === 2);
-    const sessionId = phase2?.quizSessionId || 'quiz-session-auto';
-
-    this.actionInProgress.set(true);
-    this.learningPathService.submitAdaptiveQuiz(sessionId, score).subscribe({
-      next: (updated) => {
-        this.learningPath.set(updated);
-        this.actionInProgress.set(false);
-        this.message.set(
-          score >= 70
-            ? 'Congratulations! You passed the Adaptive Quiz and unlocked the Phase 3 Gatekeeper Test.'
-            : 'Quiz score submitted. Review Phase 1 micro-lessons and re-attempt to advance.'
-        );
-      },
-      error: (err) => {
-        this.error.set(err?.error?.message || 'Failed to submit quiz score.');
-        this.actionInProgress.set(false);
-      },
-    });
-  }
-
   onStartGatekeeper(): void {
     this.actionInProgress.set(true);
     this.learningPathService.startGatekeeper().subscribe({
       next: (res) => {
         this.message.set(
-          `Gatekeeper test session ${res.gatekeeperSessionId.slice(0, 8)} started! Required score: >= ${res.passThreshold}%.`
+          `Gatekeeper test session ${res.gatekeeperSessionId.slice(
+            0,
+            8
+          )} started! Required score: >= ${res.passThreshold}%.`
         );
         this.actionInProgress.set(false);
         const setId = res.practiceSetId || res.gatekeeperSessionId;
         this.router.navigate(['/practice'], { queryParams: { setId } });
       },
       error: (err) => {
-        this.error.set(err?.error?.message || 'Could not launch Gatekeeper test.');
-        this.actionInProgress.set(false);
-      },
-    });
-  }
-
-  onSubmitGatekeeperScore(score: number): void {
-    const phase3 = this.phases().find((p) => p.phaseNumber === 3);
-    const sessionId = phase3?.gatekeeperSessionId || 'gatekeeper-session-auto';
-
-    this.actionInProgress.set(true);
-    this.learningPathService.submitGatekeeper(sessionId, score).subscribe({
-      next: (updated) => {
-        this.learningPath.set(updated);
-        this.actionInProgress.set(false);
-        this.message.set(
-          score >= 75
-            ? 'Gatekeeper Passed! All full-length mock examinations are now fully unlocked!'
-            : 'Gatekeeper score below 75%. Review weak areas and retake test to unlock mock exams.'
+        this.error.set(
+          err?.error?.message || 'Could not launch Gatekeeper test.'
         );
-      },
-      error: (err) => {
-        this.error.set(err?.error?.message || 'Failed to submit gatekeeper score.');
         this.actionInProgress.set(false);
       },
     });

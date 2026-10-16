@@ -52,5 +52,40 @@ class PracticeSessionCompletedEventTest {
         assertThat(deserialized.totalMarks()).isEqualTo(30);
         assertThat(deserialized.topicWiseBreakdown()).isEqualTo(topicJson);
         assertThat(deserialized.subtopicWiseBreakdown()).isEqualTo(subtopicJson);
+        assertThat(deserialized.practiceSetSource()).isNull();
+        assertThat(deserialized.targetExam()).isNull();
+    }
+
+    @Test
+    @DisplayName("Serializes and deserializes enriched event with practiceSetSource and targetExam")
+    void testEnrichedEventSerialization() throws Exception {
+        UUID sessionId = UUID.randomUUID();
+        UUID candidateId = UUID.randomUUID();
+        UUID practiceSetId = UUID.randomUUID();
+        String topicJson = "{\"Math\":{\"correct\":4,\"total\":5}}";
+        String subtopicJson = "[{\"subtopicId\":200,\"subtopicName\":\"Calculus\",\"totalQuestions\":5,\"totalCorrect\":4}]";
+
+        PracticeSessionCompletedEvent event = new PracticeSessionCompletedEvent(
+                sessionId,
+                candidateId,
+                practiceSetId,
+                4,
+                1,
+                0,
+                16,
+                20,
+                topicJson,
+                subtopicJson,
+                "ADAPTIVE_QUIZ",
+                "JEE_MAIN"
+        );
+
+        String json = objectMapper.writeValueAsString(event);
+        assertThat(json).contains("ADAPTIVE_QUIZ");
+        assertThat(json).contains("JEE_MAIN");
+
+        PracticeSessionCompletedEvent deserialized = objectMapper.readValue(json, PracticeSessionCompletedEvent.class);
+        assertThat(deserialized.practiceSetSource()).isEqualTo("ADAPTIVE_QUIZ");
+        assertThat(deserialized.targetExam()).isEqualTo("JEE_MAIN");
     }
 }

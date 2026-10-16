@@ -53,6 +53,17 @@ public class RecommendationController {
         return ResponseEntity.noContent().build();
     }
 
+    @PatchMapping("/study-plan/days/{dayNumber}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<RecommendationResponse> updateStudyPlanDay(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable int dayNumber,
+            @RequestParam(defaultValue = "true") boolean completed) {
+        UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
+        RecommendationResponse response = recommendationService.updateStudyPlanDay(candidateId, dayNumber, completed);
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping("/learner-profile")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<LearnerProfileDto> getLearnerProfile(@AuthenticationPrincipal Jwt jwt) {

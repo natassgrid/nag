@@ -96,7 +96,7 @@
                 <h2 class="text-base font-bold text-slate-900">Current Dynamic Learning Path</h2>
               </div>
               <span class="text-xs font-semibold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200">
-                Target: {{ lp.targetExam }}
+                Target: {{ getTargetExam(lp) }}
               </span>
             </div>
 
@@ -107,10 +107,10 @@
             <div class="p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
               <div>
                 <div class="text-xs font-bold text-slate-700">
-                  Current Stage: Phase {{ lp.milestoneGraph.currentPhase || 1 }}
+                  Current Stage: {{ getPhaseLabel(lp.milestoneGraph.currentPhase) }}
                 </div>
                 <div class="text-[11px] text-slate-500 mt-0.5">
-                  @if (lp.gatekeeperPassed) {
+                  @if (isGatekeeperPassed(lp)) {
                     <span class="text-emerald-600 font-bold">Gatekeeper Passed - All Full-Length Mock Exams Unlocked</span>
                   } @else {
                     Remediation &amp; adaptive verification underway
@@ -133,8 +133,8 @@
           <app-recommendation-card [recommendation]="dashboardData().recommendation!"></app-recommendation-card>
         }
 
-        <!-- Cold Start / Onboarding Banner (When No DLP or Recommendations Exist) -->
-        @if (!dashboardData().learningPath && !dashboardData().recommendation) {
+        <!-- Cold Start / Onboarding Banner (When No DLP or Recommendations Exist or Cold Start Candidate) -->
+        @if (isColdStart() || (!dashboardData().learningPath && !dashboardData().recommendation)) {
           <div class="bg-gradient-to-br from-indigo-900 via-slate-900 to-indigo-950 text-white rounded-2xl p-8 shadow-xl space-y-6">
             <div class="flex items-center gap-3">
               <span class="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-300">
@@ -184,8 +184,10 @@
                   <mat-spinner diameter="16" class="!inline-block"></mat-spinner>
                   <span>Generating Path...</span>
                 } @else {
-                  <mat-icon class="!text-base">auto_awesome</mat-icon>
-                  <span>Generate My Learning Path</span>
+                  <span class="inline-flex items-center gap-1.5">
+                    <mat-icon class="!text-base">auto_awesome</mat-icon>
+                    <span>Generate My Learning Path</span>
+                  </span>
                 }
               </button>
 

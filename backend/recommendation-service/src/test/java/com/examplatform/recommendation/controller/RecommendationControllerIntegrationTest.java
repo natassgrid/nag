@@ -15,6 +15,7 @@ import com.examplatform.recommendation.dto.DynamicLearningPathResponse;
 import com.examplatform.recommendation.dto.LearnerProfileDto;
 import com.examplatform.recommendation.dto.MilestoneGraphDto;
 import com.examplatform.recommendation.dto.RecommendationDto;
+import com.examplatform.recommendation.dto.RecommendationResponse;
 import com.examplatform.recommendation.service.LearnerProfileService;
 import com.examplatform.recommendation.service.LearningPathGeneratorService;
 import com.examplatform.recommendation.service.RecommendationService;
@@ -39,6 +40,7 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -207,6 +209,43 @@ class RecommendationControllerIntegrationTest extends AbstractIntegrationTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.candidateId").value(CANDIDATE_ID.toString()))
                     .andExpect(jsonPath("$.examTarget").value("JEE_MAIN"));
+        }
+    }
+
+    @Nested
+    @DisplayName("PATCH /api/recommendations/study-plan/days/{dayNumber} - Study Plan Day Completion")
+    class StudyPlanDayPatchEndpoint {
+
+        @Test
+        @DisplayName("200 OK - Updates day completion status and returns updated recommendation response")
+        void updateStudyPlanDaySuccess() throws Exception {
+            RecommendationResponse.StudyPlanDay day1 = new RecommendationResponse.StudyPlanDay(
+                    1, "Quantitative Aptitude", List.of("Revise formulas", "Solve 10 problems"), 30, true
+            );
+            RecommendationResponse response = new RecommendationResponse(
+                    RECOMMENDATION_ID,
+                    CANDIDATE_ID,
+                    UUID.randomUUID(),
+                    "ACTIVE",
+                    Instant.now(),
+                    List.of(),
+                    List.of(day1),
+                    List.of("ps-1"),
+                    "Keep up the momentum!"
+            );
+
+            when(recommendationService.updateStudyPlanDay(eq(CANDIDATE_ID), eq(1), eq(true)))
+                    .thenReturn(response);
+
+            mockMvc.perform(patch("/api/recommendations/study-plan/days/1")
+                            .param("completed", "true")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(CANDIDATE_ID.toString()))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.id").value(RECOMMENDATION_ID.toString()))
+                    .andExpect(jsonPath("$.studyPlan[0].day").value(1))
+                    .andExpect(jsonPath("$.studyPlan[0].focusTopic").value("Quantitative Aptitude"))
+                    .andExpect(jsonPath("$.studyPlan[0].completed").value(true));
         }
     }
 }

@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.*;
 
 @Service
@@ -29,6 +30,12 @@ public class LearningPathGeneratorService {
     private final DynamicLearningPathRepository dlpRepository;
     private final ObjectMapper objectMapper;
 
+    private long deriveSubtopicId(String subtopicName) {
+        if (subtopicName == null || subtopicName.isBlank()) return 1L;
+        long hash = Math.abs((long) subtopicName.toLowerCase().trim().hashCode());
+        return hash > 0 ? hash : 1L;
+    }
+
     /**
      * Deterministically generates or recalculates a Dynamic Learning Path (DLP)
      * based on candidate's granular subtopic performance.
@@ -41,13 +48,63 @@ public class LearningPathGeneratorService {
                         .map(DynamicLearningPath::getExamTarget)
                         .orElse(DEFAULT_EXAM_TARGET);
 
+        // Inspect existing ACTIVE paths before superseding to preserve completed milestones
+        List<DynamicLearningPath> existingActive = dlpRepository.findByCandidateIdAndStatus(candidateId, "ACTIVE");
+        Set<Long> completedP1Ids = new HashSet<>();
+        Set<String> completedP1Names = new HashSet<>();
+        Map<String, Instant> completedP1Timestamps = new HashMap<>();
+        boolean prevPhase2Completed = false;
+        boolean prevPhase3Passed = false;
+
+        for (DynamicLearningPath oldPath : existingActive) {
+            if (oldPath.getMilestoneGraphJson() != null && !oldPath.getMilestoneGraphJson().isBlank()) {
+                try {
+                    MilestoneGraphDto oldGraph = objectMapper.readValue(oldPath.getMilestoneGraphJson(), MilestoneGraphDto.class);
+                    if (oldGraph.phases() != null) {
+                        for (MilestonePhaseDto p : oldGraph.phases()) {
+                            if (p.phaseNumber() == 1 && p.items() != null) {
+                                for (MilestoneItemDto it : p.items()) {
+                                    if (it.completed()) {
+                                        if (it.subtopicId() != null) {
+                                            completedP1Ids.add(it.subtopicId());
+                                        }
+                                        if (it.subtopicName() != null) {
+                                            String norm = it.subtopicName().toLowerCase().trim();
+                                            completedP1Names.add(norm);
+                                            if (it.completedAt() != null) {
+                                                completedP1Timestamps.put(norm, it.completedAt());
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            if (p.phaseNumber() == 2 && ("COMPLETED".equalsIgnoreCase(p.status())
+                                    || (p.achievedAccuracy() != null && p.targetAccuracy() != null && p.achievedAccuracy() >= p.targetAccuracy()))) {
+                                prevPhase2Completed = true;
+                            }
+                            if (p.phaseNumber() == 3 && ("COMPLETED".equalsIgnoreCase(p.status())
+                                    || Boolean.TRUE.equals(p.passed()))) {
+                                prevPhase3Passed = true;
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to inspect previous active DLP graph for candidate {}: {}", candidateId, e.getMessage());
+                }
+            }
+        }
+
         List<LearnerSubtopicPerformance> performances = subtopicRepository.findByCandidateId(candidateId);
+        boolean isColdStart = performances.isEmpty();
 
         List<SubtopicClassificationResult> conceptualGaps = new ArrayList<>();
         List<SubtopicClassificationResult> applicationGaps = new ArrayList<>();
         List<SubtopicClassificationResult> proficientTopics = new ArrayList<>();
 
         for (LearnerSubtopicPerformance perf : performances) {
+            if (perf.getSubtopicId() == null && perf.getSubtopicName() != null) {
+                perf.setSubtopicId(deriveSubtopicId(perf.getSubtopicName()));
+            }
             SubtopicClassificationResult result = classifierService.classify(perf);
             if (result.bracket() == PerformanceBracket.CONCEPTUAL_GAP) {
                 conceptualGaps.add(result);
@@ -66,19 +123,53 @@ public class LearningPathGeneratorService {
         }
 
         // Assemble phased milestone schedule
-        List<MilestonePhaseDto> phases = assembleMilestonePhases(conceptualGaps, applicationGaps, proficientTopics);
+        List<MilestonePhaseDto> phases = assembleMilestonePhases(
+                isColdStart,
+                conceptualGaps,
+                applicationGaps,
+                proficientTopics,
+                completedP1Ids,
+                completedP1Names,
+                completedP1Timestamps,
+                prevPhase2Completed,
+                prevPhase3Passed
+        );
 
         String currentPhase;
-        if (!conceptualGaps.isEmpty()) {
-            currentPhase = "PHASE_1_REMEDIATION";
-        } else if (!applicationGaps.isEmpty()) {
-            currentPhase = "PHASE_2_ADAPTIVE_QUIZ";
-        } else if (!proficientTopics.isEmpty()) {
-            currentPhase = "PHASE_3_GATEKEEPER";
-        } else {
+        boolean gatekeeperPassed;
+        String dlpStatus;
+
+        if (isColdStart) {
+            currentPhase = "DIAGNOSTIC_REQUIRED";
+            gatekeeperPassed = false;
+            dlpStatus = "ACTIVE";
+        } else if (conceptualGaps.isEmpty() && applicationGaps.isEmpty()) {
             currentPhase = "COMPLETED";
+            gatekeeperPassed = true;
+            dlpStatus = "COMPLETED";
+        } else {
+            MilestonePhaseDto p1 = phases.stream().filter(p -> p.phaseNumber() == 1).findFirst().orElse(null);
+            MilestonePhaseDto p2 = phases.stream().filter(p -> p.phaseNumber() == 2).findFirst().orElse(null);
+            MilestonePhaseDto p3 = phases.stream().filter(p -> p.phaseNumber() == 3).findFirst().orElse(null);
+
+            if (p1 != null && !"COMPLETED".equalsIgnoreCase(p1.status())) {
+                currentPhase = "PHASE_1_REMEDIATION";
+                gatekeeperPassed = false;
+                dlpStatus = "ACTIVE";
+            } else if (p2 != null && !"COMPLETED".equalsIgnoreCase(p2.status())) {
+                currentPhase = "PHASE_2_ADAPTIVE_QUIZ";
+                gatekeeperPassed = false;
+                dlpStatus = "ACTIVE";
+            } else if (p3 != null && !"COMPLETED".equalsIgnoreCase(p3.status())) {
+                currentPhase = "PHASE_3_GATEKEEPER";
+                gatekeeperPassed = false;
+                dlpStatus = "ACTIVE";
+            } else {
+                currentPhase = "COMPLETED";
+                gatekeeperPassed = true;
+                dlpStatus = "COMPLETED";
+            }
         }
-        boolean gatekeeperPassed = conceptualGaps.isEmpty() && applicationGaps.isEmpty();
 
         MilestoneGraphDto milestoneGraph = new MilestoneGraphDto(
                 currentPhase,
@@ -101,7 +192,6 @@ public class LearningPathGeneratorService {
         }
 
         // Mark previously active paths as SUPERSEDED
-        List<DynamicLearningPath> existingActive = dlpRepository.findByCandidateIdAndStatus(candidateId, "ACTIVE");
         for (DynamicLearningPath oldPath : existingActive) {
             oldPath.setStatus("SUPERSEDED");
             dlpRepository.save(oldPath);
@@ -112,7 +202,7 @@ public class LearningPathGeneratorService {
                 .candidateId(candidateId)
                 .sourceSessionId(sourceSessionId)
                 .examTarget(resolvedTarget)
-                .status("ACTIVE")
+                .status(dlpStatus)
                 .conceptualGapsCount(conceptualGaps.size())
                 .applicationGapsCount(applicationGaps.size())
                 .proficientCount(proficientTopics.size())
@@ -123,20 +213,76 @@ public class LearningPathGeneratorService {
     }
 
     private List<MilestonePhaseDto> assembleMilestonePhases(
+            boolean isColdStart,
             List<SubtopicClassificationResult> conceptualGaps,
             List<SubtopicClassificationResult> applicationGaps,
-            List<SubtopicClassificationResult> proficientTopics) {
+            List<SubtopicClassificationResult> proficientTopics,
+            Set<Long> completedP1Ids,
+            Set<String> completedP1Names,
+            Map<String, Instant> completedP1Timestamps,
+            boolean prevPhase2Completed,
+            boolean prevPhase3Passed) {
 
         List<MilestonePhaseDto> phases = new ArrayList<>();
-        boolean gatekeeperPassed = conceptualGaps.isEmpty() && applicationGaps.isEmpty();
+
+        if (isColdStart) {
+            phases.add(new MilestonePhaseDto(
+                    1,
+                    "Phase 1: Remediation (Micro-Lessons)",
+                    "Review core concept derivations, formula cheat sheets, and trap warnings for conceptual gaps.",
+                    2,
+                    "PENDING",
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    Collections.emptyList()
+            ));
+            phases.add(new MilestonePhaseDto(
+                    2,
+                    "Phase 2: Adaptive Practice (Worksheets)",
+                    "Practice application sets with varied edge cases, elimination shortcuts, and time management.",
+                    1,
+                    "LOCKED",
+                    70.0,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    Collections.emptyList()
+            ));
+            phases.add(new MilestonePhaseDto(
+                    3,
+                    "Phase 3: Speed Mastery & Gatekeeper",
+                    "Execute timed sprint drills to accelerate pacing and pass Gatekeeper test before mock unlock.",
+                    1,
+                    "LOCKED",
+                    null,
+                    null,
+                    null,
+                    75.0,
+                    null,
+                    false,
+                    Collections.emptyList()
+            ));
+            return phases;
+        }
 
         // Phase 1: Remediation (Study Micro-Lessons)
         List<MilestoneItemDto> phase1Items = new ArrayList<>();
         int itemIdx = 1;
         for (SubtopicClassificationResult item : conceptualGaps) {
+            Long subId = item.subtopicId() != null ? item.subtopicId() : deriveSubtopicId(item.subtopicName());
+            String normName = item.subtopicName() != null ? item.subtopicName().toLowerCase().trim() : "";
+            boolean wasCompleted = (subId != null && completedP1Ids.contains(subId)) || completedP1Names.contains(normName);
+            Instant completedAt = wasCompleted ? completedP1Timestamps.getOrDefault(normName, Instant.now()) : null;
+
             phase1Items.add(new MilestoneItemDto(
                     "P1-" + (itemIdx++),
-                    item.subtopicId(),
+                    subId,
                     item.subtopicName(),
                     item.topicName(),
                     item.subjectName(),
@@ -145,12 +291,14 @@ public class LearningPathGeneratorService {
                     "Remedial Micro-Lesson: " + item.subtopicName(),
                     item.recommendationNote(),
                     20,
-                    false,
-                    null,
+                    wasCompleted,
+                    completedAt,
                     null
             ));
         }
-        String p1Status = conceptualGaps.isEmpty() ? "COMPLETED" : "IN_PROGRESS";
+
+        boolean allP1Completed = !phase1Items.isEmpty() && phase1Items.stream().allMatch(MilestoneItemDto::completed);
+        String p1Status = (conceptualGaps.isEmpty() || allP1Completed) ? "COMPLETED" : "IN_PROGRESS";
         phases.add(new MilestonePhaseDto(
                 1,
                 "Phase 1: Remediation (Micro-Lessons)",
@@ -170,9 +318,10 @@ public class LearningPathGeneratorService {
         List<MilestoneItemDto> phase2Items = new ArrayList<>();
         itemIdx = 1;
         for (SubtopicClassificationResult item : applicationGaps) {
+            Long subId = item.subtopicId() != null ? item.subtopicId() : deriveSubtopicId(item.subtopicName());
             phase2Items.add(new MilestoneItemDto(
                     "P2-" + (itemIdx++),
-                    item.subtopicId(),
+                    subId,
                     item.subtopicName(),
                     item.topicName(),
                     item.subjectName(),
@@ -186,11 +335,14 @@ public class LearningPathGeneratorService {
                     null
             ));
         }
+
+        boolean trueMastery = conceptualGaps.isEmpty() && applicationGaps.isEmpty();
+
         String p2Status;
-        if (!conceptualGaps.isEmpty()) {
-            p2Status = "LOCKED";
-        } else if (applicationGaps.isEmpty()) {
+        if (trueMastery || prevPhase2Completed) {
             p2Status = "COMPLETED";
+        } else if (!"COMPLETED".equals(p1Status)) {
+            p2Status = "LOCKED";
         } else {
             p2Status = "IN_PROGRESS";
         }
@@ -213,11 +365,12 @@ public class LearningPathGeneratorService {
         List<MilestoneItemDto> phase3Items = new ArrayList<>();
         itemIdx = 1;
         for (SubtopicClassificationResult item : proficientTopics) {
+            Long subId = item.subtopicId() != null ? item.subtopicId() : deriveSubtopicId(item.subtopicName());
             String actionType = item.slowPace() ? "TIMED_SPRINT" : "ADVANCED_DRILL";
             String title = (item.slowPace() ? "Timed Sprint: " : "Advanced Tier: ") + item.subtopicName();
             phase3Items.add(new MilestoneItemDto(
                     "P3-" + (itemIdx++),
-                    item.subtopicId(),
+                    subId,
                     item.subtopicName(),
                     item.topicName(),
                     item.subjectName(),
@@ -231,13 +384,18 @@ public class LearningPathGeneratorService {
                     null
             ));
         }
+
         String p3Status;
-        if (!conceptualGaps.isEmpty() || !applicationGaps.isEmpty()) {
-            p3Status = "LOCKED";
-        } else if (proficientTopics.isEmpty()) {
+        boolean p3Passed;
+        if (trueMastery || prevPhase3Passed) {
             p3Status = "COMPLETED";
+            p3Passed = true;
+        } else if (!"COMPLETED".equals(p2Status)) {
+            p3Status = "LOCKED";
+            p3Passed = false;
         } else {
             p3Status = "IN_PROGRESS";
+            p3Passed = false;
         }
         phases.add(new MilestonePhaseDto(
                 3,
@@ -250,7 +408,7 @@ public class LearningPathGeneratorService {
                 null,
                 75.0,
                 null,
-                gatekeeperPassed,
+                p3Passed,
                 phase3Items
         ));
 

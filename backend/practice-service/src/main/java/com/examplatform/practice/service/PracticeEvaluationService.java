@@ -154,10 +154,19 @@ public class PracticeEvaluationService {
                         a.topicId = ak.topicId() != null ? Long.parseLong(ak.topicId()) : null;
                     } catch (NumberFormatException ignored) {}
                     a.topicName = ak.topicName() != null ? ak.topicName() : "General";
-                    a.subtopicId = ak.subtopicId();
+                    Long subId = ak.subtopicId();
+                    if ((subId == null || subId <= 0) && subKey != null && !subKey.isBlank()) {
+                        long hash = Math.abs((long) subKey.toLowerCase(Locale.ROOT).trim().hashCode());
+                        subId = hash > 0 ? hash : 1L;
+                    }
+                    a.subtopicId = subId;
                 } else {
                     a.subjectName = "General";
                     a.topicName = "General";
+                    if (subKey != null && !subKey.isBlank()) {
+                        long hash = Math.abs((long) subKey.toLowerCase(Locale.ROOT).trim().hashCode());
+                        a.subtopicId = hash > 0 ? hash : 1L;
+                    }
                 }
                 a.subtopicName = subKey;
                 return a;
@@ -200,12 +209,19 @@ public class PracticeEvaluationService {
                     ? Math.round(((double) avgTimeSpent / avgBenchmark) * 100.0) / 100.0
                     : 1.0;
 
+            Long effectiveSubtopicId = acc.subtopicId;
+            if (effectiveSubtopicId == null || effectiveSubtopicId <= 0) {
+                String subName = (acc.subtopicName != null && !acc.subtopicName.isBlank()) ? acc.subtopicName : "general";
+                long hash = Math.abs((long) subName.toLowerCase(Locale.ROOT).trim().hashCode());
+                effectiveSubtopicId = hash > 0 ? hash : 1L;
+            }
+
             subtopicList.add(new SubtopicPerformanceDto(
                     acc.subjectId,
                     acc.subjectName,
                     acc.topicId,
                     acc.topicName,
-                    acc.subtopicId,
+                    effectiveSubtopicId,
                     acc.subtopicName,
                     acc.totalQuestions,
                     acc.attemptedCount,

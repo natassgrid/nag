@@ -84,7 +84,8 @@ public class PracticeSessionService {
 
         String mode = req.mode() != null ? req.mode().toUpperCase() : "TIMED";
 
-        if ("FULL_MOCK".equalsIgnoreCase(practiceSet.getSource())
+        if ("EXAM_CLONE".equalsIgnoreCase(practiceSet.getSource())
+                || "FULL_MOCK".equalsIgnoreCase(practiceSet.getSource())
                 || "FULL_MOCK".equalsIgnoreCase(mode)) {
             if (mockExamAccessValidator != null) {
                 mockExamAccessValidator.validateCandidateAccess(candidateId);
@@ -235,13 +236,20 @@ public class PracticeSessionService {
         practiceEvaluationService.evaluateSession(sessionId);
 
         PracticeSession evaluated = practiceSessionRepository.findById(sessionId).orElseThrow();
+        PracticeSet practiceSet = practiceSetRepository.findById(evaluated.getPracticeSetId()).orElse(null);
+        String practiceSetSource = practiceSet != null ? practiceSet.getSource() : null;
+        String targetExam = (practiceSet != null && practiceSet.getExamTitle() != null && !practiceSet.getExamTitle().isBlank())
+                ? practiceSet.getExamTitle()
+                : "JEE_MAIN";
 
         eventPublisher.publishEvent(new PracticeSessionCompletedEvent(
                 sessionId, candidateId, evaluated.getPracticeSetId(),
                 evaluated.getCorrectCount(), evaluated.getIncorrectCount(),
                 evaluated.getSkippedCount(), evaluated.getObtainedMarks(),
                 evaluated.getTotalMarks(), evaluated.getTopicWiseBreakdown(),
-                evaluated.getSubtopicWiseBreakdown()
+                evaluated.getSubtopicWiseBreakdown(),
+                practiceSetSource,
+                targetExam
         ));
 
         return practiceResultService.getResult(sessionId, candidateId);

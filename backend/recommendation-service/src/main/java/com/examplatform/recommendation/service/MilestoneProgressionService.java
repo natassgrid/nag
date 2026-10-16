@@ -247,6 +247,11 @@ public class MilestoneProgressionService {
     }
 
     @Transactional
+    public DynamicLearningPathResponse submitAdaptiveQuiz(UUID candidateId, UUID sessionId, double overallAccuracy) {
+        return submitAdaptiveQuiz(candidateId, new SubmitQuizScoreRequest(sessionId, overallAccuracy));
+    }
+
+    @Transactional
     public DynamicLearningPathResponse submitAdaptiveQuiz(UUID candidateId, SubmitQuizScoreRequest request) {
         DynamicLearningPath dlp = getActiveDlp(candidateId);
         MilestoneGraphDto graph = parseGraph(dlp);
@@ -386,6 +391,11 @@ public class MilestoneProgressionService {
     }
 
     @Transactional
+    public DynamicLearningPathResponse submitGatekeeperTest(UUID candidateId, UUID sessionId, double overallAccuracy) {
+        return submitGatekeeperTest(candidateId, new SubmitGatekeeperScoreRequest(sessionId, overallAccuracy));
+    }
+
+    @Transactional
     public DynamicLearningPathResponse submitGatekeeperTest(UUID candidateId, SubmitGatekeeperScoreRequest request) {
         DynamicLearningPath dlp = getActiveDlp(candidateId);
         MilestoneGraphDto graph = parseGraph(dlp);
@@ -432,25 +442,98 @@ public class MilestoneProgressionService {
         return generatorService.toResponse(dlp);
     }
 
+    @Transactional
+    public boolean handleCompletedSessionIfApplicable(UUID candidateId, UUID sessionId, double overallAccuracy) {
+        DynamicLearningPath dlp = dlpRepository.findFirstByCandidateIdAndStatusOrderByCreatedAtDesc(candidateId, "ACTIVE")
+                .orElse(null);
+        if (dlp == null) {
+            return false;
+        }
+        MilestoneGraphDto graph;
+        try {
+            graph = parseGraph(dlp);
+        } catch (Exception e) {
+            log.warn("Failed to parse milestone graph for candidate {}: {}", candidateId, e.getMessage());
+            return false;
+        }
+
+        if ("PHASE_2_ADAPTIVE_QUIZ".equals(graph.getCurrentPhase())
+                && graph.getPhase2() != null
+                && graph.getPhase2().getQuizSessionId() != null) {
+            submitAdaptiveQuiz(candidateId, sessionId, overallAccuracy);
+            return true;
+        }
+
+        if ("PHASE_3_GATEKEEPER".equals(graph.getCurrentPhase())
+                && graph.getPhase3() != null
+                && graph.getPhase3().getGatekeeperSessionId() != null) {
+            submitGatekeeperTest(candidateId, sessionId, overallAccuracy);
+            return true;
+        }
+
+        return false;
+    }
+
     @Transactional(readOnly = true)
     public GatekeeperStatusResponse getGatekeeperStatus(UUID candidateId) {
         DynamicLearningPath dlp = dlpRepository.findFirstByCandidateIdAndStatusOrderByCreatedAtDesc(candidateId, "ACTIVE")
                 .orElse(null);
 
         if (dlp == null) {
-            return new GatekeeperStatusResponse(false, true, "COMPLETED", null, 0, Collections.emptyList());
+            return new GatekeeperStatusResponse(false, true, "COMPLETED", null, 0, Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
         }
 
         MilestoneGraphDto graph = parseGraph(dlp);
+
+        if ("DIAGNOSTIC_REQUIRED".equalsIgnoreCase(graph.getCurrentPhase())) {
+            return new GatekeeperStatusResponse(false, true, "DIAGNOSTIC_REQUIRED", null, 0, Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
+        }
+
         boolean hasGaps = (graph.conceptualGaps() != null && !graph.conceptualGaps().isEmpty())
                 || (graph.applicationGaps() != null && !graph.applicationGaps().isEmpty());
 
-        if (!hasGaps || graph.gatekeeperPassed()) {
-            return new GatekeeperStatusResponse(false, true, "COMPLETED", null, 0, Collections.emptyList());
-        }
-
+        MilestonePhaseDto phase1 = findPhase(graph.phases(), 1);
+        MilestonePhaseDto phase2 = findPhase(graph.phases(), 2);
         MilestonePhaseDto phase3 = findPhase(graph.phases(), 3);
         UUID gatekeeperSessionId = phase3 != null ? phase3.gatekeeperSessionId() : null;
+
+        List<String> conceptualGaps = new ArrayList<>();
+        if (phase1 != null && phase1.items() != null) {
+            for (MilestoneItemDto it : phase1.items()) {
+                if (!it.completed() && it.subtopicName() != null) {
+                    conceptualGaps.add(it.subtopicName());
+                }
+            }
+        }
+        if (conceptualGaps.isEmpty() && graph.conceptualGaps() != null && (phase1 == null || !"COMPLETED".equalsIgnoreCase(phase1.status()))) {
+            for (SubtopicClassificationResult r : graph.conceptualGaps()) {
+                if (r.subtopicName() != null) {
+                    conceptualGaps.add(r.subtopicName());
+                }
+            }
+        }
+
+        List<String> applicationGaps = new ArrayList<>();
+        if (phase2 != null && phase2.items() != null) {
+            for (MilestoneItemDto it : phase2.items()) {
+                if (it.subtopicName() != null) {
+                    applicationGaps.add(it.subtopicName());
+                }
+            }
+        }
+        if (applicationGaps.isEmpty() && graph.applicationGaps() != null && (phase2 == null || !"COMPLETED".equalsIgnoreCase(phase2.status()))) {
+            for (SubtopicClassificationResult r : graph.applicationGaps()) {
+                if (r.subtopicName() != null) {
+                    applicationGaps.add(r.subtopicName());
+                }
+            }
+        }
+
+        List<String> remedialSubtopics = new ArrayList<>(conceptualGaps);
+
+        if (!hasGaps || graph.gatekeeperPassed()) {
+            return new GatekeeperStatusResponse(false, true, "COMPLETED", null, 0, Collections.emptyList(), conceptualGaps, applicationGaps);
+        }
 
         int remainingMilestones = 0;
         if (graph.phases() != null) {
@@ -463,20 +546,15 @@ public class MilestoneProgressionService {
             }
         }
 
-        List<String> remedialSubtopics = new ArrayList<>();
-        if (graph.conceptualGaps() != null) {
-            for (SubtopicClassificationResult r : graph.conceptualGaps()) {
-                remedialSubtopics.add(r.subtopicName());
-            }
-        }
-
         return new GatekeeperStatusResponse(
                 true,
                 false,
-                graph.currentPhase(),
+                graph.getCurrentPhase(),
                 gatekeeperSessionId,
                 remainingMilestones,
-                remedialSubtopics
+                remedialSubtopics,
+                conceptualGaps,
+                applicationGaps
         );
     }
 

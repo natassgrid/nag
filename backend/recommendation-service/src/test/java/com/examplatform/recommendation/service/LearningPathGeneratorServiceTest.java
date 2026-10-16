@@ -3,9 +3,8 @@ package com.examplatform.recommendation.service;
 
 import com.examplatform.recommendation.domain.DynamicLearningPath;
 import com.examplatform.recommendation.domain.LearnerSubtopicPerformance;
-import com.examplatform.recommendation.dto.DynamicLearningPathResponse;
-import com.examplatform.recommendation.dto.LearningPathSummaryResponse;
-import com.examplatform.recommendation.dto.MilestonePhaseDto;
+import com.examplatform.recommendation.domain.PerformanceBracket;
+import com.examplatform.recommendation.dto.*;
 import com.examplatform.recommendation.repository.DynamicLearningPathRepository;
 import com.examplatform.recommendation.repository.LearnerSubtopicPerformanceRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -44,7 +43,7 @@ class LearningPathGeneratorServiceTest {
     @BeforeEach
     void setUp() {
         classifierService = new SubtopicClassifierService();
-        objectMapper = new ObjectMapper();
+        objectMapper = new ObjectMapper().findAndRegisterModules();
         generatorService = new LearningPathGeneratorService(classifierService, subtopicRepository, dlpRepository, objectMapper);
     }
 
@@ -180,5 +179,144 @@ class LearningPathGeneratorServiceTest {
         assertThat(summary.proficientCount()).isEqualTo(1);
         assertThat(summary.subjectSummaries()).containsKey("Physics");
         assertThat(summary.subjectSummaries().get("Physics").avgAccuracyPercent()).isEqualTo(60.0);
+    }
+
+    @Test
+    @DisplayName("Cold-start candidate with 0 attempts gets DIAGNOSTIC_REQUIRED phase with ACTIVE path")
+    void testColdStartCandidate() {
+        when(subtopicRepository.findByCandidateId(CANDIDATE_ID)).thenReturn(List.of());
+        when(dlpRepository.findByCandidateIdAndStatus(CANDIDATE_ID, "ACTIVE")).thenReturn(List.of());
+        when(dlpRepository.save(any(DynamicLearningPath.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        DynamicLearningPath result = generatorService.generateOrRecalculate(CANDIDATE_ID, SESSION_ID, "JEE_MAIN");
+
+        assertThat(result).isNotNull();
+        assertThat(result.getStatus()).isEqualTo("ACTIVE");
+        assertThat(result.getConceptualGapsCount()).isEqualTo(0);
+        assertThat(result.getApplicationGapsCount()).isEqualTo(0);
+        assertThat(result.getProficientCount()).isEqualTo(0);
+
+        DynamicLearningPathResponse resp = generatorService.toResponse(result);
+        assertThat(resp.milestoneGraph()).isNotNull();
+        assertThat(resp.milestoneGraph().currentPhase()).isEqualTo("DIAGNOSTIC_REQUIRED");
+        assertThat(resp.milestoneGraph().getCurrentPhaseNumber()).isEqualTo(0);
+        assertThat(resp.milestoneGraph().gatekeeperPassed()).isFalse();
+        assertThat(resp.isGatekeeperPassed()).isFalse();
+        assertThat(resp.getTargetExam()).isEqualTo("JEE_MAIN");
+
+        List<MilestonePhaseDto> phases = resp.milestoneGraph().phases();
+        assertThat(phases).hasSize(3);
+        assertThat(phases.get(0).status()).isEqualTo("PENDING");
+        assertThat(phases.get(1).status()).isEqualTo("LOCKED");
+        assertThat(phases.get(2).status()).isEqualTo("LOCKED");
+    }
+
+    @Test
+    @DisplayName("True mastery candidate with 100% proficient items graduates to COMPLETED status")
+    void testTrueMasteryCandidate() {
+        LearnerSubtopicPerformance p1 = LearnerSubtopicPerformance.builder()
+                .candidateId(CANDIDATE_ID)
+                .subjectName("Physics")
+                .subtopicName("Kinematics")
+                .avgAccuracyPercent(95.0)
+                .avgPaceRatio(1.0)
+                .avgSkipRatePercent(0.0)
+                .build();
+
+        when(subtopicRepository.findByCandidateId(CANDIDATE_ID)).thenReturn(List.of(p1));
+        when(dlpRepository.findByCandidateIdAndStatus(CANDIDATE_ID, "ACTIVE")).thenReturn(List.of());
+        when(dlpRepository.save(any(DynamicLearningPath.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        DynamicLearningPath result = generatorService.generateOrRecalculate(CANDIDATE_ID, SESSION_ID, "JEE_MAIN");
+
+        assertThat(result).isNotNull();
+        assertThat(result.getStatus()).isEqualTo("COMPLETED");
+
+        DynamicLearningPathResponse resp = generatorService.toResponse(result);
+        assertThat(resp.milestoneGraph().currentPhase()).isEqualTo("COMPLETED");
+        assertThat(resp.milestoneGraph().getCurrentPhaseNumber()).isEqualTo(4);
+        assertThat(resp.milestoneGraph().gatekeeperPassed()).isTrue();
+    }
+
+    @Test
+    @DisplayName("Non-destructive merge preserves completed Phase 1 milestones and advances phase")
+    void testNonDestructiveMerge() throws Exception {
+        LearnerSubtopicPerformance p1 = LearnerSubtopicPerformance.builder()
+                .candidateId(CANDIDATE_ID)
+                .subjectName("Physics")
+                .topicName("Mechanics")
+                .subtopicName("Newton Laws")
+                .avgAccuracyPercent(45.0) // Conceptual Gap
+                .avgPaceRatio(1.0)
+                .avgSkipRatePercent(5.0)
+                .build();
+
+        when(subtopicRepository.findByCandidateId(CANDIDATE_ID)).thenReturn(List.of(p1));
+
+        // Existing active DLP with "Newton Laws" already completed in Phase 1
+        MilestoneItemDto completedItem = new MilestoneItemDto(
+                "P1-1",
+                100L,
+                "Newton Laws",
+                "Mechanics",
+                "Physics",
+                PerformanceBracket.CONCEPTUAL_GAP,
+                "MICRO_LESSON",
+                "Lesson",
+                "Note",
+                20,
+                true,
+                java.time.Instant.now(),
+                null
+        );
+
+        MilestonePhaseDto p1Phase = new MilestonePhaseDto(
+                1, "Phase 1: Remediation", "Desc", 2, "COMPLETED", null, null, null, null, null, null, List.of(completedItem)
+        );
+        MilestonePhaseDto p2Phase = new MilestonePhaseDto(
+                2, "Phase 2: Adaptive Practice", "Desc", 1, "IN_PROGRESS", 70.0, null, null, null, null, null, List.of()
+        );
+        MilestonePhaseDto p3Phase = new MilestonePhaseDto(
+                3, "Phase 3: Speed Mastery", "Desc", 1, "LOCKED", null, null, null, 75.0, null, false, List.of()
+        );
+
+        MilestoneGraphDto oldGraph = new MilestoneGraphDto(
+                "PHASE_2_ADAPTIVE_QUIZ",
+                "JEE_MAIN",
+                false,
+                List.of(p1Phase, p2Phase, p3Phase),
+                List.of(),
+                List.of(),
+                List.of(),
+                1,
+                50.0
+        );
+
+        DynamicLearningPath oldActive = DynamicLearningPath.builder()
+                .candidateId(CANDIDATE_ID)
+                .examTarget("JEE_MAIN")
+                .status("ACTIVE")
+                .milestoneGraphJson(objectMapper.writeValueAsString(oldGraph))
+                .build();
+
+        when(dlpRepository.findByCandidateIdAndStatus(CANDIDATE_ID, "ACTIVE")).thenReturn(List.of(oldActive));
+        when(dlpRepository.save(any(DynamicLearningPath.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        DynamicLearningPath result = generatorService.generateOrRecalculate(CANDIDATE_ID, SESSION_ID, "JEE_MAIN");
+
+        DynamicLearningPathResponse resp = generatorService.toResponse(result);
+        assertThat(resp.milestoneGraph()).isNotNull();
+
+        // Phase 1 item should retain completed = true
+        MilestonePhaseDto newP1 = resp.milestoneGraph().phases().get(0);
+        assertThat(newP1.items().get(0).completed()).isTrue();
+        assertThat(newP1.items().get(0).getMilestoneId()).isEqualTo("P1-1");
+        assertThat(newP1.items().get(0).getStatus()).isEqualTo("COMPLETED");
+        assertThat(newP1.items().get(0).subtopicId()).isNotNull();
+        assertThat(newP1.status()).isEqualTo("COMPLETED");
+
+        // Should advance to PHASE_2_ADAPTIVE_QUIZ instead of resetting to Phase 1
+        assertThat(resp.milestoneGraph().currentPhase()).isEqualTo("PHASE_2_ADAPTIVE_QUIZ");
+        assertThat(resp.milestoneGraph().getCurrentPhaseNumber()).isEqualTo(2);
     }
 }

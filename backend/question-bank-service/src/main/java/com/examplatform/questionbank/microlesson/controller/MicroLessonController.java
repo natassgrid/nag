@@ -25,9 +25,12 @@ public class MicroLessonController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<MicroLessonResponse> getPublishedMicroLesson(
             @PathVariable Long subtopicId,
-            @RequestParam(required = false) String targetExam) {
+            @RequestParam(defaultValue = "JEE_MAIN") String targetExam,
+            @RequestParam(required = false) String subtopicName,
+            @RequestParam(required = false) String topicName,
+            @RequestParam(required = false) String subjectName) {
 
-        return microLessonService.getPublishedMicroLesson(subtopicId, targetExam)
+        return microLessonService.getPublishedMicroLesson(subtopicId, targetExam, subjectName, topicName, subtopicName)
                 .map(ResponseEntity::ok)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Published micro-lesson not available for subtopic " + subtopicId));

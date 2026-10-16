@@ -70,6 +70,37 @@ export class RecommendationsDashboardComponent {
     },
   });
 
+  getTargetExam(lp: DynamicLearningPath | null): string {
+    if (!lp) return 'Competitive Exam';
+    return lp.targetExam || lp.examTarget || 'Competitive Exam';
+  }
+
+  isGatekeeperPassed(lp: DynamicLearningPath | null): boolean {
+    if (!lp) return false;
+    return !!(lp.gatekeeperPassed || lp.milestoneGraph?.gatekeeperPassed);
+  }
+
+  getPhaseLabel(phase: string | number | undefined): string {
+    if (phase === 'PHASE_1_REMEDIATION' || phase === 1) return 'Phase 1: Concept Remediation';
+    if (phase === 'PHASE_2_ADAPTIVE_QUIZ' || phase === 2) return 'Phase 2: Adaptive Quiz';
+    if (phase === 'PHASE_3_GATEKEEPER' || phase === 3) return 'Phase 3: Gatekeeper Assessment';
+    if (phase === 'COMPLETED' || phase === 4) return 'Completed';
+    if (phase === 'DIAGNOSTIC_REQUIRED' || phase === 0) return 'Diagnostic Needed';
+    return phase ? `Phase ${phase}` : 'Phase 1: Remediation';
+  }
+
+  isColdStart(): boolean {
+    const data = this.dashboardData();
+    const isDiag =
+      !data.learningPath ||
+      data.learningPath?.milestoneGraph?.currentPhase === 'DIAGNOSTIC_REQUIRED';
+    const noSessions =
+      !data.profile ||
+      (data.profile as any)?.totalSessionsCompleted === 0 ||
+      data.profile.totalPracticeSessions === 0;
+    return isDiag && noSessions;
+  }
+
   onGenerateLearningPath(): void {
     this.isGenerating.set(true);
     this.generateError.set(null);
