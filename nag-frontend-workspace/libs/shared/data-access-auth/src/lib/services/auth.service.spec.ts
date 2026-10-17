@@ -93,7 +93,7 @@ describe('AuthService', () => {
       done();
     });
 
-    const req = httpMock.expectOne('/api/v1/identity/auth/login');
+    const req = httpMock.expectOne('/api/v1/identity/auth/token');
     expect(req.request.method).toBe('POST');
     req.flush({ data: mockToken });
   });

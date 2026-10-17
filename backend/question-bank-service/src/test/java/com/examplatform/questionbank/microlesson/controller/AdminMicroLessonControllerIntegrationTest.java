@@ -107,7 +107,7 @@ class AdminMicroLessonControllerIntegrationTest extends AbstractIntegrationTest 
             when(generatorService.toResponse(entity)).thenReturn(response);
 
             mockMvc.perform(get("/api/admin/micro-lessons")
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.content[0].subtopic").value("Moment of Inertia"))
                     .andExpect(jsonPath("$.content[0].status").value("AI_GENERATED"));
@@ -126,7 +126,7 @@ class AdminMicroLessonControllerIntegrationTest extends AbstractIntegrationTest 
             mockMvc.perform(get("/api/admin/micro-lessons")
                             .param("status", "APPROVED")
                             .param("subjectId", "1")
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_FACULTY"))))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_QUESTION_AUTHOR"))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.content[0].status").value("APPROVED"));
         }
@@ -144,7 +144,7 @@ class AdminMicroLessonControllerIntegrationTest extends AbstractIntegrationTest 
             mockMvc.perform(get("/api/admin/micro-lessons")
                             .param("topic", "Mechanics")
                             .param("query", "Inertia")
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_FACULTY"))))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_QUESTION_AUTHOR"))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.content[0].topic").value("Mechanics"));
         }
@@ -163,7 +163,7 @@ class AdminMicroLessonControllerIntegrationTest extends AbstractIntegrationTest 
             when(repository.countByStatus("PUBLISHED")).thenReturn(10L);
 
             mockMvc.perform(get("/api/admin/micro-lessons/stats")
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.total").value(45))
                     .andExpect(jsonPath("$.aiGenerated").value(15))
@@ -182,7 +182,7 @@ class AdminMicroLessonControllerIntegrationTest extends AbstractIntegrationTest 
             when(repository.findDistinctTopics(any())).thenReturn(List.of("Mechanics", "Thermodynamics"));
 
             mockMvc.perform(get("/api/admin/micro-lessons/filter-options")
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.subjects[0]").value("Physics"))
                     .andExpect(jsonPath("$.topics[0]").value("Mechanics"))
@@ -201,7 +201,7 @@ class AdminMicroLessonControllerIntegrationTest extends AbstractIntegrationTest 
             when(repository.findById(LESSON_ID)).thenReturn(Optional.of(entity));
 
             mockMvc.perform(delete("/api/admin/micro-lessons/" + LESSON_ID)
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))))
                     .andExpect(status().isNoContent());
 
             verify(cacheService).evict(100L);
@@ -219,7 +219,7 @@ class AdminMicroLessonControllerIntegrationTest extends AbstractIntegrationTest 
             mockMvc.perform(post("/api/admin/micro-lessons/bulk-delete")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(req))
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.deletedCount").value(1));
 
@@ -248,7 +248,7 @@ class AdminMicroLessonControllerIntegrationTest extends AbstractIntegrationTest 
             mockMvc.perform(put("/api/admin/micro-lessons/" + LESSON_ID + "/review")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(req))
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_FACULTY"))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_QUESTION_AUTHOR"))
                                     .jwt(j -> j.subject(REVIEWER_ID.toString()))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("APPROVED"));
@@ -273,7 +273,7 @@ class AdminMicroLessonControllerIntegrationTest extends AbstractIntegrationTest 
             mockMvc.perform(put("/api/admin/micro-lessons/" + LESSON_ID + "/review")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(req))
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))
                                     .jwt(j -> j.subject(REVIEWER_ID.toString()))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("PUBLISHED"));
@@ -297,7 +297,7 @@ class AdminMicroLessonControllerIntegrationTest extends AbstractIntegrationTest 
             mockMvc.perform(put("/api/admin/micro-lessons/" + LESSON_ID + "/review")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(req))
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_FACULTY"))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_QUESTION_AUTHOR"))
                                     .jwt(j -> j.subject(REVIEWER_ID.toString()))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("REJECTED"));
@@ -321,7 +321,7 @@ class AdminMicroLessonControllerIntegrationTest extends AbstractIntegrationTest 
             mockMvc.perform(put("/api/admin/micro-lessons/" + LESSON_ID + "/review")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(req))
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_FACULTY"))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_QUESTION_AUTHOR"))
                                     .jwt(j -> j.subject(REVIEWER_ID.toString()))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("REJECTED"));
@@ -345,7 +345,7 @@ class AdminMicroLessonControllerIntegrationTest extends AbstractIntegrationTest 
             mockMvc.perform(put("/api/admin/micro-lessons/" + LESSON_ID + "/review")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(req))
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_FACULTY"))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_QUESTION_AUTHOR"))
                                     .jwt(j -> j.subject(REVIEWER_ID.toString()))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("APPROVED"));
@@ -365,7 +365,7 @@ class AdminMicroLessonControllerIntegrationTest extends AbstractIntegrationTest 
             mockMvc.perform(put("/api/admin/micro-lessons/" + LESSON_ID + "/review")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(req))
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))))
                     .andExpect(status().isBadRequest());
         }
     }
@@ -393,7 +393,7 @@ class AdminMicroLessonControllerIntegrationTest extends AbstractIntegrationTest 
             mockMvc.perform(post("/api/admin/micro-lessons/generate")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(req))
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))
                                     .jwt(j -> j.subject(REVIEWER_ID.toString()))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.subtopic").value("Moment of Inertia"))
@@ -431,7 +431,7 @@ class AdminMicroLessonControllerIntegrationTest extends AbstractIntegrationTest 
             mockMvc.perform(post("/api/admin/micro-lessons/batch-generate")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(req))
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.batchId").value("batch-123"))
                     .andExpect(jsonPath("$.status").value("IN_PROGRESS"))
@@ -459,7 +459,7 @@ class AdminMicroLessonControllerIntegrationTest extends AbstractIntegrationTest 
             when(batchRunner.getJobStatus("batch-123")).thenReturn(Optional.of(mockResp));
 
             mockMvc.perform(get("/api/admin/micro-lessons/batch-jobs/batch-123")
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.batchId").value("batch-123"))
                     .andExpect(jsonPath("$.percentComplete").value(50));
@@ -484,7 +484,7 @@ class AdminMicroLessonControllerIntegrationTest extends AbstractIntegrationTest 
             when(batchRunner.getActiveJob()).thenReturn(mockResp);
 
             mockMvc.perform(get("/api/admin/micro-lessons/batch-jobs/active")
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.batchId").value("batch-active-1"))
                     .andExpect(jsonPath("$.status").value("IN_PROGRESS"));
@@ -509,7 +509,7 @@ class AdminMicroLessonControllerIntegrationTest extends AbstractIntegrationTest 
             when(batchRunner.cancelJob("batch-active-1")).thenReturn(Optional.of(mockResp));
 
             mockMvc.perform(post("/api/admin/micro-lessons/batch-jobs/batch-active-1/cancel")
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("CANCELLED"));
         }

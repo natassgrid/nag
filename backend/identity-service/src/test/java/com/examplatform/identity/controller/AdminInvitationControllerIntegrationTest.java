@@ -47,7 +47,7 @@ class AdminInvitationControllerIntegrationTest extends AbstractIntegrationTest {
     private static final UUID INVITATION_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
 
     @Nested
-    @DisplayName("POST /api/v1/identity/admin/invite - Issue Invitation")
+    @DisplayName("POST /api/v1/identity/invitations - Issue Invitation")
     class IssueInvitationEndpoint {
 
         @Test
@@ -69,7 +69,7 @@ class AdminInvitationControllerIntegrationTest extends AbstractIntegrationTest {
             when(adminInvitationService.inviteAdmin(any(AdminInviteRequest.class), eq(INVITER_ID), eq(TENANT_ID)))
                     .thenReturn(response);
 
-            mockMvc.perform(post("/api/v1/identity/admin/invite")
+            mockMvc.perform(post("/api/v1/identity/invitations")
                             .header("X-Tenant-Id", TENANT_ID)
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))
                                     .jwt(j -> j.subject(INVITER_ID.toString())))
@@ -90,7 +90,7 @@ class AdminInvitationControllerIntegrationTest extends AbstractIntegrationTest {
                     .roles(List.of("QUESTION_AUTHOR"))
                     .build();
 
-            mockMvc.perform(post("/api/v1/identity/admin/invite")
+            mockMvc.perform(post("/api/v1/identity/invitations")
                             .header("X-Tenant-Id", TENANT_ID)
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
                                     .jwt(j -> j.subject(INVITER_ID.toString())))
@@ -107,7 +107,7 @@ class AdminInvitationControllerIntegrationTest extends AbstractIntegrationTest {
                     .roles(List.of())
                     .build();
 
-            mockMvc.perform(post("/api/v1/identity/admin/invite")
+            mockMvc.perform(post("/api/v1/identity/invitations")
                             .header("X-Tenant-Id", TENANT_ID)
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))
                                     .jwt(j -> j.subject(INVITER_ID.toString())))
@@ -118,7 +118,7 @@ class AdminInvitationControllerIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Nested
-    @DisplayName("GET /api/v1/identity/admin/invite/validate - Validate Token")
+    @DisplayName("GET /api/v1/identity/invitations/validate - Validate Token")
     class ValidateTokenEndpoint {
 
         @Test
@@ -136,7 +136,7 @@ class AdminInvitationControllerIntegrationTest extends AbstractIntegrationTest {
 
             when(adminInvitationService.validateInvitationToken("valid-token-xyz")).thenReturn(response);
 
-            mockMvc.perform(get("/api/v1/identity/admin/invite/validate")
+            mockMvc.perform(get("/api/v1/identity/invitations/validate")
                             .param("token", "valid-token-xyz"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("SUCCESS"))
@@ -150,7 +150,7 @@ class AdminInvitationControllerIntegrationTest extends AbstractIntegrationTest {
             when(adminInvitationService.validateInvitationToken("invalid-token"))
                     .thenThrow(new InvitationNotFoundException("Invalid or expired invitation token"));
 
-            mockMvc.perform(get("/api/v1/identity/admin/invite/validate")
+            mockMvc.perform(get("/api/v1/identity/invitations/validate")
                             .param("token", "invalid-token"))
                     .andExpect(status().isNotFound());
         }
@@ -161,14 +161,14 @@ class AdminInvitationControllerIntegrationTest extends AbstractIntegrationTest {
             when(adminInvitationService.validateInvitationToken("expired-token"))
                     .thenThrow(new InvitationExpiredException("Invitation has expired"));
 
-            mockMvc.perform(get("/api/v1/identity/admin/invite/validate")
+            mockMvc.perform(get("/api/v1/identity/invitations/validate")
                             .param("token", "expired-token"))
                     .andExpect(status().isBadRequest());
         }
     }
 
     @Nested
-    @DisplayName("POST /api/v1/identity/admin/invite/accept - Accept Invitation")
+    @DisplayName("POST /api/v1/identity/invitations/accept - Accept Invitation")
     class AcceptInvitationEndpoint {
 
         @Test
@@ -191,7 +191,7 @@ class AdminInvitationControllerIntegrationTest extends AbstractIntegrationTest {
             when(adminInvitationService.acceptInvitation(any(AcceptInviteRequest.class), eq(TENANT_ID)))
                     .thenReturn(authTokens);
 
-            mockMvc.perform(post("/api/v1/identity/admin/invite/accept")
+            mockMvc.perform(post("/api/v1/identity/invitations/accept")
                             .header("X-Tenant-Id", TENANT_ID)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))

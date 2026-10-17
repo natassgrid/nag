@@ -34,7 +34,7 @@ public final class ResultAccessSecurityHelper {
     public static final String DEFAULT_TENANT_ID = SharedConstants.DEFAULT_TENANT;
 
     private static final Set<String> ELEVATED_ROLES = Set.of(
-            "ROLE_ADMIN", "ROLE_SUPER_ADMIN", "ROLE_EXAM_CONTROLLER"
+            "ROLE_SUPER_ADMIN", "ROLE_EXAM_CONTROLLER"
     );
 
     private ResultAccessSecurityHelper() {}

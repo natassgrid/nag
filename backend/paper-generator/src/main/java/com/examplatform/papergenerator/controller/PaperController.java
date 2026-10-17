@@ -401,7 +401,7 @@ public class PaperController {
      * @return 202 Accepted with batch translation job details
      */
     @PostMapping("/{paperId}/translate")
-    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN','ADMIN')")
+    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN')")
     public ResponseEntity<PaperTranslateResponse> translatePaper(
             @PathVariable UUID paperId,
             @Valid @RequestBody(required = false) PaperTranslateRequest request,
@@ -424,8 +424,8 @@ public class PaperController {
      * @param jobId   the batch translation job UUID
      * @return 200 OK with current progress statistics
      */
-    @GetMapping({"/{paperId}/translate/{jobId}", "/{paperId}/translation-status/{jobId}"})
-    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN','ADMIN')")
+    @GetMapping("/{paperId}/translate/{jobId}")
+    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN')")
     public ResponseEntity<PaperTranslateResponse> getPaperTranslationStatus(
             @PathVariable UUID paperId,
             @PathVariable UUID jobId) {
@@ -438,8 +438,8 @@ public class PaperController {
     /**
      * Retrieves the latest translation status of a paper.
      */
-    @GetMapping({"/{paperId}/translation-status", "/{paperId}/translate/status"})
-    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN','ADMIN')")
+    @GetMapping("/{paperId}/translation-status")
+    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN')")
     public ResponseEntity<PaperTranslateResponse> getLatestPaperTranslationStatus(
             @PathVariable UUID paperId) {
 

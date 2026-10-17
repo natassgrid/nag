@@ -109,7 +109,7 @@ public class QuestionController {
      * @return 200 OK with paginated question responses
      */
     @GetMapping
-    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'TRANSLATOR', 'EXAM_CONTROLLER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'TRANSLATOR', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<Page<QuestionResponse>>> listQuestions(
             @RequestParam(required = false) String subject,
             @RequestParam(required = false) Long subjectId,
@@ -142,7 +142,7 @@ public class QuestionController {
      * @return 200 OK with the question response
      */
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'TRANSLATOR', 'EXAM_CONTROLLER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'TRANSLATOR', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<QuestionResponse>> getQuestion(@PathVariable UUID id) {
         return ResponseEntity.ok(ApiResponse.success(questionService.getQuestion(id), "Question retrieved successfully"));
     }
@@ -206,7 +206,7 @@ public class QuestionController {
      * @return 200 OK with the bulk transition results
      */
     @PostMapping("/bulk-transition")
-    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<BulkTransitionResponse>> bulkTransition(
             @Valid @RequestBody BulkTransitionRequest request,
             @AuthenticationPrincipal Jwt jwt,
@@ -259,7 +259,7 @@ public class QuestionController {
      * @return 200 OK with the published question response
      */
     @PutMapping("/{id}/publish")
-    @PreAuthorize("hasAnyRole('APPROVER', 'ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('APPROVER', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<QuestionResponse>> publish(
             @PathVariable UUID id,
             @AuthenticationPrincipal Jwt jwt,
@@ -345,7 +345,7 @@ public class QuestionController {
      * @return 200 OK with deletion confirmation
      */
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'SUBJECT_MATTER_EXPERT', 'ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'SUBJECT_MATTER_EXPERT', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<Void>> deleteQuestion(
             @PathVariable UUID id,
             @AuthenticationPrincipal Jwt jwt,
@@ -416,7 +416,7 @@ public class QuestionController {
      * @return 200 OK with question analytics data
      */
     @GetMapping("/{id}/analytics")
-    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<QuestionAnalytics>> getAnalytics(@PathVariable UUID id) {
         QuestionAnalytics analytics = questionLifecycleService.getAnalytics(id);
         return ResponseEntity.ok(ApiResponse.success(analytics, "Analytics retrieved successfully"));
@@ -432,8 +432,8 @@ public class QuestionController {
      * @param tenantId tenant identifier from the X-Tenant-Id header
      * @return 200 OK with matching approved questions
      */
-    @PostMapping({"/match-blueprint", "/blueprint-match"})
-    @PreAuthorize("permitAll() or hasAnyRole('EXAM_CONTROLLER', 'ADMIN', 'SUPER_ADMIN')")
+    @PostMapping("/match-blueprint")
+    @PreAuthorize("permitAll() or hasAnyRole('EXAM_CONTROLLER', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<List<QuestionResponse>>> matchBlueprint(
             @Valid @RequestBody BlueprintMatchRequest request,
             @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, required = false) String tenantId) {
@@ -457,8 +457,8 @@ public class QuestionController {
      * @param tenantId tenant identifier from the X-Tenant-Id header
      * @return 200 OK with questions
      */
-    @PostMapping({"/by-ids", "/batch-find"})
-    @PreAuthorize("permitAll() or hasAnyRole('EXAM_CONTROLLER', 'ADMIN', 'SUPER_ADMIN')")
+    @PostMapping("/by-ids")
+    @PreAuthorize("permitAll() or hasAnyRole('EXAM_CONTROLLER', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<List<QuestionResponse>>> getQuestionsByIds(
             @RequestBody List<UUID> ids,
             @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, required = false) String tenantId) {

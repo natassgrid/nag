@@ -24,7 +24,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/admin/practice/sets")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('ADMIN', 'CONTENT_MANAGER', 'SUPER_ADMIN', 'EXAM_CONTROLLER')")
+@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'EXAM_CONTROLLER', 'QUESTION_AUTHOR')")
 public class AdminPracticeSetController {
 
     private final PracticeSetRepository practiceSetRepository;

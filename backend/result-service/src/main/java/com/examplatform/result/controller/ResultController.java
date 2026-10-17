@@ -57,7 +57,7 @@ public class ResultController {
      * Accessible by CANDIDATE, SUPER_ADMIN, or ADMIN.
      */
     @GetMapping("/my-results")
-    @PreAuthorize("hasAnyRole('CANDIDATE', 'SUPER_ADMIN', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('CANDIDATE', 'SUPER_ADMIN')")
     public ResponseEntity<List<Result>> getMyResults(Authentication auth) {
         String tenantId = ResultAccessSecurityHelper.extractTenantId(auth);
         UUID candidateId = extractCandidateId(auth);
@@ -71,7 +71,7 @@ public class ResultController {
      * Accessible by CANDIDATE, SUPER_ADMIN, or ADMIN.
      */
     @GetMapping("/candidate/{candidateId}")
-    @PreAuthorize("hasAnyRole('CANDIDATE', 'SUPER_ADMIN', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('CANDIDATE', 'SUPER_ADMIN')")
     public ResponseEntity<List<Result>> getCandidateResults(@PathVariable UUID candidateId,
                                                            Authentication auth) {
         String tenantId = ResultAccessSecurityHelper.extractTenantId(auth);
@@ -152,7 +152,7 @@ public class ResultController {
      * Accessible by CANDIDATE, SUPER_ADMIN, ADMIN, or EXAM_CONTROLLER.
      */
     @PostMapping("/{id}/digilocker/push")
-    @PreAuthorize("hasAnyRole('CANDIDATE', 'ADMIN', 'SUPER_ADMIN', 'EXAM_CONTROLLER')")
+    @PreAuthorize("hasAnyRole('CANDIDATE', 'SUPER_ADMIN', 'EXAM_CONTROLLER')")
     public ResponseEntity<DigiLockerPushResponse> pushToDigiLocker(@PathVariable UUID id,
                                                                   Authentication auth) {
         String tenantId = ResultAccessSecurityHelper.extractTenantId(auth);

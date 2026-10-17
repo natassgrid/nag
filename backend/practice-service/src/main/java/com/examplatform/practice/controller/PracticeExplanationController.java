@@ -19,7 +19,7 @@ import java.util.UUID;
  */
 @Slf4j
 @RestController
-@RequestMapping({"/api/practice/questions", "/api/v1/practice/questions"})
+@RequestMapping("/api/practice/questions")
 @RequiredArgsConstructor
 public class PracticeExplanationController {
 

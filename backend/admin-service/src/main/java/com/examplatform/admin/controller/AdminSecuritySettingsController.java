@@ -40,7 +40,7 @@ import java.util.*;
 @RestController
 @RequestMapping("/api/v1/admin/settings/security/mfa")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SECURITY_ADMIN', 'ADMIN')")
+@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SECURITY_ADMIN')")
 public class AdminSecuritySettingsController {
 
     private final ConfigChangeService configChangeService;

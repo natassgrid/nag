@@ -49,7 +49,7 @@ class AdminProfileIntegrationTest extends AbstractIntegrationTest {
     private static final UUID ADMIN_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
 
     @Test
-    @DisplayName("Integration: GET and PUT /api/v1/admin/me/profile")
+    @DisplayName("Integration: GET and PUT /api/v1/identity/admin/me/profile")
     void testGetAndUpdateProfile() throws Exception {
         UserAccountResponse profileResponse = UserAccountResponse.builder()
                 .id(ADMIN_ID)
@@ -66,7 +66,7 @@ class AdminProfileIntegrationTest extends AbstractIntegrationTest {
         when(roleManagementService.getUserProfile(ADMIN_ID.toString(), TENANT_ID))
                 .thenReturn(profileResponse);
 
-        mockMvc.perform(get("/api/v1/admin/me/profile")
+        mockMvc.perform(get("/api/v1/identity/admin/me/profile")
                         .with(jwt().jwt(j -> j.subject(ADMIN_ID.toString())
                                 .claim("preferred_username", "admin@nag.gov.in"))
                                 .authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN")))
@@ -101,7 +101,7 @@ class AdminProfileIntegrationTest extends AbstractIntegrationTest {
         when(roleManagementService.updateUserProfile(eq(ADMIN_ID.toString()), any(), eq(TENANT_ID)))
                 .thenReturn(updatedProfile);
 
-        mockMvc.perform(put("/api/v1/admin/me/profile")
+        mockMvc.perform(put("/api/v1/identity/admin/me/profile")
                         .with(jwt().jwt(j -> j.subject(ADMIN_ID.toString())
                                 .claim("preferred_username", "admin@nag.gov.in"))
                                 .authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN")))
@@ -140,7 +140,7 @@ class AdminProfileIntegrationTest extends AbstractIntegrationTest {
         when(tokenService.createToken(eq(ADMIN_ID), any(), eq(TENANT_ID)))
                 .thenReturn(createdToken);
 
-        mockMvc.perform(post("/api/v1/admin/me/tokens")
+        mockMvc.perform(post("/api/v1/identity/admin/me/tokens")
                         .with(jwt().jwt(j -> j.subject(ADMIN_ID.toString())
                                 .claim("preferred_username", "admin@nag.gov.in"))
                                 .authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN")))
@@ -155,7 +155,7 @@ class AdminProfileIntegrationTest extends AbstractIntegrationTest {
         when(tokenService.listTokens(eq(ADMIN_ID), eq(TENANT_ID)))
                 .thenReturn(List.of(createdToken));
 
-        mockMvc.perform(get("/api/v1/admin/me/tokens")
+        mockMvc.perform(get("/api/v1/identity/admin/me/tokens")
                         .with(jwt().jwt(j -> j.subject(ADMIN_ID.toString())
                                 .claim("preferred_username", "admin@nag.gov.in"))
                                 .authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN")))
@@ -165,7 +165,7 @@ class AdminProfileIntegrationTest extends AbstractIntegrationTest {
 
         doNothing().when(tokenService).revokeToken(eq(tokenId), eq(ADMIN_ID), eq(TENANT_ID));
 
-        mockMvc.perform(delete("/api/v1/admin/me/tokens/" + tokenId)
+        mockMvc.perform(delete("/api/v1/identity/admin/me/tokens/" + tokenId)
                         .with(jwt().jwt(j -> j.subject(ADMIN_ID.toString())
                                 .claim("preferred_username", "admin@nag.gov.in"))
                                 .authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN")))
@@ -174,7 +174,7 @@ class AdminProfileIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("Integration: GET /api/v1/admin/me/activity and export")
+    @DisplayName("Integration: GET /api/v1/identity/admin/me/activity and export")
     void testActivityTimelineAndExport() throws Exception {
         AdminActivityLogResponse logResponse = AdminActivityLogResponse.builder()
                 .id("ACT-001")
@@ -189,7 +189,7 @@ class AdminProfileIntegrationTest extends AbstractIntegrationTest {
         when(activityService.getActivityLogs(eq(ADMIN_ID), any(), anyInt(), anyInt(), eq(TENANT_ID)))
                 .thenReturn(List.of(logResponse));
 
-        mockMvc.perform(get("/api/v1/admin/me/activity")
+        mockMvc.perform(get("/api/v1/identity/admin/me/activity")
                         .with(jwt().jwt(j -> j.subject(ADMIN_ID.toString())
                                 .claim("preferred_username", "admin@nag.gov.in"))
                                 .authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN")))
@@ -201,7 +201,7 @@ class AdminProfileIntegrationTest extends AbstractIntegrationTest {
         when(activityService.exportActivityLogs(eq(ADMIN_ID), eq("csv"), eq(TENANT_ID)))
                 .thenReturn("ID,Event Type\nACT-001,LOGIN");
 
-        mockMvc.perform(get("/api/v1/admin/me/activity/export")
+        mockMvc.perform(get("/api/v1/identity/admin/me/activity/export")
                         .with(jwt().jwt(j -> j.subject(ADMIN_ID.toString())
                                 .claim("preferred_username", "admin@nag.gov.in"))
                                 .authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN")))

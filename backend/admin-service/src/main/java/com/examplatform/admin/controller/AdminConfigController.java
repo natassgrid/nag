@@ -44,7 +44,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/admin/config")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SECURITY_ADMIN', 'ADMIN')")
+@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SECURITY_ADMIN')")
 public class AdminConfigController {
 
     private final ConfigChangeService configChangeService;

@@ -101,7 +101,7 @@ class QuestionBankClientImplTest {
             }
             """.formatted(qId);
 
-        mockServer.expect(requestTo("http://localhost:8083/api/v1/questions/blueprint-match"))
+        mockServer.expect(requestTo("http://localhost:8083/api/v1/questions/match-blueprint"))
                 .andExpect(method(POST))
                 .andExpect(header("X-Tenant-Id", "tenant-1"))
                 .andRespond(withSuccess(jsonResponse, APPLICATION_JSON));
@@ -129,7 +129,7 @@ class QuestionBankClientImplTest {
             }
             """;
 
-        mockServer.expect(requestTo("http://localhost:8083/api/v1/questions/blueprint-match"))
+        mockServer.expect(requestTo("http://localhost:8083/api/v1/questions/match-blueprint"))
                 .andExpect(method(POST))
                 .andRespond(withSuccess(jsonResponse, APPLICATION_JSON));
 
@@ -145,7 +145,7 @@ class QuestionBankClientImplTest {
     @SuppressWarnings("unchecked")
     void findAvailableQuestions_restFails_fallsBackToJdbc() {
         UUID qId = UUID.randomUUID();
-        mockServer.expect(requestTo("http://localhost:8083/api/v1/questions/blueprint-match"))
+        mockServer.expect(requestTo("http://localhost:8083/api/v1/questions/match-blueprint"))
                 .andExpect(method(POST))
                 .andRespond(withServerError());
 
@@ -337,7 +337,7 @@ class QuestionBankClientImplTest {
             }
             """.formatted(qId);
 
-        mockServer.expect(requestTo("http://localhost:8083/api/v1/questions/batch-find"))
+        mockServer.expect(requestTo("http://localhost:8083/api/v1/questions/by-ids"))
                 .andExpect(method(POST))
                 .andExpect(header("X-Tenant-Id", "tenant-1"))
                 .andRespond(withSuccess(jsonResponse, APPLICATION_JSON));
@@ -381,7 +381,7 @@ class QuestionBankClientImplTest {
         MockRestServiceServer localMockServer = MockRestServiceServer.bindTo(restClientBuilder).build();
         ReflectionTestUtils.setField(fallbackClient, "restClient", restClientBuilder.build());
 
-        localMockServer.expect(requestTo("http://localhost:8083/api/v1/questions/blueprint-match"))
+        localMockServer.expect(requestTo("http://localhost:8083/api/v1/questions/match-blueprint"))
                 .andExpect(method(POST))
                 .andRespond(withSuccess(jsonResponse, APPLICATION_JSON));
 

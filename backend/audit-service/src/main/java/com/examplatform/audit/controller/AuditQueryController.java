@@ -67,7 +67,7 @@ public class AuditQueryController {
      * @return paginated audit events
      */
     @GetMapping
-    @PreAuthorize("hasAnyRole('AUDITOR', 'ADMIN', 'SUPER_ADMIN', 'SECURITY_ADMIN')")
+    @PreAuthorize("hasAnyRole('AUDITOR', 'SUPER_ADMIN', 'SECURITY_ADMIN')")
     public ResponseEntity<Page<AuditEvent>> queryAuditEvents(
             @RequestParam(required = false) UUID userId,
             @RequestParam(required = false) String examId,

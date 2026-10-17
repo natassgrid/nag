@@ -36,7 +36,7 @@ import java.util.UUID;
 
 @Slf4j
 @RestController
-@RequestMapping({"/api/v1/identity/admin/invite", "/api/v1/identity/invitations"})
+@RequestMapping("/api/v1/identity/invitations")
 @RequiredArgsConstructor
 public class AdminInvitationController {
 
@@ -44,10 +44,10 @@ public class AdminInvitationController {
 
     /**
      * Send email invitation to a new admin / staff user.
-     * Restricted to SUPER_ADMIN, SECURITY_ADMIN, or TENANT_ADMIN.
+     * Restricted to SUPER_ADMIN or SECURITY_ADMIN.
      */
     @PostMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SECURITY_ADMIN', 'TENANT_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SECURITY_ADMIN')")
     public ResponseEntity<ApiResponse<AdminInviteResponse>> inviteAdmin(
             @Valid @RequestBody AdminInviteRequest request,
             @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId,

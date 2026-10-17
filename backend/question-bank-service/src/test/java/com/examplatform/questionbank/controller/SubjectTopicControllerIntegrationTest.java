@@ -281,8 +281,8 @@ class SubjectTopicControllerIntegrationTest extends AbstractIntegrationTest {
         }
 
         @Test
-        @DisplayName("+ve: ADMIN retrieves full hierarchy - returns 200 OK")
-        void adminCanGetHierarchy() throws Exception {
+        @DisplayName("+ve: SUPER_ADMIN retrieves full hierarchy - returns 200 OK")
+        void superAdminCanGetHierarchy() throws Exception {
             SubjectHierarchyResponse hierarchy = SubjectHierarchyResponse.builder()
                     .id(1L)
                     .name("Mathematics")
@@ -294,14 +294,14 @@ class SubjectTopicControllerIntegrationTest extends AbstractIntegrationTest {
 
             mockMvc.perform(get("/api/v1/subjects/hierarchy")
                             .header("X-Tenant-Id", TENANT_ID)
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("success"))
                     .andExpect(jsonPath("$.data[0].id").value(1));
         }
 
         @Test
-        @DisplayName("+ve: FACULTY retrieves full hierarchy - returns 200 OK")
+        @DisplayName("+ve: QUESTION_AUTHOR retrieves full hierarchy - returns 200 OK")
         void facultyCanGetHierarchy() throws Exception {
             SubjectHierarchyResponse hierarchy = SubjectHierarchyResponse.builder()
                     .id(1L)
@@ -314,7 +314,7 @@ class SubjectTopicControllerIntegrationTest extends AbstractIntegrationTest {
 
             mockMvc.perform(get("/api/v1/subjects/hierarchy")
                             .header("X-Tenant-Id", TENANT_ID)
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_FACULTY"))))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_QUESTION_AUTHOR"))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("success"))
                     .andExpect(jsonPath("$.data[0].id").value(1));

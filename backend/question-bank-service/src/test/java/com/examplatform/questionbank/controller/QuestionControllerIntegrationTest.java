@@ -617,7 +617,7 @@ class QuestionControllerIntegrationTest extends AbstractIntegrationTest {
     class BlueprintMatchAndBatchFindEndpoints {
 
         @Test
-        @DisplayName("+ve: Match blueprint via /api/v1/questions/blueprint-match alias - returns 200 OK")
+        @DisplayName("+ve: Match blueprint via /api/v1/questions/match-blueprint alias - returns 200 OK")
         void matchBlueprintViaAlias() throws Exception {
             when(questionService.findBlueprintQuestions(eq("Physics"), eq("Thermodynamics"), eq(
                 QuestionTaxonomyConstants.Difficulty.MEDIUM), eq(QuestionTaxonomyConstants.CognitiveLevel.APPLY), eq(TENANT_ID)))
@@ -632,7 +632,7 @@ class QuestionControllerIntegrationTest extends AbstractIntegrationTest {
                     }
                     """;
 
-            mockMvc.perform(post("/api/v1/questions/blueprint-match")
+            mockMvc.perform(post("/api/v1/questions/match-blueprint")
                             .header("X-Tenant-Id", TENANT_ID)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(requestJson))
@@ -667,12 +667,12 @@ class QuestionControllerIntegrationTest extends AbstractIntegrationTest {
         }
 
         @Test
-        @DisplayName("+ve: Find questions by IDs via /api/v1/questions/batch-find alias - returns 200 OK")
+        @DisplayName("+ve: Find questions by IDs via /api/v1/questions/by-ids alias - returns 200 OK")
         void findQuestionsByIdsViaAlias() throws Exception {
             when(questionService.findQuestionsByIds(eq(List.of(QUESTION_ID)), eq(TENANT_ID)))
                     .thenReturn(List.of(sampleQuestionResponse()));
 
-            mockMvc.perform(post("/api/v1/questions/batch-find")
+            mockMvc.perform(post("/api/v1/questions/by-ids")
                             .header("X-Tenant-Id", TENANT_ID)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(List.of(QUESTION_ID))))
@@ -704,14 +704,14 @@ class QuestionControllerIntegrationTest extends AbstractIntegrationTest {
         }
 
         @Test
-        @DisplayName("+ve: ADMIN can delete question - returns 200 OK")
+        @DisplayName("+ve: SUPER_ADMIN can delete question - returns 200 OK")
         void adminCanDeleteQuestion() throws Exception {
             UUID adminId = UUID.randomUUID();
             doNothing().when(questionService).deleteQuestion(eq(QUESTION_ID), eq(adminId), eq(TENANT_ID));
 
             mockMvc.perform(delete("/api/v1/questions/{id}", QUESTION_ID)
                             .header("X-Tenant-Id", TENANT_ID)
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))
                                     .jwt(j -> j.subject(adminId.toString()))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("success"))

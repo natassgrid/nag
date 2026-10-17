@@ -102,7 +102,7 @@ public class EvaluationController {
      * GET /api/v1/evaluations/candidate/{candidateId}
      */
     @GetMapping("/candidate/{candidateId}")
-    @PreAuthorize("hasAnyRole('CANDIDATE', 'EVALUATOR', 'EXAM_CONTROLLER', 'SUPER_ADMIN', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('CANDIDATE', 'EVALUATOR', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
     public ResponseEntity<List<Evaluation>> getCandidateEvaluations(
             @PathVariable UUID candidateId,
             @RequestParam(required = false) UUID sessionId,

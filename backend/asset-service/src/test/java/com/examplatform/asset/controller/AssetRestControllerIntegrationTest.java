@@ -171,14 +171,14 @@ class AssetRestControllerIntegrationTest extends AbstractIntegrationTest {
     class ListAssetsEndpoint {
 
         @Test
-        @DisplayName("+ve: ADMIN lists assets - returns 200 OK")
-        void adminCanListAssets() throws Exception {
+        @DisplayName("+ve: SUPER_ADMIN lists assets - returns 200 OK")
+        void superAdminCanListAssets() throws Exception {
             when(assetService.listAssets(anyInt(), anyInt(), anyString()))
                     .thenReturn(new PageImpl<>(List.of()));
 
             mockMvc.perform(get("/api/v1/assets")
                             .header("X-Tenant-Id", TENANT_ID)
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))
                                     .jwt(j -> j.subject(USER_ID.toString()).claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isOk());
         }
@@ -199,8 +199,8 @@ class AssetRestControllerIntegrationTest extends AbstractIntegrationTest {
     class UpdateMetadataEndpoint {
 
         @Test
-        @DisplayName("+ve: CONTENT_MANAGER updates metadata - returns 200 OK")
-        void contentManagerCanUpdateMetadata() throws Exception {
+        @DisplayName("+ve: QUESTION_AUTHOR updates metadata - returns 200 OK")
+        void questionAuthorCanUpdateMetadata() throws Exception {
             AssetMetadataUpdateRequest request = AssetMetadataUpdateRequest.builder()
                     .title("Updated Title")
                     .description("Updated Description")
@@ -217,7 +217,7 @@ class AssetRestControllerIntegrationTest extends AbstractIntegrationTest {
 
             mockMvc.perform(put("/api/v1/assets/{id}/metadata", ASSET_ID)
                             .header("X-Tenant-Id", TENANT_ID)
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CONTENT_MANAGER"))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_QUESTION_AUTHOR"))
                                     .jwt(j -> j.subject(USER_ID.toString()).claim("tenant_id", TENANT_ID)))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
@@ -251,7 +251,7 @@ class AssetRestControllerIntegrationTest extends AbstractIntegrationTest {
 
             mockMvc.perform(delete("/api/v1/assets/{id}", ASSET_ID)
                             .header("X-Tenant-Id", TENANT_ID)
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))
                                     .jwt(j -> j.subject(USER_ID.toString()).claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isOk());
         }
@@ -272,8 +272,8 @@ class AssetRestControllerIntegrationTest extends AbstractIntegrationTest {
     class ArchiveAndRestoreEndpoints {
 
         @Test
-        @DisplayName("+ve: ADMIN archives asset - returns 200 OK")
-        void adminCanArchiveAsset() throws Exception {
+        @DisplayName("+ve: SUPER_ADMIN archives asset - returns 200 OK")
+        void superAdminCanArchiveAsset() throws Exception {
             AssetUploadResponse response = AssetUploadResponse.builder()
                     .id(ASSET_ID)
                     .status(AssetStatus.ARCHIVED)
@@ -283,15 +283,15 @@ class AssetRestControllerIntegrationTest extends AbstractIntegrationTest {
 
             mockMvc.perform(put("/api/v1/assets/{id}/archive", ASSET_ID)
                             .header("X-Tenant-Id", TENANT_ID)
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))
                                     .jwt(j -> j.subject(USER_ID.toString()).claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data.status").value(QuestionStateConstants.ARCHIVED));
         }
 
         @Test
-        @DisplayName("+ve: ADMIN restores asset - returns 200 OK")
-        void adminCanRestoreAsset() throws Exception {
+        @DisplayName("+ve: SUPER_ADMIN restores asset - returns 200 OK")
+        void superAdminCanRestoreAsset() throws Exception {
             AssetUploadResponse response = AssetUploadResponse.builder()
                     .id(ASSET_ID)
                     .status(AssetStatus.ACTIVE)
@@ -301,7 +301,7 @@ class AssetRestControllerIntegrationTest extends AbstractIntegrationTest {
 
             mockMvc.perform(put("/api/v1/assets/{id}/restore", ASSET_ID)
                             .header("X-Tenant-Id", TENANT_ID)
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))
                                     .jwt(j -> j.subject(USER_ID.toString()).claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data.status").value("ACTIVE"));
@@ -365,13 +365,13 @@ class AssetRestControllerIntegrationTest extends AbstractIntegrationTest {
         }
 
         @Test
-        @DisplayName("+ve: ADMIN removes reference - returns 200 OK")
-        void adminCanRemoveReference() throws Exception {
+        @DisplayName("+ve: SUPER_ADMIN removes reference - returns 200 OK")
+        void superAdminCanRemoveReference() throws Exception {
             UUID refId = UUID.randomUUID();
             doNothing().when(referenceService).removeReference(eq(refId));
 
             mockMvc.perform(delete("/api/v1/assets/references/{refId}", refId)
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))
                                     .jwt(j -> j.subject(USER_ID.toString()).claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isOk());
         }

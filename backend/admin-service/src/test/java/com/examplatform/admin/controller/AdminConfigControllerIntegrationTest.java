@@ -83,12 +83,12 @@ class AdminConfigControllerIntegrationTest extends AbstractIntegrationTest {
         }
 
         @Test
-        @DisplayName("+ve: ADMIN retrieves configs - returns 200 OK")
+        @DisplayName("+ve: SECURITY_ADMIN retrieves configs - returns 200 OK")
         void adminCanGetConfigs() throws Exception {
             when(configChangeService.getConfigs(anyString())).thenReturn(Collections.emptyList());
 
             mockMvc.perform(get("/api/v1/admin/config")
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SECURITY_ADMIN"))
                                     .jwt(j -> j.subject(ACTOR_ID.toString()).claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.length()").value(0));
@@ -151,7 +151,7 @@ class AdminConfigControllerIntegrationTest extends AbstractIntegrationTest {
     class UpdateConfigEndpoint {
 
         @Test
-        @DisplayName("+ve: ADMIN updates single config - returns 200 OK")
+        @DisplayName("+ve: SECURITY_ADMIN updates single config - returns 200 OK")
         void adminCanUpdateConfig() throws Exception {
             SingleConfigUpdateRequest request = new SingleConfigUpdateRequest("auth.mfa.enforced", "false");
             SystemConfig config = SystemConfig.builder()
@@ -167,7 +167,7 @@ class AdminConfigControllerIntegrationTest extends AbstractIntegrationTest {
 
             mockMvc.perform(put("/api/v1/admin/config")
                             .param(SharedConstants.TENANT_ID, TENANT_ID)
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SECURITY_ADMIN"))
                                     .jwt(j -> j.subject(ACTOR_ID.toString()).claim("tenant_id", TENANT_ID)))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
@@ -182,7 +182,7 @@ class AdminConfigControllerIntegrationTest extends AbstractIntegrationTest {
             SingleConfigUpdateRequest request = new SingleConfigUpdateRequest("", "false");
 
             mockMvc.perform(put("/api/v1/admin/config")
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SECURITY_ADMIN"))
                                     .jwt(j -> j.subject(ACTOR_ID.toString()).claim("tenant_id", TENANT_ID)))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
