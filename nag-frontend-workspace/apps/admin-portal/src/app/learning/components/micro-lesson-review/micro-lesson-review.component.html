@@ -13,10 +13,19 @@
     <a
       routerLink="/learning/micro-lessons"
       routerLinkActive="!border-purple-600 !text-purple-600 !bg-purple-50/70 shadow-2xs"
+      [routerLinkActiveOptions]="{ exact: true }"
       class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 border border-transparent hover:bg-slate-100 flex items-center gap-2 transition-all cursor-pointer"
     >
       <mat-icon class="!text-base text-purple-600">psychology</mat-icon>
       <span>Micro-Lesson Moderation Desk</span>
+    </a>
+    <a
+      routerLink="/learning/micro-lessons/authoring"
+      routerLinkActive="!border-emerald-600 !text-emerald-700 !bg-emerald-50/70 shadow-2xs"
+      class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 border border-transparent hover:bg-slate-100 flex items-center gap-2 transition-all cursor-pointer"
+    >
+      <mat-icon class="!text-base text-emerald-600">edit_note</mat-icon>
+      <span>Manual Authoring Studio</span>
     </a>
   </div>
 
@@ -39,7 +48,7 @@
       </div>
     </div>
 
-    <div class="flex items-center gap-3">
+    <div class="flex flex-wrap items-center gap-3">
       <button
         mat-stroked-button
         (click)="loadLessons(); loadStats()"
@@ -48,6 +57,14 @@
       >
         <mat-icon class="!text-sm">refresh</mat-icon>
         Refresh
+      </button>
+      <button
+        mat-stroked-button
+        (click)="openAuthoringStudio()"
+        class="!text-emerald-700 !border-emerald-200 hover:!bg-emerald-50 !rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+      >
+        <mat-icon class="!text-sm text-emerald-600">edit_note</mat-icon>
+        <span>Author Micro-Lesson Manually</span>
       </button>
       <button
         mat-stroked-button
@@ -140,6 +157,7 @@
         [pageSizeOptions]="pageSizeOptions"
         [isLoading]="isLoading()"
         (lessonSelect)="selectLesson($event)"
+        (editLesson)="openAuthoringStudio($event.lesson, $event.event)"
         (toggleSelect)="toggleSelect($event.id, $event.event)"
         (toggleSelectAll)="toggleSelectAll($event)"
         (deleteLesson)="deleteLesson($event.lesson, $event.event)"
@@ -163,6 +181,7 @@
           [editedFormulaCheatSheet]="editedFormulaCheatSheet()"
           (close)="closePreview()"
           (startEdit)="startEditing($event)"
+          (openStudioEdit)="openAuthoringStudio($event)"
           (cancelEdit)="cancelEditing()"
           (saveEdit)="saveEditedContent()"
           (delete)="deleteLesson($event)"

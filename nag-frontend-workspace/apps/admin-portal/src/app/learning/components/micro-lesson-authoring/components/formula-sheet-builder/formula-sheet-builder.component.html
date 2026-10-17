@@ -1,0 +1,127 @@
+<div class="bg-white rounded-2xl border border-emerald-200/80 p-5 shadow-xs space-y-4">
+  <div class="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-100 pb-3">
+    <div class="flex items-center gap-2">
+      <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+        <mat-icon class="!text-lg">functions</mat-icon>
+      </div>
+      <div>
+        <h3 class="text-sm font-bold text-slate-900">Part 3: KaTeX Formula Cheat Sheet Builder</h3>
+        <p class="text-[11px] text-slate-500">Build rapid-revision equations with live mathematical verification.</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <button
+        type="button"
+        (click)="togglePalette()"
+        class="px-3 py-1.5 text-xs font-semibold rounded-xl border flex items-center gap-1.5 transition-all cursor-pointer"
+        [ngClass]="{
+          'bg-emerald-600 text-white border-emerald-600': showPalette(),
+          'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50': !showPalette()
+        }"
+      >
+        <mat-icon class="!text-sm leading-none">calculate</mat-icon>
+        <span>{{ showPalette() ? 'Close Palette' : 'Symbol Palette' }}</span>
+      </button>
+
+      <button
+        type="button"
+        (click)="addFormula()"
+        class="px-3 py-1.5 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
+      >
+        <mat-icon class="!text-sm leading-none">add</mat-icon>
+        <span>Add Formula</span>
+      </button>
+    </div>
+  </div>
+
+  @if (showPalette()) {
+    <div class="pt-1">
+      <nag-formula-symbol-palette
+        (symbolSelected)="insertSymbol($event)"
+      ></nag-formula-symbol-palette>
+    </div>
+  }
+
+  <div class="space-y-3">
+    @for (entry of formulas(); track $index) {
+      <div
+        class="p-4 rounded-xl border transition-all space-y-3"
+        [ngClass]="{
+          'border-emerald-300 bg-emerald-50/20': activeIndex() === $index,
+          'border-slate-200 bg-slate-50/50': activeIndex() !== $index
+        }"
+        (click)="activeIndex.set($index)"
+      >
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
+            Formula #{{ $index + 1 }}
+          </span>
+          @if (formulas().length > 1) {
+            <button
+              type="button"
+              (click)="removeFormula($index); $event.stopPropagation()"
+              class="text-slate-400 hover:text-rose-600 p-1 rounded-lg hover:bg-rose-50 cursor-pointer flex items-center"
+              title="Remove Formula"
+            >
+              <mat-icon class="!text-base leading-none">delete_outline</mat-icon>
+            </button>
+          }
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
+          <div class="md:col-span-4">
+            <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+              Formula Name / Law
+            </label>
+            <input
+              type="text"
+              [ngModel]="entry.name"
+              (ngModelChange)="updateFormula($index, 'name', $event)"
+              (focus)="activeIndex.set($index)"
+              placeholder="e.g. Parallel Axis Theorem"
+              class="w-full text-xs p-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
+
+          <div class="md:col-span-8">
+            <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+              LaTeX Expression ($$...$$) *
+            </label>
+            <input
+              type="text"
+              [ngModel]="entry.latex"
+              (ngModelChange)="updateFormula($index, 'latex', $event)"
+              (focus)="activeIndex.set($index)"
+              placeholder="e.g. $$I = I_{\text{cm}} + Md^2$$"
+              class="w-full font-mono text-xs p-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
+
+          <div class="md:col-span-12">
+            <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+              Usage Note / Variable Definitions (Optional)
+            </label>
+            <input
+              type="text"
+              [ngModel]="entry.description"
+              (ngModelChange)="updateFormula($index, 'description', $event)"
+              (focus)="activeIndex.set($index)"
+              placeholder="e.g. Valid for any rigid body of mass M shifted by perpendicular distance d from COM."
+              class="w-full text-xs p-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
+        </div>
+
+        @if (entry.latex && entry.latex.trim()) {
+          <div class="bg-emerald-50/80 border border-emerald-200 text-slate-900 rounded-lg px-3.5 py-2.5 text-xs overflow-x-auto flex items-center justify-between gap-2 shadow-2xs">
+            <div class="overflow-x-auto text-slate-900 font-medium">
+              <nag-math-renderer [content]="formatPreviewLatex(entry.latex)"></nag-math-renderer>
+            </div>
+            <span class="text-[10px] text-emerald-700 font-mono font-bold shrink-0 bg-emerald-100/80 px-2 py-0.5 rounded border border-emerald-200">KaTeX Live</span>
+          </div>
+        }
+      </div>
+    }
+  </div>
+</div>

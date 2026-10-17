@@ -73,7 +73,7 @@ All duplicate/alias path mappings across controllers have been standardized to s
 
 ## 4. Consolidated Endpoints Inventory
 
-Total endpoints mapped: `265` across `54` controllers.
+Total endpoints mapped: `267` across `54` controllers.
 
 | Service | Controller | HTTP Verb | Path | Handler Method | Access Control (@PreAuthorize) |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -284,6 +284,8 @@ Total endpoints mapped: `265` across `54` controllers.
 | `question-bank-service` | `SubjectTopicController.java` | **GET** | `/api/v1/subjects/hierarchy` | `getHierarchy` | `hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'EXAM_CONTROLLER', 'SUPER_ADMIN')` |
 | `question-bank-service` | `AdminMicroLessonController.java` | **GET** | `/api/admin/micro-lessons/stats` | `getStats` | `isAuthenticated()` |
 | `question-bank-service` | `AdminMicroLessonController.java` | **GET** | `/api/admin/micro-lessons/filter-options` | `getFilterOptions` | `isAuthenticated()` |
+| `question-bank-service` | `AdminMicroLessonController.java` | **GET** | `/api/admin/micro-lessons/{id}` | `getMicroLessonById` | `isAuthenticated()` |
+| `question-bank-service` | `AdminMicroLessonController.java` | **PUT** | `/api/admin/micro-lessons/{id}` | `updateMicroLesson` | `isAuthenticated()` |
 | `question-bank-service` | `AdminMicroLessonController.java` | **DELETE** | `/api/admin/micro-lessons/{id}` | `deleteMicroLesson` | `isAuthenticated()` |
 | `question-bank-service` | `AdminMicroLessonController.java` | **POST** | `/api/admin/micro-lessons/bulk-delete` | `bulkDeleteMicroLessons` | `isAuthenticated()` |
 | `question-bank-service` | `AdminMicroLessonController.java` | **PUT** | `/api/admin/micro-lessons/{id}/review` | `reviewMicroLesson` | `isAuthenticated()` |

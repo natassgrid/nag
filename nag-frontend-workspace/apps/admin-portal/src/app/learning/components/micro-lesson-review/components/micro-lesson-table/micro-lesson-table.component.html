@@ -69,6 +69,14 @@
                   </button>
                   <button
                     type="button"
+                    (click)="editLesson.emit({ lesson: item, event: $event }); $event.stopPropagation()"
+                    title="Edit Micro-Lesson in Studio"
+                    class="p-1 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 cursor-pointer transition-colors inline-flex items-center"
+                  >
+                    <mat-icon class="!text-base">edit</mat-icon>
+                  </button>
+                  <button
+                    type="button"
                     (click)="deleteLesson.emit({ lesson: item, event: $event })"
                     title="Delete Micro-Lesson"
                     class="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer transition-colors inline-flex items-center"

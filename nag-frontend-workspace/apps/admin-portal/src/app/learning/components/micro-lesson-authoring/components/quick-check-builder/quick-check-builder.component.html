@@ -1,0 +1,125 @@
+<div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-5">
+  <!-- Part 5: Key Takeaways -->
+  <div class="space-y-3">
+    <div class="flex items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+          <mat-icon class="!text-lg">fact_check</mat-icon>
+        </div>
+        <div>
+          <h3 class="text-sm font-bold text-slate-900">Part 5: Key Takeaways &amp; Quick Concept Check</h3>
+          <p class="text-[11px] text-slate-500">Add high-yield summary bullets and self-check verification questions.</p>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        (click)="addTakeaway()"
+        class="px-3 py-1.5 text-xs font-semibold rounded-xl border border-indigo-200 text-indigo-700 hover:bg-indigo-50 flex items-center gap-1 cursor-pointer"
+      >
+        <mat-icon class="!text-sm leading-none">add</mat-icon>
+        <span>Add Takeaway</span>
+      </button>
+    </div>
+
+    <div class="space-y-2">
+      @for (takeaway of keyTakeaways(); track $index) {
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-bold text-indigo-600 w-5 text-center">{{ $index + 1 }}.</span>
+          <input
+            type="text"
+            [ngModel]="takeaway"
+            (ngModelChange)="updateTakeaway($index, $event)"
+            placeholder="Key revision takeaway bullet (supports $$LaTeX$$)..."
+            class="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+          @if (keyTakeaways().length > 1) {
+            <button
+              type="button"
+              (click)="removeTakeaway($index)"
+              class="text-slate-400 hover:text-rose-600 p-1 rounded-lg hover:bg-rose-50 cursor-pointer"
+              title="Remove Takeaway"
+            >
+              <mat-icon class="!text-base leading-none">close</mat-icon>
+            </button>
+          }
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- Part 6: Quick Concept Check Items -->
+  <div class="space-y-3 border-t border-slate-100 pt-4">
+    <div class="flex items-center justify-between gap-2">
+      <span class="text-xs font-bold uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
+        <mat-icon class="!text-base text-emerald-600">quiz</mat-icon>
+        Quick Concept Check Items
+      </span>
+      <button
+        type="button"
+        (click)="addQuickCheck()"
+        class="px-3 py-1.5 text-xs font-semibold rounded-xl border border-emerald-200 text-emerald-700 hover:bg-emerald-50 flex items-center gap-1 cursor-pointer"
+      >
+        <mat-icon class="!text-sm leading-none">add</mat-icon>
+        <span>Add Check Question</span>
+      </button>
+    </div>
+
+    @for (qc of quickCheckItems(); track $index) {
+      <div class="p-4 rounded-xl border border-emerald-100 bg-emerald-50/20 space-y-2.5">
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-bold text-emerald-800 uppercase">Quick Check #{{ $index + 1 }}</span>
+          @if (quickCheckItems().length > 1) {
+            <button
+              type="button"
+              (click)="removeQuickCheck($index)"
+              class="text-slate-400 hover:text-rose-600 p-1 rounded-lg cursor-pointer"
+              title="Remove Quick Check"
+            >
+              <mat-icon class="!text-base leading-none">delete_outline</mat-icon>
+            </button>
+          }
+        </div>
+
+        <input
+          type="text"
+          [ngModel]="qc.question"
+          (ngModelChange)="updateQuickCheck($index, 'question', $event)"
+          placeholder="Concept check question (e.g. Under what condition is angular momentum conserved?)"
+          class="w-full text-xs p-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+        />
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+          <input
+            type="text"
+            [ngModel]="qc.answer"
+            (ngModelChange)="updateQuickCheck($index, 'answer', $event)"
+            placeholder="Correct Answer (e.g. When net external torque $$\vec{\tau}_{ext} = 0$$)"
+            class="w-full text-xs p-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          />
+          <input
+            type="text"
+            [ngModel]="qc.explanation || ''"
+            (ngModelChange)="updateQuickCheck($index, 'explanation', $event)"
+            placeholder="Brief explanation / justification..."
+            class="w-full text-xs p-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          />
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- Faculty Authoring / Audit Notes -->
+  <div class="border-t border-slate-100 pt-4">
+    <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+      Authoring &amp; Curriculum Audit Notes (Optional)
+    </label>
+    <input
+      type="text"
+      [ngModel]="reviewerNotes()"
+      (ngModelChange)="reviewerNotesChange.emit($event)"
+      placeholder="e.g. Authored manually for JEE Advanced high-weightage revision module"
+      class="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+    />
+  </div>
+</div>

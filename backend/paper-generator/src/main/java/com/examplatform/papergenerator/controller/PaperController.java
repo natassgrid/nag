@@ -470,7 +470,7 @@ public class PaperController {
                 resolvedName = (examName != null ? examName : "Practice Paper");
             }
             return buildPaperSummary(p, resolvedName, examName, null);
-        }).collect(Collectors.toList());
+        }).toList();
 
         return ResponseEntity.ok(response);
     }
@@ -502,7 +502,8 @@ public class PaperController {
         if (jwt != null && jwt.getSubject() != null) {
             try {
                 return UUID.fromString(jwt.getSubject());
-            } catch (IllegalArgumentException ignored) {
+            } catch (IllegalArgumentException _) {
+                // ignored
             }
         }
         return UUID.fromString("00000000-0000-0000-0000-000000000001");

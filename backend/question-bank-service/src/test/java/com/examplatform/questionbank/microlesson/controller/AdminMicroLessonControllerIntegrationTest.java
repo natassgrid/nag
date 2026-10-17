@@ -514,4 +514,187 @@ class AdminMicroLessonControllerIntegrationTest extends AbstractIntegrationTest 
                     .andExpect(jsonPath("$.status").value("CANCELLED"));
         }
     }
+
+    @Nested
+    @DisplayName("Manual Micro-Lesson Authoring Studio Endpoints (GET /{id}, POST /, PUT /{id})")
+    class ManualAuthoringEndpoints {
+
+        @Test
+        @DisplayName("200 OK - Retrieves a single micro-lesson by ID")
+        void testGetMicroLessonById() throws Exception {
+            SubtopicMicroLesson entity = buildSampleEntity("APPROVED");
+            when(repository.findById(LESSON_ID)).thenReturn(Optional.of(entity));
+            when(generatorService.toResponse(entity)).thenReturn(buildSampleResponse("APPROVED"));
+
+            mockMvc.perform(get("/api/admin/micro-lessons/" + LESSON_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_FACULTY"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.id").value(LESSON_ID.toString()))
+                    .andExpect(jsonPath("$.subtopic").value("Moment of Inertia"))
+                    .andExpect(jsonPath("$.status").value("APPROVED"));
+        }
+
+        @Test
+        @DisplayName("404 Not Found - Returns 404 when micro-lesson ID does not exist")
+        void testGetMicroLessonByIdNotFound() throws Exception {
+            when(repository.findById(LESSON_ID)).thenReturn(Optional.empty());
+
+            mockMvc.perform(get("/api/admin/micro-lessons/" + LESSON_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_FACULTY"))))
+                    .andExpect(status().isNotFound());
+        }
+
+        @Test
+        @DisplayName("201 Created - Creates a manually authored micro-lesson with structured content")
+        void testCreateManualMicroLesson() throws Exception {
+            when(repository.findTopBySubtopicIdAndTargetExamOrderByContentVersionDesc(100L, "JEE_MAIN"))
+                    .thenReturn(Optional.empty());
+            when(repository.save(any(SubtopicMicroLesson.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            String payload = """
+                {
+                  "subjectId": 1,
+                  "subject": "Physics",
+                  "topicId": 10,
+                  "topic": "Mechanics",
+                  "subtopicId": 100,
+                  "subtopic": "Moment of Inertia",
+                  "targetExam": "JEE_MAIN",
+                  "coreConcept": "Moment of inertia $$I = \\\\sum m_i r_i^2$$ quantifies rotational inertia.",
+                  "trapAlert": {
+                    "title": "Axis Shift Error",
+                    "description": "Always check the reference axis before applying standard formulas.",
+                    "commonMistake": "Using $$I_{cm}$$ directly for an offset axis.",
+                    "correctApproach": "Apply $$I = I_{cm} + Md^2$$."
+                  },
+                  "formulaCheatSheet": [
+                    {
+                      "name": "Parallel Axis Theorem",
+                      "latex": "$$I = I_{cm} + Md^2$$",
+                      "description": "Shifts axis by perpendicular distance $$d$$",
+                      "variables": ["$$I_{cm}$$: COM inertia", "$$M$$: Mass"]
+                    }
+                  ],
+                  "stepByStepBreakdown": {
+                    "problemStatement": "Find $$I$$ of a rod of mass $$M$$ and length $$L$$ about one end.",
+                    "steps": [
+                      {
+                        "stepNumber": 1,
+                        "title": "COM Formula",
+                        "explanation": "Start with $$I_{cm} = \\\\frac{1}{12}ML^2$$.",
+                        "formula": "$$I_{cm} = \\\\frac{1}{12}ML^2$$"
+                      },
+                      {
+                        "stepNumber": 2,
+                        "title": "Apply Parallel Axis Theorem",
+                        "explanation": "Add $$M(L/2)^2$$ to get $$\\\\frac{1}{3}ML^2$$.",
+                        "formula": "$$I = \\\\frac{1}{3}ML^2$$"
+                      }
+                    ],
+                    "finalAnswer": "$$\\\\frac{1}{3}ML^2$$"
+                  },
+                  "keyTakeaways": [
+                    "Moment of inertia depends on mass distribution and axis position."
+                  ],
+                  "quickCheckItems": [
+                    {
+                      "question": "What is $$I$$ of a point mass $$m$$ at distance $$r$$?",
+                      "options": ["$$mr^2$$", "$$\\\\frac{1}{2}mr^2$$", "$$2mr^2$$", "$$mr$$"],
+                      "correctAnswer": "$$mr^2$$",
+                      "explanation": "By definition $$I = mr^2$$."
+                    }
+                  ],
+                  "status": "APPROVED"
+                }
+                """;
+
+            mockMvc.perform(post("/api/admin/micro-lessons")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(payload)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_FACULTY"))
+                                    .jwt(j -> j.subject(REVIEWER_ID.toString()))))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.subtopic").value("Moment of Inertia"))
+                    .andExpect(jsonPath("$.status").value("APPROVED"))
+                    .andExpect(jsonPath("$.contentVersion").value(1))
+                    .andExpect(jsonPath("$.content.trapAlert.title").value("Axis Shift Error"))
+                    .andExpect(jsonPath("$.content.formulaCheatSheet[0].name").value("Parallel Axis Theorem"))
+                    .andExpect(jsonPath("$.content.stepByStepBreakdown[0].title").value("COM Formula"))
+                    .andExpect(jsonPath("$.content.keyTakeaways[0]").value("Moment of inertia depends on mass distribution and axis position."))
+                    .andExpect(jsonPath("$.content.quickCheckItems[0].correctAnswer").value("$$mr^2$$"));
+        }
+
+        @Test
+        @DisplayName("400 Bad Request - Rejects manual micro-lesson creation when LaTeX is malformed")
+        void testCreateManualMicroLessonInvalidLatex() throws Exception {
+            String invalidPayload = """
+                {
+                  "subjectId": 1,
+                  "subject": "Physics",
+                  "topicId": 10,
+                  "topic": "Mechanics",
+                  "subtopicId": 100,
+                  "subtopic": "Moment of Inertia",
+                  "targetExam": "JEE_MAIN",
+                  "coreConcept": "Malformed LaTeX $$\\\\frac{1}{2$$",
+                  "trap": "Some trap",
+                  "cheatSheet": ["$$I = mr^2$$"],
+                  "stepByStepBreakdown": {
+                    "questionStem": "Find I",
+                    "steps": ["Step 1"],
+                    "finalAnswer": "Ans"
+                  }
+                }
+                """;
+
+            mockMvc.perform(post("/api/admin/micro-lessons")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(invalidPayload)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_FACULTY"))))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        @DisplayName("200 OK - Updates existing micro-lesson and increments contentVersion")
+        void testUpdateMicroLesson() throws Exception {
+            SubtopicMicroLesson existing = buildSampleEntity("APPROVED");
+            when(repository.findById(LESSON_ID)).thenReturn(Optional.of(existing));
+            when(repository.findTopBySubtopicIdAndTargetExamOrderByContentVersionDesc(100L, "JEE_MAIN"))
+                    .thenReturn(Optional.of(existing));
+            when(repository.save(any(SubtopicMicroLesson.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            String updatePayload = """
+                {
+                  "coreConcept": "Updated rotational concept with $$I = \\\\frac{1}{2}MR^2$$.",
+                  "status": "PUBLISHED",
+                  "reviewComments": "Reviewed and published from Studio"
+                }
+                """;
+
+            mockMvc.perform(put("/api/admin/micro-lessons/" + LESSON_ID)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(updatePayload)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
+                                    .jwt(j -> j.subject(REVIEWER_ID.toString()))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("PUBLISHED"))
+                    .andExpect(jsonPath("$.contentVersion").value(2))
+                    .andExpect(jsonPath("$.coreConcept").value("Updated rotational concept with $$I = \\frac{1}{2}MR^2$$."));
+
+            verify(cacheService).put(eq(100L), any(MicroLessonResponse.class));
+        }
+
+        @Test
+        @DisplayName("404 Not Found - Returns 404 when updating non-existent micro-lesson")
+        void testUpdateMicroLessonNotFound() throws Exception {
+            when(repository.findById(LESSON_ID)).thenReturn(Optional.empty());
+
+            mockMvc.perform(put("/api/admin/micro-lessons/" + LESSON_ID)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"coreConcept\": \"Updated\"}")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+                    .andExpect(status().isNotFound());
+        }
+    }
 }
+

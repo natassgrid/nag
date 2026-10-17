@@ -9,7 +9,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
@@ -69,6 +69,7 @@ export class MicroLessonReviewComponent implements OnInit, OnDestroy {
   private readonly notificationService = inject(NotificationService);
   private readonly snackBar = inject(MatSnackBar);
   private readonly dialog = inject(MatDialog);
+  private readonly router = inject(Router);
 
   readonly lessons = signal<MicroLessonReviewItem[]>([]);
   readonly isLoading = signal(true);
@@ -449,6 +450,19 @@ export class MicroLessonReviewComponent implements OnInit, OnDestroy {
         );
       },
     });
+  }
+
+  openAuthoringStudio(lesson?: MicroLessonReviewItem, event?: Event) {
+    if (event) {
+      event.stopPropagation();
+    }
+    if (lesson?.id) {
+      this.router.navigate(['/learning/micro-lessons/authoring'], {
+        queryParams: { edit: lesson.id },
+      });
+    } else {
+      this.router.navigate(['/learning/micro-lessons/authoring']);
+    }
   }
 
   openGenerateDialog() {

@@ -1,0 +1,183 @@
+<div class="p-6 md:p-8 space-y-6 max-w-7xl mx-auto">
+  <!-- Shared Module Sub-Navigation -->
+  <div class="flex items-center gap-2 border-b border-slate-200 pb-3">
+    <a
+      routerLink="/learning"
+      routerLinkActive="!border-indigo-600 !text-indigo-600 !bg-indigo-50/70 shadow-2xs"
+      [routerLinkActiveOptions]="{ exact: true }"
+      class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 border border-transparent hover:bg-slate-100 flex items-center gap-2 transition-all cursor-pointer"
+    >
+      <mat-icon class="!text-base text-indigo-600">auto_stories</mat-icon>
+      <span>Practice Sets</span>
+    </a>
+    <a
+      routerLink="/learning/micro-lessons"
+      routerLinkActive="!border-purple-600 !text-purple-600 !bg-purple-50/70 shadow-2xs"
+      [routerLinkActiveOptions]="{ exact: true }"
+      class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 border border-transparent hover:bg-slate-100 flex items-center gap-2 transition-all cursor-pointer"
+    >
+      <mat-icon class="!text-base text-purple-600">psychology</mat-icon>
+      <span>Micro-Lesson Moderation Desk</span>
+    </a>
+    <a
+      routerLink="/learning/micro-lessons/authoring"
+      routerLinkActive="!border-emerald-600 !text-emerald-700 !bg-emerald-50/70 shadow-2xs"
+      class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 border border-transparent hover:bg-slate-100 flex items-center gap-2 transition-all cursor-pointer"
+    >
+      <mat-icon class="!text-base text-emerald-600">edit_note</mat-icon>
+      <span>{{ editingLessonId() ? 'Edit Micro-Lesson' : 'Manual Authoring Studio' }}</span>
+    </a>
+  </div>
+
+  <!-- Studio Header -->
+  <nag-page-header
+    [title]="editingLessonId() ? 'Edit Micro-Lesson Content' : 'Micro-Lesson Authoring Studio'"
+    [subtitle]="editingLessonId()
+      ? 'Refine remedial concept blocks, KaTeX equations, worked derivations, and quick concept checks'
+      : 'Author structured 6-part remedial micro-lessons with reusable LaTeX & chemistry symbol palettes'"
+    icon="edit_note"
+  >
+    <div actions class="flex items-center gap-3">
+      <button mat-stroked-button type="button" (click)="backToModerationDesk()">
+        <mat-icon>arrow_back</mat-icon>
+        Back to Moderation Desk
+      </button>
+
+      <button mat-stroked-button type="button" (click)="resetForm()">
+        Reset
+      </button>
+
+      <button
+        mat-flat-button
+        color="primary"
+        type="button"
+        (click)="saveLesson()"
+        [disabled]="saving() || loadingLesson() || !coreConcept().trim()"
+      >
+        <mat-icon>save</mat-icon>
+        @if (saving()) {
+          Saving...
+        } @else if (editingLessonId()) {
+          Update Micro-Lesson
+        } @else {
+          Save Micro-Lesson
+        }
+      </button>
+    </div>
+  </nag-page-header>
+
+  <!-- Loading Banner for Edit Mode -->
+  @if (loadingLesson()) {
+    <div class="flex items-center gap-3 p-4 rounded-xl bg-blue-50 border border-blue-200 text-blue-900">
+      <mat-icon class="animate-spin !text-xl">autorenew</mat-icon>
+      <span class="text-sm font-medium">Loading micro-lesson for editing...</span>
+    </div>
+  }
+
+  <!-- Feedback Alert Banner -->
+  @if (feedback(); as fb) {
+    <div
+      class="p-4 rounded-xl border flex items-center justify-between transition-all"
+      [ngClass]="{
+        'bg-emerald-50 border-emerald-200 text-emerald-900': fb.type === 'success',
+        'bg-rose-50 border-rose-200 text-rose-900': fb.type === 'error'
+      }"
+    >
+      <div class="flex items-center gap-3">
+        <mat-icon class="!text-xl leading-none">
+          {{ fb.type === 'success' ? 'check_circle' : 'error' }}
+        </mat-icon>
+        <span class="text-sm font-medium">{{ fb.message }}</span>
+      </div>
+
+      @if (fb.type === 'success') {
+        <button
+          mat-stroked-button
+          type="button"
+          (click)="backToModerationDesk()"
+          class="!text-emerald-800 !border-emerald-300 hover:!bg-emerald-100 !text-xs font-semibold"
+        >
+          View in Moderation Desk
+        </button>
+      }
+    </div>
+  }
+
+  <!-- Taxonomy, Target Exam & Publication Status Bar -->
+  <app-lesson-metadata-bar
+    [subjects]="subjects()"
+    [topics]="topics()"
+    [subtopics]="subtopics()"
+    [selectedSubjectId]="selectedSubjectId()"
+    [selectedTopicId]="selectedTopicId()"
+    [selectedSubtopicId]="selectedSubtopicId()"
+    [customSubtopicName]="customSubtopicName()"
+    [targetExam]="targetExam()"
+    [status]="status()"
+    [examOptions]="examOptions()"
+    (subjectChange)="onSubjectChange($event)"
+    (topicChange)="onTopicChange($event)"
+    (subtopicChange)="onSubtopicChange($event)"
+    (createSubject)="createQuickSubject($event)"
+    (createTopic)="createQuickTopic($event)"
+    (customSubtopicNameChange)="customSubtopicName.set($event)"
+    (targetExamChange)="targetExam.set($event)"
+    (statusChange)="status.set($event)"
+  ></app-lesson-metadata-bar>
+
+  <!-- Two-Column Split Studio: Left = Structured Editors, Right = Real-Time Candidate Preview -->
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+    <div class="lg:col-span-7 space-y-5">
+      <app-core-concept-editor
+        [coreConcept]="coreConcept()"
+        (coreConceptChange)="coreConcept.set($event)"
+      ></app-core-concept-editor>
+
+      <app-trap-alert-editor
+        [trapAlert]="trapAlert()"
+        (trapAlertChange)="trapAlert.set($event)"
+      ></app-trap-alert-editor>
+
+      <app-formula-sheet-builder
+        [formulas]="formulaEntries()"
+        (formulasChange)="formulaEntries.set($event)"
+      ></app-formula-sheet-builder>
+
+      <app-step-breakdown-builder
+        [problemStatement]="problemStatement()"
+        [steps]="steps()"
+        [finalAnswer]="finalAnswer()"
+        (problemStatementChange)="problemStatement.set($event)"
+        (stepsChange)="steps.set($event)"
+        (finalAnswerChange)="finalAnswer.set($event)"
+      ></app-step-breakdown-builder>
+
+      <app-quick-check-builder
+        [keyTakeaways]="keyTakeaways()"
+        [quickCheckItems]="quickCheckItems()"
+        [reviewerNotes]="reviewerNotes()"
+        (keyTakeawaysChange)="keyTakeaways.set($event)"
+        (quickCheckItemsChange)="quickCheckItems.set($event)"
+        (reviewerNotesChange)="reviewerNotes.set($event)"
+      ></app-quick-check-builder>
+    </div>
+
+    <div class="lg:col-span-5">
+      <app-lesson-live-preview
+        [subjectName]="resolvedSubjectName()"
+        [topicName]="resolvedTopicName()"
+        [subtopicName]="resolvedSubtopicName()"
+        [targetExam]="targetExam()"
+        [status]="status()"
+        [coreConcept]="coreConcept()"
+        [trapAlert]="trapAlert()"
+        [formulas]="formulaEntries()"
+        [problemStatement]="problemStatement()"
+        [steps]="steps()"
+        [finalAnswer]="finalAnswer()"
+        [keyTakeaways]="keyTakeaways()"
+        [quickCheckItems]="quickCheckItems()"
+      ></app-lesson-live-preview>
+    </div>
+  </div>
+</div>

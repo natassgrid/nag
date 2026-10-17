@@ -10,6 +10,7 @@ import { MicroLessonReviewItem } from '../../../../models/micro-lesson.model';
   standalone: true,
   imports: [CommonModule, FormsModule, MatIconModule, MathRendererComponent],
   templateUrl: './micro-lesson-table.component.html',
+  styleUrl: './micro-lesson-table.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MicroLessonTableComponent {
@@ -27,6 +28,7 @@ export class MicroLessonTableComponent {
   readonly isLoading = input<boolean>(false);
 
   readonly lessonSelect = output<MicroLessonReviewItem>();
+  readonly editLesson = output<{ lesson: MicroLessonReviewItem; event?: Event }>();
   readonly toggleSelect = output<{ id: string; event: Event }>();
   readonly toggleSelectAll = output<boolean>();
   readonly deleteLesson = output<{ lesson: MicroLessonReviewItem; event?: Event }>();
