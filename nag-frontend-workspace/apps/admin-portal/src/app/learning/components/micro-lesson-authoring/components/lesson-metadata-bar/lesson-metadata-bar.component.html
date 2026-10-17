@@ -1,0 +1,63 @@
+<div class="space-y-4">
+  <nag-taxonomy-selector
+    [subjects]="subjects()"
+    [topics]="topics()"
+    [subtopics]="subtopics()"
+    [selectedSubjectId]="selectedSubjectId()"
+    [selectedTopicId]="selectedTopicId()"
+    [selectedSubtopicId]="selectedSubtopicId()"
+    (subjectChange)="subjectChange.emit($event)"
+    (topicChange)="topicChange.emit($event)"
+    (subtopicChange)="subtopicChange.emit($event)"
+    (createSubject)="createSubject.emit($event)"
+    (createTopic)="createTopic.emit($event)"
+  ></nag-taxonomy-selector>
+
+  <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div>
+      <label class="block text-xs font-bold text-slate-700 uppercase mb-1.5">
+        Subtopic Title / Override *
+      </label>
+      <input
+        type="text"
+        id="authoring-subtopic-name"
+        [ngModel]="customSubtopicName()"
+        (ngModelChange)="customSubtopicNameChange.emit($event)"
+        placeholder="e.g. Work-Energy Theorem in Non-Inertial Frames"
+        class="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+      />
+    </div>
+
+    <div>
+      <label class="block text-xs font-bold text-slate-700 uppercase mb-1.5">
+        Target Examination *
+      </label>
+      <select
+        id="authoring-target-exam"
+        [ngModel]="targetExam()"
+        (ngModelChange)="targetExamChange.emit($event)"
+        class="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+      >
+        @for (exam of examOptions(); track exam.value) {
+          <option [value]="exam.value">{{ exam.label }}</option>
+        }
+      </select>
+    </div>
+
+    <div>
+      <label class="block text-xs font-bold text-slate-700 uppercase mb-1.5">
+        Publication Status *
+      </label>
+      <select
+        id="authoring-status-select"
+        [ngModel]="status()"
+        (ngModelChange)="statusChange.emit($event)"
+        class="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+      >
+        @for (st of statusOptions; track st.value) {
+          <option [value]="st.value">{{ st.label }}</option>
+        }
+      </select>
+    </div>
+  </div>
+</div>

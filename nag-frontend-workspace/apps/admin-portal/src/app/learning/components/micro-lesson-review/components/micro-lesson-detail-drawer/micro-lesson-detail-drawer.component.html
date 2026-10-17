@@ -20,7 +20,15 @@
             class="text-xs font-bold px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 flex items-center gap-1 cursor-pointer transition-colors"
           >
             <mat-icon class="!text-sm">edit</mat-icon>
-            Edit KaTeX Content
+            Quick Edit
+          </button>
+          <button
+            type="button"
+            (click)="openStudioEdit.emit(item)"
+            class="text-xs font-bold px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 flex items-center gap-1 cursor-pointer transition-colors"
+          >
+            <mat-icon class="!text-sm">edit_note</mat-icon>
+            Edit in Studio
           </button>
         } @else {
           <button
@@ -73,11 +81,11 @@
             [ngModel]="editedCoreConcept()"
             (ngModelChange)="coreConceptChange.emit($event)"
             rows="3"
-            class="w-full text-xs font-mono bg-white border border-indigo-200 rounded-lg p-2.5 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+            class="w-full text-xs font-mono bg-white border border-indigo-200 rounded-lg p-2.5 text-slate-800 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
             placeholder="Core Concept text with LaTeX formulas (e.g. $E = mc^2$)"
           ></textarea>
-          <p class="text-[10px] text-slate-400 mt-1">Live LaTeX preview below:</p>
-          <div class="mt-2 bg-white/80 p-3 rounded-lg border border-indigo-100/60">
+          <p class="text-[10px] text-slate-500 mt-1 font-medium">Live LaTeX preview below:</p>
+          <div class="mt-2 bg-white p-3 rounded-lg border border-indigo-200/80 text-slate-800 shadow-2xs">
             <nag-math-renderer [content]="editedCoreConcept()"></nag-math-renderer>
           </div>
         } @else {
@@ -98,11 +106,11 @@
             [ngModel]="editedTrapAlert()"
             (ngModelChange)="trapAlertChange.emit($event)"
             rows="2"
-            class="w-full text-xs font-mono bg-white border border-amber-200 rounded-lg p-2.5 focus:ring-1 focus:ring-amber-500 focus:outline-none"
+            class="w-full text-xs font-mono bg-white border border-amber-200 rounded-lg p-2.5 text-slate-800 focus:ring-1 focus:ring-amber-500 focus:outline-none"
             placeholder="Trap description with LaTeX formulas"
           ></textarea>
-          <p class="text-[10px] text-slate-400 mt-1">Live LaTeX preview below:</p>
-          <div class="mt-2 bg-white/80 p-3 rounded-lg border border-amber-100/60">
+          <p class="text-[10px] text-slate-500 mt-1 font-medium">Live LaTeX preview below:</p>
+          <div class="mt-2 bg-white p-3 rounded-lg border border-amber-200/80 text-amber-950 shadow-2xs">
             <nag-math-renderer [content]="editedTrapAlert()"></nag-math-renderer>
           </div>
         } @else {
@@ -123,11 +131,11 @@
             [ngModel]="editedFormulaCheatSheet()"
             (ngModelChange)="formulaCheatSheetChange.emit($event)"
             rows="3"
-            class="w-full text-xs font-mono bg-white border border-emerald-200 rounded-lg p-2.5 focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+            class="w-full text-xs font-mono bg-white border border-emerald-200 rounded-lg p-2.5 text-slate-800 focus:ring-1 focus:ring-emerald-500 focus:outline-none"
             placeholder="Key formulas, separated by double newlines: e.g. $$I = m r^2$$"
           ></textarea>
-          <p class="text-[10px] text-slate-400 mt-1">Live KaTeX preview below:</p>
-          <div class="mt-2 bg-white/80 p-3 rounded-lg border border-emerald-100/60">
+          <p class="text-[10px] text-slate-500 mt-1 font-medium">Live KaTeX preview below:</p>
+          <div class="mt-2 bg-white p-3 rounded-lg border border-emerald-200/80 text-slate-800 shadow-2xs">
             <nag-math-renderer [content]="editedFormulaCheatSheet()"></nag-math-renderer>
           </div>
         } @else {
@@ -146,7 +154,7 @@
           </h3>
           @if (breakdown.problemStatement) {
             <div class="bg-white p-3 rounded-lg border border-purple-100/80">
-              <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Problem Statement</p>
+              <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Problem Statement</p>
               <div class="text-xs font-medium text-slate-800">
                 <nag-math-renderer [content]="breakdown.problemStatement"></nag-math-renderer>
               </div>
@@ -167,7 +175,7 @@
                       </div>
                     }
                     @if (st.formula) {
-                      <div class="mt-1 bg-slate-50 p-2 rounded border border-slate-200/60 font-mono text-xs">
+                      <div class="mt-1 bg-purple-50/70 p-2 rounded border border-purple-200 font-mono text-xs text-slate-900">
                         <nag-math-renderer [content]="st.formula" [inline]="true"></nag-math-renderer>
                       </div>
                     }
@@ -197,7 +205,7 @@
           (ngModelChange)="reviewerNotesChange.emit($event)"
           rows="2"
           placeholder="Optional notes for faculty review trail or rejection reason..."
-          class="w-full text-xs rounded-xl border border-slate-200 p-2.5 bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-purple-500 transition-colors"
+          class="w-full text-xs rounded-xl border border-slate-200 p-2.5 bg-slate-50 text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-purple-500 transition-colors"
         ></textarea>
       </div>
 

@@ -11,6 +11,8 @@ import {
   MicroLessonStats,
   MicroLessonFilterOptions,
   BulkDeleteResponse,
+  CreateMicroLessonRequest,
+  UpdateMicroLessonRequest,
   adaptToReviewItem,
 } from '../models/micro-lesson.model';
 
@@ -100,6 +102,29 @@ export class MicroLessonAdminService {
           content: (res.content || []).map(adaptToReviewItem),
         }))
       );
+  }
+
+  getMicroLessonById(id: string): Observable<MicroLessonReviewItem> {
+    return this.http
+      .get<any>(`${this.apiUrl}/${id}`)
+      .pipe(map(adaptToReviewItem));
+  }
+
+  createMicroLesson(
+    request: CreateMicroLessonRequest
+  ): Observable<MicroLessonReviewItem> {
+    return this.http
+      .post<any>(this.apiUrl, request)
+      .pipe(map(adaptToReviewItem));
+  }
+
+  updateMicroLesson(
+    id: string,
+    request: UpdateMicroLessonRequest
+  ): Observable<MicroLessonReviewItem> {
+    return this.http
+      .put<any>(`${this.apiUrl}/${id}`, request)
+      .pipe(map(adaptToReviewItem));
   }
 
   getStats(): Observable<MicroLessonStats> {
