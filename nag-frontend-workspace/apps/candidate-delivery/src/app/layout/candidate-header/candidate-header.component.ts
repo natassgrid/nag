@@ -10,6 +10,7 @@ import { RouterModule, Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
+import { MatDividerModule } from '@angular/material/divider';
 import { NavItem, CANDIDATE_NAV_ITEMS } from '../layout.models';
 
 @Component({
@@ -21,6 +22,7 @@ import { NavItem, CANDIDATE_NAV_ITEMS } from '../layout.models';
     MatButtonModule,
     MatIconModule,
     MatMenuModule,
+    MatDividerModule,
   ],
   templateUrl: './candidate-header.component.html',
   styleUrl: './candidate-header.component.scss',
