@@ -287,6 +287,39 @@ describe('QuestionsFeatureAuthoring', () => {
     expect(component.feedback()?.message).toContain('PUBLISHED');
   });
 
+  it('should apply imported question to UI without saving to bank', async () => {
+    await compileWithRoute();
+    fixture.detectChanges();
+
+    const imported = {
+      content: 'Imported question problem statement with $$E = mc^2$$',
+      explanation: 'Imported explanation',
+      type: 'MULTIPLE_CHOICE' as any,
+      difficulty: 'HARD' as any,
+      cognitiveLevel: 'APPLY',
+      marks: 4,
+      negativeMarks: 1,
+      options: [
+        { id: 'A', text: 'Option 1', isCorrect: true },
+        { id: 'B', text: 'Option 2', isCorrect: false },
+        { id: 'C', text: 'Option 3', isCorrect: false },
+        { id: 'D', text: 'Option 4', isCorrect: false },
+      ],
+      answerKey: 'A',
+    };
+
+    component.applyImportedQuestion(imported);
+
+    expect(component.content).toBe(imported.content);
+    expect(component.explanation).toBe(imported.explanation);
+    expect(component.difficulty).toBe('HARD');
+    expect(component.cognitiveLevel).toBe('APPLY');
+    expect(component.options.length).toBe(4);
+    expect(questionBankMock.createQuestion).not.toHaveBeenCalled();
+    expect(component.feedback()?.type).toBe('success');
+    expect(component.feedback()?.message).toContain('loaded into authoring form');
+  });
+
   it('should show error feedback when getQuestionById fails', async () => {
     questionBankMock.getQuestionById.mockReturnValue(
       throwError(() => ({ error: { message: 'Question not found' } }))

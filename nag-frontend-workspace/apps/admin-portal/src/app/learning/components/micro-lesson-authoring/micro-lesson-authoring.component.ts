@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { PageHeaderComponent } from '@nag-frontend-workspace/shared-ui-components';
 import { Subject, SubjectTopicService, Subtopic, Topic } from '@nag-frontend-workspace/questions-data-access';
 import { MicroLessonAdminService } from '../../services/micro-lesson-admin.service';
@@ -12,18 +13,19 @@ import {
   DEFAULT_CORE_CONCEPT, DEFAULT_EXAM_OPTIONS, DEFAULT_FINAL_ANSWER, DEFAULT_FORMULA_ENTRIES,
   DEFAULT_KEY_TAKEAWAYS, DEFAULT_PROBLEM_STATEMENT, DEFAULT_QUICK_CHECKS,
   DEFAULT_STEP_ITEMS, DEFAULT_TRAP_ALERT, TargetExamOption,
-  buildCreateOrUpdateRequest, parseLessonForAuthoring,
+  buildCreateOrUpdateRequest, parseLessonForAuthoring, ParsedAuthoringLessonState,
 } from './models';
 import {
   CoreConceptEditorComponent, FormulaSheetBuilderComponent, LessonLivePreviewComponent,
   LessonMetadataBarComponent, QuickCheckBuilderComponent, StepBreakdownBuilderComponent, TrapAlertEditorComponent,
 } from './components';
+import { MicroLessonPromptImportDialogComponent } from '../micro-lesson-prompt-import-dialog/micro-lesson-prompt-import-dialog.component';
 
 @Component({
   selector: 'app-micro-lesson-authoring',
   standalone: true,
   imports: [
-    CommonModule, FormsModule, RouterModule, MatButtonModule, MatIconModule, PageHeaderComponent,
+    CommonModule, FormsModule, RouterModule, MatButtonModule, MatIconModule, MatDialogModule, PageHeaderComponent,
     LessonMetadataBarComponent, CoreConceptEditorComponent, TrapAlertEditorComponent,
     FormulaSheetBuilderComponent, StepBreakdownBuilderComponent, QuickCheckBuilderComponent, LessonLivePreviewComponent,
   ],
@@ -36,6 +38,7 @@ export class MicroLessonAuthoringComponent implements OnInit {
   private readonly subjectTopicService = inject(SubjectTopicService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly dialog = inject(MatDialog);
 
   readonly editingLessonId = signal<string | null>(null);
   readonly loadingLesson = signal<boolean>(false);
@@ -84,6 +87,11 @@ export class MicroLessonAuthoringComponent implements OnInit {
       },
       error: () => {},
     });
+
+    const action = this.route.snapshot?.queryParamMap?.get('action');
+    if (action === 'prompt-import' || action === 'import') {
+      setTimeout(() => this.openAiPromptImportDialog(action === 'import' ? 'import' : 'prompt'), 100);
+    }
   }
 
   loadTaxonomy(isEditMode: boolean): void {
@@ -201,6 +209,55 @@ export class MicroLessonAuthoringComponent implements OnInit {
     this.keyTakeaways.set(['']);
     this.quickCheckItems.set([{ question: '', options: [], answer: '', explanation: '' }]);
     this.feedback.set(null);
+  }
+
+  /**
+   * Opens the External AI Micro-Lesson Prompt & JSON Import Dialog.
+   */
+  openAiPromptImportDialog(defaultTab: 'prompt' | 'import' = 'prompt'): void {
+    const dialogRef = this.dialog.open(MicroLessonPromptImportDialogComponent, {
+      data: {
+        subject: this.resolvedSubjectName(),
+        topic: this.resolvedTopicName(),
+        subtopic: this.resolvedSubtopicName(),
+        targetExam: this.targetExam(),
+        activeTab: defaultTab,
+      },
+      width: '900px',
+      maxWidth: '95vw',
+      panelClass: 'dialog-panel-no-padding',
+    });
+
+    dialogRef.afterClosed().subscribe((imported: ParsedAuthoringLessonState | null) => {
+      if (imported) {
+        this.applyImportedLesson(imported);
+      }
+    });
+  }
+
+  /**
+   * Populates the micro-lesson authoring form signals in UI memory ONLY.
+   * Does NOT save to database yet — triggers live preview rendering and allows
+   * author to review and save as usual.
+   */
+  applyImportedLesson(data: ParsedAuthoringLessonState): void {
+    if (data.targetExam) this.targetExam.set(data.targetExam);
+    if (data.status) this.status.set(data.status);
+    if (data.subtopicCustomName) this.customSubtopicName.set(data.subtopicCustomName);
+    this.coreConcept.set(data.coreConcept);
+    this.trapAlert.set(data.trapAlert);
+    this.formulaEntries.set(data.formulaEntries);
+    this.problemStatement.set(data.problemStatement);
+    this.steps.set(data.steps);
+    this.finalAnswer.set(data.finalAnswer);
+    this.keyTakeaways.set(data.keyTakeaways);
+    this.quickCheckItems.set(data.quickCheckItems);
+    if (data.reviewerNotes) this.reviewerNotes.set(data.reviewerNotes);
+
+    this.feedback.set({
+      type: 'success',
+      message: 'Micro-lesson loaded into studio from external JSON! Review the live preview and formulas, then click "Save Micro-Lesson" to commit to the catalog.',
+    });
   }
 
   saveLesson(): void {

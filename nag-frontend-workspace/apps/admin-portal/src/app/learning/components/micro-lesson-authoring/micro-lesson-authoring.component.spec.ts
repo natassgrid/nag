@@ -207,6 +207,47 @@ describe('MicroLessonAuthoringComponent', () => {
     expect(component.steps().length).toBe(1);
   });
 
+  it('should apply imported micro-lesson to UI without saving to backend', () => {
+    createComponent();
+
+    const imported = {
+      targetExam: 'NEET',
+      status: 'APPROVED',
+      subtopicCustomName: 'Bernoulli Principle',
+      coreConcept: 'Bernoulli principle relates pressure and fluid speed.',
+      trapAlert: {
+        title: 'Viscosity Pitfall',
+        description: 'Do not apply to viscous fluids.',
+        commonMistake: 'Ignoring viscous dissipation.',
+        correctApproach: 'Verify Reynolds number.',
+      },
+      formulaEntries: [
+        { name: 'Bernoulli Eq', latex: '$$P + \\frac{1}{2}\\rho v^2 + \\rho gh = C$$', description: 'Constant along streamline', variables: [] }
+      ],
+      problemStatement: 'Water flows through a constricted pipe.',
+      steps: [
+        { stepNumber: 1, title: 'Apply continuity', explanation: '$$A_1 v_1 = A_2 v_2$$', formula: '', tip: '' }
+      ],
+      finalAnswer: '$$P_2 = 1.2\\text{ atm}$$',
+      keyTakeaways: ['Streamline flow only'],
+      quickCheckItems: [],
+      reviewerNotes: 'Imported from Claude 3.5',
+    };
+
+    component.applyImportedLesson(imported);
+
+    expect(component.targetExam()).toBe('NEET');
+    expect(component.coreConcept()).toBe(imported.coreConcept);
+    expect(component.trapAlert().title).toBe('Viscosity Pitfall');
+    expect(component.formulaEntries().length).toBe(1);
+    expect(component.steps().length).toBe(1);
+    expect(component.finalAnswer()).toBe('$$P_2 = 1.2\\text{ atm}$$');
+    expect(component.customSubtopicName()).toBe('Bernoulli Principle');
+    expect(microLessonServiceMock.createMicroLesson).not.toHaveBeenCalled();
+    expect(component.feedback()?.type).toBe('success');
+    expect(component.feedback()?.message).toContain('loaded into studio');
+  });
+
   it('should navigate back to moderation desk', () => {
     createComponent();
     const router = TestBed.inject(Router);
