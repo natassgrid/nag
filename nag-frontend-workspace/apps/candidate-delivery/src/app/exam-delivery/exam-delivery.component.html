@@ -1,4 +1,4 @@
-<div class="h-screen w-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden font-sans select-none">
+<div class="h-screen w-full flex flex-col bg-slate-50 text-slate-900 overflow-hidden font-sans select-none">
   <!-- Mode Banner (Preview / Practice Simulation) -->
   <nag-exam-mode-banner
     [mode]="deliveryMode()"
@@ -36,9 +36,9 @@
   }
 
   <!-- Main Delivery Split Body -->
-  <main class="flex-1 flex overflow-hidden min-h-0">
+  <main class="flex-1 flex overflow-hidden min-h-0 bg-slate-50">
     <!-- Left: Question Workspace -->
-    <section class="flex-1 flex flex-col min-w-0 min-h-0 overflow-y-auto bg-slate-900 border-r border-slate-800">
+    <section class="flex-1 flex flex-col min-w-0 min-h-0 overflow-y-auto bg-slate-50 border-r border-slate-200">
       @if (currentItem(); as item) {
         <nag-exam-question-card
           [item]="item"
@@ -51,18 +51,18 @@
           (next)="nextQuestion()"
         />
       } @else {
-        <div class="flex-1 flex items-center justify-center p-8 text-center text-slate-500">
+        <div class="flex-1 flex items-center justify-center p-8 text-center text-slate-400">
           <div class="max-w-md">
-            <mat-icon class="!text-6xl !w-16 !h-16 text-slate-600 mb-4">quiz</mat-icon>
-            <h3 class="text-xl font-bold text-slate-300 mb-2">No Question Selected</h3>
-            <p class="text-sm">Please select a question number from the question palette on the right.</p>
+            <mat-icon class="!text-6xl !w-16 !h-16 text-slate-300 mb-4">quiz</mat-icon>
+            <h3 class="text-xl font-bold text-slate-700 mb-2">No Question Selected</h3>
+            <p class="text-sm text-slate-500">Please select a question number from the question palette on the right.</p>
           </div>
         </div>
       }
     </section>
 
     <!-- Right: Question Palette & Candidate Status -->
-    <aside class="w-80 lg:w-96 flex flex-col bg-slate-950 shrink-0">
+    <aside class="w-80 lg:w-96 flex flex-col bg-white shrink-0 border-l border-slate-200">
       <nag-exam-question-palette
         class="h-full flex-1 flex flex-col min-h-0"
         [questions]="questions()"
