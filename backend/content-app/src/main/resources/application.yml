@@ -51,7 +51,7 @@ spring:
       api-key: ${LITELLM_API_KEY:sk-dummy-key-for-litellm}
       chat:
         options:
-          model: ${AI_MODEL_EASY:bedrock-claude-3-haiku}
+          model: ${AI_MODEL_EASY:nova-micro}
           temperature: 0.3
       embedding:
         options:
@@ -123,9 +123,18 @@ app:
     encryption:
       enabled: ${TRANSLATION_ENCRYPTION_ENABLED:false}
   ai:
+    provider: ${AI_PROVIDER:bedrock}
     models:
       easy: ${AI_MODEL_EASY:nova-micro}
       medium: ${AI_MODEL_MEDIUM:nova-lite}
       hard: ${AI_MODEL_HARD:nova-lite}
+      gemini:
+        easy: ${AI_GEMINI_MODEL_EASY:gemini-flash-lite}
+        medium: ${AI_GEMINI_MODEL_MEDIUM:gemini-flash}
+        hard: ${AI_GEMINI_MODEL_HARD:gemini-pro}
+      local:
+        easy: ${AI_MODEL_LOCAL_EASY:llama3.2:1b}
+        medium: ${AI_MODEL_LOCAL_MEDIUM:qwen2.5:1.5b}
+        hard: ${AI_MODEL_LOCAL_HARD:qwen2.5:1.5b}
   question-bank:
     service-url: ${QUESTION_BANK_SERVICE_URI:http://localhost:8083}

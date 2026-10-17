@@ -113,6 +113,58 @@ translation:
     chunk-pause-interval-questions: ${TRANSLATION_BATCH_CHUNK_INTERVAL:15}
     chunk-pause-duration-seconds: ${TRANSLATION_BATCH_CHUNK_PAUSE_SECONDS:60}
 
+app:
+  ai:
+    provider: ${AI_PROVIDER:bedrock}
+    models:
+      easy: ${AI_MODEL_EASY:nova-micro}
+      medium: ${AI_MODEL_MEDIUM:nova-lite}
+      hard: ${AI_MODEL_HARD:nova-lite}
+      gemini:
+        easy: ${AI_GEMINI_MODEL_EASY:gemini-flash-lite}
+        medium: ${AI_GEMINI_MODEL_MEDIUM:gemini-flash}
+        hard: ${AI_GEMINI_MODEL_HARD:gemini-pro}
+      local:
+        easy: ${AI_MODEL_LOCAL_EASY:llama3.2:1b}
+        medium: ${AI_MODEL_LOCAL_MEDIUM:qwen2.5:1.5b}
+        hard: ${AI_MODEL_LOCAL_HARD:qwen2.5:1.5b}
+    guardrails:
+      enabled: ${AI_GUARDRAILS_ENABLED:true}
+      strict-mode: ${AI_GUARDRAIL_STRICT_MODE:true}
+      max-input-length: ${AI_MAX_PROMPT_INPUT_LENGTH:4000}
+      max-output-tokens: ${AI_MAX_OUTPUT_TOKENS:2048}
+    resilience:
+      call-timeout-seconds: ${AI_CALL_TIMEOUT_SECONDS:45}
+      failure-rate-threshold: ${AI_CIRCUIT_BREAKER_FAILURE_RATE_THRESHOLD:50}
+      wait-duration-seconds: ${AI_CIRCUIT_BREAKER_WAIT_DURATION_SECONDS:30}
+      sliding-window-size: ${AI_CIRCUIT_BREAKER_SLIDING_WINDOW_SIZE:10}
+    agent:
+      max-refinement-cycles: ${AI_AGENT_MAX_REFINEMENT_CYCLES:2}
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      microLessonAiService:
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: ${AI_CIRCUIT_BREAKER_SLIDING_WINDOW_SIZE:10}
+        minimumNumberOfCalls: 5
+        failureRateThreshold: ${AI_CIRCUIT_BREAKER_FAILURE_RATE_THRESHOLD:50}
+        waitDurationInOpenState: ${AI_CIRCUIT_BREAKER_WAIT_DURATION_SECONDS:30}s
+        permittedNumberOfCallsInHalfOpenState: 2
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+  retry:
+    instances:
+      microLessonAiService:
+        maxAttempts: 2
+        waitDuration: 500ms
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+  timelimiter:
+    instances:
+      microLessonAiService:
+        timeoutDuration: ${AI_CALL_TIMEOUT_SECONDS:45}s
+        cancelRunningFuture: true
+
 server:
   port: ${QUESTION_BANK_SERVICE_PORT:8083}
   servlet:
