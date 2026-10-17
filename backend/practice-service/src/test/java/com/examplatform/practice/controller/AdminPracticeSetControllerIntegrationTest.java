@@ -75,12 +75,12 @@ class AdminPracticeSetControllerIntegrationTest extends AbstractIntegrationTest 
     class ListPracticeSets {
 
         @Test
-        @DisplayName("+ve: ADMIN lists all practice sets - returns 200 OK")
-        void adminCanListSets() throws Exception {
+        @DisplayName("+ve: QUESTION_AUTHOR lists all practice sets - returns 200 OK")
+        void questionAuthorCanListSets() throws Exception {
             if (!testcontainersAvailable) return;
 
             mockMvc.perform(get("/api/admin/practice/sets")
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_QUESTION_AUTHOR"))
                                     .jwt(j -> j.subject(ADMIN_ID.toString()).claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.length()").value(1))
@@ -158,7 +158,7 @@ class AdminPracticeSetControllerIntegrationTest extends AbstractIntegrationTest 
             );
 
             mockMvc.perform(post("/api/admin/practice/sets")
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))
                                     .jwt(j -> j.subject(ADMIN_ID.toString()).claim("tenant_id", TENANT_ID)))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
@@ -195,7 +195,7 @@ class AdminPracticeSetControllerIntegrationTest extends AbstractIntegrationTest 
             );
 
             mockMvc.perform(post("/api/admin/practice/sets")
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))
                                     .jwt(j -> j.subject(ADMIN_ID.toString()).claim("tenant_id", TENANT_ID)))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
@@ -222,7 +222,7 @@ class AdminPracticeSetControllerIntegrationTest extends AbstractIntegrationTest 
             );
 
             mockMvc.perform(put("/api/admin/practice/sets/{id}", existingSet.getId())
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CONTENT_MANAGER"))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_QUESTION_AUTHOR"))
                                     .jwt(j -> j.subject(ADMIN_ID.toString()).claim("tenant_id", TENANT_ID)))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
@@ -247,7 +247,7 @@ class AdminPracticeSetControllerIntegrationTest extends AbstractIntegrationTest 
 
             // Publish
             mockMvc.perform(post("/api/admin/practice/sets/{id}/publish", existingSet.getId())
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))
                                     .jwt(j -> j.subject(ADMIN_ID.toString()).claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isNoContent());
 
@@ -256,7 +256,7 @@ class AdminPracticeSetControllerIntegrationTest extends AbstractIntegrationTest 
 
             // Unpublish
             mockMvc.perform(post("/api/admin/practice/sets/{id}/unpublish", existingSet.getId())
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))
                                     .jwt(j -> j.subject(ADMIN_ID.toString()).claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isNoContent());
 
@@ -275,7 +275,7 @@ class AdminPracticeSetControllerIntegrationTest extends AbstractIntegrationTest 
             if (!testcontainersAvailable) return;
 
             mockMvc.perform(delete("/api/admin/practice/sets/{id}", existingSet.getId())
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))
                                     .jwt(j -> j.subject(ADMIN_ID.toString()).claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isNoContent());
 

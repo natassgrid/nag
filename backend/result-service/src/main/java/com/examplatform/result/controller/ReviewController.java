@@ -62,7 +62,7 @@ public class ReviewController {
      * @return the exam review response
      */
     @GetMapping("/{candidateId}/review")
-    @PreAuthorize("hasAnyRole('CANDIDATE', 'EXAM_CONTROLLER', 'ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('CANDIDATE', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
     public ResponseEntity<ExamReviewResponse> getExamReview(
             @PathVariable UUID candidateId,
             @RequestParam UUID examId,

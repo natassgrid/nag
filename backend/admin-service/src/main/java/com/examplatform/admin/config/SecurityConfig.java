@@ -50,8 +50,8 @@ public class SecurityConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/actuator/health", "/actuator/info", "/actuator/prometheus").permitAll()
-                .requestMatchers("/api/v1/admin/dashboard/**").hasAnyRole("SUPER_ADMIN", "SECURITY_ADMIN", "ADMIN", "EXAM_CONTROLLER", "QUESTION_AUTHOR", "REVIEWER", "EVALUATOR")
-                .requestMatchers("/api/v1/admin/**").hasAnyRole("SUPER_ADMIN", "SECURITY_ADMIN", "ADMIN")
+                .requestMatchers("/api/v1/admin/dashboard/**").hasAnyRole("SUPER_ADMIN", "SECURITY_ADMIN", "EXAM_CONTROLLER", "QUESTION_AUTHOR", "REVIEWER", "EVALUATOR")
+                .requestMatchers("/api/v1/admin/**").hasAnyRole("SUPER_ADMIN", "SECURITY_ADMIN")
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2

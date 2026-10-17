@@ -54,7 +54,7 @@ class AuditEventControllerIntegrationTest extends AbstractIntegrationTest {
         @DisplayName("+ve/-ve: Immutability enforcement - authenticated PUT rejected with 403 Forbidden and tamper attempt logged")
         void authenticatedPutRejectedWithForbidden() throws Exception {
             mockMvc.perform(put("/api/v1/audit/events/{id}", EVENT_ID)
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_AUDITOR"))
                                     .jwt(j -> j.subject("actor-123").claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isForbidden());
 
@@ -77,7 +77,7 @@ class AuditEventControllerIntegrationTest extends AbstractIntegrationTest {
         @DisplayName("+ve/-ve: Immutability enforcement - authenticated DELETE rejected with 403 Forbidden and tamper attempt logged")
         void authenticatedDeleteRejectedWithForbidden() throws Exception {
             mockMvc.perform(delete("/api/v1/audit/events/{id}", EVENT_ID)
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_AUDITOR"))
                                     .jwt(j -> j.subject("actor-456").claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isForbidden());
 

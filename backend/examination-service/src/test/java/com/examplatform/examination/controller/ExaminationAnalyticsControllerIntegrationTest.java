@@ -41,7 +41,7 @@ class ExaminationAnalyticsControllerIntegrationTest extends AbstractIntegrationT
         ));
 
         mockMvc.perform(get("/api/v1/examinations/analytics/summary")
-                        .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
+                        .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))
                                 .jwt(j -> j.subject("11111111-1111-1111-1111-111111111111").claim("tenant_id", "default")))
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())

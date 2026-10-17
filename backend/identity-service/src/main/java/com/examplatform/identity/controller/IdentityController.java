@@ -155,7 +155,7 @@ public class IdentityController {
     /**
      * Verify Email OTP for candidate.
      */
-    @PostMapping({"/verify/email", "/auth/verify/email"})
+    @PostMapping("/verify/email")
     public ResponseEntity<ApiResponse<VerificationStatusResponse>> verifyEmail(
             @Valid @RequestBody EmailVerifyRequest request,
             @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
@@ -167,7 +167,7 @@ public class IdentityController {
     /**
      * Verify Mobile OTP for candidate.
      */
-    @PostMapping({"/verify/mobile", "/auth/verify/mobile"})
+    @PostMapping("/verify/mobile")
     public ResponseEntity<ApiResponse<VerificationStatusResponse>> verifyMobile(
             @Valid @RequestBody MobileVerifyRequest request,
             @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
@@ -196,7 +196,7 @@ public class IdentityController {
     /**
      * Resend candidate Email OTP (supports userId and/or email).
      */
-    @PostMapping({"/resend/email-otp", "/otp/resend/email"})
+    @PostMapping("/resend/email-otp")
     public ResponseEntity<ApiResponse<Void>> resendEmailOtp(
             @RequestBody OtpResendRequest request,
             @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
@@ -238,7 +238,7 @@ public class IdentityController {
     /**
      * Verify OTP and activate the pending account (backward-compatible).
      */
-    @PostMapping({"/otp/verify", "/verify-otp"})
+    @PostMapping("/otp/verify")
     public ResponseEntity<ApiResponse<AuthTokenResponse>> verifyOtp(
             @Valid @RequestBody OtpVerifyRequest request,
             @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
@@ -272,7 +272,7 @@ public class IdentityController {
         return ResponseEntity.ok(ApiResponse.success(response, message));
     }
 
-    @PostMapping({"/auth/token", "/auth/login"})
+    @PostMapping("/auth/token")
     public ResponseEntity<ApiResponse<AuthTokenResponse>> token(
             @Valid @RequestBody AuthTokenRequest request,
             @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId,
@@ -284,7 +284,7 @@ public class IdentityController {
     /**
      * Refresh JWT access token using a valid refresh token.
      */
-    @PostMapping({"/auth/token/refresh", "/auth/refresh"})
+    @PostMapping("/auth/token/refresh")
     public ResponseEntity<ApiResponse<AuthTokenResponse>> refreshToken(
             @Valid @RequestBody RefreshTokenRequest request,
             @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId,
@@ -309,7 +309,7 @@ public class IdentityController {
     /**
      * Initiate TOTP 2FA setup (returns secret, otpauth URI, backup codes).
      */
-    @PostMapping({"/auth/2fa/setup", "/auth/mfa/totp/setup"})
+    @PostMapping("/auth/2fa/setup")
     public ResponseEntity<ApiResponse<TotpSetupResponse>> setup2fa(
             @RequestParam(required = false) String username,
             @AuthenticationPrincipal Jwt jwt) {
@@ -324,7 +324,7 @@ public class IdentityController {
     /**
      * Check TOTP 2FA configuration status for a user.
      */
-    @GetMapping({"/auth/2fa/status", "/auth/mfa/totp/status"})
+    @GetMapping("/auth/2fa/status")
     public ResponseEntity<ApiResponse<Map<String, Object>>> get2faStatus(
             @RequestParam(required = false) String userId,
             @AuthenticationPrincipal Jwt jwt) {
@@ -340,7 +340,7 @@ public class IdentityController {
     /**
      * Verify and activate TOTP 2FA setup for user.
      */
-    @PostMapping({"/auth/2fa/verify-setup", "/auth/mfa/totp/verify-setup"})
+    @PostMapping("/auth/2fa/verify-setup")
     public ResponseEntity<ApiResponse<Void>> verify2faSetup(
             @Valid @RequestBody TotpVerifySetupRequest request,
             @AuthenticationPrincipal Jwt jwt,
@@ -357,7 +357,7 @@ public class IdentityController {
     /**
      * Disable TOTP 2FA for authenticated user.
      */
-    @PostMapping({"/auth/2fa/disable", "/auth/mfa/totp/disable"})
+    @PostMapping("/auth/2fa/disable")
     public ResponseEntity<ApiResponse<Void>> disable2fa(
             @RequestParam(required = false) String userId,
             @AuthenticationPrincipal Jwt jwt,

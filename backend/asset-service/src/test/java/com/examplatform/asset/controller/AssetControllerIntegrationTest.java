@@ -199,7 +199,7 @@ class AssetControllerIntegrationTest {
     class UpdateMetadata {
 
         @Test
-        @WithMockUser(roles = "CONTENT_MANAGER")
+        @WithMockUser(roles = "QUESTION_AUTHOR")
         @DisplayName("updates metadata fields")
         void updatesMetadata() throws Exception {
             MediaAsset asset = createTestAsset("tenant-integration");
@@ -232,7 +232,7 @@ class AssetControllerIntegrationTest {
     class DeleteAsset {
 
         @Test
-        @WithMockUser(roles = "ADMIN")
+        @WithMockUser(roles = "SUPER_ADMIN")
         @DisplayName("soft-deletes unreferenced asset")
         void softDeletesAsset() throws Exception {
             MediaAsset asset = createTestAsset("tenant-integration");
@@ -253,7 +253,7 @@ class AssetControllerIntegrationTest {
     class ArchiveAsset {
 
         @Test
-        @WithMockUser(roles = "CONTENT_MANAGER")
+        @WithMockUser(roles = "SUPER_ADMIN")
         @DisplayName("archives active asset")
         void archivesActiveAsset() throws Exception {
             MediaAsset asset = createTestAsset("tenant-integration");

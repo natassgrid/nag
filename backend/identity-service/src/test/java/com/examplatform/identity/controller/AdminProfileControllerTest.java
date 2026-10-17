@@ -86,7 +86,7 @@ class AdminProfileControllerTest {
     }
 
     @Test
-    @DisplayName("GET /api/v1/admin/me/profile - should return current admin profile")
+    @DisplayName("GET /api/v1/identity/admin/me/profile - should return current admin profile")
     void shouldReturnAdminProfile() throws Exception {
         UUID userId = UUID.randomUUID();
         UserAccountResponse response = UserAccountResponse.builder()
@@ -100,7 +100,7 @@ class AdminProfileControllerTest {
         when(roleManagementService.getUserProfile(anyString(), eq("tenant-01")))
                 .thenReturn(response);
 
-        mockMvc.perform(get("/api/v1/admin/me/profile")
+        mockMvc.perform(get("/api/v1/identity/admin/me/profile")
                         .header("X-Tenant-Id", "tenant-01"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.username").value("admin@nag.gov.in"))
@@ -108,7 +108,7 @@ class AdminProfileControllerTest {
     }
 
     @Test
-    @DisplayName("PUT /api/v1/admin/me/profile - should update admin profile")
+    @DisplayName("PUT /api/v1/identity/admin/me/profile - should update admin profile")
     void shouldUpdateAdminProfile() throws Exception {
         UUID userId = UUID.randomUUID();
         AdminUpdateUserRequest req = AdminUpdateUserRequest.builder()
@@ -129,7 +129,7 @@ class AdminProfileControllerTest {
         when(roleManagementService.updateUserProfile(anyString(), any(), eq("tenant-01")))
                 .thenReturn(response);
 
-        mockMvc.perform(put("/api/v1/admin/me/profile")
+        mockMvc.perform(put("/api/v1/identity/admin/me/profile")
                         .header("X-Tenant-Id", "tenant-01")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
@@ -139,7 +139,7 @@ class AdminProfileControllerTest {
     }
 
     @Test
-    @DisplayName("GET /api/v1/admin/me/tokens - should return list of tokens")
+    @DisplayName("GET /api/v1/identity/admin/me/tokens - should return list of tokens")
     void shouldReturnTokens() throws Exception {
         PersonalAccessTokenResponse tokenResp = PersonalAccessTokenResponse.builder()
                 .id(UUID.randomUUID())
@@ -152,7 +152,7 @@ class AdminProfileControllerTest {
         when(tokenService.listTokens(any(), eq("tenant-01")))
                 .thenReturn(List.of(tokenResp));
 
-        mockMvc.perform(get("/api/v1/admin/me/tokens")
+        mockMvc.perform(get("/api/v1/identity/admin/me/tokens")
                         .header("X-Tenant-Id", "tenant-01"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].name").value("CI Pipeline"))
@@ -160,7 +160,7 @@ class AdminProfileControllerTest {
     }
 
     @Test
-    @DisplayName("POST /api/v1/admin/me/tokens - should create token and return raw secret")
+    @DisplayName("POST /api/v1/identity/admin/me/tokens - should create token and return raw secret")
     void shouldCreateToken() throws Exception {
         CreatePersonalAccessTokenRequest req = CreatePersonalAccessTokenRequest.builder()
                 .name("New Token")
@@ -179,7 +179,7 @@ class AdminProfileControllerTest {
         when(tokenService.createToken(any(), any(), eq("tenant-01")))
                 .thenReturn(tokenResp);
 
-        mockMvc.perform(post("/api/v1/admin/me/tokens")
+        mockMvc.perform(post("/api/v1/identity/admin/me/tokens")
                         .header("X-Tenant-Id", "tenant-01")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
@@ -189,11 +189,11 @@ class AdminProfileControllerTest {
     }
 
     @Test
-    @DisplayName("DELETE /api/v1/admin/me/tokens/{tokenId} - should revoke token")
+    @DisplayName("DELETE /api/v1/identity/admin/me/tokens/{tokenId} - should revoke token")
     void shouldRevokeToken() throws Exception {
         UUID tokenId = UUID.randomUUID();
 
-        mockMvc.perform(delete("/api/v1/admin/me/tokens/" + tokenId)
+        mockMvc.perform(delete("/api/v1/identity/admin/me/tokens/" + tokenId)
                         .header("X-Tenant-Id", "tenant-01"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("SUCCESS"));
@@ -202,7 +202,7 @@ class AdminProfileControllerTest {
     }
 
     @Test
-    @DisplayName("GET /api/v1/admin/me/activity - should return paginated activity logs")
+    @DisplayName("GET /api/v1/identity/admin/me/activity - should return paginated activity logs")
     void shouldReturnActivityLogs() throws Exception {
         AdminActivityLogResponse logResp = AdminActivityLogResponse.builder()
                 .id("ACT-01")
@@ -217,19 +217,19 @@ class AdminProfileControllerTest {
         when(activityService.getActivityLogs(any(), any(), anyInt(), anyInt(), eq("tenant-01")))
                 .thenReturn(List.of(logResp));
 
-        mockMvc.perform(get("/api/v1/admin/me/activity")
+        mockMvc.perform(get("/api/v1/identity/admin/me/activity")
                         .header("X-Tenant-Id", "tenant-01"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].eventType").value("LOGIN"));
     }
 
     @Test
-    @DisplayName("GET /api/v1/admin/me/activity/export - should export logs")
+    @DisplayName("GET /api/v1/identity/admin/me/activity/export - should export logs")
     void shouldExportLogs() throws Exception {
         when(activityService.exportActivityLogs(any(), eq("csv"), eq("tenant-01")))
                 .thenReturn("header,col\n1,2");
 
-        mockMvc.perform(get("/api/v1/admin/me/activity/export")
+        mockMvc.perform(get("/api/v1/identity/admin/me/activity/export")
                         .param("format", "csv")
                         .header("X-Tenant-Id", "tenant-01"))
                 .andExpect(status().isOk())

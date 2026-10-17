@@ -48,7 +48,7 @@ import java.util.UUID;
  */
 @Slf4j
 @RestController
-@RequestMapping({"/api/v1/candidates", "/api/v1/candidate/profile", "/api/v1/candidate"})
+@RequestMapping("/api/v1/candidates")
 @RequiredArgsConstructor
 public class CandidateProfileController {
 
@@ -74,7 +74,7 @@ public class CandidateProfileController {
     /**
      * Get candidate profile. CANDIDATE can get own profile, SUPER_ADMIN can get any.
      */
-    @GetMapping({"/{userId}", ""})
+    @GetMapping("/{userId}")
     @PreAuthorize("hasAnyRole('CANDIDATE', 'SUPER_ADMIN')")
     public ResponseEntity<CandidateProfileResponse> getByUserId(
             @PathVariable(required = false) UUID userId,
@@ -89,7 +89,7 @@ public class CandidateProfileController {
     /**
      * Update candidate profile. CANDIDATE can update own profile only.
      */
-    @PutMapping({"/{userId}", ""})
+    @PutMapping("/{userId}")
     @PreAuthorize("hasRole('CANDIDATE')")
     public ResponseEntity<CandidateProfileResponse> update(
             @PathVariable(required = false) UUID userId,
@@ -202,7 +202,7 @@ public class CandidateProfileController {
      *
      * Validates: Requirements 1.3
      */
-    @GetMapping({"/digilocker/auth", "/{userId}/digilocker/auth"})
+    @GetMapping("/{userId}/digilocker/auth")
     @PreAuthorize("hasRole('CANDIDATE')")
     public ResponseEntity<Map<String, String>> initiateDigiLockerAuth(
             @PathVariable(required = false) UUID userId,

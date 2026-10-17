@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 @RestController
-@RequestMapping({"/api/micro-lessons", "/api/v1/micro-lessons"})
+@RequestMapping("/api/micro-lessons")
 @RequiredArgsConstructor
 public class MicroLessonController {
 

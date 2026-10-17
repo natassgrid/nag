@@ -143,7 +143,7 @@ export class AuthService {
   }): Observable<UserToken> {
     return this.http
       .post<{ data?: UserToken } & UserToken>(
-        '/api/v1/identity/auth/login',
+        '/api/v1/identity/auth/token',
         credentials
       )
       .pipe(

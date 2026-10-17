@@ -69,14 +69,14 @@ class OfflineDeliveryControllerIntegrationTest extends AbstractIntegrationTest {
         }
 
         @Test
-        @DisplayName("+ve: CENTER_ADMIN preloads exam package - returns 200 OK")
-        void centerAdminCanPreloadPackage() throws Exception {
+        @DisplayName("+ve: SUPER_ADMIN preloads exam package - returns 200 OK")
+        void superAdminCanPreloadPackage() throws Exception {
             when(offlineDeliveryService.preloadExamPackage(eq(SESSION_ID), eq(CENTER_ID), eq(TENANT_ID)))
                     .thenReturn("{\"questions\":[]}");
 
             mockMvc.perform(post("/api/v1/sessions/{sessionId}/offline/preload", SESSION_ID)
                             .param("centerId", CENTER_ID)
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CENTER_ADMIN"))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))
                                     .jwt(j -> j.subject(USER_ID.toString()).claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("PRELOADED"));
@@ -115,12 +115,12 @@ class OfflineDeliveryControllerIntegrationTest extends AbstractIntegrationTest {
     class ReconcileEndpoint {
 
         @Test
-        @DisplayName("+ve: CENTER_ADMIN reconciles offline data on reconnect - returns 200 OK")
-        void centerAdminCanReconcile() throws Exception {
+        @DisplayName("+ve: SUPER_ADMIN reconciles offline data on reconnect - returns 200 OK")
+        void superAdminCanReconcile() throws Exception {
             doNothing().when(offlineDeliveryService).reconcileOnReconnect(eq(SESSION_ID), eq(TENANT_ID));
 
             mockMvc.perform(post("/api/v1/sessions/{sessionId}/offline/reconcile", SESSION_ID)
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CENTER_ADMIN"))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))
                                     .jwt(j -> j.subject(USER_ID.toString()).claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.sessionId").value(SESSION_ID.toString()))

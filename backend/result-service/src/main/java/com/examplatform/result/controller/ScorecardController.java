@@ -74,7 +74,7 @@ public class ScorecardController {
      * @return presigned URL JSON or direct PDF binary
      */
     @GetMapping("/{id}/scorecard")
-    @PreAuthorize("hasAnyRole('CANDIDATE', 'ADMIN', 'SUPER_ADMIN', 'EXAM_CONTROLLER')")
+    @PreAuthorize("hasAnyRole('CANDIDATE', 'SUPER_ADMIN', 'EXAM_CONTROLLER')")
     public ResponseEntity<?> getScorecard(
             @PathVariable UUID id,
             @RequestParam(value = "download", defaultValue = "false") boolean download,
@@ -108,7 +108,7 @@ public class ScorecardController {
      * @return ScorecardUrlResponse containing the presigned URL
      */
     @GetMapping("/{id}/scorecard/presigned")
-    @PreAuthorize("hasAnyRole('CANDIDATE', 'ADMIN', 'SUPER_ADMIN', 'EXAM_CONTROLLER')")
+    @PreAuthorize("hasAnyRole('CANDIDATE', 'SUPER_ADMIN', 'EXAM_CONTROLLER')")
     public ResponseEntity<ScorecardUrlResponse> getPresignedUrl(
             @PathVariable UUID id,
             @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId,
@@ -133,7 +133,7 @@ public class ScorecardController {
      * @return PDF binary resource
      */
     @GetMapping("/{id}/scorecard/download")
-    @PreAuthorize("hasAnyRole('CANDIDATE', 'ADMIN', 'SUPER_ADMIN', 'EXAM_CONTROLLER')")
+    @PreAuthorize("hasAnyRole('CANDIDATE', 'SUPER_ADMIN', 'EXAM_CONTROLLER')")
     public ResponseEntity<Resource> downloadDirect(
             @PathVariable UUID id,
             @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId,

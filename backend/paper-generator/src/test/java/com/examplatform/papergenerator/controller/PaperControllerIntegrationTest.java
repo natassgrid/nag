@@ -452,7 +452,7 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
         }
 
         @Test
-        @DisplayName("+ve: Query paper translation status via /translation-status/{jobId} alias - returns 200 OK")
+        @DisplayName("+ve: Query paper translation status via /translate/{jobId} - returns 200 OK")
         void queryPaperTranslationStatusViaJobIdAlias() throws Exception {
             PaperTranslateResponse response = PaperTranslateResponse.builder()
                     .jobId(JOB_ID)
@@ -468,7 +468,7 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
             when(paperTranslationService.getTranslationStatus(eq(PAPER_ID), eq(JOB_ID), eq(TENANT_ID)))
                     .thenReturn(response);
 
-            mockMvc.perform(get("/api/v1/papers/{paperId}/translation-status/{jobId}", PAPER_ID, JOB_ID)
+            mockMvc.perform(get("/api/v1/papers/{paperId}/translate/{jobId}", PAPER_ID, JOB_ID)
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EXAM_CONTROLLER"))
                                     .jwt(j -> j.subject(USER_ID.toString()).claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isOk())

@@ -151,7 +151,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
 
         // 2. Try REST call to question-bank-service
         try {
-            String url = questionBankServiceUrl + "/api/v1/questions/blueprint-match";
+            String url = questionBankServiceUrl + "/api/v1/questions/match-blueprint";
             Map<String, String> requestBody = new HashMap<>();
             requestBody.put(SharedConstants.SUBJECT, cleanSubject);
             requestBody.put("topic", cleanTopic);
@@ -272,13 +272,13 @@ public class QuestionBankClientImpl implements QuestionBankClient {
 
         // 2. Try REST call to question-bank-service
         try {
-            String url = questionBankServiceUrl + "/api/v1/questions/batch-find";
+            String url = questionBankServiceUrl + "/api/v1/questions/by-ids";
             List<QuestionSummary> questions = fetchQuestionsViaRest(url, effectiveTenant, questionIds);
             if (questions != null) {
                 return questions;
             }
         } catch (Exception e) {
-            log.warn("REST call for batch-find failed ({}), falling back to direct DB query: {}",
+            log.warn("REST call for by-ids failed ({}), falling back to direct DB query: {}",
                     questionBankServiceUrl, e.getMessage());
         }
 

@@ -63,7 +63,7 @@ public class AssetController {
      * Upload a new media asset (multipart/form-data).
      */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'ADMIN', 'CONTENT_MANAGER', 'CANDIDATE', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'CANDIDATE', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<AssetUploadResponse>> uploadAsset(
             @RequestParam("file") MultipartFile file,
             @AuthenticationPrincipal Jwt jwt,
@@ -79,7 +79,7 @@ public class AssetController {
      * Replace the binary content of an existing asset.
      */
     @PostMapping(value = "/{id}/content", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'CONTENT_MANAGER', 'ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<AssetUploadResponse>> replaceContent(
             @PathVariable UUID id,
             @RequestParam("file") MultipartFile file,
@@ -95,7 +95,7 @@ public class AssetController {
      * Retrieve asset metadata by ID.
      */
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'ADMIN', 'CONTENT_MANAGER', 'CANDIDATE')")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'CANDIDATE', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<AssetUploadResponse>> getAsset(@PathVariable UUID id) {
         AssetUploadResponse response = assetService.getAsset(id);
         return ResponseEntity.ok(ApiResponse.success(response, "Asset retrieved successfully"));
@@ -105,7 +105,7 @@ public class AssetController {
      * List assets for tenant (paginated).
      */
     @GetMapping
-    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'ADMIN', 'CONTENT_MANAGER')")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<Page<AssetUploadResponse>>> listAssets(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
@@ -119,7 +119,7 @@ public class AssetController {
      * Search and list assets with filters and pagination.
      */
     @GetMapping("/search")
-    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'ADMIN', 'CONTENT_MANAGER')")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<Page<AssetUploadResponse>>> searchAssets(
             @ModelAttribute AssetSearchRequest searchRequest,
             @RequestParam(defaultValue = "0") int page,
@@ -134,7 +134,7 @@ public class AssetController {
      * Update user-supplied metadata for an asset.
      */
     @PutMapping("/{id}/metadata")
-    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'CONTENT_MANAGER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<AssetUploadResponse>> updateMetadata(
             @PathVariable UUID id,
             @Valid @RequestBody AssetMetadataUpdateRequest request,
@@ -150,7 +150,7 @@ public class AssetController {
      * Create a reference between an asset and a platform entity.
      */
     @PostMapping("/references")
-    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'ADMIN', 'CONTENT_MANAGER')")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<AssetReferenceResponse>> addReference(
             @Valid @RequestBody AssetReferenceRequest request,
             @AuthenticationPrincipal Jwt jwt,
@@ -167,7 +167,7 @@ public class AssetController {
      * List all references for an asset.
      */
     @GetMapping("/{id}/references")
-    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'ADMIN', 'CONTENT_MANAGER')")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'APPROVER', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<List<AssetReferenceResponse>>> getReferences(@PathVariable UUID id) {
         List<AssetReferenceResponse> references = referenceService.getReferencesForAsset(id);
         return ResponseEntity.ok(ApiResponse.success(references, "References retrieved successfully"));
@@ -177,7 +177,7 @@ public class AssetController {
      * Delete a specific reference.
      */
     @DeleteMapping("/references/{refId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'CONTENT_MANAGER')")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<Void>> removeReference(@PathVariable UUID refId) {
         referenceService.removeReference(refId);
         return ResponseEntity.ok(ApiResponse.success("Reference removed successfully"));
@@ -187,7 +187,7 @@ public class AssetController {
      * Soft-delete an asset. Rejected if the asset has active references.
      */
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'CONTENT_MANAGER')")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<Void>> deleteAsset(
             @PathVariable UUID id,
             @AuthenticationPrincipal Jwt jwt,
@@ -254,7 +254,7 @@ public class AssetController {
      * Archive an active asset.
      */
     @PutMapping("/{id}/archive")
-    @PreAuthorize("hasAnyRole('ADMIN', 'CONTENT_MANAGER')")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<AssetUploadResponse>> archiveAsset(
             @PathVariable UUID id,
             @AuthenticationPrincipal Jwt jwt,
@@ -269,7 +269,7 @@ public class AssetController {
      * Restore an archived asset to ACTIVE.
      */
     @PutMapping("/{id}/restore")
-    @PreAuthorize("hasAnyRole('ADMIN', 'CONTENT_MANAGER')")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<AssetUploadResponse>> restoreAsset(
             @PathVariable UUID id,
             @AuthenticationPrincipal Jwt jwt,

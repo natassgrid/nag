@@ -93,18 +93,6 @@ class PracticeExplanationControllerTest {
         verify(anvayaPrajnaClient).getExplanation(questionId);
     }
 
-    @Test
-    @DisplayName("GET /api/v1/practice/questions/{questionId}/explanation - Returns 200 OK on v1 route")
-    void testGetExplanationV1Route() throws Exception {
-        when(anvayaPrajnaClient.getExplanation(questionId)).thenReturn(Optional.of(sampleExplanation));
-
-        mockMvc.perform(get("/api/v1/practice/questions/{questionId}/explanation", questionId))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.explanationId").value("exp-123"))
-                .andExpect(jsonPath("$.status").value("APPROVED"));
-
-        verify(anvayaPrajnaClient).getExplanation(questionId);
-    }
 
     @Test
     @DisplayName("GET /api/practice/questions/{questionId}/explanation - Returns 404 when explanation not found")

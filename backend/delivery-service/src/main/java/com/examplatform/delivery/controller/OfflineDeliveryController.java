@@ -55,7 +55,7 @@ public class OfflineDeliveryController {
      * @return the decrypted exam package content
      */
     @PostMapping("/preload")
-    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER', 'CENTER_ADMIN')")
+    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER', 'SUPER_ADMIN')")
     public ResponseEntity<Map<String, String>> preloadExamPackage(
             @PathVariable UUID sessionId,
             @RequestParam String centerId,
@@ -82,7 +82,7 @@ public class OfflineDeliveryController {
      * @return confirmation of reconciliation
      */
     @PostMapping("/reconcile")
-    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER', 'CENTER_ADMIN')")
+    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER', 'SUPER_ADMIN')")
     public ResponseEntity<Map<String, String>> reconcileOnReconnect(
             @PathVariable UUID sessionId,
             @AuthenticationPrincipal Jwt jwt) {

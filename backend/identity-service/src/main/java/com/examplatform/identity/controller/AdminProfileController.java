@@ -46,7 +46,7 @@ import java.util.UUID;
  */
 @Slf4j
 @RestController
-@RequestMapping({"/api/v1/admin/me", "/api/v1/identity/admin/me"})
+@RequestMapping("/api/v1/identity/admin/me")
 @RequiredArgsConstructor
 public class AdminProfileController {
 
@@ -118,7 +118,7 @@ public class AdminProfileController {
     /**
      * 5. Multi-Factor Authentication: Verify and Enable TOTP
      */
-    @PostMapping({"/security/mfa/verify", "/security/mfa/verify-setup"})
+    @PostMapping("/security/mfa/verify")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<Void>> verifyMfa(
             @Valid @RequestBody TotpVerifySetupRequest request,
