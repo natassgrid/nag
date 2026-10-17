@@ -198,6 +198,9 @@ export class CandidateProfileComponent implements OnInit {
     const payload = {
       ...prof,
       userId: prof.candidateId,
+      photoAssetId: prof.photoAssetId?.trim() ? prof.photoAssetId.trim() : undefined,
+      signatureAssetId: prof.signatureAssetId?.trim() ? prof.signatureAssetId.trim() : undefined,
+      idProofAssetId: prof.idProofAssetId?.trim() ? prof.idProofAssetId.trim() : undefined,
     };
 
     const req$ = this.existsOnServer()
