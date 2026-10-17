@@ -66,6 +66,15 @@
         <mat-icon class="!text-sm text-emerald-600">edit_note</mat-icon>
         <span>Author Micro-Lesson Manually</span>
       </button>
+      <a
+        routerLink="/learning/micro-lessons/authoring"
+        [queryParams]="{ action: 'prompt-import' }"
+        mat-stroked-button
+        class="!text-indigo-700 !border-indigo-200 hover:!bg-indigo-50 !rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+      >
+        <mat-icon class="!text-sm text-indigo-600">auto_awesome</mat-icon>
+        <span>External AI &amp; Import</span>
+      </a>
       <button
         mat-stroked-button
         (click)="openGenerateDialog()"

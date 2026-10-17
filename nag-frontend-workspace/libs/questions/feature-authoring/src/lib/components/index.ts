@@ -8,3 +8,4 @@ export * from './passage-text-box/passage-text-box.component';
 export * from './passage-subquestion-editor/passage-subquestion-editor.component';
 export * from './passage-preview-viewport/passage-preview-viewport.component';
 export * from './passage-authoring-panel/passage-authoring-panel.component';
+export * from './question-prompt-import-dialog/question-prompt-import-dialog.component';
