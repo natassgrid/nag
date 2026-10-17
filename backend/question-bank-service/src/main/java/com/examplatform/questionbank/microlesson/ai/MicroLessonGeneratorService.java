@@ -18,9 +18,14 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.examplatform.questionbank.exception.AiSecurityException;
+import com.examplatform.questionbank.microlesson.ai.guardrails.InputGuardrail;
+import com.examplatform.questionbank.microlesson.ai.guardrails.OutputGuardrail;
+import com.examplatform.questionbank.microlesson.ai.resilience.MicroLessonAiResilienceExecutor;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,6 +52,16 @@ public class MicroLessonGeneratorService {
     private final MicroLessonRefinementAgent refinementAgent;
     private final DeterministicMicroLessonAgent deterministicAgent;
 
+    private final InputGuardrail inputGuardrail;
+    private final OutputGuardrail outputGuardrail;
+    private final MicroLessonAiResilienceExecutor resilienceExecutor;
+
+    @Value("${app.ai.agent.max-refinement-cycles:${AI_AGENT_MAX_REFINEMENT_CYCLES:2}}")
+    private int maxRefinementCycles = 2;
+
+    @Value("${app.ai.guardrails.max-output-tokens:${AI_MAX_OUTPUT_TOKENS:2048}}")
+    private int maxOutputTokens = 2048;
+
     public MicroLessonGeneratorService(
             ChatClient chatClient,
             MicroLessonPromptBuilder promptBuilder,
@@ -71,6 +86,23 @@ public class MicroLessonGeneratorService {
                 new DeterministicMicroLessonAgent());
     }
 
+    public MicroLessonGeneratorService(
+            ChatClient chatClient,
+            MicroLessonPromptBuilder promptBuilder,
+            KaTexValidator kaTexValidator,
+            SubtopicMicroLessonRepository repository,
+            ObjectMapper objectMapper,
+            ModelRouter modelRouter,
+            MicroLessonBlueprintAgent blueprintAgent,
+            DeterministicJsonRepairEngine jsonRepairEngine,
+            MicroLessonCriticAgent criticAgent,
+            MicroLessonRefinementAgent refinementAgent,
+            DeterministicMicroLessonAgent deterministicAgent) {
+        this(chatClient, promptBuilder, kaTexValidator, repository, objectMapper, modelRouter,
+                blueprintAgent, jsonRepairEngine, criticAgent, refinementAgent, deterministicAgent,
+                new InputGuardrail(), new OutputGuardrail(), new MicroLessonAiResilienceExecutor());
+    }
+
     @Autowired
     public MicroLessonGeneratorService(
             ChatClient chatClient,
@@ -83,7 +115,10 @@ public class MicroLessonGeneratorService {
             @Autowired(required = false) DeterministicJsonRepairEngine jsonRepairEngine,
             @Autowired(required = false) MicroLessonCriticAgent criticAgent,
             @Autowired(required = false) MicroLessonRefinementAgent refinementAgent,
-            @Autowired(required = false) DeterministicMicroLessonAgent deterministicAgent) {
+            @Autowired(required = false) DeterministicMicroLessonAgent deterministicAgent,
+            @Autowired(required = false) InputGuardrail inputGuardrail,
+            @Autowired(required = false) OutputGuardrail outputGuardrail,
+            @Autowired(required = false) MicroLessonAiResilienceExecutor resilienceExecutor) {
         this.chatClient = chatClient;
         this.promptBuilder = promptBuilder;
         this.kaTexValidator = kaTexValidator;
@@ -101,6 +136,9 @@ public class MicroLessonGeneratorService {
         this.criticAgent = criticAgent != null ? criticAgent : new MicroLessonCriticAgent(kaTexValidator);
         this.refinementAgent = refinementAgent != null ? refinementAgent : new MicroLessonRefinementAgent();
         this.deterministicAgent = deterministicAgent != null ? deterministicAgent : new DeterministicMicroLessonAgent(this.blueprintAgent);
+        this.inputGuardrail = inputGuardrail != null ? inputGuardrail : new InputGuardrail();
+        this.outputGuardrail = outputGuardrail != null ? outputGuardrail : new OutputGuardrail();
+        this.resilienceExecutor = resilienceExecutor != null ? resilienceExecutor : new MicroLessonAiResilienceExecutor();
     }
 
     /**
@@ -149,6 +187,15 @@ public class MicroLessonGeneratorService {
             String targetExam,
             String referenceText) {
 
+        // Step 0: Input Guardrail validation & sanitization (OWASP LLM01, LLM04)
+        inputGuardrail.validateAndSanitize("subject", subject);
+        inputGuardrail.validateAndSanitize("topic", topic);
+        inputGuardrail.validateAndSanitize("subtopic", subtopic);
+        inputGuardrail.validateAndSanitize("targetExam", targetExam);
+        if (referenceText != null) {
+            inputGuardrail.validateAndSanitize("referenceText", referenceText);
+        }
+
         String exam = (targetExam != null && !targetExam.isBlank()) ? targetExam : "JEE_MAIN";
         String difficulty = resolveDifficulty(subject, topic, subtopic, exam);
         String targetModel = (modelRouter != null) ? modelRouter.selectModel(difficulty) : null;
@@ -163,19 +210,24 @@ public class MicroLessonGeneratorService {
         try {
             // Stage 2: Build clean prompt with blueprint directives and no ST4 brace corruption
             String userPrompt = promptBuilder.buildUserPrompt(subject, topic, subtopic, exam, referenceText, blueprint);
-            var promptSpec = chatClient.prompt()
-                    .system(promptBuilder.getSystemPrompt())
-                    .user(userPrompt);
 
-            if (targetModel != null && !targetModel.isBlank()) {
-                promptSpec = promptSpec.options(ChatOptions.builder()
-                        .model(targetModel)
-                        .temperature(DETERMINISTIC_TEMPERATURE));
-            }
-
-            // Stage 3: Execute LLM call and run Deterministic JSON & LaTeX Repair Engine
-            String rawResponse = promptSpec.call().content();
+            // Stage 3: Execute LLM call via Resilience4j Circuit Breaker & Retry (OWASP LLM04, LLM06)
+            String rawResponse = resilienceExecutor.executeChatCall(() -> {
+                var promptSpec = chatClient.prompt()
+                        .system(promptBuilder.getSystemPrompt())
+                        .user(userPrompt);
+                if (targetModel != null && !targetModel.isBlank()) {
+                    promptSpec = promptSpec.options(ChatOptions.builder()
+                            .model(targetModel)
+                            .temperature(DETERMINISTIC_TEMPERATURE)
+                            .maxTokens(maxOutputTokens));
+                }
+                return promptSpec.call().content();
+            });
             content = parseAndValidate(rawResponse, subject, topic, subtopic);
+        } catch (AiSecurityException e) {
+            // OWASP Security exceptions must not be swallowed into deterministic fallback
+            throw e;
         } catch (Exception e) {
             log.warn("AI generation failed for subtopic '{}': {}. Synthesizing domain-specific lesson via DeterministicMicroLessonAgent.",
                     subtopic, e.getMessage());
@@ -231,11 +283,14 @@ public class MicroLessonGeneratorService {
         // Stage 4: Self-healing JSON & LaTeX repair (fixes truncated objects at line 14, \frac/\times/\text escapes, ST4 \{ braces)
         MicroLessonContentDto content = jsonRepairEngine.parseAndRepair(responseText, aiObjectMapper);
 
-        // Stage 5: Critic review and deterministic KaTeX / domain refinement
-        MicroLessonCriticResult criticResult = criticAgent.review(content, subject, topic, subtopic);
-        if (!criticResult.isApproved()) {
-            log.debug("Refining generated micro-lesson for subtopic '{}' (critic score={}, issues={})",
-                    subtopic, criticResult.score(), criticResult.issues());
+        // Stage 5: Bounded critic review and deterministic KaTeX / domain refinement (OWASP LLM06)
+        for (int cycle = 0; cycle < maxRefinementCycles; cycle++) {
+            MicroLessonCriticResult criticResult = criticAgent.review(content, subject, topic, subtopic);
+            if (criticResult == null || criticResult.isApproved()) {
+                break;
+            }
+            log.debug("Refining generated micro-lesson for subtopic '{}' (cycle={}/{}, critic score={}, issues={})",
+                    subtopic, cycle + 1, maxRefinementCycles, criticResult.score(), criticResult.issues());
             boolean hasDomainIssue = criticResult.issues() != null
                     && criticResult.issues().stream().anyMatch(i -> i != null && i.startsWith("Rubric 3:"));
             MicroLessonContentDto domainFallback = hasDomainIssue
@@ -243,6 +298,9 @@ public class MicroLessonGeneratorService {
                     : null;
             content = refinementAgent.refine(content, criticResult, domainFallback);
         }
+
+        // Stage 6: Output Guardrail inspection (OWASP LLM02, LLM07, LLM09)
+        outputGuardrail.validateOutput(content, responseText);
 
         List<String> errors = kaTexValidator.validateContent(content);
         if (!errors.isEmpty()) {
@@ -302,5 +360,33 @@ public class MicroLessonGeneratorService {
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()
         );
+    }
+
+    public int getMaxRefinementCycles() {
+        return maxRefinementCycles;
+    }
+
+    public void setMaxRefinementCycles(int maxRefinementCycles) {
+        this.maxRefinementCycles = maxRefinementCycles;
+    }
+
+    public int getMaxOutputTokens() {
+        return maxOutputTokens;
+    }
+
+    public void setMaxOutputTokens(int maxOutputTokens) {
+        this.maxOutputTokens = maxOutputTokens;
+    }
+
+    public InputGuardrail getInputGuardrail() {
+        return inputGuardrail;
+    }
+
+    public OutputGuardrail getOutputGuardrail() {
+        return outputGuardrail;
+    }
+
+    public MicroLessonAiResilienceExecutor getResilienceExecutor() {
+        return resilienceExecutor;
     }
 }

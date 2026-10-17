@@ -71,11 +71,74 @@ model_list:
       aws_secret_access_key: os.environ/AWS_SECRET_ACCESS_KEY
       aws_region_name: os.environ/AWS_REGION_NAME
 
+  # ─── Google Gemini Models (AI Studio via GEMINI_API_KEY) ───────────────────
+  - model_name: gemini-pro
+    litellm_params:
+      model: gemini/gemini-2.5-pro
+      api_key: os.environ/GEMINI_API_KEY
+
+  - model_name: gemini-flash
+    litellm_params:
+      model: gemini/gemini-2.5-flash
+      api_key: os.environ/GEMINI_API_KEY
+
+  - model_name: gemini-flash-lite
+    litellm_params:
+      model: gemini/gemini-2.5-flash-lite
+      api_key: os.environ/GEMINI_API_KEY
+
+  # Direct model names mapping to the same Gemini endpoints
+  - model_name: gemini-2.5-pro
+    litellm_params:
+      model: gemini/gemini-2.5-pro
+      api_key: os.environ/GEMINI_API_KEY
+
+  - model_name: gemini-2.5-flash
+    litellm_params:
+      model: gemini/gemini-2.5-flash
+      api_key: os.environ/GEMINI_API_KEY
+
+  - model_name: gemini-2.5-flash-lite
+    litellm_params:
+      model: gemini/gemini-2.5-flash-lite
+      api_key: os.environ/GEMINI_API_KEY
+
+  # ─── Google Gemini Models (Vertex AI Enterprise Path) ─────────────────────
+  - model_name: vertex-gemini-pro
+    litellm_params:
+      model: vertex_ai/gemini-2.5-pro
+      vertex_project: os.environ/VERTEX_PROJECT
+      vertex_location: os.environ/VERTEX_LOCATION
+
+  - model_name: vertex-gemini-flash
+    litellm_params:
+      model: vertex_ai/gemini-2.5-flash
+      vertex_project: os.environ/VERTEX_PROJECT
+      vertex_location: os.environ/VERTEX_LOCATION
+
+  - model_name: vertex-gemini-flash-lite
+    litellm_params:
+      model: vertex_ai/gemini-2.5-flash-lite
+      vertex_project: os.environ/VERTEX_PROJECT
+      vertex_location: os.environ/VERTEX_LOCATION
+
 router_settings:
   model_group_alias:
     "easy": "nova-micro"
     "medium": "nova-lite"
     "hard": "nova-lite"
+  fallbacks:
+    - "gemini-pro": ["nova-lite", "qwen2-math:1.5b", "qwen2.5:1.5b"]
+    - "gemini-flash": ["nova-lite", "qwen2.5:1.5b"]
+    - "gemini-flash-lite": ["nova-micro", "llama3.2:1b"]
+    - "gemini-2.5-pro": ["nova-lite", "qwen2-math:1.5b", "qwen2.5:1.5b"]
+    - "gemini-2.5-flash": ["nova-lite", "qwen2.5:1.5b"]
+    - "gemini-2.5-flash-lite": ["nova-micro", "llama3.2:1b"]
+    - "vertex-gemini-pro": ["gemini-pro", "nova-lite", "qwen2.5:1.5b"]
+    - "vertex-gemini-flash": ["gemini-flash", "nova-lite", "qwen2.5:1.5b"]
+    - "vertex-gemini-flash-lite": ["gemini-flash-lite", "nova-micro", "llama3.2:1b"]
+    - "nova-micro": ["gemini-flash-lite", "llama3.2:1b"]
+    - "nova-lite": ["gemini-flash", "qwen2.5:1.5b"]
 
 general_settings:
   master_key: sk-litellm-dev-key

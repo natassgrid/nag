@@ -21,18 +21,25 @@ import org.springframework.stereotype.Component;
 
 /**
  * Routes question-generation requests to the appropriate LLM model
- * based on the difficulty level.
+ * based on the active AI provider and difficulty level.
  *
- * <p>Model selection strategy (configurable via application.yml / environment):
+ * <p>Supported AI providers:
  * <ul>
- *   <li><b>Bedrock Enabled:</b>
+ *   <li><b>Bedrock (AWS):</b>
  *     <ul>
  *       <li><b>EASY</b> &rarr; Amazon Nova Micro (fast, cost-efficient)</li>
  *       <li><b>MEDIUM</b> &rarr; Amazon Nova Lite (balanced)</li>
  *       <li><b>HARD</b> &rarr; Amazon Nova Lite (balanced)</li>
  *     </ul>
  *   </li>
- *   <li><b>Bedrock Disabled (Local Dev / Offline):</b>
+ *   <li><b>Gemini (Google AI Studio / Vertex AI):</b>
+ *     <ul>
+ *       <li><b>EASY</b> &rarr; gemini-flash-lite (fast, cost-efficient)</li>
+ *       <li><b>MEDIUM</b> &rarr; gemini-flash (balanced)</li>
+ *       <li><b>HARD</b> &rarr; gemini-pro (reasoning-intensive)</li>
+ *     </ul>
+ *   </li>
+ *   <li><b>Local (Ollama / Offline):</b>
  *     <ul>
  *       <li><b>EASY</b> &rarr; llama3.2:1b (local Ollama)</li>
  *       <li><b>MEDIUM</b> &rarr; qwen2.5:1.5b (local Ollama)</li>
@@ -42,18 +49,24 @@ import org.springframework.stereotype.Component;
  * </ul>
  *
  * <p>All model names refer to LiteLLM gateway route names. The actual
- * Bedrock model IDs are configured in {@code litellm-config.yaml}.
+ * Bedrock and Gemini model IDs are configured in {@code litellm-config.yaml}.
  *
  * @see <a href="https://docs.litellm.ai/">LiteLLM Documentation</a>
  */
 @Component
 public class ModelRouter {
 
+    public enum AiProvider {
+        BEDROCK,
+        GEMINI,
+        LOCAL
+    }
+
     public static final String AMAZON_NOVA_MICRO_V_1_0 = "amazon.nova-micro-v1:0";
     public static final String AMAZON_NOVA_LITE_V_1_0 = "amazon.nova-lite-v1:0";
 
-    @Value("${app.ai.bedrock.enabled:${AI_BEDROCK_ENABLED:true}}")
-    private boolean bedrockEnabled = true;
+    @Value("${app.ai.provider:${AI_PROVIDER:bedrock}}")
+    private String provider = "bedrock";
 
     @Value("${app.ai.models.easy:nova-micro}")
     private String easyModel = "nova-micro";
@@ -64,6 +77,15 @@ public class ModelRouter {
     @Value("${app.ai.models.hard:nova-lite}")
     private String hardModel = "nova-lite";
 
+    @Value("${app.ai.models.gemini.easy:gemini-flash-lite}")
+    private String geminiEasyModel = "gemini-flash-lite";
+
+    @Value("${app.ai.models.gemini.medium:gemini-flash}")
+    private String geminiMediumModel = "gemini-flash";
+
+    @Value("${app.ai.models.gemini.hard:gemini-pro}")
+    private String geminiHardModel = "gemini-pro";
+
     @Value("${app.ai.models.local.easy:llama3.2:1b}")
     private String localEasyModel = "llama3.2:1b";
 
@@ -73,41 +95,130 @@ public class ModelRouter {
     @Value("${app.ai.models.local.hard:qwen2.5:1.5b}")
     private String localHardModel = "qwen2.5:1.5b";
 
-    public boolean isBedrockEnabled() {
-        return bedrockEnabled;
+    public String getProvider() {
+        return provider;
     }
 
-    public void setBedrockEnabled(boolean bedrockEnabled) {
-        this.bedrockEnabled = bedrockEnabled;
+    public void setProvider(String provider) {
+        this.provider = provider;
+    }
+
+    public String getEasyModel() {
+        return easyModel;
+    }
+
+    public void setEasyModel(String easyModel) {
+        this.easyModel = easyModel;
+    }
+
+    public String getMediumModel() {
+        return mediumModel;
+    }
+
+    public void setMediumModel(String mediumModel) {
+        this.mediumModel = mediumModel;
+    }
+
+    public String getHardModel() {
+        return hardModel;
+    }
+
+    public void setHardModel(String hardModel) {
+        this.hardModel = hardModel;
+    }
+
+    public String getGeminiEasyModel() {
+        return geminiEasyModel;
+    }
+
+    public void setGeminiEasyModel(String geminiEasyModel) {
+        this.geminiEasyModel = geminiEasyModel;
+    }
+
+    public String getGeminiMediumModel() {
+        return geminiMediumModel;
+    }
+
+    public void setGeminiMediumModel(String geminiMediumModel) {
+        this.geminiMediumModel = geminiMediumModel;
+    }
+
+    public String getGeminiHardModel() {
+        return geminiHardModel;
+    }
+
+    public void setGeminiHardModel(String geminiHardModel) {
+        this.geminiHardModel = geminiHardModel;
+    }
+
+    public String getLocalEasyModel() {
+        return localEasyModel;
+    }
+
+    public void setLocalEasyModel(String localEasyModel) {
+        this.localEasyModel = localEasyModel;
+    }
+
+    public String getLocalMediumModel() {
+        return localMediumModel;
+    }
+
+    public void setLocalMediumModel(String localMediumModel) {
+        this.localMediumModel = localMediumModel;
+    }
+
+    public String getLocalHardModel() {
+        return localHardModel;
+    }
+
+    public void setLocalHardModel(String localHardModel) {
+        this.localHardModel = localHardModel;
     }
 
     /**
-     * Selects the LLM model based on the difficulty level.
-     * If Bedrock is disabled, routes to zero-cost local Ollama models.
+     * Resolves the active AI provider based on configuration.
+     *
+     * @return the resolved {@link AiProvider}
+     */
+    public AiProvider resolveProvider() {
+        if (provider != null) {
+            String trimmed = provider.trim();
+            if ("gemini".equalsIgnoreCase(trimmed)) {
+                return AiProvider.GEMINI;
+            }
+            if ("local".equalsIgnoreCase(trimmed) || "ollama".equalsIgnoreCase(trimmed)) {
+                return AiProvider.LOCAL;
+            }
+        }
+        return AiProvider.BEDROCK;
+    }
+
+    /**
+     * Selects the LLM model based on the difficulty level and active AI provider.
      *
      * @param difficulty the difficulty level (EASY, MEDIUM, HARD)
      * @return the LiteLLM model name to use for question generation
      */
     public String selectModel(String difficulty) {
-        if (!bedrockEnabled) {
-            if (difficulty == null || difficulty.isBlank()) {
-                return localMediumModel;
-            }
-            return switch (difficulty.toUpperCase().trim()) {
+        AiProvider activeProvider = resolveProvider();
+        String diff = (difficulty == null) ? "" : difficulty.toUpperCase().trim();
+
+        return switch (activeProvider) {
+            case GEMINI -> switch (diff) {
+                case QuestionTaxonomyConstants.Difficulty.EASY -> geminiEasyModel;
+                case QuestionTaxonomyConstants.Difficulty.HARD -> geminiHardModel;
+                default -> geminiMediumModel;
+            };
+            case LOCAL -> switch (diff) {
                 case QuestionTaxonomyConstants.Difficulty.EASY -> localEasyModel;
                 case QuestionTaxonomyConstants.Difficulty.HARD -> localHardModel;
                 default -> localMediumModel;
             };
-        }
-
-        if (difficulty == null || difficulty.isBlank()) {
-            return mediumModel;
-        }
-
-        return switch (difficulty.toUpperCase().trim()) {
-            case QuestionTaxonomyConstants.Difficulty.EASY -> easyModel;
-            case QuestionTaxonomyConstants.Difficulty.HARD -> hardModel;
-            default -> mediumModel;
+            case BEDROCK -> switch (diff) {
+                case QuestionTaxonomyConstants.Difficulty.EASY -> easyModel;
+                case QuestionTaxonomyConstants.Difficulty.HARD -> hardModel;
+                default -> mediumModel;
+            };
         };
     }
 

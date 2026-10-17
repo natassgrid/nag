@@ -3,6 +3,7 @@ package com.examplatform.questionbank.microlesson.ai;
 
 import com.examplatform.questionbank.ai.prompt.PromptTemplateService;
 import com.examplatform.questionbank.microlesson.ai.agent.MicroLessonBlueprint;
+import com.examplatform.questionbank.microlesson.ai.guardrails.InputGuardrail;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -63,14 +64,22 @@ public class MicroLessonPromptBuilder {
         """;
 
     private final PromptTemplateService promptTemplateService;
+    private final InputGuardrail inputGuardrail;
 
     public MicroLessonPromptBuilder() {
-        this(null);
+        this(null, new InputGuardrail());
+    }
+
+    public MicroLessonPromptBuilder(PromptTemplateService promptTemplateService) {
+        this(promptTemplateService, new InputGuardrail());
     }
 
     @Autowired
-    public MicroLessonPromptBuilder(@Autowired(required = false) PromptTemplateService promptTemplateService) {
+    public MicroLessonPromptBuilder(
+            @Autowired(required = false) PromptTemplateService promptTemplateService,
+            @Autowired(required = false) InputGuardrail inputGuardrail) {
         this.promptTemplateService = promptTemplateService;
+        this.inputGuardrail = inputGuardrail != null ? inputGuardrail : new InputGuardrail();
     }
 
     public String getSystemPrompt() {
@@ -104,25 +113,34 @@ public class MicroLessonPromptBuilder {
             String targetExam,
             String referenceText,
             MicroLessonBlueprint blueprint) {
-        String exam = (targetExam != null && !targetExam.isBlank()) ? targetExam : "JEE_MAIN";
+        String validSubject = inputGuardrail.validateAndSanitize("subject", subject);
+        String validTopic = inputGuardrail.validateAndSanitize("topic", topic);
+        String validSubtopic = inputGuardrail.validateAndSanitize("subtopic", subtopic);
+        String validExam = inputGuardrail.validateAndSanitize("targetExam", targetExam);
+        String validRef = inputGuardrail.validateAndSanitize("referenceText", referenceText);
+
+        String exam = (validExam != null && !validExam.isBlank()) ? validExam : "JEE_MAIN";
+        String sSubject = (validSubject != null && !validSubject.isBlank()) ? validSubject : "General";
+        String sTopic = (validTopic != null && !validTopic.isBlank()) ? validTopic : "General";
+        String sSubtopic = (validSubtopic != null && !validSubtopic.isBlank()) ? validSubtopic : "General";
 
         StringBuilder extraContext = new StringBuilder();
         if (blueprint != null && blueprint.formattedBlueprintPrompt() != null && !blueprint.formattedBlueprintPrompt().isBlank()) {
             extraContext.append("\n").append(blueprint.formattedBlueprintPrompt().trim()).append("\n");
         }
-        if (referenceText != null && !referenceText.isBlank()) {
+        if (validRef != null && !validRef.isBlank()) {
             extraContext.append("\nAdditional Faculty Reference Context / Steering Notes:\n")
-                    .append(referenceText.trim())
+                    .append(inputGuardrail.wrapInBoundary("reference_context", validRef.trim()))
                     .append("\n");
         }
 
         if (promptTemplateService != null) {
             try {
                 Map<String, Object> vars = new HashMap<>();
-                vars.put("subject", subject != null ? subject : "General");
-                vars.put("topic", topic != null ? topic : "General");
-                vars.put("subtopic", subtopic != null ? subtopic : "General");
-                vars.put("targetExam", exam);
+                vars.put("subject", inputGuardrail.wrapInBoundary("subject", sSubject));
+                vars.put("topic", inputGuardrail.wrapInBoundary("topic", sTopic));
+                vars.put("subtopic", inputGuardrail.wrapInBoundary("subtopic", sSubtopic));
+                vars.put("targetExam", inputGuardrail.wrapInBoundary("target_exam", exam));
                 vars.put("referenceSection", extraContext.toString());
 
                 String rendered = promptTemplateService.render("microlesson/user-prompt", vars);
@@ -139,7 +157,11 @@ public class MicroLessonPromptBuilder {
             - Topic: %s
             - Sub-Topic: %s
             - Target Exam: %s
-            """, subject, topic, subtopic, exam));
+            """,
+            inputGuardrail.wrapInBoundary("subject", sSubject),
+            inputGuardrail.wrapInBoundary("topic", sTopic),
+            inputGuardrail.wrapInBoundary("subtopic", sSubtopic),
+            inputGuardrail.wrapInBoundary("target_exam", exam)));
 
         if (!extraContext.isEmpty()) {
             sb.append(extraContext);
