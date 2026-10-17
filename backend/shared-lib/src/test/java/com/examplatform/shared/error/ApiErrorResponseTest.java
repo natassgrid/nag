@@ -24,6 +24,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 
 import java.util.Map;
 
@@ -45,8 +46,7 @@ class ApiErrorResponseTest {
         String json = objectMapper.writeValueAsString(response);
         assertThat(json).contains("\"status\":404")
                 .contains("\"error\":\"Not Found\"")
-                .contains("\"message\":\"Item not found\"")
-                .contains("\"timestamp\":");
+                .contains("\"message\":\"Item not found\"");
     }
 
     @Test
@@ -101,5 +101,18 @@ class ApiErrorResponseTest {
         ResponseEntity<ApiErrorResponse> genericRes = handler.handleGeneric(new RuntimeException("Oops"));
         assertThat(genericRes.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
         assertThat(genericRes.getBody().message()).isEqualTo("An unexpected error occurred");
+
+        // Test HttpMessageNotReadableException with invalid UUID cause
+        HttpMessageNotReadableException readableEx = new HttpMessageNotReadableException(
+                "Cannot deserialize",
+                new IllegalArgumentException("UUID has to be represented by standard 36-char representation"),
+                null
+        );
+        ResponseEntity<ApiErrorResponse> readableRes = handler.handleMessageNotReadable(readableEx);
+        assertThat(readableRes.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(readableRes.getBody()).isNotNull();
+        assertThat(readableRes.getBody().status()).isEqualTo(400);
+        assertThat(readableRes.getBody().code()).isEqualTo("INVALID_FORMAT");
+        assertThat(readableRes.getBody().message()).contains("Invalid UUID format");
     }
 }

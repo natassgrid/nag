@@ -8,6 +8,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
+import { generateUuid } from '@nag-frontend-workspace/shared-util-crypto';
 import { CandidateProfile } from '../../models';
 import { WebcamCaptureModalComponent } from '../webcam-capture-modal/webcam-capture-modal.component';
 import { ImageCropperModalComponent, CropMode } from '../image-cropper-modal/image-cropper-modal.component';
@@ -94,7 +95,7 @@ export class KycDocumentsPanelComponent {
         this.profile.update((p) => ({
           ...p,
           idProofUrl: dataUrl,
-          idProofAssetId: `asset-id-proof-${Date.now()}`,
+          idProofAssetId: generateUuid(),
         }));
         this.showFeedback('ID Proof document attached successfully.');
       }
@@ -110,14 +111,14 @@ export class KycDocumentsPanelComponent {
       this.profile.update((p) => ({
         ...p,
         photoUrl: croppedDataUrl,
-        photoAssetId: `asset-photo-${Date.now()}`,
+        photoAssetId: generateUuid(),
       }));
       this.showFeedback('Passport photograph updated and cropped successfully.');
     } else {
       this.profile.update((p) => ({
         ...p,
         signatureUrl: croppedDataUrl,
-        signatureAssetId: `asset-sign-${Date.now()}`,
+        signatureAssetId: generateUuid(),
       }));
       this.showFeedback('Candidate signature updated and cropped successfully.');
     }

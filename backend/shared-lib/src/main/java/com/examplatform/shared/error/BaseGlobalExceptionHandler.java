@@ -23,6 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -68,6 +69,24 @@ public abstract class BaseGlobalExceptionHandler {
                 .fieldErrors(fieldErrors)
                 .build();
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiErrorResponse> handleMessageNotReadable(HttpMessageNotReadableException ex) {
+        log.warn("Malformed JSON request or invalid field format: {}", ex.getMessage());
+        String message = "Malformed JSON request body";
+        Throwable cause = ex.getCause();
+        if (cause != null) {
+            String causeMsg = cause.getMessage();
+            if (causeMsg != null && (causeMsg.contains("UUID has to be represented by standard 36-char representation")
+                    || causeMsg.contains("UUID")
+                    || causeMsg.contains("java.util.UUID"))) {
+                message = "Invalid UUID format: must be a standard 36-character representation";
+            } else if (causeMsg != null) {
+                message = causeMsg.split("\n")[0];
+            }
+        }
+        return buildResponse(HttpStatus.BAD_REQUEST, "Bad Request", message, "INVALID_FORMAT");
     }
 
     @ExceptionHandler(MissingRequestHeaderException.class)

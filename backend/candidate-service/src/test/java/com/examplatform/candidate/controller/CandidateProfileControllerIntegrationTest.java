@@ -40,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
@@ -312,6 +313,60 @@ class CandidateProfileControllerIntegrationTest extends AbstractIntegrationTest 
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isForbidden());
+        }
+
+        @Test
+        @DisplayName("+ve: Candidate updates profile with KYC document asset UUIDs - returns 200 OK")
+        void candidateCanUpdateProfileWithKycAssetUuids() throws Exception {
+            UUID photoId = UUID.randomUUID();
+            UUID signId = UUID.randomUUID();
+            UUID idProofId = UUID.randomUUID();
+
+            UpdateCandidateProfileRequest request = UpdateCandidateProfileRequest.builder()
+                    .photoAssetId(photoId)
+                    .signatureAssetId(signId)
+                    .idProofAssetId(idProofId)
+                    .build();
+
+            CandidateProfileResponse response = CandidateProfileResponse.builder()
+                    .userId(CANDIDATE_ID)
+                    .photoAssetId(photoId)
+                    .signatureAssetId(signId)
+                    .idProofAssetId(idProofId)
+                    .build();
+
+            when(candidateProfileService.update(eq(CANDIDATE_ID), any(UpdateCandidateProfileRequest.class), eq(TENANT_ID)))
+                    .thenReturn(response);
+
+            mockMvc.perform(put("/api/v1/candidates/{userId}", CANDIDATE_ID)
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE")).jwt(j -> j.subject(CANDIDATE_ID.toString())))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.photoAssetId").value(photoId.toString()))
+                    .andExpect(jsonPath("$.signatureAssetId").value(signId.toString()))
+                    .andExpect(jsonPath("$.idProofAssetId").value(idProofId.toString()));
+        }
+
+        @Test
+        @DisplayName("-ve: Invalid non-UUID string for asset ID returns 400 Bad Request with INVALID_FORMAT")
+        void invalidAssetUuidFormatReturnsBadRequest() throws Exception {
+            String malformedJson = """
+                    {
+                      "photoAssetId": "asset-photo-1792163302210"
+                    }
+                    """;
+
+            mockMvc.perform(put("/api/v1/candidates/{userId}", CANDIDATE_ID)
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE")).jwt(j -> j.subject(CANDIDATE_ID.toString())))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(malformedJson))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.status").value(400))
+                    .andExpect(jsonPath("$.code").value("INVALID_FORMAT"))
+                    .andExpect(jsonPath("$.message").value(containsString("Invalid UUID format")));
         }
     }
 

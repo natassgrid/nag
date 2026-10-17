@@ -1,3 +1,4 @@
+import { generateUuid } from '@nag-frontend-workspace/shared-util-crypto';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -100,7 +101,7 @@ export class EducationFormModalComponent {
       this.form.update((f) => ({
         ...f,
         certificateFileName: file.name,
-        certificateAssetId: `asset-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        certificateAssetId: generateUuid(),
       }));
     }
   }
