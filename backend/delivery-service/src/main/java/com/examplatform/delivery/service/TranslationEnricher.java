@@ -22,6 +22,7 @@ package com.examplatform.delivery.service;
 import com.examplatform.delivery.dto.QuestionDeliveryDto;
 import com.examplatform.delivery.dto.QuestionOptionDeliveryDto;
 import com.examplatform.delivery.dto.TranslatedQuestionDeliveryDto;
+import com.examplatform.shared.ai.latex.LatexPreservationUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -131,12 +132,14 @@ public class TranslationEnricher {
 
         try {
             JsonNode node = objectMapper.readTree(payload);
-            String transContent = node.path("content").asText(null);
-            if (transContent == null) {
+            String rawContent = node.path("content").asText(null);
+            if (rawContent == null) {
                 return;
             }
+            String transContent = LatexPreservationUtil.cleanStrayUnderscores(rawContent);
 
-            String transExplanation = node.path("explanation").asText(null);
+            String rawExplanation = node.path("explanation").asText(null);
+            String transExplanation = rawExplanation != null ? LatexPreservationUtil.cleanStrayUnderscores(rawExplanation) : null;
             String transImageUrl = getTextFieldOrDefault(node, FIELD_IMAGE_URL, qDto.getImageUrl());
             String transImageAltText = getTextFieldOrDefault(node, FIELD_IMAGE_ALT_TEXT, qDto.getImageAltText());
             List<QuestionOptionDeliveryDto> transOptions = parseTranslatedOptions(node.path("options"), qDto.getOptions());
@@ -166,7 +169,8 @@ public class TranslationEnricher {
 
         for (int i = 0; i < optNode.size(); i++) {
             JsonNode o = optNode.get(i);
-            String optText = o.path("text").asText("");
+            String rawOptText = o.path("text").asText("");
+            String optText = LatexPreservationUtil.cleanStrayUnderscores(rawOptText);
             String optId = o.has("id") ? o.path("id").asText("") : String.valueOf((char) ('A' + i));
             String optImg = getTextFieldOrDefault(o, FIELD_IMAGE_URL, null);
             String optAlt = getTextFieldOrDefault(o, FIELD_IMAGE_ALT_TEXT, null);
