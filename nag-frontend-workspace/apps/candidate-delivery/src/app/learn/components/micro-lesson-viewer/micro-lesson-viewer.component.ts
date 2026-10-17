@@ -9,6 +9,7 @@ import {
   output,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -21,6 +22,8 @@ import {
   SubtopicMicroLesson,
   TrapAlert,
   FormulaEntry,
+  SUPPORTED_MICROLESSON_LANGUAGES,
+  MicroLessonLanguage,
 } from '../../models/micro-lesson.model';
 import { ExplanationIr } from '../../models/explanation-ir.model';
 import {
@@ -35,6 +38,7 @@ import { ExplanationPlayerComponent } from '../explanation-player/explanation-pl
   standalone: true,
   imports: [
     CommonModule,
+    FormsModule,
     MatCardModule,
     MatButtonModule,
     MatIconModule,
@@ -54,6 +58,13 @@ export class MicroLessonViewerComponent implements OnInit {
   private readonly microLessonService = inject(MicroLessonService);
   private readonly learningPathService = inject(LearningPathService);
 
+  readonly supportedLanguages: MicroLessonLanguage[] = SUPPORTED_MICROLESSON_LANGUAGES;
+  readonly regionalLanguages = SUPPORTED_MICROLESSON_LANGUAGES.filter(
+    (l) => l.code !== 'en' && l.code !== 'hi'
+  );
+  readonly selectedLanguage = signal<string>('en');
+  readonly isChangingLanguage = signal<boolean>(false);
+
   // Optional direct inputs when rendered inside dialog or drawer
   subtopicIdInput = input<number | null>(null, { alias: 'subtopicId' });
   milestoneIdInput = input<string | null>(null, { alias: 'milestoneId' });
@@ -65,6 +76,7 @@ export class MicroLessonViewerComponent implements OnInit {
   readonly isCompleted = signal<boolean>(false);
   readonly error = signal<string | null>(null);
   readonly showInteractivePlayer = signal<boolean>(false);
+
 
   readonly interactiveExplanation = computed<ExplanationIr | null>(() => {
     const l = this.lesson();
@@ -134,6 +146,11 @@ export class MicroLessonViewerComponent implements OnInit {
     const subjectName = qp?.get('subjectName') || undefined;
     const targetExam = qp?.get('targetExam') || undefined;
 
+    const routeLang = qp?.get('lang') || undefined;
+    if (routeLang) {
+      this.selectedLanguage.set(routeLang);
+    }
+
     this.resolvedSubtopicId =
       this.subtopicIdInput() || (routeSubtopicId ? Number(routeSubtopicId) : null);
     this.resolvedMilestoneId =
@@ -143,6 +160,7 @@ export class MicroLessonViewerComponent implements OnInit {
       topicName,
       subjectName,
       targetExam,
+      lang: routeLang,
     };
 
     if (this.resolvedSubtopicId) {
@@ -156,12 +174,19 @@ export class MicroLessonViewerComponent implements OnInit {
   loadLesson(subtopicId: number, params?: MicroLessonQueryParams): void {
     this.loading.set(true);
     this.error.set(null);
+    const queryParams: MicroLessonQueryParams = {
+      ...(params || {}),
+      lang: params?.lang || this.selectedLanguage(),
+    };
 
     this.microLessonService
-      .getPublishedMicroLesson(subtopicId, params)
+      .getPublishedMicroLesson(subtopicId, queryParams)
       .subscribe({
         next: (data) => {
           this.lesson.set(data);
+          if (data.languageCode) {
+            this.selectedLanguage.set(data.languageCode);
+          }
           this.loading.set(false);
         },
         error: (err) => {
@@ -172,6 +197,36 @@ export class MicroLessonViewerComponent implements OnInit {
           this.loading.set(false);
         },
       });
+  }
+
+  changeLanguage(lang: string): void {
+    if (this.selectedLanguage() === lang) return;
+    this.selectedLanguage.set(lang);
+    const current = this.lesson();
+
+    if (current?.id) {
+      this.isChangingLanguage.set(true);
+      this.microLessonService.getMicroLessonByLanguage(current.id, lang).subscribe({
+        next: (data) => {
+          this.lesson.set(data);
+          this.isChangingLanguage.set(false);
+        },
+        error: () => {
+          if (this.resolvedSubtopicId) {
+            this.loadLesson(this.resolvedSubtopicId, {
+              ...this.resolvedQueryParams,
+              lang,
+            });
+          }
+          this.isChangingLanguage.set(false);
+        },
+      });
+    } else if (this.resolvedSubtopicId) {
+      this.loadLesson(this.resolvedSubtopicId, {
+        ...this.resolvedQueryParams,
+        lang,
+      });
+    }
   }
 
   isTrapObject(trap: any): trap is TrapAlert {

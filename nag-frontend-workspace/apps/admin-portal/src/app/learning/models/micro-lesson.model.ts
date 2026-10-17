@@ -67,6 +67,9 @@ export interface MicroLessonReviewItem {
   cheatSheet?: string[];
   createdAt?: string;
   updatedAt?: string;
+  languageCode?: string;
+  fallbackToEnglish?: boolean;
+  translations?: MicroLessonTranslation[];
 }
 
 export type MicroLessonAdminItem = MicroLessonReviewItem;
@@ -332,6 +335,9 @@ export function adaptToReviewItem(raw: any): MicroLessonReviewItem {
     coreConcept,
     trap: trapAlert,
     reviewerNotes: raw.reviewerNotes || raw.reviewComments || '',
+    languageCode: raw.languageCode || 'en',
+    fallbackToEnglish: !!raw.fallbackToEnglish,
+    translations: raw.translations || [],
     content,
   };
 }
@@ -354,3 +360,88 @@ export interface MicroLessonFilterOptions {
 export interface BulkDeleteResponse {
   deletedCount: number;
 }
+
+export interface MicroLessonTranslation {
+  id: string;
+  microlessonId: string;
+  tenantId?: string;
+  languageCode: string;
+  coreConcept: string;
+  trap: string;
+  cheatSheet: string[];
+  stepByStepBreakdown: any;
+  content?: any;
+  sourceVersion: number;
+  status: 'PUBLISHED' | 'APPROVED' | 'IN_REVIEW' | 'DRAFT' | 'REJECTED';
+  translatorId?: string;
+  reviewerId?: string;
+  reviewComments?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface MicroLessonBatchTranslationRequest {
+  sourceLanguage?: string;
+  targetLanguage: string;
+  targetStatus?: string;
+  subject?: string;
+  topic?: string;
+  targetExam?: string;
+  lessonIds?: string[];
+  overwriteExisting?: boolean;
+  batchSize?: number;
+  throttleDelayMs?: number;
+  maxConcurrency?: number;
+}
+
+export interface MicroLessonBatchTranslationJob {
+  id: string;
+  jobId?: string;
+  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+  sourceLanguage: string;
+  targetLanguage: string;
+  targetStatus?: string;
+  subjectFilter?: string;
+  topicFilter?: string;
+  targetExamFilter?: string;
+  overwriteExisting?: boolean;
+  totalLessons: number;
+  processedLessons: number;
+  successfulLessons: number;
+  failedLessons: number;
+  progressPercentage: number;
+  failedLessonIds?: string[];
+  batchSize?: number;
+  throttleDelayMs?: number;
+  maxConcurrency?: number;
+  startedAt?: string;
+  completedAt?: string;
+  errorMessage?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface MicroLessonLanguage {
+  code: string;
+  name: string;
+  nativeName: string;
+  script: string;
+}
+
+export const SUPPORTED_MICROLESSON_LANGUAGES: MicroLessonLanguage[] = [
+  { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी', script: 'Devanagari' },
+  { code: 'bn', name: 'Bengali', nativeName: 'বাংলা', script: 'Bengali' },
+  { code: 'te', name: 'Telugu', nativeName: 'తెలుగు', script: 'Telugu' },
+  { code: 'mr', name: 'Marathi', nativeName: 'मराठी', script: 'Devanagari' },
+  { code: 'ta', name: 'Tamil', nativeName: 'தமிழ்', script: 'Tamil' },
+  { code: 'gu', name: 'Gujarati', nativeName: 'ગુજરાતી', script: 'Gujarati' },
+  { code: 'kn', name: 'Kannada', nativeName: 'ಕನ್ನಡ', script: 'Kannada' },
+  { code: 'ml', name: 'Malayalam', nativeName: 'മലയാളം', script: 'Malayalam' },
+  { code: 'or', name: 'Odia', nativeName: 'ଓଡ଼ିଆ', script: 'Odia' },
+  { code: 'pa', name: 'Punjabi', nativeName: 'ਪੰਜਾਬੀ', script: 'Gurmukhi' },
+  { code: 'as', name: 'Assamese', nativeName: 'অসমীয়া', script: 'Bengali' },
+  { code: 'ur', name: 'Urdu', nativeName: 'اردو', script: 'Perso-Arabic' },
+  { code: 'sa', name: 'Sanskrit', nativeName: 'संस्कृतम्', script: 'Devanagari' },
+  { code: 'en', name: 'English', nativeName: 'English', script: 'Latin' },
+];
+

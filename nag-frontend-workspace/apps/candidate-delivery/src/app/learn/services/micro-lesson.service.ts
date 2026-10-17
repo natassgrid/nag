@@ -15,6 +15,7 @@ export interface MicroLessonQueryParams {
   subtopicName?: string;
   topicName?: string;
   subjectName?: string;
+  lang?: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -44,10 +45,22 @@ export class MicroLessonService {
       if (paramsOrTargetExam.subjectName) {
         params = params.set('subjectName', paramsOrTargetExam.subjectName);
       }
+      if (paramsOrTargetExam.lang) {
+        params = params.set('lang', paramsOrTargetExam.lang);
+      }
     }
 
     return this.http
       .get<any>(`${this.apiUrl}/subtopic/${subtopicId}`, { params })
+      .pipe(map((raw) => this.normalizeMicroLesson(raw)));
+  }
+
+  getMicroLessonByLanguage(
+    lessonId: string,
+    lang: string
+  ): Observable<SubtopicMicroLesson> {
+    return this.http
+      .get<any>(`/api/v1/microlessons/${lessonId}/language/${lang}`)
       .pipe(map((raw) => this.normalizeMicroLesson(raw)));
   }
 
@@ -193,6 +206,8 @@ export class MicroLessonService {
       status: raw.status || 'PUBLISHED',
       contentVersion:
         raw.contentVersion != null ? Number(raw.contentVersion) : 1,
+      languageCode: raw.languageCode || 'en',
+      fallbackToEnglish: !!raw.fallbackToEnglish,
       content: {
         coreConcept,
         trapAlert,

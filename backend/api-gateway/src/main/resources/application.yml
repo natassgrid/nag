@@ -81,7 +81,7 @@ spring:
             - id: micro-lessons-service
               uri: ${QUESTION_BANK_SERVICE_URI:http://localhost:8083}
               predicates:
-                - Path=/api/micro-lessons/**,/api/v1/micro-lessons/**,/api/admin/micro-lessons/**
+                - Path=/api/micro-lessons/**,/api/v1/micro-lessons/**,/api/admin/micro-lessons/**,/api/v1/microlessons/**
               filters:
                 - StripPrefix=0
 

@@ -13,6 +13,9 @@ import {
   BulkDeleteResponse,
   CreateMicroLessonRequest,
   UpdateMicroLessonRequest,
+  MicroLessonTranslation,
+  MicroLessonBatchTranslationRequest,
+  MicroLessonBatchTranslationJob,
   adaptToReviewItem,
 } from '../models/micro-lesson.model';
 
@@ -41,6 +44,7 @@ export interface MicroLessonQueryParams {
 export class MicroLessonAdminService {
   private readonly http = inject(HttpClient);
   private readonly apiUrl = '/api/admin/micro-lessons';
+  private readonly translationApiUrl = '/api/v1/microlessons';
 
   listForReview(
     paramsOrStatus?: MicroLessonQueryParams | string,
@@ -218,4 +222,85 @@ export class MicroLessonAdminService {
   cancelBatchJob(batchId: string): Observable<BatchGenerateResponse> {
     return this.http.post<BatchGenerateResponse>(`${this.apiUrl}/batch-jobs/${batchId}/cancel`, {});
   }
+
+  // --- Multilingual Translation & Localization APIs ---
+
+  autoTranslateMicroLesson(id: string, lang: string): Observable<MicroLessonTranslation> {
+    return this.http.post<MicroLessonTranslation>(
+      `${this.translationApiUrl}/${id}/auto-translate/${lang}`,
+      {}
+    );
+  }
+
+  getTranslations(id: string): Observable<MicroLessonTranslation[]> {
+    return this.http.get<MicroLessonTranslation[]>(
+      `${this.translationApiUrl}/${id}/translations`
+    );
+  }
+
+  getLocalizedMicroLesson(id: string, lang: string): Observable<MicroLessonReviewItem> {
+    return this.http
+      .get<any>(`${this.translationApiUrl}/${id}/language/${lang}`)
+      .pipe(map(adaptToReviewItem));
+  }
+
+  approveTranslation(
+    translationId: string,
+    comments?: string
+  ): Observable<MicroLessonTranslation> {
+    return this.http.post<MicroLessonTranslation>(
+      `${this.translationApiUrl}/translations/${translationId}/approve`,
+      { comments, reviewComments: comments }
+    );
+  }
+
+  rejectTranslation(
+    translationId: string,
+    comments: string
+  ): Observable<MicroLessonTranslation> {
+    return this.http.post<MicroLessonTranslation>(
+      `${this.translationApiUrl}/translations/${translationId}/reject`,
+      { comments, reviewComments: comments }
+    );
+  }
+
+  startBatchTranslation(
+    req: MicroLessonBatchTranslationRequest
+  ): Observable<MicroLessonBatchTranslationJob> {
+    return this.http.post<MicroLessonBatchTranslationJob>(
+      `${this.translationApiUrl}/batch/auto-translate`,
+      req
+    );
+  }
+
+  getBatchTranslationJobStatus(
+    jobId: string
+  ): Observable<MicroLessonBatchTranslationJob> {
+    return this.http.get<MicroLessonBatchTranslationJob>(
+      `${this.translationApiUrl}/batch/${jobId}`
+    );
+  }
+
+  listBatchTranslationJobs(
+    page: number = 0,
+    size: number = 20
+  ): Observable<PageResponse<MicroLessonBatchTranslationJob>> {
+    const params = new HttpParams()
+      .set('page', page.toString())
+      .set('size', size.toString());
+    return this.http.get<PageResponse<MicroLessonBatchTranslationJob>>(
+      `${this.translationApiUrl}/batch`,
+      { params }
+    );
+  }
+
+  cancelBatchTranslationJob(
+    jobId: string
+  ): Observable<MicroLessonBatchTranslationJob> {
+    return this.http.post<MicroLessonBatchTranslationJob>(
+      `${this.translationApiUrl}/batch/${jobId}/cancel`,
+      {}
+    );
+  }
 }
+

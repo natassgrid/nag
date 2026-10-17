@@ -53,7 +53,8 @@ public class SecurityConfig {
                 "/api/v1/translations/**",
                 "/api/admin/micro-lessons/**",
                 "/api/micro-lessons/**",
-                "/api/v1/micro-lessons/**"
+                "/api/v1/micro-lessons/**",
+                "/api/v1/microlessons/**"
         );
         http.csrf(AbstractHttpConfigurer::disable);
         http.sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS));

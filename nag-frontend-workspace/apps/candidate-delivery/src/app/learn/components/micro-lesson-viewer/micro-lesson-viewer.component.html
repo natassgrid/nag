@@ -1,6 +1,6 @@
 <div class="max-w-4xl mx-auto p-4 md:p-6 space-y-6">
   <!-- Top Navigation & Breadcrumb -->
-  <div class="flex items-center justify-between gap-4">
+  <div class="flex flex-wrap items-center justify-between gap-4">
     <button
       mat-button
       type="button"
@@ -11,19 +11,52 @@
       Back to Roadmap
     </button>
 
-    @if (lesson(); as l) {
-      <div class="flex items-center gap-2">
-        <span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
-          {{ l.subjectName }} &bull; {{ l.topicName }}
-        </span>
-        <span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-          v{{ l.contentVersion }}
-        </span>
+    <div class="flex items-center gap-3">
+      <!-- Multilingual Language Selector -->
+      <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs shadow-2xs">
+        <button
+          type="button"
+          (click)="changeLanguage('en')"
+          class="px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer"
+          [ngClass]="selectedLanguage() === 'en' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'"
+        >
+          English
+        </button>
+        <button
+          type="button"
+          (click)="changeLanguage('hi')"
+          class="px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer"
+          [ngClass]="selectedLanguage() === 'hi' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'"
+        >
+          हिन्दी
+        </button>
+        <select
+          [ngModel]="selectedLanguage()"
+          (ngModelChange)="changeLanguage($event)"
+          class="text-xs font-semibold bg-transparent border-0 text-slate-700 focus:outline-none cursor-pointer pr-1"
+          title="Regional Language"
+        >
+          <option value="en" disabled>More Languages...</option>
+          @for (lang of regionalLanguages; track lang.code) {
+            <option [value]="lang.code">{{ lang.nativeName }} ({{ lang.name }})</option>
+          }
+        </select>
       </div>
-    }
+
+      @if (lesson(); as l) {
+        <div class="hidden sm:flex items-center gap-2">
+          <span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+            {{ l.subjectName }} &bull; {{ l.topicName }}
+          </span>
+          <span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+            v{{ l.contentVersion }}
+          </span>
+        </div>
+      }
+    </div>
   </div>
 
-  @if (loading()) {
+  @if (loading() || isChangingLanguage()) {
     <div class="py-16 text-center space-y-4">
       <mat-progress-bar mode="indeterminate" class="max-w-md mx-auto"></mat-progress-bar>
       <p class="text-sm text-slate-500">Loading pedagogical micro-lesson...</p>
@@ -40,6 +73,16 @@
       </button>
     </mat-card>
   } @else if (lesson(); as l) {
+    <!-- Language Fallback Notice -->
+    @if (l.fallbackToEnglish) {
+      <div class="p-3 bg-amber-50 border border-amber-200 rounded-2xl flex items-center gap-2 text-xs text-amber-900">
+        <mat-icon class="!text-sm text-amber-600 shrink-0">translate</mat-icon>
+        <span>
+          Translation for the selected regional language is being prepared by curriculum experts. Showing verified English content in the meantime.
+        </span>
+      </div>
+    }
+
     <!-- Lesson Title Header -->
     <div class="bg-gradient-to-r from-slate-900 to-indigo-950 text-white rounded-3xl p-6 md:p-8 shadow-lg">
       <div class="flex items-center gap-2 text-xs font-semibold tracking-wider uppercase text-indigo-300 mb-2">
