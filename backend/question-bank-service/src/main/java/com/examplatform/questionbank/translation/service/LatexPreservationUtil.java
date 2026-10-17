@@ -14,8 +14,7 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
 
 package com.examplatform.questionbank.translation.service;
 
@@ -42,5 +41,9 @@ public final class LatexPreservationUtil {
 
     public static String unmask(String translatedText, List<String> preservedTokens) {
         return com.examplatform.shared.ai.latex.LatexPreservationUtil.unmask(translatedText, preservedTokens);
+    }
+
+    public static String cleanStrayUnderscores(String text) {
+        return com.examplatform.shared.ai.latex.LatexPreservationUtil.cleanStrayUnderscores(text);
     }
 }

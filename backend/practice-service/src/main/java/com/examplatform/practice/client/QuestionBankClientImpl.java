@@ -2,6 +2,7 @@
 package com.examplatform.practice.client;
 
 import com.examplatform.practice.dto.AnswerKeyDto;
+import com.examplatform.shared.ai.latex.LatexPreservationUtil;
 import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -67,17 +68,20 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                             Map<String, Object> transMap = new HashMap<>();
                             transMap.put("languageCode", langCode);
                             if (node.has(SharedConstants.CONTENT)) {
-                                transMap.put(SharedConstants.CONTENT, node.get(SharedConstants.CONTENT).asText());
+                                transMap.put(SharedConstants.CONTENT,
+                                        LatexPreservationUtil.cleanStrayUnderscores(node.get(SharedConstants.CONTENT).asText()));
                             }
                             if (node.has("explanation")) {
-                                transMap.put("explanation", node.get("explanation").asText());
+                                transMap.put("explanation",
+                                        LatexPreservationUtil.cleanStrayUnderscores(node.get("explanation").asText()));
                             }
                             if (node.has("options") && node.get("options").isArray()) {
                                 List<Map<String, Object>> optionsList = new ArrayList<>();
                                 for (JsonNode opt : node.get("options")) {
                                     Map<String, Object> optMap = new HashMap<>();
                                     if (opt.has("id")) optMap.put("id", opt.get("id").asText());
-                                    if (opt.has("text")) optMap.put("text", opt.get("text").asText());
+                                    if (opt.has("text")) optMap.put("text",
+                                            LatexPreservationUtil.cleanStrayUnderscores(opt.get("text").asText()));
                                     optionsList.add(optMap);
                                 }
                                 transMap.put("options", optionsList);

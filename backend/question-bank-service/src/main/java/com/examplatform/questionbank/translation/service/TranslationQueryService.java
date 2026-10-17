@@ -14,8 +14,7 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
 
 package com.examplatform.questionbank.translation.service;
 
@@ -97,11 +96,15 @@ public class TranslationQueryService {
         String explanation = null;
 
         if (payload != null) {
-            content = payload.content();
-            explanation = payload.explanation();
+            content = LatexPreservationUtil.cleanStrayUnderscores(payload.content());
+            explanation = LatexPreservationUtil.cleanStrayUnderscores(payload.explanation());
             if (payload.options() != null) {
                 options = payload.options().stream()
-                        .map(opt -> new TranslatedOptionDto(opt.id(), opt.text(), opt.imageUrl(), opt.imageAltText()))
+                        .map(opt -> new TranslatedOptionDto(
+                                opt.id(),
+                                LatexPreservationUtil.cleanStrayUnderscores(opt.text()),
+                                opt.imageUrl(),
+                                opt.imageAltText()))
                         .toList();
             }
         }

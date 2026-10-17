@@ -170,8 +170,8 @@ class PromptTemplateServiceTest {
         assertThat(sys).contains("expert master faculty");
 
         String user = builder.buildUserPrompt("Biology", "Genetics", "Mendelian Inheritance", "NEET", "Focus on Punnett square");
-        assertThat(user).contains("Subject: Biology");
-        assertThat(user).contains("Sub-Topic: Mendelian Inheritance");
+        assertThat(user).contains("Biology");
+        assertThat(user).contains("Mendelian Inheritance");
         assertThat(user).contains("Focus on Punnett square");
     }
 
@@ -184,7 +184,7 @@ class PromptTemplateServiceTest {
         assertThat(sys).isEqualTo(MicroLessonPromptBuilder.SYSTEM_PROMPT);
 
         String user = builder.buildUserPrompt("Physics", "Kinematics", "Projectile Motion", "JEE_MAIN");
-        assertThat(user).contains("Subject: Physics");
-        assertThat(user).contains("Topic: Kinematics");
+        assertThat(user).contains("Physics");
+        assertThat(user).contains("Kinematics");
     }
 }

@@ -25,48 +25,41 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Common AI utility to protect and preserve LaTeX / KaTeX mathematical expressions,
- * chemical equations (\\ce{...}), physical units (\\pu{...}), Markdown images,
- * HTML img tags, SVG graphics,
- * and scientific symbols during AI operations (e.g. LLM prompts, machine translation IndicTrans2).
+ * High-performance preservation and unmasking utility for LaTeX/KaTeX mathematical expressions,
+ * Chemical Formulas (\ce{...}), Physical Units (\pu{...}), SMILES strings, Markdown images, and HTML images
+ * during AI operations (e.g. translation, explanation generation).
  *
- * It extracts all math/symbol structures into numbered placeholders before
- * passing natural text to AI models, and then restores
- * the exact verbatim mathematical syntax on the generated or translated output.
+ * Prevents translation engines (such as IndicTrans2) and generative LLMs from mangling, translating,
+ * or corrupting mathematical/scientific syntax.
  */
 public final class LatexPreservationUtil {
 
     private static final String PLACEHOLDER_PREFIX = "__NAG_MATH_";
     private static final String PLACEHOLDER_SUFFIX = "__";
 
-    // Combined pattern matching all LaTeX, KaTeX, mhchem, SMILES, and code blocks in order of precedence:
-    // 1. Markdown code blocks ```...```
-    // 2. SMILES chemical structures <smiles>...</smiles>  (Issue #126)
-    // 3. Fenced SMILES code blocks ```smiles\n...\n```   (Issue #126)
-    // 4. SVG tags <svg>...</svg>
-    // 5. HTML code tags <code>...</code>
-    // 6. Display Math $$...$$
-    // 7. LaTeX Display Brackets \[...\] (accepting 1-4 backslashes)
-    // 8. LaTeX Environments \begin{matrix|pmatrix|...}...\end{...}
-    // 9. LaTeX Inline Brackets \(...\)
-    // 10. Inline Dollar Math $...$ (not preceded or followed by $)
-    // 11. LaTeX Chemistry / Physics macros \ce{...}, \pu{...}
-    // 12. LaTeX Structural Commands \frac{...}{...}, \sqrt{...}, etc.
-    // 13. Standalone LaTeX Greek / Math Symbols \alpha, \beta, \theta, \int, \infty, etc.
+    // Matches standard mathematical and scientific notation in order of specificity
     private static final Pattern PRESERVED_PATTERN = Pattern.compile(
-            "```[\\s\\S]*?```" +
-            "|<smiles>[\\s\\S]*?</smiles>" +
-            "|```smiles[\\s\\S]*?```" +
-            "|!\\[[^\\]]*\\]\\([^)]*\\)" +
-            "|<img[^>]*>" +
-            "|<svg[\\s\\S]*?</svg>" +
-            "|<code>[\\s\\S]*?</code>" +
+            // 1. Fenced SMILES code blocks: ```smiles ... ```
+            "```smiles[\\s\\S]*?```" +
+            // 2. Explicit XML-style SMILES tags: <smiles>...</smiles>
+            "|<smiles>[\\s\\S]*?<\\/smiles>" +
+            // 3. Markdown images: ![alt](url)
+            "|!\\[[^\\]]*\\]\\([^)]+\\)" +
+            // 4. HTML images: <img ... />
+            "|<img\\b[^>]*\\/?>" +
+            // 5. Display math: $$...$$
             "|\\$\\$[\\s\\S]*?\\$\\$" +
+            // 6. Inline math: $...$ (ensuring not literal escaped \\$)
+            "|(?:(?<!\\\\)\\$(?!\\$)(.*?)(?<!\\\\)\\$)" +
+            // 7. LaTeX display math: \\[...\\]
             "|\\\\{1,4}\\[[\\s\\S]*?\\\\{1,4}\\]" +
-            "|\\\\{1,4}begin\\{(matrix|pmatrix|bmatrix|vmatrix|Vmatrix|cases|align|align\\*|aligned|equation|equation\\*|gather|gather\\*|split|array|subequations)\\}[\\s\\S]*?\\\\{1,4}end\\{\\1\\}" +
+            // 8. LaTeX inline math: \\(...\\)
             "|\\\\{1,4}\\([\\s\\S]*?\\\\{1,4}\\)" +
-            "|(?<!\\\\)\\$(?!\\$)(?:[^$\\n\\r]+?)(?<!\\\\)\\$" +
+            // 9. LaTeX Chemistry (\\ce{...}) and Physical Quantities (\\pu{...})
             "|\\\\{1,4}(?:ce|pu)\\{[^{}]*(?:\\{[^{}]*\\}[^{}]*)*\\}" +
+            // 10. Common multiline LaTeX math environments
+            "|\\\\{1,4}begin\\{(?:equation|equation\\*|align|align\\*|gather|gather\\*|matrix|pmatrix|bmatrix|vmatrix|Vmatrix|cases)\\}[\\s\\S]*?\\\\{1,4}end\\{(?:equation|equation\\*|align|align\\*|gather|gather\\*|matrix|pmatrix|bmatrix|vmatrix|Vmatrix|cases)\\}" +
+            // 11. Standalone LaTeX commands, fractions, Greek letters, and mathematical symbols
             "|\\\\{1,4}(?:frac|sqrt|mathbf|mathbfit|mathrm|text|vec|overline|underline|hat|dot|ddot)\\{[^{}]*(?:\\{[^{}]*\\}[^{}]*)*\\}(?:\\{[^{}]*(?:\\{[^{}]*\\}[^{}]*)*\\})?" +
             "|\\\\{1,4}(?:alpha|beta|gamma|delta|epsilon|varepsilon|zeta|eta|theta|vartheta|iota|kappa|lambda|mu|nu|xi|pi|varpi|rho|varrho|sigma|varsigma|tau|upsilon|phi|varphi|chi|psi|omega|Gamma|Delta|Theta|Lambda|Xi|Pi|Sigma|Upsilon|Phi|Psi|Omega|cdot|times|div|pm|mp|circ|cap|cup|in|notin|subset|subseteq|supset|supseteq|leq|le|geq|ge|neq|ne|approx|sim|equiv|cong|propto|parallel|perp|infty|partial|nabla|int|iint|iiint|oint|sum|prod|coprod|lim|to|rightarrow|leftarrow|Rightarrow|Leftarrow|Leftrightarrow|iff|mapsto|forall|exists|nexists|emptyset|angle|triangle|deg|hbar|ell)\\b",
             Pattern.CASE_INSENSITIVE
@@ -115,11 +108,15 @@ public final class LatexPreservationUtil {
     }
 
     /**
-     * Restores preserved LaTeX/KaTeX expressions from placeholders into the translated or generated output.
+     * Restores preserved LaTeX/KaTeX expressions from placeholders into the translated or generated output,
+     * and automatically strips any stray underscore delimiters introduced around non-translatable tokens.
      */
     public static String unmask(String translatedText, List<String> preservedTokens) {
-        if (translatedText == null || translatedText.isBlank() || preservedTokens == null || preservedTokens.isEmpty()) {
+        if (translatedText == null || translatedText.isBlank()) {
             return translatedText;
+        }
+        if (preservedTokens == null || preservedTokens.isEmpty()) {
+            return cleanStrayUnderscores(translatedText);
         }
 
         Matcher matcher = RESTORATION_PATTERN.matcher(translatedText);
@@ -140,7 +137,66 @@ public final class LatexPreservationUtil {
         }
         matcher.appendTail(sb);
 
-        return sb.toString();
+        return cleanStrayUnderscores(sb.toString());
+    }
+
+    /**
+     * Cleans up stray underscore delimiters ('_') left by neural machine translation tokenizers
+     * around preserved mathematical expressions, chemical equations, physical formulas, numbers,
+     * or at the start of translated options.
+     *
+     * @param text input text possibly containing stray underscore artifacts
+     * @return cleaned text with stray underscores around non-translatable elements removed
+     */
+    public static String cleanStrayUnderscores(String text) {
+        if (text == null || text.isBlank()) {
+            return text;
+        }
+
+        String cleaned = text;
+
+        // 1. Remove stray underscores before non-translatable tokens ($$, $, \[, \(, <smiles>, ![, <img, <svg, <code>)
+        // e.g. "_ $$75\text{ minutes}$$" -> "$$75\text{ minutes}$$"
+        // e.g. "गति _ $$\frac{5}{6}$$" -> "गति $$\frac{5}{6}$$"
+        cleaned = Pattern.compile("(^|\\s)(?:_{1,4}\\s*)+(?=\\$\\$|\\$|\\\\{1,4}\\[|\\\\{1,4}\\(|<smiles>|!\\[|<img|<svg|<code>)")
+                .matcher(cleaned)
+                .replaceAll("$1");
+
+        // 2. Remove stray underscores before standalone numbers
+        // e.g. "_ 15" -> "15" or option starting with "_ 75" -> "75"
+        cleaned = Pattern.compile("(^|\\s)(?:_{1,4}\\s+)+(?=[0-9]+(?:\\.[0-9]+)?(?![0-9_a-zA-Z]))")
+                .matcher(cleaned)
+                .replaceAll("$1");
+
+        // 3. Remove stray leading underscores at the beginning of strings or option text
+        // e.g. "^_+\s*" before non-whitespace
+        cleaned = Pattern.compile("^\\s*(?:_{1,4}\\s*)+(?=[^\\s_])")
+                .matcher(cleaned)
+                .replaceAll("");
+
+        // 4. Remove stray underscores after non-translatable tokens
+        // e.g. "$$\frac{5}{6}$$ _ पर" -> "$$\frac{5}{6}$$ पर"
+        // e.g. "$$15\text{ minutes}$$ _ _ देर" -> "$$15\text{ minutes}$$ देर"
+        // e.g. "$$T$$ _ का" -> "$$T$$ का"
+        Matcher postTokenMatcher = Pattern.compile("(\\$\\$|\\$|\\\\{1,4}\\]|\\\\{1,4}\\)|<\\/smiles>|<\\/code>)\\s+(?:_{1,4}\\s*)+(?=[\\s.,;:!?\\u0964\\p{L}]|$)")
+                .matcher(cleaned);
+        StringBuilder sb = new StringBuilder();
+        while (postTokenMatcher.find()) {
+            postTokenMatcher.appendReplacement(sb, Matcher.quoteReplacement(postTokenMatcher.group(1)) + " ");
+        }
+        postTokenMatcher.appendTail(sb);
+        cleaned = sb.toString();
+
+        // 5. Remove trailing stray underscores at the end of strings or before terminal punctuation
+        // e.g. " देर से पहुँचता है _ ." or " ... $$ _"
+        cleaned = Pattern.compile("\\s+(?:_{1,4}\\s*)+(?=[.,;:!?\\u0964]|$)")
+                .matcher(cleaned)
+                .replaceAll("");
+
+        // 6. Normalize multiple consecutive spaces
+        cleaned = cleaned.replaceAll("[ \\t]{2,}", " ").trim();
+
+        return cleaned;
     }
 
     private static int parseIndex(String indexStr) {
@@ -151,8 +207,8 @@ public final class LatexPreservationUtil {
         for (char c : indexStr.toCharArray()) {
             if (c >= '0' && c <= '9') {
                 sb.append(c);
-            } else if (c >= '०' && c <= '९') {
-                sb.append((char) ('0' + (c - '०')));
+            } else if (c >= '\u0966' && c <= '\u096f') {
+                sb.append((char) ('0' + (c - '\u0966')));
             }
         }
         return Integer.parseInt(sb.toString());
