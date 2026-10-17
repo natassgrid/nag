@@ -16,6 +16,8 @@ import com.examplatform.questionbank.domain.Topic;
 import com.examplatform.questionbank.repository.SubjectRepository;
 import com.examplatform.questionbank.repository.SubtopicRepository;
 import com.examplatform.questionbank.repository.TopicRepository;
+import com.examplatform.questionbank.microlesson.translation.service.MicroLessonTranslationWorkflowService;
+import com.examplatform.shared.tenant.TenantContext;
 import jakarta.persistence.criteria.Predicate;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,6 +48,7 @@ public class MicroLessonService {
     private final SubtopicRepository subtopicRepository;
     private final TopicRepository topicRepository;
     private final SubjectRepository subjectRepository;
+    private final MicroLessonTranslationWorkflowService translationWorkflowService;
 
     public MicroLessonService(
             SubtopicMicroLessonRepository repository,
@@ -53,7 +56,19 @@ public class MicroLessonService {
             MicroLessonCacheService cacheService,
             KaTexValidator kaTexValidator,
             ObjectMapper objectMapper) {
-        this(repository, generatorService, cacheService, kaTexValidator, objectMapper, null, null, null);
+        this(repository, generatorService, cacheService, kaTexValidator, objectMapper, null, null, null, null);
+    }
+
+    public MicroLessonService(
+            SubtopicMicroLessonRepository repository,
+            MicroLessonGeneratorService generatorService,
+            MicroLessonCacheService cacheService,
+            KaTexValidator kaTexValidator,
+            ObjectMapper objectMapper,
+            SubtopicRepository subtopicRepository,
+            TopicRepository topicRepository,
+            SubjectRepository subjectRepository) {
+        this(repository, generatorService, cacheService, kaTexValidator, objectMapper, subtopicRepository, topicRepository, subjectRepository, null);
     }
 
     @Autowired
@@ -65,7 +80,8 @@ public class MicroLessonService {
             ObjectMapper objectMapper,
             @Autowired(required = false) SubtopicRepository subtopicRepository,
             @Autowired(required = false) TopicRepository topicRepository,
-            @Autowired(required = false) SubjectRepository subjectRepository) {
+            @Autowired(required = false) SubjectRepository subjectRepository,
+            @Autowired(required = false) MicroLessonTranslationWorkflowService translationWorkflowService) {
         this.repository = repository;
         this.generatorService = generatorService;
         this.cacheService = cacheService;
@@ -74,6 +90,7 @@ public class MicroLessonService {
         this.subtopicRepository = subtopicRepository;
         this.topicRepository = topicRepository;
         this.subjectRepository = subjectRepository;
+        this.translationWorkflowService = translationWorkflowService;
     }
 
     @Transactional(readOnly = true)
@@ -871,6 +888,41 @@ public class MicroLessonService {
             }
         }
         return null;
+    }
+
+    @Transactional
+    public Optional<MicroLessonResponse> getPublishedMicroLesson(
+            Long subtopicId,
+            String targetExam,
+            String subjectName,
+            String topicName,
+            String subtopicName,
+            String lang) {
+
+        Optional<MicroLessonResponse> baseOpt = getPublishedMicroLesson(
+                subtopicId, targetExam, subjectName, topicName, subtopicName);
+
+        if (baseOpt.isEmpty()) {
+            return Optional.empty();
+        }
+
+        MicroLessonResponse base = baseOpt.get();
+        if (lang == null || lang.isBlank() || "en".equalsIgnoreCase(lang.trim()) || "eng".equalsIgnoreCase(lang.trim())) {
+            return Optional.of(base.withLocalization("en", false));
+        }
+
+        String targetLang = lang.trim().toLowerCase();
+        if (translationWorkflowService != null && base.id() != null) {
+            String tenantId = TenantContext.get();
+            try {
+                MicroLessonResponse localized = translationWorkflowService.getLocalizedMicroLesson(base.id(), targetLang, tenantId);
+                return Optional.of(localized);
+            } catch (Exception e) {
+                log.warn("Failed to retrieve localized micro-lesson for id={} lang={}: {}", base.id(), targetLang, e.getMessage());
+            }
+        }
+
+        return Optional.of(base.withLocalization("en", true));
     }
 
     @Transactional

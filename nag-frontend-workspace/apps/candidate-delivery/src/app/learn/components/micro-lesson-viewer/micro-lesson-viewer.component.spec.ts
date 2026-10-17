@@ -94,4 +94,39 @@ describe('MicroLessonViewerComponent', () => {
     component.onBackToRoadmap();
     expect(mockRouter.navigate).toHaveBeenCalledWith(['/learn/roadmap']);
   });
+
+  it('should switch language and fetch localized micro-lesson', () => {
+    const hindiLesson: SubtopicMicroLesson = {
+      ...sampleLesson,
+      languageCode: 'hi',
+      fallbackToEnglish: false,
+      content: {
+        ...sampleLesson.content,
+        coreConcept: 'जड़त्वाघूर्ण घूर्णी जड़त्व का माप है: $$I = \\sum m_i r_i^2$$.',
+      },
+    };
+    mockMicroLessonService.getMicroLessonByLanguage = jest.fn().mockReturnValue(of(hindiLesson));
+
+    component.changeLanguage('hi');
+    expect(component.selectedLanguage()).toBe('hi');
+    expect(mockMicroLessonService.getMicroLessonByLanguage).toHaveBeenCalledWith('lesson-1', 'hi');
+    expect(component.lesson()?.languageCode).toBe('hi');
+    expect(component.lesson()?.content.coreConcept).toContain('जड़त्वाघूर्ण');
+  });
+
+  it('should display fallback notice when fallbackToEnglish is true', () => {
+    const fallbackLesson: SubtopicMicroLesson = {
+      ...sampleLesson,
+      languageCode: 'hi',
+      fallbackToEnglish: true,
+    };
+    mockMicroLessonService.getMicroLessonByLanguage = jest.fn().mockReturnValue(of(fallbackLesson));
+
+    component.changeLanguage('hi');
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.textContent).toContain('Translation for the selected regional language is being prepared');
+  });
 });
+

@@ -495,4 +495,18 @@ describe('MicroLessonReviewComponent', () => {
       queryParams: { edit: 'ml-1' },
     });
   });
+
+  it('should open batch translate dialog and reload lessons on close', () => {
+    const afterClosedSubject = of({ id: 'job-transl-1' });
+    dialogMock.open.mockReturnValue({
+      afterClosed: () => afterClosedSubject,
+    });
+
+    component.openBatchTranslateDialog();
+    expect(dialogMock.open).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ width: '560px' })
+    );
+    expect(microLessonServiceMock.listForReview).toHaveBeenCalled();
+  });
 });

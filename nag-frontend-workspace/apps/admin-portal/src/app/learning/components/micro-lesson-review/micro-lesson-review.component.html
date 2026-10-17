@@ -84,6 +84,14 @@
         <span>Generate Micro-Lesson</span>
       </button>
       <button
+        mat-stroked-button
+        (click)="openBatchTranslateDialog()"
+        class="!text-indigo-700 !border-indigo-200 hover:!bg-indigo-50 !rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+      >
+        <mat-icon class="!text-sm text-indigo-600">translate</mat-icon>
+        <span>Batch Translate</span>
+      </button>
+      <button
         mat-flat-button
         color="primary"
         (click)="openBatchGenerateDialog()"

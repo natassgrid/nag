@@ -1,4 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { MicroLessonDetailDrawerComponent } from './micro-lesson-detail-drawer.component';
 import { MicroLessonReviewItem } from '../../../../models/micro-lesson.model';
 
@@ -29,6 +31,7 @@ describe('MicroLessonDetailDrawerComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [MicroLessonDetailDrawerComponent],
+      providers: [provideHttpClient(), provideHttpClientTesting()],
     }).compileComponents();
 
     fixture = TestBed.createComponent(MicroLessonDetailDrawerComponent);
@@ -92,4 +95,22 @@ describe('MicroLessonDetailDrawerComponent', () => {
     saveBtn.click();
     expect(saveEditSpy).toHaveBeenCalled();
   });
+
+  it('should switch between Content and Translation tabs', () => {
+    fixture.componentRef.setInput('lesson', mockLesson);
+    fixture.detectChanges();
+
+    expect(component.activeTab()).toBe('CONTENT');
+
+    const buttons = fixture.nativeElement.querySelectorAll('button');
+    const translTab = Array.from(buttons).find((b: any) =>
+      b.textContent?.includes('Multilingual & IndicTrans2')
+    ) as HTMLButtonElement;
+    expect(translTab).toBeTruthy();
+
+    translTab.click();
+    fixture.detectChanges();
+    expect(component.activeTab()).toBe('TRANSLATION');
+  });
 });
+

@@ -28,9 +28,10 @@ public class MicroLessonController {
             @RequestParam(defaultValue = "JEE_MAIN") String targetExam,
             @RequestParam(required = false) String subtopicName,
             @RequestParam(required = false) String topicName,
-            @RequestParam(required = false) String subjectName) {
+            @RequestParam(required = false) String subjectName,
+            @RequestParam(required = false, defaultValue = "en") String lang) {
 
-        return microLessonService.getPublishedMicroLesson(subtopicId, targetExam, subjectName, topicName, subtopicName)
+        return microLessonService.getPublishedMicroLesson(subtopicId, targetExam, subjectName, topicName, subtopicName, lang)
                 .map(ResponseEntity::ok)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Published micro-lesson not available for subtopic " + subtopicId));

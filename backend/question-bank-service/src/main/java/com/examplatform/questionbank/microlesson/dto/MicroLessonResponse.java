@@ -31,8 +31,45 @@ public record MicroLessonResponse(
         String reviewComments,
         int contentVersion,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        String languageCode,
+        Boolean fallbackToEnglish
 ) implements Serializable {
+
+    public MicroLessonResponse(
+            UUID id,
+            Long subjectId,
+            Long topicId,
+            Long subtopicId,
+            String subject,
+            String topic,
+            String subtopic,
+            String targetExam,
+            String coreConcept,
+            String trap,
+            List<String> cheatSheet,
+            StepByStepBreakdownDto stepByStepBreakdown,
+            String status,
+            UUID reviewedBy,
+            Instant reviewedAt,
+            String reviewComments,
+            int contentVersion,
+            Instant createdAt,
+            Instant updatedAt
+    ) {
+        this(id, subjectId, topicId, subtopicId, subject, topic, subtopic, targetExam,
+                coreConcept, trap, cheatSheet, stepByStepBreakdown, status, reviewedBy,
+                reviewedAt, reviewComments, contentVersion, createdAt, updatedAt, "en", false);
+    }
+
+    public MicroLessonResponse withLocalization(String languageCode, boolean fallbackToEnglish) {
+        return new MicroLessonResponse(
+                id, subjectId, topicId, subtopicId, subject, topic, subtopic, targetExam,
+                coreConcept, trap, cheatSheet, stepByStepBreakdown, status, reviewedBy,
+                reviewedAt, reviewComments, contentVersion, createdAt, updatedAt,
+                languageCode, fallbackToEnglish
+        );
+    }
 
     @JsonProperty("subtopicName")
     public String getSubtopicName() {

@@ -30,6 +30,7 @@ import {
 } from '../../models/micro-lesson.model';
 import { GenerateMicroLessonDialogComponent } from '../generate-micro-lesson-dialog/generate-micro-lesson-dialog.component';
 import { BatchGenerateMicroLessonDialogComponent } from '../batch-generate-dialog/batch-generate-dialog.component';
+import { BatchTranslateMicroLessonDialogComponent } from '../batch-translate-micro-lesson-dialog/batch-translate-micro-lesson-dialog.component';
 import { Subscription, timer } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 import {
@@ -687,6 +688,20 @@ export class MicroLessonReviewComponent implements OnInit, OnDestroy {
         this.loadFilterOptions(
           this.selectedSubject() === 'ALL' ? undefined : this.selectedSubject()
         );
+      }
+    });
+  }
+
+  openBatchTranslateDialog() {
+    const dialogRef = this.dialog.open(BatchTranslateMicroLessonDialogComponent, {
+      width: '560px',
+      panelClass: 'nag-dialog-clean',
+    });
+
+    dialogRef.afterClosed().subscribe((res) => {
+      if (res) {
+        this.loadLessons();
+        this.loadStats();
       }
     });
   }

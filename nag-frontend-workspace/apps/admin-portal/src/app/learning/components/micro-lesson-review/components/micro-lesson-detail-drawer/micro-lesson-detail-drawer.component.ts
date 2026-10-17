@@ -1,15 +1,23 @@
-import { Component, ChangeDetectionStrategy, input, output } from '@angular/core';
+import { Component, ChangeDetectionStrategy, input, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MathRendererComponent } from '@nag-frontend-workspace/shared-ui-components';
 import { MicroLessonReviewItem } from '../../../../models/micro-lesson.model';
+import { MicroLessonTranslationPanelComponent } from '../micro-lesson-translation-panel/micro-lesson-translation-panel.component';
 
 @Component({
   selector: 'app-micro-lesson-detail-drawer',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatButtonModule, MatIconModule, MathRendererComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    MatButtonModule,
+    MatIconModule,
+    MathRendererComponent,
+    MicroLessonTranslationPanelComponent,
+  ],
   templateUrl: './micro-lesson-detail-drawer.component.html',
   styleUrl: './micro-lesson-detail-drawer.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -22,6 +30,9 @@ export class MicroLessonDetailDrawerComponent {
   readonly editedCoreConcept = input<string>('');
   readonly editedTrapAlert = input<string>('');
   readonly editedFormulaCheatSheet = input<string>('');
+
+  readonly activeTab = signal<'CONTENT' | 'TRANSLATION'>('CONTENT');
+
 
   readonly close = output<void>();
   readonly startEdit = output<MicroLessonReviewItem>();

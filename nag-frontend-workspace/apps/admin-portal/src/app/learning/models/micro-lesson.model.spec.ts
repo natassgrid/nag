@@ -99,4 +99,36 @@ describe('MicroLesson Model Formula Colon Parsing', () => {
       "Newton's 2nd: $$F = ma$$",
     ]);
   });
+
+  it('adaptToReviewItem should preserve multilingual translation attributes', () => {
+    const raw = {
+      id: 'ml-trans-1',
+      subject: 'Physics',
+      topic: 'Thermodynamics',
+      subtopic: 'Carnot Engine',
+      languageCode: 'hi',
+      fallbackToEnglish: false,
+      translations: [
+        {
+          id: 't-1',
+          microlessonId: 'ml-trans-1',
+          languageCode: 'hi',
+          coreConcept: 'कार्नो इंजन',
+          trap: 'दक्षता 100% नहीं हो सकती',
+          cheatSheet: ['$$\\eta = 1 - \\frac{T_C}{T_H}$$'],
+          stepByStepBreakdown: {},
+          sourceVersion: 1,
+          status: 'APPROVED',
+        },
+      ],
+      coreConcept: 'कार्नो इंजन',
+    };
+
+    const adapted = adaptToReviewItem(raw);
+    expect(adapted.languageCode).toBe('hi');
+    expect(adapted.fallbackToEnglish).toBe(false);
+    expect(adapted.translations?.length).toBe(1);
+    expect(adapted.translations?.[0].status).toBe('APPROVED');
+  });
 });
+
