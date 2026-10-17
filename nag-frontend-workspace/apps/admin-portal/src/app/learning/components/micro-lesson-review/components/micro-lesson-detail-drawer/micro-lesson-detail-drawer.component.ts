@@ -11,6 +11,7 @@ import { MicroLessonReviewItem } from '../../../../models/micro-lesson.model';
   standalone: true,
   imports: [CommonModule, FormsModule, MatButtonModule, MatIconModule, MathRendererComponent],
   templateUrl: './micro-lesson-detail-drawer.component.html',
+  styleUrl: './micro-lesson-detail-drawer.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MicroLessonDetailDrawerComponent {
@@ -24,6 +25,7 @@ export class MicroLessonDetailDrawerComponent {
 
   readonly close = output<void>();
   readonly startEdit = output<MicroLessonReviewItem>();
+  readonly openStudioEdit = output<MicroLessonReviewItem>();
   readonly cancelEdit = output<void>();
   readonly saveEdit = output<void>();
   readonly delete = output<MicroLessonReviewItem>();

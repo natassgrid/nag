@@ -1,0 +1,183 @@
+<div class="bg-white rounded-2xl border border-purple-200/80 p-5 shadow-xs space-y-4">
+  <div class="flex flex-wrap items-center justify-between gap-2 border-b border-purple-100 pb-3">
+    <div class="flex items-center gap-2">
+      <div class="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+        <mat-icon class="!text-lg">format_list_numbered</mat-icon>
+      </div>
+      <div>
+        <h3 class="text-sm font-bold text-slate-900">Part 4: Step-by-Step Worked Example Builder</h3>
+        <p class="text-[11px] text-slate-500">Walk candidates through a canonical exam problem step by step.</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <button
+        type="button"
+        (click)="togglePalette()"
+        class="px-3 py-1.5 text-xs font-semibold rounded-xl border flex items-center gap-1.5 transition-all cursor-pointer"
+        [ngClass]="{
+          'bg-purple-600 text-white border-purple-600': showPalette(),
+          'bg-white text-purple-700 border-purple-200 hover:bg-purple-50': !showPalette()
+        }"
+      >
+        <mat-icon class="!text-sm leading-none">functions</mat-icon>
+        <span>{{ showPalette() ? 'Close Palette' : 'Symbol Palette' }}</span>
+      </button>
+
+      <button
+        type="button"
+        (click)="addStep()"
+        class="px-3 py-1.5 text-xs font-bold rounded-xl bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
+      >
+        <mat-icon class="!text-sm leading-none">add</mat-icon>
+        <span>Add Step</span>
+      </button>
+    </div>
+  </div>
+
+  @if (showPalette()) {
+    <div class="pt-1">
+      <nag-formula-symbol-palette
+        (symbolSelected)="insertSymbol($event)"
+      ></nag-formula-symbol-palette>
+    </div>
+  }
+
+  <!-- Problem Statement -->
+  <div>
+    <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+      Exemplar Problem Statement (Markdown + LaTeX)
+    </label>
+    <textarea
+      id="worked-problem-statement"
+      [ngModel]="problemStatement()"
+      (ngModelChange)="problemStatementChange.emit($event)"
+      (focus)="activeTarget.set('problem')"
+      rows="3"
+      placeholder="e.g. A block of mass $$m = 2\text{ kg}$$ slides down an incline of angle $$\theta = 30^\circ$$..."
+      class="w-full font-mono text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+    ></textarea>
+  </div>
+
+  <!-- Ordered Steps List -->
+  <div class="space-y-3">
+    @for (step of steps(); track $index) {
+      <div class="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-3">
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full bg-purple-100 text-purple-700 font-bold text-xs flex items-center justify-center">
+              {{ $index + 1 }}
+            </span>
+            <span class="text-xs font-bold text-slate-800">Derivation Step #{{ $index + 1 }}</span>
+          </div>
+
+          <div class="flex items-center gap-1">
+            <button
+              type="button"
+              (click)="moveStep($index, -1)"
+              [disabled]="$index === 0"
+              class="p-1 rounded-lg text-slate-400 hover:text-slate-700 disabled:opacity-30 cursor-pointer"
+              title="Move Up"
+            >
+              <mat-icon class="!text-base leading-none">arrow_upward</mat-icon>
+            </button>
+            <button
+              type="button"
+              (click)="moveStep($index, 1)"
+              [disabled]="$index === steps().length - 1"
+              class="p-1 rounded-lg text-slate-400 hover:text-slate-700 disabled:opacity-30 cursor-pointer"
+              title="Move Down"
+            >
+              <mat-icon class="!text-base leading-none">arrow_downward</mat-icon>
+            </button>
+            @if (steps().length > 1) {
+              <button
+                type="button"
+                (click)="removeStep($index)"
+                class="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
+                title="Remove Step"
+              >
+                <mat-icon class="!text-base leading-none">delete_outline</mat-icon>
+              </button>
+            }
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
+          <div class="md:col-span-5">
+            <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+              Step Title / Objective
+            </label>
+            <input
+              type="text"
+              [ngModel]="step.title"
+              (ngModelChange)="updateStep($index, 'title', $event)"
+              placeholder="e.g. Resolve Forces Along Incline"
+              class="w-full text-xs p-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+            />
+          </div>
+
+          <div class="md:col-span-7">
+            <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+              Key Step Formula (Optional LaTeX)
+            </label>
+            <input
+              type="text"
+              [ngModel]="step.formula || ''"
+              (ngModelChange)="updateStep($index, 'formula', $event)"
+              (focus)="activeTarget.set('stepFormula'); activeStepIndex.set($index)"
+              placeholder="e.g. $$F_{\text{net}} = mg\sin\theta - \mu mg\cos\theta$$"
+              class="w-full font-mono text-xs p-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+            />
+            @if (step.formula && step.formula.trim()) {
+              <div class="mt-1.5 p-2 bg-purple-50/70 border border-purple-200 rounded-lg text-xs overflow-x-auto text-slate-900 flex items-center justify-between gap-2 shadow-2xs">
+                <div class="overflow-x-auto text-slate-900 font-medium">
+                  <nag-math-renderer [content]="step.formula"></nag-math-renderer>
+                </div>
+                <span class="text-[10px] text-purple-700 font-mono font-bold shrink-0 bg-purple-100/80 px-1.5 py-0.5 rounded border border-purple-200">Step Formula</span>
+              </div>
+            }
+          </div>
+
+          <div class="md:col-span-12">
+            <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+              Step Explanation &amp; Reasoning *
+            </label>
+            <textarea
+              [ngModel]="step.explanation"
+              (ngModelChange)="updateStep($index, 'explanation', $event)"
+              (focus)="activeTarget.set('stepExplanation'); activeStepIndex.set($index)"
+              rows="2"
+              placeholder="Explain why this transformation applies..."
+              class="w-full font-mono text-xs p-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+            ></textarea>
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- Final Answer -->
+  <div>
+    <label class="block text-[11px] font-bold text-emerald-800 uppercase mb-1">
+      Final Answer / Boxed Conclusion
+    </label>
+    <input
+      type="text"
+      id="worked-final-answer"
+      [ngModel]="finalAnswer()"
+      (ngModelChange)="finalAnswerChange.emit($event)"
+      (focus)="activeTarget.set('finalAnswer')"
+      placeholder="e.g. $$a = 3.2\text{ m/s}^2$$"
+      class="w-full font-mono text-xs p-2.5 bg-emerald-50/40 border border-emerald-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+    />
+    @if (finalAnswer() && finalAnswer().trim()) {
+      <div class="mt-1.5 text-xs text-emerald-950 bg-emerald-50/80 px-3 py-2 rounded-lg border border-emerald-200 shadow-2xs flex items-center justify-between gap-2">
+        <div class="text-slate-900 font-medium">
+          <nag-math-renderer [content]="finalAnswer()" [inline]="true"></nag-math-renderer>
+        </div>
+        <span class="text-[10px] text-emerald-700 font-mono font-bold shrink-0 bg-emerald-100/80 px-2 py-0.5 rounded border border-emerald-200">Final Result</span>
+      </div>
+    }
+  </div>
+</div>

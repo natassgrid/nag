@@ -1,4 +1,4 @@
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MicroLessonReviewComponent } from './micro-lesson-review.component';
 import { MicroLessonAdminService } from '../../services/micro-lesson-admin.service';
@@ -481,5 +481,18 @@ describe('MicroLessonReviewComponent', () => {
 
     component.dismissBatchBanner();
     expect(component.activeBatchJob()).toBeNull();
+  });
+
+  it('should navigate to Manual Authoring Studio in create or edit mode', () => {
+    const router = TestBed.inject(Router);
+    const navSpy = jest.spyOn(router, 'navigate').mockResolvedValue(true);
+
+    component.openAuthoringStudio();
+    expect(navSpy).toHaveBeenCalledWith(['/learning/micro-lessons/authoring']);
+
+    component.openAuthoringStudio(mockLessons[0]);
+    expect(navSpy).toHaveBeenCalledWith(['/learning/micro-lessons/authoring'], {
+      queryParams: { edit: 'ml-1' },
+    });
   });
 });
