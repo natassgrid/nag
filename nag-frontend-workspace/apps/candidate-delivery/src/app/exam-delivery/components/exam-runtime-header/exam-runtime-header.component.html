@@ -28,8 +28,8 @@
         PROCTOR HEARTBEAT: ENCRYPTED
       </span>
     } @else if (deliveryMode() === 'PRACTICE') {
-      <span class="text-xs px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30 flex items-center gap-1.5 font-mono">
-        <span class="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse"></span>
+      <span class="text-xs px-2 py-0.5 rounded bg-purple-500/20 text-purple-200 border border-purple-400/40 flex items-center gap-1.5 font-mono">
+        <span class="w-1.5 h-1.5 rounded-full bg-purple-300 animate-pulse"></span>
         PRACTICE SIMULATION (LOCAL)
       </span>
     } @else {
@@ -71,7 +71,10 @@
     <!-- Submit / Exit Trigger Button -->
     <button
       mat-flat-button
-      [color]="deliveryMode() === 'PREVIEW' ? 'primary' : deliveryMode() === 'PRACTICE' ? 'accent' : 'warn'"
+      [color]="deliveryMode() === 'PREVIEW' ? 'primary' : deliveryMode() === 'PRACTICE' ? undefined : 'warn'"
+      [ngClass]="{
+        '!bg-purple-600 hover:!bg-purple-700 !text-white': deliveryMode() === 'PRACTICE'
+      }"
       (click)="onSubmit()"
       class="!text-xs !py-1 !px-3 font-semibold !rounded-lg cursor-pointer"
     >

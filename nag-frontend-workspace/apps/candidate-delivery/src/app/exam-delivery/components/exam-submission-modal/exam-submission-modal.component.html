@@ -1,5 +1,5 @@
 <div class="submission-modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
-  <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-4 animate-in fade-in zoom-in-95 duration-200">
+  <div class="bg-white text-slate-900 rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-4 animate-in fade-in zoom-in-95 duration-200">
     @if (receipt().mode === 'PRACTICE') {
       <div class="w-14 h-14 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center mx-auto shadow-sm">
         <mat-icon class="!text-3xl !w-8 !h-8">emoji_events</mat-icon>
@@ -56,7 +56,7 @@
         <a
           mat-stroked-button
           routerLink="/practice"
-          class="!w-full !rounded-xl !py-2.5 font-semibold cursor-pointer text-slate-700"
+          class="!w-full !rounded-xl !py-2.5 font-semibold cursor-pointer !text-slate-800 !border-slate-300 hover:!bg-slate-50"
         >
           Practice Hub
         </a>
@@ -64,7 +64,7 @@
           mat-flat-button
           color="primary"
           [routerLink]="receipt().sessionId ? ['/practice/result', receipt().sessionId] : ['/review']"
-          class="!w-full !rounded-xl !py-2.5 font-semibold cursor-pointer !bg-purple-600 !text-white"
+          class="!w-full !rounded-xl !py-2.5 font-semibold cursor-pointer !bg-purple-600 !text-white hover:!bg-purple-700"
         >
           Detailed Review &rarr;
         </a>
