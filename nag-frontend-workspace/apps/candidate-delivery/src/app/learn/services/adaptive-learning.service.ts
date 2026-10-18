@@ -73,12 +73,52 @@ export class AdaptiveLearningService {
   }
 
   getPublishedExams(): Observable<LearnerExamSummary[]> {
-    return this.http.get<LearnerExamSummary[]>('/api/v1/learner/exams').pipe(
-      tap((res) => {
-        if (res && res.length > 0) this.publishedExams.set(res);
+    return this.http.get<any[]>('/api/v1/learner/exams').pipe(
+      map((res) => {
+        if (!res || !Array.isArray(res) || res.length === 0) {
+          return this.publishedExams();
+        }
+        return res.map((item) => this.normalizeExamSummary(item));
+      }),
+      tap((normalized) => {
+        if (normalized && normalized.length > 0) {
+          this.publishedExams.set(normalized);
+        }
       }),
       catchError(() => of(this.publishedExams()))
     );
+  }
+
+  private normalizeExamSummary(raw: any): LearnerExamSummary {
+    const matchingSeed = SEED_PUBLISHED_EXAMS.find(
+      (s) => s.id === raw.id || s.code === raw.code
+    );
+
+    const title = raw.title || raw.name || matchingSeed?.title || 'Competitive Examination';
+    const sectionsCount = raw.sectionsCount ?? matchingSeed?.syllabusSummary?.subjectCount ?? 0;
+    const nodesCount = raw.syllabusNodesCount ?? matchingSeed?.syllabusSummary?.subtopicCount ?? 0;
+
+    return {
+      id: raw.id,
+      code: raw.code || 'EXAM',
+      title,
+      name: raw.name || title,
+      description: raw.description || matchingSeed?.description || '',
+      conductingAuthority: raw.conductingAuthority || matchingSeed?.conductingAuthority || 'Exam Authority',
+      category: raw.category || matchingSeed?.category || 'General',
+      totalQuestions: raw.totalQuestions ?? matchingSeed?.totalQuestions ?? 100,
+      totalMarks: raw.totalMarks ?? matchingSeed?.totalMarks ?? 200,
+      durationMinutes: raw.durationMinutes ?? matchingSeed?.durationMinutes ?? 60,
+      blueprintId: raw.blueprintId,
+      sectionsCount,
+      syllabusNodesCount: nodesCount,
+      syllabusSummary: raw.syllabusSummary || matchingSeed?.syllabusSummary || {
+        subjectCount: sectionsCount,
+        topicCount: Math.max(1, Math.round(nodesCount / 2)),
+        subtopicCount: nodesCount,
+        subjects: [],
+      },
+    };
   }
 
   getEnrollments(): Observable<LearnerEnrollment[]> {

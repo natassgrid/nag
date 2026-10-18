@@ -52,18 +52,21 @@ export interface LearnerExamSummary {
   id: string;
   code: string;
   title: string;
-  description: string;
-  conductingAuthority: string;
-  category: string;
+  name?: string;
+  description?: string;
+  conductingAuthority?: string;
+  category?: string;
   totalQuestions?: number;
   totalMarks?: number;
   durationMinutes?: number;
   blueprintId?: string;
-  syllabusSummary: {
-    subjectCount: number;
-    topicCount: number;
-    subtopicCount: number;
-    subjects: LearnerSyllabusSubject[];
+  sectionsCount?: number;
+  syllabusNodesCount?: number;
+  syllabusSummary?: {
+    subjectCount?: number;
+    topicCount?: number;
+    subtopicCount?: number;
+    subjects?: LearnerSyllabusSubject[];
   };
 }
 

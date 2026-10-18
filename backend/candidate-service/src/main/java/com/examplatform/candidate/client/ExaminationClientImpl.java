@@ -44,22 +44,29 @@ public class ExaminationClientImpl implements ExaminationClient {
         if (jdbcTemplate != null) {
             try {
                 String sql = """
-                    SELECT id, code, name, description, status, duration_minutes, total_marks, blueprint_id
-                    FROM examination_service.examination
-                    WHERE status = 'PUBLISHED'
-                    ORDER BY name ASC
+                    SELECT e.id, e.code, e.name, e.conducting_authority, e.category, e.status, e.duration_minutes, e.total_marks, e.blueprint_id,
+                           COALESCE(COUNT(DISTINCT s.id), 0) AS sections_count,
+                           COALESCE(COUNT(DISTINCT n.id), 0) AS nodes_count
+                    FROM examination_service.examination e
+                    LEFT JOIN examination_service.examination_section s ON s.examination_id = e.id
+                    LEFT JOIN examination_service.exam_syllabus_node n ON n.examination_id = e.id
+                    WHERE e.status = 'PUBLISHED'
+                    GROUP BY e.id, e.code, e.name, e.conducting_authority, e.category, e.status, e.duration_minutes, e.total_marks, e.blueprint_id
+                    ORDER BY e.name ASC
                     """;
                 List<PublishedExamDto> exams = jdbcTemplate.query(sql, (rs, rowNum) -> new PublishedExamDto(
                         rs.getObject("id", UUID.class),
                         rs.getString("code"),
                         rs.getString("name"),
-                        rs.getString("description"),
+                        null,
                         rs.getString("status"),
                         rs.getInt("duration_minutes"),
                         rs.getInt("total_marks"),
                         rs.getObject("blueprint_id", UUID.class),
-                        3,
-                        15
+                        rs.getInt("sections_count"),
+                        rs.getInt("nodes_count"),
+                        rs.getString("conducting_authority"),
+                        rs.getString("category")
                 ));
                 if (!exams.isEmpty()) {
                     return exams;
@@ -95,21 +102,28 @@ public class ExaminationClientImpl implements ExaminationClient {
         if (jdbcTemplate != null) {
             try {
                 String sql = """
-                    SELECT id, code, name, description, status, duration_minutes, total_marks, blueprint_id
-                    FROM examination_service.examination
-                    WHERE id = ?
+                    SELECT e.id, e.code, e.name, e.conducting_authority, e.category, e.status, e.duration_minutes, e.total_marks, e.blueprint_id,
+                           COALESCE(COUNT(DISTINCT s.id), 0) AS sections_count,
+                           COALESCE(COUNT(DISTINCT n.id), 0) AS nodes_count
+                    FROM examination_service.examination e
+                    LEFT JOIN examination_service.examination_section s ON s.examination_id = e.id
+                    LEFT JOIN examination_service.exam_syllabus_node n ON n.examination_id = e.id
+                    WHERE e.id = ?
+                    GROUP BY e.id, e.code, e.name, e.conducting_authority, e.category, e.status, e.duration_minutes, e.total_marks, e.blueprint_id
                     """;
                 List<PublishedExamDto> list = jdbcTemplate.query(sql, (rs, rowNum) -> new PublishedExamDto(
                         rs.getObject("id", UUID.class),
                         rs.getString("code"),
                         rs.getString("name"),
-                        rs.getString("description"),
+                        null,
                         rs.getString("status"),
                         rs.getInt("duration_minutes"),
                         rs.getInt("total_marks"),
                         rs.getObject("blueprint_id", UUID.class),
-                        3,
-                        15
+                        rs.getInt("sections_count"),
+                        rs.getInt("nodes_count"),
+                        rs.getString("conducting_authority"),
+                        rs.getString("category")
                 ), examId);
                 if (!list.isEmpty()) {
                     return Optional.of(list.getFirst());
@@ -148,7 +162,9 @@ public class ExaminationClientImpl implements ExaminationClient {
                         300,
                         UUID.fromString("bbbbbbbb-1111-2222-3333-444444444441"),
                         3,
-                        30
+                        30,
+                        "National Testing Agency (NTA)",
+                        "ENTRANCE"
                 ),
                 new PublishedExamDto(
                         UUID.fromString("11111111-2222-3333-4444-555555555552"),
@@ -160,7 +176,9 @@ public class ExaminationClientImpl implements ExaminationClient {
                         200,
                         UUID.fromString("bbbbbbbb-1111-2222-3333-444444444442"),
                         4,
-                        25
+                        25,
+                        "Staff Selection Commission (SSC)",
+                        "RECRUITMENT"
                 ),
                 new PublishedExamDto(
                         UUID.fromString("11111111-2222-3333-4444-555555555553"),
@@ -172,7 +190,9 @@ public class ExaminationClientImpl implements ExaminationClient {
                         720,
                         UUID.fromString("bbbbbbbb-1111-2222-3333-444444444443"),
                         4,
-                        40
+                        40,
+                        "National Testing Agency (NTA)",
+                        "ENTRANCE"
                 )
         );
     }

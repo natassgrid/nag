@@ -26,5 +26,22 @@ public record PublishedExamDto(
         int totalMarks,
         UUID blueprintId,
         int sectionsCount,
-        int syllabusNodesCount
-) {}
+        int syllabusNodesCount,
+        String conductingAuthority,
+        String category
+) {
+    public PublishedExamDto(
+            UUID id,
+            String code,
+            String name,
+            String description,
+            String status,
+            int durationMinutes,
+            int totalMarks,
+            UUID blueprintId,
+            int sectionsCount,
+            int syllabusNodesCount
+    ) {
+        this(id, code, name, description, status, durationMinutes, totalMarks, blueprintId, sectionsCount, syllabusNodesCount, null, null);
+    }
+}

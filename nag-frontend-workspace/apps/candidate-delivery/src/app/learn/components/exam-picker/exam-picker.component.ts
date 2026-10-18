@@ -60,13 +60,15 @@ export class ExamPickerComponent {
 
     return list.filter((exam) => {
       if (!exam) return false;
-      const matchesCategory = cat === 'ALL' || exam.category === cat;
+      const matchesCategory = cat === 'ALL' || (exam.category && exam.category === cat);
+      const examTitle = (exam.title || exam.name || '').toLowerCase();
+      const examCode = (exam.code || '').toLowerCase();
+      const examAuth = (exam.conductingAuthority || '').toLowerCase();
       const matchesSearch =
         !query ||
-        (exam.title && exam.title.toLowerCase().includes(query)) ||
-        (exam.code && exam.code.toLowerCase().includes(query)) ||
-        (exam.conductingAuthority &&
-          exam.conductingAuthority.toLowerCase().includes(query));
+        examTitle.includes(query) ||
+        examCode.includes(query) ||
+        examAuth.includes(query);
       return matchesCategory && matchesSearch;
     });
   });
