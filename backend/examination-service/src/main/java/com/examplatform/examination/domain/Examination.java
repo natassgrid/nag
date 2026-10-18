@@ -14,25 +14,24 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 package com.examplatform.examination.domain;
 
 import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.entity.BaseEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 /**
  * Examination configuration entity.
- * Sections are stored as JSONB in {@link #sectionsJson} rather than as a
- * separate table, allowing flexible section definitions without schema changes.
+ * Uses a single canonical blueprint ({@link #blueprintId}) and relational sections
+ * and syllabus nodes defining its curriculum scope.
  *
  * Validates: Requirements 7.1, 7.2, 7b.1
  */
@@ -40,7 +39,8 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(callSuper = true)
+@EqualsAndHashCode(callSuper = true, exclude = {"sections", "syllabusNodes"})
+@ToString(callSuper = true, exclude = {"sections", "syllabusNodes"})
 @Entity
 @Table(name = "examination", schema = "examination_service")
 public class Examination extends BaseEntity {
@@ -97,9 +97,21 @@ public class Examination extends BaseEntity {
     @Column(name = "is_practice", nullable = false)
     private boolean isPractice;
 
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "sections_json", columnDefinition = "jsonb")
-    private String sectionsJson;
+    /** Exactly one blueprint per examination contract. */
+    @Column(name = "blueprint_id", nullable = false, columnDefinition = "uuid")
+    private UUID blueprintId;
+
+    /** Optional parent examination link for multi-stage exams (e.g. Mains referencing Prelims). */
+    @Column(name = "parent_examination_id", columnDefinition = "uuid")
+    private UUID parentExaminationId;
+
+    @Builder.Default
+    @OneToMany(mappedBy = "examination", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<ExaminationSection> sections = new ArrayList<>();
+
+    @Builder.Default
+    @OneToMany(mappedBy = "examination", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<ExamSyllabusNode> syllabusNodes = new ArrayList<>();
 
     /** DRAFT / APPROVED / PUBLISHED / CANCELLED / COMPLETED */
     @Column(name = SharedConstants.STATUS, nullable = false, length = 30)
@@ -108,4 +120,20 @@ public class Examination extends BaseEntity {
     /** UUID of the Exam Controller who created this examination. */
     @Column(name = "created_by", columnDefinition = "uuid")
     private UUID createdBy;
+
+    public void addSection(ExaminationSection section) {
+        if (sections == null) {
+            sections = new ArrayList<>();
+        }
+        sections.add(section);
+        section.setExamination(this);
+    }
+
+    public void addSyllabusNode(ExamSyllabusNode node) {
+        if (syllabusNodes == null) {
+            syllabusNodes = new ArrayList<>();
+        }
+        syllabusNodes.add(node);
+        node.setExamination(this);
+    }
 }

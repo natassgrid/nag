@@ -33,7 +33,8 @@ CREATE TABLE examination_service.examination (
     calculator_policy           VARCHAR(20)  NOT NULL,
     review_flag_enabled         BOOLEAN      NOT NULL DEFAULT FALSE,
     is_practice                 BOOLEAN      NOT NULL DEFAULT FALSE,
-    sections_json               JSONB,
+    blueprint_id                UUID         NOT NULL,         -- exactly one blueprint per examination
+    parent_examination_id       UUID         REFERENCES examination_service.examination(id), -- optional multi-stage exam link
 
     -- Status
     status                      VARCHAR(30)  NOT NULL,         -- DRAFT / APPROVED / PUBLISHED / CANCELLED / COMPLETED
@@ -49,8 +50,58 @@ CREATE UNIQUE INDEX uq_examination_tenant_code
     ON examination_service.examination(tenant_id, code)
     WHERE code IS NOT NULL;
 
-CREATE INDEX idx_examination_tenant_id ON examination_service.examination(tenant_id);
-CREATE INDEX idx_examination_status    ON examination_service.examination(status);
+CREATE INDEX idx_examination_tenant_id    ON examination_service.examination(tenant_id);
+CREATE INDEX idx_examination_status       ON examination_service.examination(status);
+CREATE INDEX idx_examination_blueprint_id ON examination_service.examination(blueprint_id);
+CREATE INDEX idx_examination_parent_id    ON examination_service.examination(parent_examination_id);
+
+-- ============================================================
+-- Table: examination_section
+-- Relational sections scoping questions and marking schemes per subject.
+-- ============================================================
+CREATE TABLE examination_service.examination_section (
+    id                          UUID         PRIMARY KEY,
+    tenant_id                   VARCHAR(255) NOT NULL,
+    examination_id              UUID         NOT NULL
+                                    REFERENCES examination_service.examination(id) ON DELETE CASCADE,
+    subject_id                  BIGINT       NOT NULL,
+    name                        VARCHAR(255) NOT NULL,
+    order_index                 INTEGER      NOT NULL DEFAULT 0,
+    question_count              INTEGER      NOT NULL,
+    marks_per_question          DOUBLE PRECISION NOT NULL,
+    negative_marks              DOUBLE PRECISION NOT NULL DEFAULT 0.0,
+    duration_minutes            INTEGER,
+
+    created_at                  TIMESTAMP    NOT NULL,
+    updated_at                  TIMESTAMP    NOT NULL,
+    version                     BIGINT       NOT NULL DEFAULT 0
+);
+
+CREATE INDEX idx_exam_section_exam_id    ON examination_service.examination_section(examination_id);
+CREATE INDEX idx_exam_section_subject_id ON examination_service.examination_section(subject_id);
+
+-- ============================================================
+-- Table: exam_syllabus_node
+-- Explicit relational syllabus nodes (SUBJECT, TOPIC, SUBTOPIC) driving learning and blueprint validation.
+-- ============================================================
+CREATE TABLE examination_service.exam_syllabus_node (
+    id                          UUID         PRIMARY KEY,
+    tenant_id                   VARCHAR(255) NOT NULL,
+    examination_id              UUID         NOT NULL
+                                    REFERENCES examination_service.examination(id) ON DELETE CASCADE,
+    node_type                   VARCHAR(20)  NOT NULL,         -- SUBJECT / TOPIC / SUBTOPIC
+    node_id                     BIGINT       NOT NULL,
+    weightage_pct               DOUBLE PRECISION,
+
+    created_at                  TIMESTAMP    NOT NULL,
+    updated_at                  TIMESTAMP    NOT NULL,
+    version                     BIGINT       NOT NULL DEFAULT 0,
+
+    CONSTRAINT uq_exam_syllabus_node UNIQUE (examination_id, node_type, node_id)
+);
+
+CREATE INDEX idx_syllabus_node_exam_id ON examination_service.exam_syllabus_node(examination_id);
+CREATE INDEX idx_syllabus_node_lookup  ON examination_service.exam_syllabus_node(node_type, node_id);
 
 -- ============================================================
 -- Table: examination_schedule
@@ -957,7 +1008,8 @@ INSERT INTO examination_service.examination (
     calculator_policy,
     review_flag_enabled,
     is_practice,
-    sections_json,
+    blueprint_id,
+    parent_examination_id,
     status,
     created_by,
     created_at,
@@ -982,12 +1034,8 @@ INSERT INTO examination_service.examination (
     'NONE',
     TRUE,
     FALSE,
-    '[
-        {"name":"General Intelligence and Reasoning","subject":"General Intelligence and Reasoning","questionCount":25,"marksPerQuestion":2.0,"negativeMarksPerQuestion":0.5},
-        {"name":"General Awareness","subject":"General Awareness","questionCount":25,"marksPerQuestion":2.0,"negativeMarksPerQuestion":0.5},
-        {"name":"Quantitative Aptitude","subject":"Quantitative Aptitude / Mathematical Abilities","questionCount":25,"marksPerQuestion":2.0,"negativeMarksPerQuestion":0.5},
-        {"name":"English Comprehension","subject":"English Language and Comprehension","questionCount":25,"marksPerQuestion":2.0,"negativeMarksPerQuestion":0.5}
-    ]'::jsonb,
+    'a1000000-0000-0000-0000-000000000001',
+    NULL,
     'PUBLISHED',
     NULL,
     NOW(),
@@ -1012,11 +1060,8 @@ INSERT INTO examination_service.examination (
     'NONE',
     TRUE,
     FALSE,
-    '[
-        {"name":"English Language","subject":"English Language and Comprehension","questionCount":30,"marksPerQuestion":1.0,"negativeMarksPerQuestion":0.25},
-        {"name":"Quantitative Aptitude","subject":"Quantitative Aptitude / Mathematical Abilities","questionCount":35,"marksPerQuestion":1.0,"negativeMarksPerQuestion":0.25},
-        {"name":"Reasoning Ability","subject":"General Intelligence and Reasoning","questionCount":35,"marksPerQuestion":1.0,"negativeMarksPerQuestion":0.25}
-    ]'::jsonb,
+    'a1000000-0000-0000-0000-000000000002',
+    NULL,
     'PUBLISHED',
     NULL,
     NOW(),
@@ -1041,9 +1086,8 @@ INSERT INTO examination_service.examination (
     'NONE',
     TRUE,
     FALSE,
-    '[
-        {"name":"General Studies","subject":"General Studies","questionCount":100,"marksPerQuestion":2.0,"negativeMarksPerQuestion":0.66}
-    ]'::jsonb,
+    'a1000000-0000-0000-0000-000000000004',
+    NULL,
     'PUBLISHED',
     NULL,
     NOW(),
@@ -1068,11 +1112,8 @@ INSERT INTO examination_service.examination (
     'NONE',
     TRUE,
     FALSE,
-    '[
-        {"name":"General Awareness","subject":"General Awareness","questionCount":40,"marksPerQuestion":1.0,"negativeMarksPerQuestion":0.33},
-        {"name":"Mathematics","subject":"Mathematics","questionCount":30,"marksPerQuestion":1.0,"negativeMarksPerQuestion":0.33},
-        {"name":"General Intelligence disciplined Reasoning","subject":"General Intelligence and Reasoning","questionCount":30,"marksPerQuestion":1.0,"negativeMarksPerQuestion":0.33}
-    ]'::jsonb,
+    'a1000000-0000-0000-0000-000000000003',
+    NULL,
     'PUBLISHED',
     NULL,
     NOW(),
@@ -1097,19 +1138,76 @@ INSERT INTO examination_service.examination (
     'NONE',
     TRUE,
     FALSE,
-    '[
-        {"name":"Child Development and Pedagogy","subject":"Child Development and Pedagogy","questionCount":30,"marksPerQuestion":1.0,"negativeMarksPerQuestion":0.0},
-        {"name":"Mathematics","subject":"Mathematics","questionCount":30,"marksPerQuestion":1.0,"negativeMarksPerQuestion":0.0},
-        {"name":"Environmental Studies","subject":"General Studies","questionCount":30,"marksPerQuestion":1.0,"negativeMarksPerQuestion":0.0},
-        {"name":"Language I (Hindi)","subject":"General Hindi","questionCount":30,"marksPerQuestion":1.0,"negativeMarksPerQuestion":0.0},
-        {"name":"Language II (English)","subject":"English Language and Comprehension","questionCount":30,"marksPerQuestion":1.0,"negativeMarksPerQuestion":0.0}
-    ]'::jsonb,
+    'a1000000-0000-0000-0000-000000000008',
+    NULL,
     'PUBLISHED',
     NULL,
     NOW(),
     NOW(),
     0
 )
+ON CONFLICT (id) DO NOTHING;
+
+-- Seed Examination Sections
+INSERT INTO examination_service.examination_section (
+    id, tenant_id, examination_id, subject_id, name, order_index, question_count, marks_per_question, negative_marks, duration_minutes, created_at, updated_at, version
+) VALUES
+-- SSC CGL (4 sections, 25 Qs each = 100 Qs, 200 marks)
+('d1000000-0000-0000-0000-000000000001', 'default', 'e1000000-0000-0000-0000-000000000001', 1, 'General Intelligence and Reasoning', 0, 25, 2.0, 0.50, 15, NOW(), NOW(), 0),
+('d1000000-0000-0000-0000-000000000002', 'default', 'e1000000-0000-0000-0000-000000000001', 2, 'General Awareness',                  1, 25, 2.0, 0.50, 15, NOW(), NOW(), 0),
+('d1000000-0000-0000-0000-000000000003', 'default', 'e1000000-0000-0000-0000-000000000001', 3, 'Quantitative Aptitude',              2, 25, 2.0, 0.50, 15, NOW(), NOW(), 0),
+('d1000000-0000-0000-0000-000000000004', 'default', 'e1000000-0000-0000-0000-000000000001', 4, 'English Comprehension',              3, 25, 2.0, 0.50, 15, NOW(), NOW(), 0),
+
+-- IBPS PO (3 sections, 100 Qs, 100 marks)
+('d1000000-0000-0000-0000-000000000005', 'default', 'e1000000-0000-0000-0000-000000000002', 4, 'English Language',                  0, 30, 1.0, 0.25, 20, NOW(), NOW(), 0),
+('d1000000-0000-0000-0000-000000000006', 'default', 'e1000000-0000-0000-0000-000000000002', 3, 'Quantitative Aptitude',              1, 35, 1.0, 0.25, 20, NOW(), NOW(), 0),
+('d1000000-0000-0000-0000-000000000007', 'default', 'e1000000-0000-0000-0000-000000000002', 1, 'Reasoning Ability',                  2, 35, 1.0, 0.25, 20, NOW(), NOW(), 0),
+
+-- UPSC CSE Prelims Paper 1 (1 section, 100 Qs, 200 marks)
+('d1000000-0000-0000-0000-000000000008', 'default', 'e1000000-0000-0000-0000-000000000003', 7, 'General Studies',                      0, 100, 2.0, 0.66, 120, NOW(), NOW(), 0),
+
+-- RRB NTPC CBT-1 (3 sections, 100 Qs, 100 marks)
+('d1000000-0000-0000-0000-000000000009', 'default', 'e1000000-0000-0000-0000-000000000004', 2, 'General Awareness',                  0, 40, 1.0, 0.33, 30, NOW(), NOW(), 0),
+('d1000000-0000-0000-0000-000000000010', 'default', 'e1000000-0000-0000-0000-000000000004', 8, 'Mathematics',                        1, 30, 1.0, 0.33, 30, NOW(), NOW(), 0),
+('d1000000-0000-0000-0000-000000000011', 'default', 'e1000000-0000-0000-0000-000000000004', 1, 'General Intelligence and Reasoning', 2, 30, 1.0, 0.33, 30, NOW(), NOW(), 0),
+
+-- CTET Paper-1 (5 sections, 150 Qs, 150 marks)
+('d1000000-0000-0000-0000-000000000012', 'default', 'e1000000-0000-0000-0000-000000000005', 18, 'Child Development and Pedagogy',   0, 30, 1.0, 0.0, 30, NOW(), NOW(), 0),
+('d1000000-0000-0000-0000-000000000013', 'default', 'e1000000-0000-0000-0000-000000000005', 8,  'Mathematics',                        1, 30, 1.0, 0.0, 30, NOW(), NOW(), 0),
+('d1000000-0000-0000-0000-000000000014', 'default', 'e1000000-0000-0000-0000-000000000005', 7,  'Environmental Studies',               2, 30, 1.0, 0.0, 30, NOW(), NOW(), 0),
+('d1000000-0000-0000-0000-000000000015', 'default', 'e1000000-0000-0000-0000-000000000005', 15, 'Language I (Hindi)',                 3, 30, 1.0, 0.0, 30, NOW(), NOW(), 0),
+('d1000000-0000-0000-0000-000000000016', 'default', 'e1000000-0000-0000-0000-000000000005', 4,  'Language II (English)',               4, 30, 1.0, 0.0, 30, NOW(), NOW(), 0)
+ON CONFLICT (id) DO NOTHING;
+
+-- Seed Examination Syllabus Nodes
+INSERT INTO examination_service.exam_syllabus_node (
+    id, tenant_id, examination_id, node_type, node_id, weightage_pct, created_at, updated_at, version
+) VALUES
+-- SSC CGL Syllabus (Subjects 1, 2, 3, 4)
+('d2000000-0000-0000-0000-000000000001', 'default', 'e1000000-0000-0000-0000-000000000001', 'SUBJECT', 1, 25.0, NOW(), NOW(), 0),
+('d2000000-0000-0000-0000-000000000002', 'default', 'e1000000-0000-0000-0000-000000000001', 'SUBJECT', 2, 25.0, NOW(), NOW(), 0),
+('d2000000-0000-0000-0000-000000000003', 'default', 'e1000000-0000-0000-0000-000000000001', 'SUBJECT', 3, 25.0, NOW(), NOW(), 0),
+('d2000000-0000-0000-0000-000000000004', 'default', 'e1000000-0000-0000-0000-000000000001', 'SUBJECT', 4, 25.0, NOW(), NOW(), 0),
+
+-- IBPS PO Syllabus (Subjects 4, 3, 1)
+('d2000000-0000-0000-0000-000000000005', 'default', 'e1000000-0000-0000-0000-000000000002', 'SUBJECT', 4, 30.0, NOW(), NOW(), 0),
+('d2000000-0000-0000-0000-000000000006', 'default', 'e1000000-0000-0000-0000-000000000002', 'SUBJECT', 3, 35.0, NOW(), NOW(), 0),
+('d2000000-0000-0000-0000-000000000007', 'default', 'e1000000-0000-0000-0000-000000000002', 'SUBJECT', 1, 35.0, NOW(), NOW(), 0),
+
+-- UPSC CSE GS1 Syllabus (Subject 7)
+('d2000000-0000-0000-0000-000000000008', 'default', 'e1000000-0000-0000-0000-000000000003', 'SUBJECT', 7, 100.0, NOW(), NOW(), 0),
+
+-- RRB NTPC Syllabus (Subjects 2, 8, 1)
+('d2000000-0000-0000-0000-000000000009', 'default', 'e1000000-0000-0000-0000-000000000004', 'SUBJECT', 2, 40.0, NOW(), NOW(), 0),
+('d2000000-0000-0000-0000-000000000010', 'default', 'e1000000-0000-0000-0000-000000000004', 'SUBJECT', 8, 30.0, NOW(), NOW(), 0),
+('d2000000-0000-0000-0000-000000000011', 'default', 'e1000000-0000-0000-0000-000000000004', 'SUBJECT', 1, 30.0, NOW(), NOW(), 0),
+
+-- CTET Paper-1 Syllabus (Subjects 18, 8, 7, 15, 4)
+('d2000000-0000-0000-0000-000000000012', 'default', 'e1000000-0000-0000-0000-000000000005', 'SUBJECT', 18, 20.0, NOW(), NOW(), 0),
+('d2000000-0000-0000-0000-000000000013', 'default', 'e1000000-0000-0000-0000-000000000005', 'SUBJECT', 8,  20.0, NOW(), NOW(), 0),
+('d2000000-0000-0000-0000-000000000014', 'default', 'e1000000-0000-0000-0000-000000000005', 'SUBJECT', 7,  20.0, NOW(), NOW(), 0),
+('d2000000-0000-0000-0000-000000000015', 'default', 'e1000000-0000-0000-0000-000000000005', 'SUBJECT', 15, 20.0, NOW(), NOW(), 0),
+('d2000000-0000-0000-0000-000000000016', 'default', 'e1000000-0000-0000-0000-000000000005', 'SUBJECT', 4,  20.0, NOW(), NOW(), 0)
 ON CONFLICT (id) DO NOTHING;
 
 -- Seed Schedules

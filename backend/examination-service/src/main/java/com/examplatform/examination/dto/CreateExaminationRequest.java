@@ -32,6 +32,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Request DTO for creating or updating an examination configuration.
@@ -81,6 +82,12 @@ public class CreateExaminationRequest {
 
     private Boolean isPractice;
 
+    private UUID blueprintId;
+
+    private UUID parentExaminationId;
+
     @NotEmpty
     private List<Section> sections;
+
+    private List<ExamSyllabusNodeDto> syllabusNodes;
 }

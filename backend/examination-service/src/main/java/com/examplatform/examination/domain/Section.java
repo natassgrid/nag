@@ -25,20 +25,32 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
- * Section POJO embedded within the Examination JSONB column.
- * NOT a JPA entity — serialized/deserialized as part of sectionsJson.
+ * Section POJO used in requests and responses.
+ * Represents an examination section bound to a canonical taxonomy subject.
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class Section {
+    private UUID id;
+    private Long subjectId;
     private String name;
     private String subject;
+    private Integer orderIndex;
     private Integer questionCount;
     private Double marksPerQuestion;
+    private Double negativeMarks;
     private Double negativeMarksPerQuestion;
+    private Integer durationMinutes;
     private List<SubjectTopicRule> topicRules;
+
+    public Double getEffectiveNegativeMarks() {
+        if (negativeMarks != null) return negativeMarks;
+        if (negativeMarksPerQuestion != null) return negativeMarksPerQuestion;
+        return 0.0;
+    }
 }

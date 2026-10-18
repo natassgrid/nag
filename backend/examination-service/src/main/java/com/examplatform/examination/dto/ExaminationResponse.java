@@ -58,17 +58,27 @@ public class ExaminationResponse {
     private String calculatorPolicy;
     private boolean reviewFlagEnabled;
     private boolean isPractice;
+    private UUID blueprintId;
+    private UUID parentExaminationId;
     private List<Section> sections;
+    private List<ExamSyllabusNodeDto> syllabusNodes;
     private String status;
     private LocalDateTime createdAt;
 
     public static ExaminationResponse from(Examination exam, List<Section> sections) {
+        return from(exam, sections, null);
+    }
+
+    public static ExaminationResponse from(Examination exam, List<Section> sections, List<ExamSyllabusNodeDto> syllabusNodes) {
         if (exam == null) {
             return null;
         }
         ExaminationResponse response = new ExaminationResponse();
-        BeanUtils.copyProperties(exam, response);
+        BeanUtils.copyProperties(exam, response, "sections", "syllabusNodes");
+        response.setBlueprintId(exam.getBlueprintId());
+        response.setParentExaminationId(exam.getParentExaminationId());
         response.setSections(sections != null ? sections : List.of());
+        response.setSyllabusNodes(syllabusNodes != null ? syllabusNodes : List.of());
         return response;
     }
 }
