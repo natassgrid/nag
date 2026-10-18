@@ -75,7 +75,7 @@
         [disabled]="taxonomyLoading() || subtopics().length === 0"
         class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-medium focus:ring-2 focus:ring-indigo-500 disabled:opacity-60"
       >
-        <option [value]="null">-- None (optional) --</option>
+        <option value="">-- None (optional) --</option>
         @for (s of subtopics(); track s.id) {
           <option [value]="s.id">{{ s.name }}</option>
         }

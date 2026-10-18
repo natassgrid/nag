@@ -7,11 +7,12 @@ import {
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { GeneratedQuestion } from '@nag-frontend-workspace/questions-data-access';
+import { MathRendererComponent } from '@nag-frontend-workspace/shared-ui-components';
 
 @Component({
   selector: 'nag-ai-generated-card',
   standalone: true,
-  imports: [CommonModule, MatIconModule],
+  imports: [CommonModule, MatIconModule, MathRendererComponent],
   templateUrl: './ai-generated-card.component.html',
   styleUrl: './ai-generated-card.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

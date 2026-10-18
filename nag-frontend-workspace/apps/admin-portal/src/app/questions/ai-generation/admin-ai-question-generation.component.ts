@@ -200,13 +200,16 @@ export class AdminAiQuestionGenerationComponent implements OnInit, OnDestroy {
     this.savedQuestionIds.set(new Set());
 
     const v = this.form.value;
+    const subtopicId = v.subtopicId ? Number(v.subtopicId) : undefined;
+    const subtopic = subtopicId ? this.subtopics().find((s) => s.id === subtopicId) : undefined;
+
     const req: QuestionGenerationRequest = {
-      subjectId: v.subjectId ?? undefined,
-      topicId: v.topicId ?? undefined,
-      subtopicId: v.subtopicId ?? undefined,
+      subjectId: v.subjectId ? Number(v.subjectId) : undefined,
+      topicId: v.topicId ? Number(v.topicId) : undefined,
+      subtopicId,
       subject: this.selectedSubject()?.name ?? '',
       topic: this.selectedTopic()?.name ?? '',
-      subtopic: this.subtopics().find((s) => s.id === v.subtopicId)?.name,
+      subtopic: subtopic?.name,
       rawTextInput: v.rawTextInput?.trim() || undefined,
       description: v.description?.trim() || undefined,
       difficulty: v.difficulty!,
@@ -258,13 +261,14 @@ export class AdminAiQuestionGenerationComponent implements OnInit, OnDestroy {
     this.savingIndices.update((s) => new Set(s).add(index));
 
     const v = this.form.value;
-    const subtopic = this.subtopics().find((s) => s.id === v.subtopicId);
+    const subtopicId = v.subtopicId ? Number(v.subtopicId) : undefined;
+    const subtopic = subtopicId ? this.subtopics().find((s) => s.id === subtopicId) : undefined;
 
     const payload = {
       content: question.content,
-      subjectId: v.subjectId,
-      topicId: v.topicId,
-      subtopicId: v.subtopicId ?? undefined,
+      subjectId: v.subjectId ? Number(v.subjectId) : undefined,
+      topicId: v.topicId ? Number(v.topicId) : undefined,
+      subtopicId,
       subject: this.selectedSubject()?.name,
       topic: this.selectedTopic()?.name,
       subtopic: subtopic?.name,
@@ -358,12 +362,13 @@ export class AdminAiQuestionGenerationComponent implements OnInit, OnDestroy {
     if (this.form.invalid) return;
 
     const v = this.form.value;
-    const subtopic = this.subtopics().find((s) => s.id === v.subtopicId);
+    const subtopicId = v.subtopicId ? Number(v.subtopicId) : undefined;
+    const subtopic = subtopicId ? this.subtopics().find((s) => s.id === subtopicId) : undefined;
 
     const item: BatchItem = {
-      subjectId: v.subjectId ?? undefined,
-      topicId: v.topicId ?? undefined,
-      subtopicId: v.subtopicId ?? undefined,
+      subjectId: v.subjectId ? Number(v.subjectId) : undefined,
+      topicId: v.topicId ? Number(v.topicId) : undefined,
+      subtopicId,
       subject: this.selectedSubject()?.name ?? '',
       topic: this.selectedTopic()?.name ?? '',
       subtopic: subtopic?.name,

@@ -46,8 +46,8 @@
   <!-- Question Statement -->
   <div class="space-y-1">
     <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Question Statement</div>
-    <div class="text-sm font-semibold text-slate-900 leading-relaxed font-sans whitespace-pre-line">
-      {{ question().content }}
+    <div class="text-sm font-semibold text-slate-900 leading-relaxed font-sans">
+      <nag-math-renderer [content]="question().content" />
     </div>
   </div>
 
@@ -73,7 +73,9 @@
             >
               {{ opt.id }}
             </span>
-            <span class="grow">{{ opt.text }}</span>
+            <span class="grow">
+              <nag-math-renderer [content]="opt.text" [inline]="true" />
+            </span>
             @if (opt.isCorrect || question().answerKey === opt.id) {
               <mat-icon class="!text-sm text-emerald-600">check</mat-icon>
             }
@@ -91,9 +93,9 @@
         <span class="font-black text-indigo-700">{{ question().answerKey || 'Refer to explanation' }}</span>
       </div>
       @if (question().explanation) {
-        <p class="text-slate-600 text-[11px] leading-relaxed mt-1">
-          {{ question().explanation }}
-        </p>
+        <div class="text-slate-600 text-[11px] leading-relaxed mt-1">
+          <nag-math-renderer [content]="question().explanation" />
+        </div>
       }
     </div>
   }

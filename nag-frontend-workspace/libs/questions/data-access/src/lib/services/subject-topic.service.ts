@@ -28,7 +28,21 @@ export class SubjectTopicService {
   getSubjects(): Observable<Subject[]> {
     return this.http
       .get<{ data?: Subject[] } | Subject[]>(this.baseUrl)
-      .pipe(map((res) => (Array.isArray(res) ? res : (res as any)?.data || [])));
+      .pipe(
+        map((res) => (Array.isArray(res) ? res : (res as any)?.data || [])),
+        catchError(() =>
+          this.getTaxonomyTree().pipe(
+            map((tree) =>
+              (tree || []).map((s) => ({
+                id: s.id,
+                name: s.name,
+                code: s.code,
+                description: s.description,
+              }))
+            )
+          )
+        )
+      );
   }
 
   getSubject(id: number): Observable<Subject> {
@@ -56,7 +70,22 @@ export class SubjectTopicService {
   getTopics(subjectId: number): Observable<Topic[]> {
     return this.http
       .get<{ data?: Topic[] } | Topic[]>(`${this.baseUrl}/${subjectId}/topics`)
-      .pipe(map((res) => (Array.isArray(res) ? res : (res as any)?.data || [])));
+      .pipe(
+        map((res) => (Array.isArray(res) ? res : (res as any)?.data || [])),
+        catchError(() =>
+          this.getTaxonomyTree().pipe(
+            map((tree) => {
+              const sub = (tree || []).find((s) => s.id === subjectId);
+              return (sub?.topics || []).map((t) => ({
+                id: t.id,
+                subjectId,
+                name: t.name,
+                description: t.description,
+              }));
+            })
+          )
+        )
+      );
   }
 
   createTopic(subjectId: number, data: { name: string; description?: string }): Observable<Topic> {
@@ -68,7 +97,23 @@ export class SubjectTopicService {
   getSubtopics(subjectId: number, topicId: number): Observable<Subtopic[]> {
     return this.http
       .get<{ data?: Subtopic[] } | Subtopic[]>(`${this.baseUrl}/${subjectId}/topics/${topicId}/subtopics`)
-      .pipe(map((res) => (Array.isArray(res) ? res : (res as any)?.data || [])));
+      .pipe(
+        map((res) => (Array.isArray(res) ? res : (res as any)?.data || [])),
+        catchError(() =>
+          this.getTaxonomyTree().pipe(
+            map((tree) => {
+              const sub = (tree || []).find((s) => s.id === subjectId);
+              const top = (sub?.topics || []).find((t) => t.id === topicId);
+              return (top?.subtopics || []).map((st) => ({
+                id: st.id,
+                topicId,
+                name: st.name,
+                description: st.description,
+              }));
+            })
+          )
+        )
+      );
   }
 
   createSubtopic(subjectId: number, topicId: number, data: { name: string; description?: string }): Observable<Subtopic> {
