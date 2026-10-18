@@ -39,6 +39,15 @@ public class PracticeSet extends BaseEntity {
     @Column(name = "subject_slug", length = 100)
     private String subjectSlug;
 
+    @Column(name = "subject_id")
+    private Long subjectId;
+
+    @Column(name = "topic_id")
+    private Long topicId;
+
+    @Column(name = "subtopic_id")
+    private Long subtopicId;
+
     @Column(nullable = false)
     @Builder.Default
     private boolean published = false;

@@ -177,6 +177,10 @@ class PracticeSessionServiceTest {
                 Collections.emptyList(), "Calculus Practice", "TIMED"
         );
         when(practiceResultService.getResult(sessionId, candidateId)).thenReturn(mockResult);
+        UUID enrollmentId = UUID.randomUUID();
+        UUID examId = UUID.randomUUID();
+        practiceSession.setEnrollmentId(enrollmentId);
+        practiceSession.setExamId(examId);
 
         PracticeResultDto result = practiceSessionService.submitSession(sessionId, candidateId);
 
@@ -191,6 +195,8 @@ class PracticeSessionServiceTest {
         assertThat(captured.practiceSetId()).isEqualTo(practiceSetId);
         assertThat(captured.practiceSetSource()).isEqualTo("EXAM_CLONE");
         assertThat(captured.targetExam()).isEqualTo("Calculus Practice");
+        assertThat(captured.enrollmentId()).isEqualTo(enrollmentId);
+        assertThat(captured.examId()).isEqualTo(examId);
     }
 
     @Test
