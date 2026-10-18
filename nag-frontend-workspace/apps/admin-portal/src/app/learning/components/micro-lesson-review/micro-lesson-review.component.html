@@ -86,7 +86,7 @@
       <button
         mat-stroked-button
         (click)="openBatchTranslateDialog()"
-        class="!text-indigo-700 !border-indigo-200 hover:!bg-indigo-50 !rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+        class="!text-indigo-700 !border-indigo-200 hover:!bg-indigo-50 !rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer !px-3.5 !py-2.5"
       >
         <mat-icon class="!text-sm text-indigo-600">translate</mat-icon>
         <span>Batch Translate</span>
@@ -96,7 +96,7 @@
         color="primary"
         (click)="openBatchGenerateDialog()"
         [disabled]="isBatchGenerating()"
-        class="!rounded-xl !bg-purple-600 hover:!bg-purple-700 !text-white text-xs font-bold flex items-center gap-1.5 !px-4 !py-2.5 shadow-md shadow-purple-500/20 cursor-pointer"
+        class="!rounded-xl !bg-purple-600 hover:!bg-purple-700 !text-white text-xs font-bold flex items-center gap-1.5 !px-3.5 !py-2.5 shadow-md shadow-purple-500/20 cursor-pointer"
       >
         @if (activeBatchJob()?.status === 'IN_PROGRESS' || activeBatchJob()?.status === 'QUEUED') {
           <mat-progress-spinner diameter="16" mode="indeterminate" class="!inline-block"></mat-progress-spinner>
