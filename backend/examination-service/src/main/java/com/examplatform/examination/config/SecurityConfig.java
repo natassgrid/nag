@@ -48,8 +48,7 @@ public class SecurityConfig {
                     "/api/v1/examinations/**",
                     "/api/v1/examination-schedules/**",
                     "/api/v1/geo/**",
-                    "/api/v1/public/examinations/**",
-                    "/api/v1/learner/exams/**"
+                    "/api/v1/public/examinations/**"
             )
             .csrf(csrf -> csrf.disable())
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -60,9 +59,7 @@ public class SecurityConfig {
                         "/api/v1/public/examinations/**",
                         "/api/v1/examinations/public/**",
                         "/api/v1/examinations/centres/public/**",
-                        "/api/v1/examinations/catalogue",
-                        "/api/v1/learner/exams",
-                        "/api/v1/learner/exams/**"
+                        "/api/v1/examinations/catalogue"
                 ).permitAll()
                 .anyRequest().authenticated()
             )

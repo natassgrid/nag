@@ -54,7 +54,8 @@ public class SecurityConfig {
                         "/actuator/info",
                         "/actuator/prometheus",
                         "/api/v1/candidates/digilocker/callback",
-                        "/api/v1/candidate/digilocker/callback"
+                        "/api/v1/candidate/digilocker/callback",
+                        "/api/v1/learner/exams"
                 ).permitAll()
                 .anyRequest().authenticated()
             )

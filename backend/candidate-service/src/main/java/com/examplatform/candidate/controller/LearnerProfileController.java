@@ -69,7 +69,6 @@ public class LearnerProfileController {
      * GET /api/v1/learner/exams - Published examinations catalogue available for enrollment.
      */
     @GetMapping("/exams")
-    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<PublishedExamDto>> getPublishedExams() {
         String tenantId = getTenantId();
         return ResponseEntity.ok(learnerService.getPublishedExams(tenantId));
