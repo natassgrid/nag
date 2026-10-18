@@ -1,6 +1,6 @@
 -- ============================================================
 -- Seed Data: Comprehension Passages & Passage-Based Questions (Issue #135)
--- Format Standard: Valid hex UUIDs, JSONB escaped, APPROVED state
+-- Format Standard: Valid hex UUIDs, JSONB escaped, PUBLISHED state
 -- ============================================================
 
 -- ------------------------------------------------------------
@@ -22,7 +22,7 @@ SELECT
     v.subject_name,
     v.topic_name,
     v.subtopic_name,
-    'APPROVED',
+    'PUBLISHED',
     '00000000-0000-0000-0000-000000000001'::uuid
 FROM (VALUES
     (
@@ -79,7 +79,7 @@ SELECT
     v.options::jsonb,
     v.answer_key,
     v.explanation,
-    'APPROVED',
+    'PUBLISHED',
     '00000000-0000-0000-0000-000000000001'::uuid
 FROM (VALUES
     -- ============================================================

@@ -963,3 +963,11 @@ FROM (VALUES
 ) AS v(topic_code, name, code, description, display_order)
 JOIN question_service.topic t ON t.code = v.topic_code AND t.tenant_id IS NULL
 ON CONFLICT DO NOTHING;
+
+-- ============================================================
+-- Ensure seed questions are in PUBLISHED state for exam paper assembly
+-- ============================================================
+UPDATE question_service.question
+SET state = 'PUBLISHED'
+WHERE state = 'APPROVED';
+

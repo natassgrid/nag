@@ -67,7 +67,7 @@ SELECT
     v.options::jsonb,
     v.answer_key,
     v.explanation,
-    'APPROVED',
+    'PUBLISHED',
     '00000000-0000-0000-0000-000000000001'::uuid,
     TRUE
 FROM (VALUES

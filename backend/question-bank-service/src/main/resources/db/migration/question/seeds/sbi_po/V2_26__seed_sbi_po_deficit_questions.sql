@@ -10,7 +10,7 @@
 --   Rule 6: General Intelligence and Reasoning > Coding and Decoding (EASY, APPLY) - 4 Qs
 --   Rule 7: General Intelligence and Reasoning > Problem Solving (HARD, ANALYZE) - 9 Qs
 --   Rule 8: General Intelligence and Reasoning > Drawing Inferences (MEDIUM, ANALYZE) - 5 Qs
--- Format Standard: Valid UUIDs, JSONB options, LaTeX math ($$..$$), state='APPROVED'
+-- Format Standard: Valid UUIDs, JSONB options, LaTeX math ($$..$$), state='PUBLISHED'
 -- UUID Range: a1260000-0000-0000-0000-000000000001 to a1260000-0000-0000-0000-000000000052
 -- ============================================================
 
@@ -74,7 +74,7 @@ SELECT
     v.options::jsonb,
     v.answer_key,
     v.explanation,
-    'APPROVED',
+    'PUBLISHED',
     '00000000-0000-0000-0000-000000000001'::uuid
 FROM (VALUES
     -- =========================================================================

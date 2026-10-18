@@ -11,7 +11,7 @@
 --   Rule 7: Mathematics > Trigonometry (MEDIUM, APPLY) - 4 Qs
 --   Rule 8: Mathematics > Statistics (EASY, UNDERSTAND) - 4 Qs
 --   Rule 9: General Intelligence and Reasoning > Coding and Decoding (EASY, APPLY) - 4 Qs
--- Format Standard: Valid UUIDs, JSONB options, LaTeX math ($$..$$), state='APPROVED'
+-- Format Standard: Valid UUIDs, JSONB options, LaTeX math ($$..$$), state='PUBLISHED'
 -- UUID Range: a1250000-0000-0000-0000-000000000001 to a1250000-0000-0000-0000-000000000045
 -- ============================================================
 
@@ -76,7 +76,7 @@ SELECT
     v.options::jsonb,
     v.answer_key,
     v.explanation,
-    'APPROVED',
+    'PUBLISHED',
     '00000000-0000-0000-0000-000000000001'::uuid
 FROM (VALUES
     -- =========================================================================
