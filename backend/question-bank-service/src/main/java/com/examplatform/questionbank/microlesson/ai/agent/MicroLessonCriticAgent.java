@@ -47,6 +47,7 @@ public class MicroLessonCriticAgent {
     );
 
     private final KaTexValidator kaTexValidator;
+    private final MicroLessonBlueprintAgent blueprintAgent = new MicroLessonBlueprintAgent();
 
     public MicroLessonCriticAgent(KaTexValidator kaTexValidator) {
         this.kaTexValidator = kaTexValidator;
@@ -70,6 +71,12 @@ public class MicroLessonCriticAgent {
             return new MicroLessonCriticResult(false, 0.0, List.of("MicroLesson content cannot be null"), List.of());
         }
 
+        boolean hasTaxonomyContext = (subject != null && !subject.isBlank())
+                || (topic != null && !topic.isBlank())
+                || (subtopic != null && !subtopic.isBlank());
+        boolean formulaRequired = !hasTaxonomyContext
+                || blueprintAgent.isFormulaSheetRequired(subject, topic, subtopic, null);
+
         // ==========================================
         // Rubric 1: Structural Completeness
         // ==========================================
@@ -87,7 +94,7 @@ public class MicroLessonCriticAgent {
             structuralComplete = false;
         }
 
-        if (content.cheatSheet() == null || content.cheatSheet().isEmpty()) {
+        if (formulaRequired && (content.cheatSheet() == null || content.cheatSheet().isEmpty())) {
             issues.add("Rubric 1: Cheat sheet is missing or empty");
             score -= 0.15;
             structuralComplete = false;
@@ -123,7 +130,7 @@ public class MicroLessonCriticAgent {
         // ==========================================
         // Rubric 2: KaTeX Syntax Validity
         // ==========================================
-        List<String> katexErrors = kaTexValidator.validateContent(content);
+        List<String> katexErrors = kaTexValidator.validateContent(content, formulaRequired);
         for (String err : katexErrors) {
             issues.add("Rubric 2 KaTeX Error: " + err);
             score -= 0.05;
@@ -217,7 +224,7 @@ public class MicroLessonCriticAgent {
         // ==========================================
         boolean countsSatisfied = true;
         int cheatSheetCount = content.cheatSheet() != null ? content.cheatSheet().size() : 0;
-        if (cheatSheetCount < 2) {
+        if (formulaRequired && cheatSheetCount < 2) {
             issues.add("Rubric 4: Cheat sheet must contain at least 2 items (found: " + cheatSheetCount + ")");
             score -= 0.15;
             countsSatisfied = false;

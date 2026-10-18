@@ -3,6 +3,7 @@ package com.examplatform.questionbank.microlesson.service;
 
 import com.examplatform.questionbank.microlesson.ai.KaTexValidator;
 import com.examplatform.questionbank.microlesson.ai.MicroLessonGeneratorService;
+import com.examplatform.questionbank.microlesson.ai.agent.MicroLessonBlueprintAgent;
 import com.examplatform.questionbank.microlesson.domain.MicroLessonStatus;
 import com.examplatform.questionbank.microlesson.domain.SubtopicMicroLesson;
 import com.examplatform.questionbank.microlesson.dto.*;
@@ -50,6 +51,7 @@ public class MicroLessonService {
     private final SubjectRepository subjectRepository;
     private final MicroLessonTranslationWorkflowService translationWorkflowService;
     private final com.examplatform.questionbank.microlesson.repository.LessonEffectivenessRepository effectivenessRepository;
+    private final MicroLessonBlueprintAgent blueprintAgent = new MicroLessonBlueprintAgent();
 
     public MicroLessonService(
             SubtopicMicroLessonRepository repository,
@@ -229,12 +231,20 @@ public class MicroLessonService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Trap description cannot be empty");
         }
 
+        String lessonType = (request.lessonType() != null && !request.lessonType().isBlank())
+                ? request.lessonType().trim() : "CONCEPT";
+        boolean formulaRequired = blueprintAgent.isFormulaSheetRequired(
+                taxonomy.subject(), taxonomy.topic(), taxonomy.subtopic(), lessonType);
+
         List<FormulaEntryDto> structuredFormulas = request.formulaCheatSheet() != null && !request.formulaCheatSheet().isEmpty()
                 ? request.formulaCheatSheet()
                 : (nested != null && nested.formulaCheatSheet() != null ? nested.formulaCheatSheet() : null);
         List<String> cheatSheetStrings = resolveCheatSheetStrings(request.cheatSheet(), structuredFormulas);
-        if (cheatSheetStrings.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cheat sheet must contain at least 1 formula or framework");
+        if (formulaRequired && cheatSheetStrings.isEmpty()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Cheat sheet must contain at least 1 formula or framework for Math, Science, or Numerical topics"
+            );
         }
 
         List<String> takeaways = request.keyTakeaways() != null && !request.keyTakeaways().isEmpty()
@@ -262,7 +272,7 @@ public class MicroLessonService {
                 cheatSheetStrings,
                 breakdown
         );
-        List<String> validationErrors = kaTexValidator.validateContent(contentToValidate);
+        List<String> validationErrors = kaTexValidator.validateContent(contentToValidate, formulaRequired);
         if (!validationErrors.isEmpty()) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
@@ -287,8 +297,6 @@ public class MicroLessonService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Failed to serialize micro-lesson content");
         }
 
-        String lessonType = (request.lessonType() != null && !request.lessonType().isBlank())
-                ? request.lessonType().trim() : "CONCEPT";
         String difficultyLevel = (request.difficultyLevel() != null && !request.difficultyLevel().isBlank())
                 ? request.difficultyLevel().trim() : "CORE";
         int seqNo = request.sequenceNo() != null ? request.sequenceNo() : 1;
@@ -383,20 +391,22 @@ public class MicroLessonService {
             lesson.setTrap(updatedTrap);
         }
 
-        List<FormulaEntryDto> structuredFormulas = request.formulaCheatSheet() != null && !request.formulaCheatSheet().isEmpty()
-                ? request.formulaCheatSheet()
-                : (nested != null && nested.formulaCheatSheet() != null && !nested.formulaCheatSheet().isEmpty()
-                        ? nested.formulaCheatSheet()
-                        : (existingBreakdown != null ? existingBreakdown.structuredFormulas() : null));
+        boolean explicitCheatSheetUpdate = request.formulaCheatSheet() != null
+                || request.cheatSheet() != null
+                || (nested != null && nested.formulaCheatSheet() != null);
 
+        List<FormulaEntryDto> structuredFormulas;
         List<String> cheatSheetStrings;
-        if (request.cheatSheet() != null && !request.cheatSheet().isEmpty()) {
-            cheatSheetStrings = request.cheatSheet();
-        } else if (request.formulaCheatSheet() != null && !request.formulaCheatSheet().isEmpty()) {
-            cheatSheetStrings = resolveCheatSheetStrings(null, request.formulaCheatSheet());
-        } else if (nested != null && nested.formulaCheatSheet() != null && !nested.formulaCheatSheet().isEmpty()) {
-            cheatSheetStrings = resolveCheatSheetStrings(null, nested.formulaCheatSheet());
+        if (explicitCheatSheetUpdate) {
+            List<FormulaEntryDto> candidateFormulas = request.formulaCheatSheet() != null && !request.formulaCheatSheet().isEmpty()
+                    ? request.formulaCheatSheet()
+                    : (nested != null && nested.formulaCheatSheet() != null && !nested.formulaCheatSheet().isEmpty()
+                            ? nested.formulaCheatSheet()
+                            : null);
+            cheatSheetStrings = resolveCheatSheetStrings(request.cheatSheet(), candidateFormulas);
+            structuredFormulas = candidateFormulas != null ? candidateFormulas : Collections.emptyList();
         } else {
+            structuredFormulas = existingBreakdown != null ? existingBreakdown.structuredFormulas() : null;
             cheatSheetStrings = existingCheatSheet;
         }
 
@@ -419,19 +429,40 @@ public class MicroLessonService {
                 ? nested.stepByStepBreakdown()
                 : (baseBreakdown != null ? baseBreakdown.structuredSteps() : null);
 
+        String resolvedSubtopicName = firstNonBlank(
+                request.subtopic(),
+                (subtopicRepository != null && lesson.getSubtopicId() != null)
+                        ? subtopicRepository.findById(lesson.getSubtopicId()).map(Subtopic::getName).orElse(null)
+                        : null,
+                "General"
+        );
+        String resolvedTopicName = firstNonBlank(
+                request.topic(),
+                (topicRepository != null && lesson.getTopicId() != null)
+                        ? topicRepository.findById(lesson.getTopicId()).map(Topic::getName).orElse(null)
+                        : null
+        );
+        String resolvedSubjectName = firstNonBlank(
+                request.subject(),
+                (subjectRepository != null && lesson.getSubjectId() != null)
+                        ? subjectRepository.findById(lesson.getSubjectId()).map(Subject::getName).orElse(null)
+                        : null
+        );
+
         StepByStepBreakdownDto mergedBreakdown = buildNormalizedBreakdown(
                 baseBreakdown,
                 nestedSteps,
                 firstNonBlank(request.problemStatement(), nested != null ? nested.problemStatement() : (baseBreakdown != null ? baseBreakdown.questionStem() : null)),
                 firstNonBlank(request.finalAnswer(), nested != null ? nested.finalAnswer() : (baseBreakdown != null ? baseBreakdown.finalAnswer() : null)),
-                (subtopicRepository != null && lesson.getSubtopicId() != null)
-                        ? subtopicRepository.findById(lesson.getSubtopicId()).map(Subtopic::getName).orElse("General")
-                        : "General",
+                resolvedSubtopicName,
                 structuredTrap,
                 structuredFormulas,
                 takeaways,
                 quickChecks
         );
+
+        boolean formulaRequired = blueprintAgent.isFormulaSheetRequired(
+                resolvedSubjectName, resolvedTopicName, resolvedSubtopicName, lesson.getLessonType());
 
         MicroLessonContentDto contentToValidate = new MicroLessonContentDto(
                 lesson.getCoreConcept(),
@@ -439,7 +470,7 @@ public class MicroLessonService {
                 cheatSheetStrings,
                 mergedBreakdown
         );
-        List<String> validationErrors = kaTexValidator.validateContent(contentToValidate);
+        List<String> validationErrors = kaTexValidator.validateContent(contentToValidate, formulaRequired);
         if (!validationErrors.isEmpty()) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
@@ -547,13 +578,25 @@ public class MicroLessonService {
         List<String> cheatSheet = parseCheatSheetJson(lesson.getCheatSheetJson());
         StepByStepBreakdownDto breakdown = parseBreakdownJson(lesson.getStepByStepBreakdownJson());
 
+        String reviewSubject = (subjectRepository != null && lesson.getSubjectId() != null)
+                ? subjectRepository.findById(lesson.getSubjectId()).map(Subject::getName).orElse(null)
+                : null;
+        String reviewTopic = (topicRepository != null && lesson.getTopicId() != null)
+                ? topicRepository.findById(lesson.getTopicId()).map(Topic::getName).orElse(null)
+                : null;
+        String reviewSubtopic = (subtopicRepository != null && lesson.getSubtopicId() != null)
+                ? subtopicRepository.findById(lesson.getSubtopicId()).map(Subtopic::getName).orElse(null)
+                : null;
+        boolean formulaRequired = (reviewSubject != null || reviewTopic != null || reviewSubtopic != null)
+                && blueprintAgent.isFormulaSheetRequired(reviewSubject, reviewTopic, reviewSubtopic, lesson.getLessonType());
+
         MicroLessonContentDto contentToValidate = new MicroLessonContentDto(
                 lesson.getCoreConcept(),
                 lesson.getTrap(),
                 cheatSheet,
                 breakdown
         );
-        List<String> validationErrors = kaTexValidator.validateContent(contentToValidate);
+        List<String> validationErrors = kaTexValidator.validateContent(contentToValidate, formulaRequired);
         if (!validationErrors.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "KaTeX validation failed: " + String.join(", ", validationErrors));
         }

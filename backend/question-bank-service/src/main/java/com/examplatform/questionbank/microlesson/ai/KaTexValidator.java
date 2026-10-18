@@ -24,6 +24,18 @@ public class KaTexValidator {
      * @return list of validation errors, empty if valid
      */
     public List<String> validateContent(MicroLessonContentDto content) {
+        return validateContent(content, true);
+    }
+
+    /**
+     * Validates micro-lesson content with configurable requirement for Part 3 (Cheat Sheet).
+     *
+     * @param content            the micro-lesson content DTO
+     * @param requireCheatSheet  true if at least 1 formula is required (Math, Science, Numerical);
+     *                           false if Part 3 is optional for the subject/topic
+     * @return list of validation errors, empty if valid
+     */
+    public List<String> validateContent(MicroLessonContentDto content, boolean requireCheatSheet) {
         List<String> errors = new ArrayList<>();
         if (content == null) {
             errors.add("Content payload cannot be null");
@@ -47,7 +59,9 @@ public class KaTexValidator {
         }
 
         if (content.cheatSheet() == null || content.cheatSheet().isEmpty()) {
-            errors.add("Cheat sheet must contain at least 1 formula or framework");
+            if (requireCheatSheet) {
+                errors.add("Cheat sheet must contain at least 1 formula or framework");
+            }
         } else {
             for (int i = 0; i < content.cheatSheet().size(); i++) {
                 String formula = content.cheatSheet().get(i);

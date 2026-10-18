@@ -404,14 +404,22 @@ export class MicroLessonPromptImportDialogComponent implements OnInit {
   }
 
   validateInputOnly(): boolean {
-    const res = this.promptService.validateAndParseMicroLessonJson(this.jsonInput());
+    const res = this.promptService.validateAndParseMicroLessonJson(this.jsonInput(), {
+      subject: this.resolvedSubjectName(),
+      topic: this.resolvedTopicName(),
+      subtopic: this.resolvedSubtopicName(),
+    });
     this.validationErrors.set(res.errors);
     this.validationWarnings.set(res.warnings || []);
     return res.valid;
   }
 
   validateAndImport(): void {
-    const res = this.promptService.validateAndParseMicroLessonJson(this.jsonInput());
+    const res = this.promptService.validateAndParseMicroLessonJson(this.jsonInput(), {
+      subject: this.resolvedSubjectName(),
+      topic: this.resolvedTopicName(),
+      subtopic: this.resolvedSubtopicName(),
+    });
     this.validationErrors.set(res.errors);
     this.validationWarnings.set(res.warnings || []);
 

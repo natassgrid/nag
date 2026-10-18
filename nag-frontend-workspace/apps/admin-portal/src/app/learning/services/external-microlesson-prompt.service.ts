@@ -5,13 +5,17 @@ import {
   QuickCheckItem,
   TrapAlert,
 } from '../models/micro-lesson.model';
-import { ParsedAuthoringLessonState } from '../components/micro-lesson-authoring/models';
+import {
+  ParsedAuthoringLessonState,
+  resolveFormulaApplicability,
+} from '../components/micro-lesson-authoring/models';
 
 export interface MicroLessonPromptConfig {
   subject?: string;
   topic?: string;
   subtopic?: string;
   targetExam?: string;
+  lessonType?: string;
   referenceText?: string;
 }
 
@@ -35,9 +39,25 @@ export class ExternalMicroLessonPromptService {
     const topic = config.topic?.trim() || 'Classical Mechanics';
     const subtopic = config.subtopic?.trim() || 'Work-Energy Theorem';
     const targetExam = config.targetExam?.trim() || 'JEE Main & Advanced (JEE_MAIN)';
+    const policy = resolveFormulaApplicability(subject, topic, subtopic, config.lessonType);
     const ref = config.referenceText?.trim()
       ? `\nReference Focus & Diagnosis Context:\n${config.referenceText.trim()}\n`
       : '';
+
+    const part3Instruction = policy.required
+      ? '3. The Cheat Sheet (formulaEntries): Provide 2 to 3 indispensable mathematical/scientific formulas or core equations with KaTeX notation (MANDATORY for this subject/topic).'
+      : '3. The Cheat Sheet (formulaEntries): OPTIONAL for this subject/topic. Set "formulaEntries": [] if mathematical/scientific equations do not naturally apply, or include 1 to 2 symbolic/quantitative rules only if genuinely helpful.';
+
+    const formulaSchemaSnippet = policy.required
+      ? `  "formulaEntries": [
+    {
+      "name": "Work-Energy Theorem",
+      "latex": "$$W_{\\text{all}} = \\Delta K = \\frac{1}{2}mv_f^2 - \\frac{1}{2}mv_i^2$$",
+      "description": "Net work of all forces equals change in kinetic energy.",
+      "variables": ["W_all: Total work", "m: Mass", "v_f: Final velocity"]
+    }
+  ],`
+      : `  "formulaEntries": [],`;
 
     return `You are an expert master faculty and pedagogical content designer for Indian Competitive Examinations (${targetExam}).
 Your task is to produce exactly ONE high-impact, modular remedial micro-lesson designed to cure conceptual gaps diagnosed during mock test evaluation.
@@ -46,18 +66,19 @@ Syllabus & Target Specification:
 - Target Examination: ${targetExam}
 - Subject: ${subject}
 - Topic: ${topic}
-- Sub-Topic: ${subtopic}${ref}
+- Sub-Topic: ${subtopic}
+- Part 3 Formula Cheat Sheet Policy: ${policy.badgeLabel}${ref}
 
 Pedagogical Architecture Guidelines:
 1. Core Concept: Must be explained in exactly 3 simple, lucid sentences using native Indian contexts or everyday relatable analogies (e.g., flywheel in an atta chakki, steering a loaded bicycle, tea kettle steam, railway track expansion, monsoon rain runoffs).
 2. The Trap (trapAlert): Directly highlight the exact psychological, sign convention, or boundary condition trap test-setters deliberately insert to mislead candidates.
-3. The Cheat Sheet (formulaEntries): Provide 2 to 3 indispensable mathematical formulas or core frameworks with KaTeX notation.
-4. Step-by-Step Breakdown: Present one standard medium-difficulty exam problem deconstructed into explicit numbered deduction steps (Step 1, Step 2, Step 3), followed by the unambiguous final answer with proper physical/mathematical units.
+${part3Instruction}
+4. Step-by-Step Breakdown: Present one standard medium-difficulty exam problem deconstructed into explicit numbered deduction steps (Step 1, Step 2, Step 3), followed by the unambiguous final answer.
 5. Key Takeaways: 2 to 3 concise, memorable summary rules.
 6. Quick Check Items: 1 to 2 diagnostic concept checks with options, correct answer, and explanation.
 
-Mathematical & Formula Formatting Rules (STRICT REQUIREMENT):
-1. ALL mathematical, physical, and chemical formulas, variables, expressions, percentages, and unit notations in EVERY field (coreConcept, trapAlert, formulaEntries, problemStatement, steps, finalAnswer) MUST be enclosed in KaTeX $$...$$ syntax.
+Mathematical & Formula Formatting Rules (STRICT REQUIREMENT WHEN FORMULAS ARE USED):
+1. Whenever mathematical, physical, chemical formulas, variables, expressions, percentages, or unit notations appear in ANY field (coreConcept, trapAlert, formulaEntries, problemStatement, steps, finalAnswer), they MUST be enclosed in KaTeX $$...$$ syntax.
    - Correct: "$$W_{\\text{all}} = \\Delta K$$", "$$v_f = 5\\sqrt{2}\\text{ m/s}$$", "$$4.025\\%$$"
    - Incorrect: "\\( W \\)", "$W$", "4.025%"
 2. Chemical reactions MUST use valid LaTeX \\ce syntax enclosed in $$...$$ (e.g. "$$\\ce{2H2 + O2 -> 2H2O}$$").
@@ -72,21 +93,14 @@ Expected JSON Output Schema:
 {
   "targetExam": "${targetExam}",
   "subtopicCustomName": "${subtopic}",
-  "coreConcept": "3 simple sentences with native Indian analogy and $$formula$$ notations specific to the subtopic.",
+  "coreConcept": "3 simple sentences with native Indian analogy specific to the subtopic.",
   "trapAlert": {
-    "title": "Sign Convention & Reference Frame Pitfall",
-    "description": "Candidates frequently apply formulas without verifying reference frame conditions.",
-    "commonMistake": "Neglecting pseudo-forces in accelerating frames.",
-    "correctApproach": "Draw the complete free-body diagram and include $$-m\\vec{a}_{\\text{frame}}$$."
+    "title": "Exam Trap & Pitfall",
+    "description": "Candidates frequently misapply core conditions without verifying context.",
+    "commonMistake": "Overlooking key qualifying clauses or boundary conditions.",
+    "correctApproach": "Verify the governing rule before eliminating distractors."
   },
-  "formulaEntries": [
-    {
-      "name": "Work-Energy Theorem",
-      "latex": "$$W_{\\text{all}} = \\Delta K = \\frac{1}{2}mv_f^2 - \\frac{1}{2}mv_i^2$$",
-      "description": "Net work of all forces equals change in kinetic energy.",
-      "variables": ["W_all: Total work", "m: Mass", "v_f: Final velocity"]
-    }
-  ],
+${formulaSchemaSnippet}
   "stepByStepBreakdown": {
     "problemStatement": "A block of mass $$m = 4\\text{ kg}$$ is pushed across a rough horizontal surface ($$\\mu_k = 0.25$$) by a force $$F = 30\\text{ N}$$ over $$d = 5\\text{ m}$$. Find its final speed starting from rest.",
     "steps": [
@@ -109,7 +123,7 @@ Expected JSON Output Schema:
   },
   "keyTakeaways": [
     "Include both conservative and non-conservative work terms in $$W_{\\text{all}} = \\Delta K$$.",
-    "Verify whether the frame of reference is inertial before applying Newton\'s laws."
+    "Verify whether the frame of reference is inertial before applying Newton's laws."
   ],
   "quickCheckItems": [
     {
@@ -140,7 +154,10 @@ Expected JSON Output Schema:
    * Tolerates markdown code fences, unescaped LaTeX backslashes, flat vs nested formats,
    * validates required sections, and normalizes into a ParsedAuthoringLessonState object.
    */
-  validateAndParseMicroLessonJson(rawInput: string): MicroLessonValidationResult {
+  validateAndParseMicroLessonJson(
+    rawInput: string,
+    context?: { subject?: string; topic?: string; subtopic?: string; lessonType?: string }
+  ): MicroLessonValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
 
@@ -255,7 +272,14 @@ Expected JSON Output Schema:
       }));
     }
 
-    if (formulaEntries.length === 0) {
+    const resolvedPolicy = resolveFormulaApplicability(
+      context?.subject || parsed.subjectName || parsed.subject,
+      context?.topic || parsed.topicName || parsed.topic,
+      context?.subtopic || parsed.subtopicCustomName || parsed.subtopicName || parsed.subtopic,
+      context?.lessonType || parsed.lessonType || contentObj.lessonType
+    );
+
+    if (formulaEntries.length === 0 && resolvedPolicy.required) {
       warnings.push('No formula cheat sheet entries were found in the JSON. Initialized with an empty formula slot.');
       formulaEntries = [{ name: 'Formula 1', latex: '', description: '', variables: [] }];
     }

@@ -29,7 +29,33 @@ export class MicroLessonContentViewComponent {
   }
 
   asFormulaArray(sheet: any): FormulaEntry[] | null {
-    return Array.isArray(sheet) ? (sheet as FormulaEntry[]) : null;
+    if (!Array.isArray(sheet)) return null;
+    const valid = (sheet as FormulaEntry[]).filter(
+      (f) => f && ((f.latex && f.latex.trim().length > 0) || (f.name && f.name.trim().length > 0))
+    );
+    return valid.length > 0 ? valid : null;
+  }
+
+  hasFormulas(sheet: any): boolean {
+    if (!sheet) return false;
+    if (Array.isArray(sheet)) {
+      return sheet.some(
+        (f) =>
+          (typeof f === 'string' && f.trim().length > 0) ||
+          (f && typeof f === 'object' && ((f.latex && f.latex.trim().length > 0) || (f.name && f.name.trim().length > 0)))
+      );
+    }
+    if (typeof sheet === 'string') {
+      return sheet.trim().length > 0;
+    }
+    return false;
+  }
+
+  formatLatex(latex: string): string {
+    const trimmed = (latex || '').trim();
+    if (!trimmed) return '';
+    if (trimmed.includes('$$') || trimmed.includes('$')) return trimmed;
+    return `$$${trimmed}$$`;
   }
 
   asString(val: any): string {

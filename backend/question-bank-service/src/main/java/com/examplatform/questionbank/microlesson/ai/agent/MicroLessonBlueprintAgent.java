@@ -197,6 +197,68 @@ public class MicroLessonBlueprintAgent {
     }
 
     /**
+     * Determines whether Part 3 (KaTeX Formula Cheat Sheet) is strictly required for the given
+     * subject, topic, subtopic, and lessonType.
+     *
+     * <p>Subject &amp; Topic-Wise Rules:
+     * <ul>
+     *   <li><b>Mandatory</b>: Mathematics ({@code MATH}), Quantitative Aptitude, Statistics ({@code STATS}),
+     *       Data Interpretation ({@code DILA}), General Science ({@code GSCI} - Physics, Chemistry, Biology),
+     *       explicitly numerical topics in Reasoning/GS (e.g. Numerical Operations, Number Series,
+     *       Symbolic Operations, Inequalities, Everyday Science), or when {@code lessonType} is {@code CHEAT_SHEET}.</li>
+     *   <li><b>Optional</b>: English ({@code ENG}), General Hindi ({@code HND}), History, Polity, Geography,
+     *       General Studies ({@code GS} non-science), Public Administration ({@code PAG}),
+     *       Child Development &amp; Pedagogy ({@code CDP}), Environmental Ecology ({@code EEB}),
+     *       Banking &amp; Financial Awareness ({@code BFA}), Computer Science ({@code CS}),
+     *       and Verbal/Critical/Non-Verbal Reasoning.</li>
+     * </ul>
+     */
+    public boolean isFormulaSheetRequired(String subject, String topic, String subtopic, String lessonType) {
+        if (lessonType != null && "CHEAT_SHEET".equalsIgnoreCase(lessonType.trim())) {
+            return true;
+        }
+
+        String s = (subject != null ? subject : "").toLowerCase(Locale.ROOT).trim();
+        String t = (topic != null ? topic : "").toLowerCase(Locale.ROOT).trim();
+        String st = (subtopic != null ? subtopic : "").toLowerCase(Locale.ROOT).trim();
+        String combined = (s + " " + t + " " + st).trim();
+
+        if (combined.isEmpty()) {
+            return true;
+        }
+
+        // 1. Core Mathematical, Statistical, and Quantitative Subjects -> MANDATORY
+        if (s.contains("math") || s.equals("quant") || s.contains("quantitative")
+                || s.contains("numerical") || s.contains("arithmetic")
+                || s.contains("statistics") || s.equals("stats")
+                || s.contains("data interpretation") || s.equals("dila")) {
+            return true;
+        }
+
+        // 2. Core Science Subjects (General Science, Physics, Chemistry, Biology) -> MANDATORY
+        if (s.contains("physic") || s.contains("chem") || s.contains("general science")
+                || s.equals("gsci") || s.equals("science") || s.contains("physical science")) {
+            return true;
+        }
+
+        // 3. Topic-level check for Science / Math / Numerical topics inside hybrid subjects (e.g. GS, Reasoning)
+        if (t.contains("physics") || t.contains("chemistry") || t.contains("everyday science")
+                || t.contains("numerical operation") || t.contains("number series")
+                || t.contains("symbolic operation") || t.contains("inequalit")
+                || t.contains("quadratic") || t.contains("data interpretation")
+                || t.contains("arithmetic") || t.contains("mensuration")
+                || t.contains("trigonometry") || t.contains("algebra")
+                || t.contains("geometry") || t.contains("number system")
+                || st.contains("mathematical step operation") || st.contains("number coding")) {
+            return true;
+        }
+
+        // 4. All other subjects/topics (English, Hindi, Polity, History, Geography, Public Admin,
+        //    Pedagogy/CDP, Banking/Economy, Computer Science, Ecology, Verbal/Analytical Reasoning) -> OPTIONAL
+        return false;
+    }
+
+    /**
      * Resolves pedagogical directive tailored for the specific domain category.
      */
     public String resolveDomainDirective(DomainCategory category) {

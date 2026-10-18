@@ -79,28 +79,37 @@
       }
     </div>
 
-    <!-- 3. Formula Cheat Sheet -->
-    <div class="bg-indigo-50/60 rounded-xl p-4 border border-indigo-200/80 space-y-2.5 formula-sheet-card">
-      <div class="flex items-center gap-1.5 text-indigo-700 font-bold text-xs uppercase tracking-wide">
-        <mat-icon class="!w-4 !h-4 !text-[16px] text-indigo-600">functions</mat-icon>
-        Part 3: KaTeX Formula Cheat Sheet
-      </div>
-      <div class="grid grid-cols-1 gap-2.5">
-        @for (item of formulas(); track $index) {
-          <div class="bg-white rounded-lg p-3 border border-indigo-100/90 shadow-2xs space-y-1">
-            <div class="text-[11px] font-bold text-indigo-900">{{ item.name || ('Formula ' + ($index + 1)) }}</div>
-            @if (item.latex) {
-              <div class="overflow-x-auto py-1 text-xs text-slate-900 font-medium">
-                <nag-math-renderer [content]="formatLatex(item.latex)"></nag-math-renderer>
-              </div>
-            }
-            @if (item.description) {
-              <div class="text-[11px] text-slate-600 font-medium">{{ item.description }}</div>
-            }
+    <!-- 3. Formula Cheat Sheet (Shown when mandatory or when optional formulas are provided) -->
+    @if (formulaRequired() || previewFormulas().length > 0) {
+      <div class="bg-indigo-50/60 rounded-xl p-4 border border-indigo-200/80 space-y-2.5 formula-sheet-card">
+        <div class="flex items-center justify-between gap-1.5">
+          <div class="flex items-center gap-1.5 text-indigo-700 font-bold text-xs uppercase tracking-wide">
+            <mat-icon class="!w-4 !h-4 !text-[16px] text-indigo-600">functions</mat-icon>
+            Part 3: KaTeX Formula Cheat Sheet
           </div>
-        }
+          @if (!formulaRequired()) {
+            <span class="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase bg-indigo-100 text-indigo-700">
+              Optional
+            </span>
+          }
+        </div>
+        <div class="grid grid-cols-1 gap-2.5">
+          @for (item of previewFormulas(); track $index) {
+            <div class="bg-white rounded-lg p-3 border border-indigo-100/90 shadow-2xs space-y-1">
+              <div class="text-[11px] font-bold text-indigo-900">{{ item.name || ('Formula ' + ($index + 1)) }}</div>
+              @if (item.latex) {
+                <div class="overflow-x-auto py-1 text-xs text-slate-900 font-medium">
+                  <nag-math-renderer [content]="formatLatex(item.latex)"></nag-math-renderer>
+                </div>
+              }
+              @if (item.description) {
+                <div class="text-[11px] text-slate-600 font-medium">{{ item.description }}</div>
+              }
+            </div>
+          }
+        </div>
       </div>
-    </div>
+    }
 
     <!-- 4. Step-by-Step Breakdown -->
     <div class="bg-white rounded-xl p-4 border border-slate-200/80 space-y-3">

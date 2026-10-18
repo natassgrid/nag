@@ -12,8 +12,9 @@ import { FormulaEntry, MicroLessonStep, QuickCheckItem, TrapAlert } from '../../
 import {
   DEFAULT_CORE_CONCEPT, DEFAULT_EXAM_OPTIONS, DEFAULT_FINAL_ANSWER, DEFAULT_FORMULA_ENTRIES,
   DEFAULT_KEY_TAKEAWAYS, DEFAULT_PROBLEM_STATEMENT, DEFAULT_QUICK_CHECKS,
-  DEFAULT_STEP_ITEMS, DEFAULT_TRAP_ALERT, TargetExamOption,
+  DEFAULT_STEP_ITEMS, DEFAULT_TRAP_ALERT, TargetExamOption, SubjectTopicFormulaPolicy,
   buildCreateOrUpdateRequest, parseLessonForAuthoring, ParsedAuthoringLessonState,
+  resolveFormulaApplicability,
 } from './models';
 import {
   CoreConceptEditorComponent, FormulaSheetBuilderComponent, LessonLivePreviewComponent,
@@ -77,6 +78,16 @@ export class MicroLessonAuthoringComponent implements OnInit {
     const custom = this.customSubtopicName().trim();
     return custom || this.subtopics().find((st) => st.id === this.selectedSubtopicId())?.name || 'General';
   });
+
+  readonly formulaPolicy = computed<SubjectTopicFormulaPolicy>(() =>
+    resolveFormulaApplicability(
+      this.resolvedSubjectName(),
+      this.resolvedTopicName(),
+      this.resolvedSubtopicName(),
+      this.lessonType()
+    )
+  );
+  readonly isFormulaRequired = computed(() => this.formulaPolicy().required);
 
   ngOnInit(): void {
     const editId = this.route.snapshot?.queryParamMap?.get('edit');
@@ -159,11 +170,13 @@ export class MicroLessonAuthoringComponent implements OnInit {
     this.selectedSubtopicId.set(null);
     this.topics.set([]);
     this.subtopics.set([]);
+    this.syncFormulaPlaceholderWithPolicy();
     if (subjectId) {
       this.subjectTopicService.getTopics(subjectId).subscribe({
         next: (tops) => {
           this.topics.set(tops || []);
           if (tops?.length) this.onTopicChange(tops[0].id);
+          else this.syncFormulaPlaceholderWithPolicy();
         },
       });
     }
@@ -173,6 +186,7 @@ export class MicroLessonAuthoringComponent implements OnInit {
     this.selectedTopicId.set(topicId);
     this.selectedSubtopicId.set(null);
     this.subtopics.set([]);
+    this.syncFormulaPlaceholderWithPolicy();
     const subjectId = this.selectedSubjectId();
     if (subjectId && topicId) {
       this.subjectTopicService.getSubtopics(subjectId, topicId).subscribe({
@@ -182,6 +196,7 @@ export class MicroLessonAuthoringComponent implements OnInit {
             this.selectedSubtopicId.set(subs[0].id);
             this.customSubtopicName.set(subs[0].name);
           }
+          this.syncFormulaPlaceholderWithPolicy();
         },
       });
     }
@@ -191,6 +206,33 @@ export class MicroLessonAuthoringComponent implements OnInit {
     this.selectedSubtopicId.set(subtopicId);
     const found = this.subtopics().find((s) => s.id === subtopicId);
     if (found) this.customSubtopicName.set(found.name);
+    this.syncFormulaPlaceholderWithPolicy();
+  }
+
+  onLessonTypeChange(nextType: string): void {
+    this.lessonType.set(nextType);
+    this.syncFormulaPlaceholderWithPolicy();
+  }
+
+  private syncFormulaPlaceholderWithPolicy(): void {
+    const entries = this.formulaEntries() || [];
+    const required = this.isFormulaRequired();
+    const isSingleBlankPlaceholder =
+      entries.length === 1 &&
+      !(entries[0].latex || '').trim() &&
+      !(entries[0].description || '').trim() &&
+      (!(entries[0].name || '').trim() || /^formula\s+\d+$/i.test((entries[0].name || '').trim()));
+    const isUntouchedDefaultSample =
+      !this.editingLessonId() &&
+      entries.length === 1 &&
+      entries[0].name === DEFAULT_FORMULA_ENTRIES[0].name &&
+      entries[0].latex === DEFAULT_FORMULA_ENTRIES[0].latex;
+
+    if (required && entries.length === 0) {
+      this.formulaEntries.set([{ name: 'Formula 1', latex: '', description: '', variables: [] }]);
+    } else if (!required && (isSingleBlankPlaceholder || isUntouchedDefaultSample)) {
+      this.formulaEntries.set([]);
+    }
   }
 
   createQuickSubject(name: string): void {
@@ -210,7 +252,11 @@ export class MicroLessonAuthoringComponent implements OnInit {
   resetForm(): void {
     this.coreConcept.set('');
     this.trapAlert.set({ title: '', description: '', commonMistake: '', correctApproach: '' });
-    this.formulaEntries.set([{ name: 'Formula 1', latex: '', description: '', variables: [] }]);
+    this.formulaEntries.set(
+      this.isFormulaRequired()
+        ? [{ name: 'Formula 1', latex: '', description: '', variables: [] }]
+        : []
+    );
     this.problemStatement.set('');
     this.steps.set([{ stepNumber: 1, title: 'Step 1', explanation: '', formula: '', tip: '' }]);
     this.finalAnswer.set('');
@@ -277,6 +323,23 @@ export class MicroLessonAuthoringComponent implements OnInit {
       this.feedback.set({ type: 'error', message: 'Core Concept explanation is required.' });
       return;
     }
+
+    const nonEmptyFormulas = (this.formulaEntries() || []).filter(
+      (f) => f && (f.latex || '').trim().length > 0
+    );
+    if (this.isFormulaRequired() && nonEmptyFormulas.length === 0) {
+      this.feedback.set({
+        type: 'error',
+        message:
+          'Part 3 (KaTeX Formula Cheat Sheet) requires at least 1 formula for Mathematics, Science, and Numerical topics.',
+      });
+      return;
+    }
+
+    const effectiveFormulas = this.isFormulaRequired()
+      ? this.formulaEntries()
+      : (this.formulaEntries() || []).filter((f) => f && (f.latex || '').trim().length > 0);
+
     const payload = buildCreateOrUpdateRequest({
       subjectId: this.selectedSubjectId(), subjectName: this.resolvedSubjectName(),
       topicId: this.selectedTopicId(), topicName: this.resolvedTopicName(),
@@ -287,7 +350,7 @@ export class MicroLessonAuthoringComponent implements OnInit {
       sequenceNo: this.sequenceNo(),
       estimatedMinutes: this.estimatedMinutes(),
       status: this.status(), coreConcept: this.coreConcept(),
-      trapAlert: this.trapAlert(), formulaEntries: this.formulaEntries(),
+      trapAlert: this.trapAlert(), formulaEntries: effectiveFormulas,
       problemStatement: this.problemStatement(), steps: this.steps(), finalAnswer: this.finalAnswer(),
       keyTakeaways: this.keyTakeaways(), quickCheckItems: this.quickCheckItems(), reviewerNotes: this.reviewerNotes(),
     });
