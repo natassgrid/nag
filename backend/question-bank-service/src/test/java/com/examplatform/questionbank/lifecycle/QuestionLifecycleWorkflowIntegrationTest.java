@@ -98,20 +98,21 @@ class QuestionLifecycleWorkflowIntegrationTest extends AbstractIntegrationTest {
     // Helper: create a minimal DRAFT question in the DB
     // -------------------------------------------------------------------------
     private UUID createDraftQuestion() {
-        // We need a real subject/topic in the DB. The schema seed populates
-        // subjects and topics for tenant 'default'. We look one up directly.
+        // We need a real subject/topic/subtopic in the DB.
         Long subjectId = jdbcTemplate.queryForObject(
-                "SELECT id FROM question_service.subject WHERE tenant_id = 'default' LIMIT 1", Long.class);
+                "SELECT id FROM question_service.subject LIMIT 1", Long.class);
         Long topicId = jdbcTemplate.queryForObject(
-                "SELECT id FROM question_service.topic WHERE tenant_id = 'default' AND subject_id = ? LIMIT 1",
+                "SELECT id FROM question_service.topic WHERE subject_id = ? LIMIT 1",
                 Long.class, subjectId);
+        Long subtopicId = jdbcTemplate.queryForObject(
+                "SELECT id FROM question_service.subtopic WHERE topic_id = ? LIMIT 1",
+                Long.class, topicId);
 
         // Bypass QuestionService to avoid similarity detection / embedding calls
         Question question = Question.builder()
                 .subjectId(subjectId)
                 .topicId(topicId)
-                .subject("Physics")
-                .topic("Thermodynamics")
+                .subtopicId(subtopicId)
                 .difficulty(DifficultyLevel.MEDIUM.name())
                 .cognitiveLevel(CognitiveLevel.UNDERSTAND.name())
                 .questionType(QuestionType.SINGLE_MCQ.name())

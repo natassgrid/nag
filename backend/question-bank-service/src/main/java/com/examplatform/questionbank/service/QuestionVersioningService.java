@@ -105,9 +105,9 @@ public class QuestionVersioningService {
     String computeDiff(Question oldQuestion, Question newQuestion) {
         Map<String, Map<String, String>> diff = new LinkedHashMap<>();
 
-        addIfChanged(diff, SharedConstants.SUBJECT, oldQuestion.getSubject(), newQuestion.getSubject());
-        addIfChanged(diff, "topic", oldQuestion.getTopic(), newQuestion.getTopic());
-        addIfChanged(diff, "subtopic", oldQuestion.getSubtopic(), newQuestion.getSubtopic());
+        addIfChanged(diff, "subjectId", String.valueOf(oldQuestion.getSubjectId()), String.valueOf(newQuestion.getSubjectId()));
+        addIfChanged(diff, "topicId", String.valueOf(oldQuestion.getTopicId()), String.valueOf(newQuestion.getTopicId()));
+        addIfChanged(diff, "subtopicId", String.valueOf(oldQuestion.getSubtopicId()), String.valueOf(newQuestion.getSubtopicId()));
         addIfChanged(diff, "chapter", oldQuestion.getChapter(), newQuestion.getChapter());
         addIfChanged(diff, SharedConstants.DIFFICULTY, oldQuestion.getDifficulty(), newQuestion.getDifficulty());
         addIfChanged(diff, "cognitiveLevel", oldQuestion.getCognitiveLevel(), newQuestion.getCognitiveLevel());
@@ -139,9 +139,9 @@ public class QuestionVersioningService {
         try {
             ObjectNode node = objectMapper.createObjectNode();
             node.put("id", question.getId() != null ? question.getId().toString() : null);
-            node.put(SharedConstants.SUBJECT, question.getSubject());
-            node.put("topic", question.getTopic());
-            node.put("subtopic", question.getSubtopic());
+            node.put("subjectId", question.getSubjectId() != null ? question.getSubjectId().toString() : null);
+            node.put("topicId", question.getTopicId() != null ? question.getTopicId().toString() : null);
+            node.put("subtopicId", question.getSubtopicId() != null ? question.getSubtopicId().toString() : null);
             node.put("chapter", question.getChapter());
             node.put(SharedConstants.DIFFICULTY, question.getDifficulty());
             node.put("cognitiveLevel", question.getCognitiveLevel());

@@ -68,11 +68,11 @@ class QuestionVersioningServiceTest {
     private static final UUID AUTHOR_ID = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
     private static final String TENANT_ID = "tenant-test";
 
-    private Question buildQuestion(String subject, String topic, String content) {
+    private Question buildQuestion(Long subjectId, Long topicId, String content) {
         Question q = Question.builder()
-                .subject(subject)
-                .topic(topic)
-                .subtopic("Subtopic A")
+                .subjectId(subjectId)
+                .topicId(topicId)
+                .subtopicId(100L)
                 .chapter("Chapter 1")
                 .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
                 .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.APPLY)
@@ -101,8 +101,8 @@ class QuestionVersioningServiceTest {
         @DisplayName("should detect changed fields and produce correct diff JSON")
         void shouldDetectChangedFieldsAndProduceCorrectDiff() throws Exception {
             // Given
-            Question oldQuestion = buildQuestion("Mathematics", "Algebra", "<p>old content</p>");
-            Question newQuestion = buildQuestion("Physics", "Algebra", "<p>new content</p>");
+            Question oldQuestion = buildQuestion(1L, 10L, "<p>old content</p>");
+            Question newQuestion = buildQuestion(2L, 10L, "<p>new content</p>");
 
             when(questionVersionRepository.findTopByQuestionIdOrderByVersionNumberDesc(QUESTION_ID))
                     .thenReturn(Optional.empty());
@@ -118,14 +118,14 @@ class QuestionVersioningServiceTest {
             QuestionVersion saved = captor.getValue();
 
             JsonNode diff = objectMapper.readTree(saved.getDiffJson());
-            assertThat(diff.has(SharedConstants.SUBJECT)).isTrue();
-            assertThat(diff.get(SharedConstants.SUBJECT).get("old").asText()).isEqualTo("Mathematics");
-            assertThat(diff.get(SharedConstants.SUBJECT).get("new").asText()).isEqualTo("Physics");
+            assertThat(diff.has("subjectId")).isTrue();
+            assertThat(diff.get("subjectId").get("old").asText()).isEqualTo("1");
+            assertThat(diff.get("subjectId").get("new").asText()).isEqualTo("2");
             assertThat(diff.has("content")).isTrue();
             assertThat(diff.get("content").get("old").asText()).isEqualTo("<p>old content</p>");
             assertThat(diff.get("content").get("new").asText()).isEqualTo("<p>new content</p>");
             // Unchanged fields should not appear in diff
-            assertThat(diff.has("topic")).isFalse();
+            assertThat(diff.has("topicId")).isFalse();
             assertThat(diff.has("difficulty")).isFalse();
         }
 
@@ -133,8 +133,8 @@ class QuestionVersioningServiceTest {
         @DisplayName("should increment version number from previous version")
         void shouldIncrementVersionNumberFromPrevious() {
             // Given
-            Question oldQuestion = buildQuestion("Mathematics", "Algebra", "<p>old</p>");
-            Question newQuestion = buildQuestion("Mathematics", "Calculus", "<p>old</p>");
+            Question oldQuestion = buildQuestion(1L, 10L, "<p>old</p>");
+            Question newQuestion = buildQuestion(1L, 20L, "<p>old</p>");
 
             QuestionVersion previousVersion = QuestionVersion.builder()
                     .versionNumber(3)
@@ -155,8 +155,8 @@ class QuestionVersioningServiceTest {
         @DisplayName("should set versionNumber to 1 for the first version")
         void shouldSetVersionNumberToOneForFirstVersion() {
             // Given
-            Question oldQuestion = buildQuestion("Mathematics", "Algebra", "<p>old</p>");
-            Question newQuestion = buildQuestion("Physics", "Algebra", "<p>old</p>");
+            Question oldQuestion = buildQuestion(1L, 10L, "<p>old</p>");
+            Question newQuestion = buildQuestion(2L, 10L, "<p>old</p>");
 
             when(questionVersionRepository.findTopByQuestionIdOrderByVersionNumberDesc(QUESTION_ID))
                     .thenReturn(Optional.empty());
@@ -174,8 +174,8 @@ class QuestionVersioningServiceTest {
         @DisplayName("should produce snapshot with full JSON of updated question")
         void shouldProduceFullJsonSnapshot() throws Exception {
             // Given
-            Question oldQuestion = buildQuestion("Mathematics", "Algebra", "<p>old</p>");
-            Question newQuestion = buildQuestion("Physics", "Mechanics", "<p>new content</p>");
+            Question oldQuestion = buildQuestion(1L, 10L, "<p>old</p>");
+            Question newQuestion = buildQuestion(2L, 20L, "<p>new content</p>");
 
             when(questionVersionRepository.findTopByQuestionIdOrderByVersionNumberDesc(QUESTION_ID))
                     .thenReturn(Optional.empty());
@@ -191,8 +191,9 @@ class QuestionVersioningServiceTest {
             QuestionVersion saved = captor.getValue();
 
             JsonNode snapshot = objectMapper.readTree(saved.getSnapshotJson());
-            assertThat(snapshot.get(SharedConstants.SUBJECT).asText()).isEqualTo("Physics");
-            assertThat(snapshot.get("topic").asText()).isEqualTo("Mechanics");
+            assertThat(snapshot.get("subjectId").asText()).isEqualTo("2");
+            assertThat(snapshot.get("topicId").asText()).isEqualTo("20");
+            assertThat(snapshot.get("subtopicId").asText()).isEqualTo("100");
             assertThat(snapshot.get("content").asText()).isEqualTo("<p>new content</p>");
             assertThat(snapshot.get("questionType").asText()).isEqualTo(QuestionTypeConstants.SINGLE_MCQ);
             assertThat(snapshot.get("difficulty").asText()).isEqualTo(QuestionTaxonomyConstants.Difficulty.MEDIUM);
@@ -207,8 +208,8 @@ class QuestionVersioningServiceTest {
         @DisplayName("should set authorId, questionId, changedAt, and tenantId on version")
         void shouldSetMetadataOnVersion() {
             // Given
-            Question oldQuestion = buildQuestion("Mathematics", "Algebra", "<p>old</p>");
-            Question newQuestion = buildQuestion("Physics", "Algebra", "<p>old</p>");
+            Question oldQuestion = buildQuestion(1L, 10L, "<p>old</p>");
+            Question newQuestion = buildQuestion(2L, 10L, "<p>old</p>");
 
             when(questionVersionRepository.findTopByQuestionIdOrderByVersionNumberDesc(QUESTION_ID))
                     .thenReturn(Optional.empty());

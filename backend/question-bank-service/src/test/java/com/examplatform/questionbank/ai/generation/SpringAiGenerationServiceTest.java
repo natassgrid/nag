@@ -720,8 +720,9 @@ class SpringAiGenerationServiceTest {
 
             // Mock the repository save to return a question with an ID
             Question savedQuestion = Question.builder()
-                    .subject("Physics")
-                    .topic("Mechanics")
+                    .subjectId(1L)
+                    .topicId(2L)
+                    .subtopicId(3L)
                     .state(QuestionStateConstants.DRAFT)
                     .build();
             savedQuestion.setTenantId(TENANT_ID);
@@ -735,7 +736,7 @@ class SpringAiGenerationServiceTest {
             }
             when(questionRepository.save(any(Question.class))).thenReturn(savedQuestion);
             when(subjectTopicService.resolveOrCreateByName(eq("Physics"), eq("Mechanics"), any(), eq(TENANT_ID)))
-                    .thenReturn(new com.examplatform.questionbank.service.SubjectTopicService.HierarchyIds(1L, 2L, null));
+                    .thenReturn(new com.examplatform.questionbank.service.SubjectTopicService.HierarchyIds(1L, 2L, 3L));
 
             QuestionGenerationRequest request = QuestionGenerationRequest.builder()
                     .subject("Physics")

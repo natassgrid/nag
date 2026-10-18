@@ -15,7 +15,7 @@
 INSERT INTO question_service.topic (tenant_id, subject_id, name, description)
 SELECT 'default', s.id, 'Indian Polity', 'Indian constitution, governance and political system'
 FROM question_service.subject s
-WHERE s.name IN ('General Awareness', 'General Studies') AND s.tenant_id = 'default'
+WHERE s.code = 'GS' AND (s.tenant_id IS NULL OR s.tenant_id = 'default')
 ON CONFLICT (name, subject_id, tenant_id) DO NOTHING;
 
 -- Step 2: Ensure all specific Indian Polity subtopics exist under 'Indian Polity'
@@ -35,13 +35,12 @@ CROSS JOIN (VALUES
     ('Local Self-Government & Panchayati Raj', 'Panchayati Raj Institutions (73rd Amendment) and Municipalities (74th Amendment)'),
     ('Constitutional Bodies & Amendments', 'Election Commission, CAG, UPSC, Finance Commission, Emergency Provisions, and Constitutional Amendments')
 ) AS sub(name, description)
-WHERE s.name IN ('General Awareness', 'General Studies') AND s.tenant_id = 'default'
+WHERE s.code = 'GS' AND (s.tenant_id IS NULL OR s.tenant_id = 'default')
 ON CONFLICT (name, topic_id, tenant_id) DO NOTHING;
 
 -- Step 3: Insert 100 RRB NTPC Indian Polity Questions
 INSERT INTO question_service.question (
-    id, tenant_id, subject_id, topic_id, subtopic_id,
-    subject, topic, subtopic, difficulty, cognitive_level,
+    id, tenant_id, subject_id, topic_id, subtopic_id, difficulty, cognitive_level,
     question_type, content, options, answer_key, explanation,
     state, author_id
 )
@@ -51,9 +50,6 @@ SELECT
     s.id,
     t.id,
     st.id,
-    'General Awareness',
-    'Indian Polity',
-    v.subtopic_name,
     v.difficulty,
     v.cognitive_level,
     'SINGLE_MCQ',
@@ -1105,9 +1101,13 @@ FROM (VALUES
     )
 ) AS v(id, subtopic_name, difficulty, cognitive_level, content, options, answer_key, explanation)
 JOIN question_service.subject s
-  ON s.name = 'General Awareness' AND s.tenant_id = 'default'
+  ON s.code = 'GS' AND (s.tenant_id IS NULL OR s.tenant_id = 'default')
 JOIN question_service.topic t
-  ON t.name = 'Indian Polity' AND t.subject_id = s.id AND t.tenant_id = 'default'
-LEFT JOIN question_service.subtopic st
-  ON st.name = v.subtopic_name AND st.topic_id = t.id AND st.tenant_id = 'default'
+  ON t.name = 'Indian Polity' AND t.subject_id = s.id AND (t.tenant_id IS NULL OR t.tenant_id = 'default')
+JOIN LATERAL (
+    SELECT id FROM question_service.subtopic
+    WHERE topic_id = t.id AND (v.subtopic_name IS NULL OR name = v.subtopic_name)
+    ORDER BY CASE WHEN name = v.subtopic_name THEN 0 ELSE 1 END, display_order ASC
+    LIMIT 1
+) st ON TRUE
 ON CONFLICT (id, subject_id) DO NOTHING;

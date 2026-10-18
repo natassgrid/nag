@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 /**
@@ -51,18 +52,31 @@ class QuestionSearchServiceTest {
     @Mock
     QuestionRepository questionRepository;
 
+    @Mock
+    com.examplatform.questionbank.repository.SubjectRepository subjectRepository;
+
+    @Mock
+    com.examplatform.shared.taxonomy.TaxonomyClient taxonomyClient;
+
     @InjectMocks
     QuestionSearchService questionSearchService;
 
     private static final String TENANT_ID = "default";
 
+    private com.examplatform.questionbank.domain.Subject createSubject(Long id, String name) {
+        com.examplatform.questionbank.domain.Subject s = com.examplatform.questionbank.domain.Subject.builder().name(name).build();
+        org.springframework.test.util.ReflectionTestUtils.setField(s, "id", id);
+        return s;
+    }
+
     @Test
     @DisplayName("search returns matching questions filtered by subject and query")
     void searchReturnsFilteredResults() {
         Question q1 = Question.builder()
-                .subject("Mathematics")
-                .topic("Algebra")
-                .subtopic("Linear Equations")
+                .subjectId(1L)
+                .topicId(10L)
+                .subtopicId(100L)
+                .chapter("Algebra Basics")
                 .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
                 .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.APPLY)
                 .questionType("MCQ")
@@ -72,9 +86,10 @@ class QuestionSearchServiceTest {
                 .build();
 
         Question q2 = Question.builder()
-                .subject("Mathematics")
-                .topic("Calculus")
-                .subtopic("Integration")
+                .subjectId(1L)
+                .topicId(20L)
+                .subtopicId(200L)
+                .chapter("Calculus Basics")
                 .difficulty(QuestionTaxonomyConstants.Difficulty.HARD)
                 .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.ANALYZE)
                 .questionType("MCQ")
@@ -83,8 +98,12 @@ class QuestionSearchServiceTest {
                 .authorId(UUID.randomUUID())
                 .build();
 
-        when(questionRepository.findBySubjectAndStateAndTenantId("Mathematics", QuestionStateConstants.PUBLISHED, TENANT_ID))
+        when(subjectRepository.findByNameAndTenantId("Mathematics", TENANT_ID))
+                .thenReturn(java.util.Optional.of(createSubject(1L, "Mathematics")));
+        when(questionRepository.findBySubjectIdAndStateAndTenantId(1L, QuestionStateConstants.PUBLISHED, TENANT_ID))
                 .thenReturn(List.of(q1, q2));
+        when(taxonomyClient.resolveNames(any(com.examplatform.shared.taxonomy.TaxonomyNodeRef.class), any()))
+                .thenReturn(new com.examplatform.shared.taxonomy.TaxonomyNames("Mathematics", "Algebra", "Linear Equations"));
 
         Page<QuestionResponse> results = questionSearchService.search(
                 "Algebra", "Mathematics", null, 0, 10, TENANT_ID);
@@ -97,8 +116,9 @@ class QuestionSearchServiceTest {
     @DisplayName("search filters by difficulty when provided")
     void searchFiltersByDifficulty() {
         Question q1 = Question.builder()
-                .subject("Physics")
-                .topic("Mechanics")
+                .subjectId(2L)
+                .topicId(11L)
+                .subtopicId(101L)
                 .difficulty(QuestionTaxonomyConstants.Difficulty.EASY)
                 .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.REMEMBER)
                 .questionType("MCQ")
@@ -108,8 +128,9 @@ class QuestionSearchServiceTest {
                 .build();
 
         Question q2 = Question.builder()
-                .subject("Physics")
-                .topic("Optics")
+                .subjectId(2L)
+                .topicId(12L)
+                .subtopicId(102L)
                 .difficulty(QuestionTaxonomyConstants.Difficulty.HARD)
                 .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.ANALYZE)
                 .questionType("MCQ")
@@ -118,8 +139,12 @@ class QuestionSearchServiceTest {
                 .authorId(UUID.randomUUID())
                 .build();
 
-        when(questionRepository.findBySubjectAndStateAndTenantId("Physics", QuestionStateConstants.PUBLISHED, TENANT_ID))
+        when(subjectRepository.findByNameAndTenantId("Physics", TENANT_ID))
+                .thenReturn(java.util.Optional.of(createSubject(2L, "Physics")));
+        when(questionRepository.findBySubjectIdAndStateAndTenantId(2L, QuestionStateConstants.PUBLISHED, TENANT_ID))
                 .thenReturn(List.of(q1, q2));
+        when(taxonomyClient.resolveNames(any(com.examplatform.shared.taxonomy.TaxonomyNodeRef.class), any()))
+                .thenReturn(new com.examplatform.shared.taxonomy.TaxonomyNames("Physics", "Mechanics", "Kinematics"));
 
         Page<QuestionResponse> results = questionSearchService.search(
                 "", "Physics", QuestionTaxonomyConstants.Difficulty.EASY, 0, 10, TENANT_ID);
@@ -132,9 +157,9 @@ class QuestionSearchServiceTest {
     @DisplayName("search matches across multiple fields like chapter, explanation, cognitiveLevel, and tokens")
     void searchMatchesMultiFieldsAndTokens() {
         Question q1 = Question.builder()
-                .subject("Chemistry")
-                .topic("Organic Chemistry")
-                .subtopic("Hydrocarbons")
+                .subjectId(3L)
+                .topicId(31L)
+                .subtopicId(301L)
                 .chapter("Alkanes and Alkenes")
                 .difficulty(QuestionTaxonomyConstants.Difficulty.EASY)
                 .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.UNDERSTAND)
@@ -146,9 +171,9 @@ class QuestionSearchServiceTest {
                 .build();
 
         Question q2 = Question.builder()
-                .subject("Chemistry")
-                .topic("Inorganic Chemistry")
-                .subtopic("Periodic Table")
+                .subjectId(3L)
+                .topicId(32L)
+                .subtopicId(302L)
                 .chapter("Noble Gases")
                 .difficulty(QuestionTaxonomyConstants.Difficulty.HARD)
                 .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.ANALYZE)
@@ -159,12 +184,16 @@ class QuestionSearchServiceTest {
                 .authorId(UUID.randomUUID())
                 .build();
 
-        when(questionRepository.findBySubjectAndStateAndTenantId("Chemistry", QuestionStateConstants.PUBLISHED, TENANT_ID))
+        when(subjectRepository.findByNameAndTenantId("Chemistry", TENANT_ID))
+                .thenReturn(java.util.Optional.of(createSubject(3L, "Chemistry")));
+        when(questionRepository.findBySubjectIdAndStateAndTenantId(3L, QuestionStateConstants.PUBLISHED, TENANT_ID))
                 .thenReturn(List.of(q1, q2));
+        when(taxonomyClient.resolveNames(any(com.examplatform.shared.taxonomy.TaxonomyNodeRef.class), any()))
+                .thenReturn(new com.examplatform.shared.taxonomy.TaxonomyNames("Chemistry", "Inorganic Chemistry", "Periodic Table"));
 
-        // Multi-token search matching topic ("Organic") and difficulty ("EASY")
+        // Multi-token search matching chapter ("Alkanes") and difficulty ("EASY")
         Page<QuestionResponse> results = questionSearchService.search(
-                "Organic EASY", "Chemistry", null, 0, 10, TENANT_ID);
+                "Alkanes EASY", "Chemistry", null, 0, 10, TENANT_ID);
 
         assertThat(results.getContent()).hasSize(1);
         assertThat(results.getContent().get(0).getChapter()).isEqualTo("Alkanes and Alkenes");
@@ -180,7 +209,9 @@ class QuestionSearchServiceTest {
     @Test
     @DisplayName("search returns empty page when no matches")
     void searchReturnsEmptyOnNoMatch() {
-        when(questionRepository.findBySubjectAndStateAndTenantId("Chemistry", QuestionStateConstants.PUBLISHED, TENANT_ID))
+        when(subjectRepository.findByNameAndTenantId("Chemistry", TENANT_ID))
+                .thenReturn(java.util.Optional.of(createSubject(3L, "Chemistry")));
+        when(questionRepository.findBySubjectIdAndStateAndTenantId(3L, QuestionStateConstants.PUBLISHED, TENANT_ID))
                 .thenReturn(List.of());
 
         Page<QuestionResponse> results = questionSearchService.search(

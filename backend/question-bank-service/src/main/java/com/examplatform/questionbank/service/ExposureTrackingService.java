@@ -67,11 +67,6 @@ public class ExposureTrackingService {
         question.setUsageCount(question.getUsageCount() + 1);
         question.setLastUsedAt(LocalDateTime.now());
 
-        // Append examId to usedInExamIdsJson
-        List<String> examIds = parseJsonList(question.getUsedInExamIdsJson());
-        examIds.add(examId.toString());
-        question.setUsedInExamIdsJson(toJson(examIds));
-
         // Append shiftId to usedInShiftIdsJson
         List<String> shiftIds = parseJsonList(question.getUsedInShiftIdsJson());
         shiftIds.add(shiftId);

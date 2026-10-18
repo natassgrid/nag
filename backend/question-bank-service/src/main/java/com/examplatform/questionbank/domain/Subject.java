@@ -21,19 +21,14 @@ package com.examplatform.questionbank.domain;
 
 import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.entity.NumericBaseEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.*;
 import lombok.*;
 
 /**
  * Represents an examination subject (e.g. General Studies, Mathematics).
- * Unique per name + tenant combination.
  *
- * <p>Uses a numeric ({@code BIGINT}) primary key (see {@link NumericBaseEntity})
- * so that the large {@code question} fact table can reference it with a compact
- * 8-byte foreign key.
+ * <p>Canonical platform subjects have {@code tenant_id IS NULL}.
+ * Tenant-specific subjects have their tenant ID and optional {@code base_node_id}.
  */
 @Data
 @Builder
@@ -41,20 +36,38 @@ import lombok.*;
 @AllArgsConstructor
 @EqualsAndHashCode(callSuper = true)
 @Entity
-@Table(name = SharedConstants.SUBJECT, schema = "question_service",
-       uniqueConstraints = @UniqueConstraint(columnNames = {SharedConstants.NAME, "tenant_id"}))
+@Table(name = SharedConstants.SUBJECT, schema = "question_service")
+@AttributeOverride(name = "tenantId", column = @Column(name = "tenant_id", updatable = false, nullable = true, columnDefinition = "varchar(255)"))
 public class Subject extends NumericBaseEntity {
-
-    @Column(name = SharedConstants.NAME, nullable = false, length = 200)
-    private String name;
 
     @Column(name = SharedConstants.CODE, length = 50)
     private String code;
+
+    @Column(name = SharedConstants.NAME, nullable = false, length = 200)
+    private String name;
 
     @Column(name = "description")
     private String description;
 
     @Builder.Default
-    @Column(name = "active")
+    @Column(name = "display_order", nullable = false)
+    private Integer displayOrder = 0;
+
+    @Column(name = "base_node_id")
+    private Long baseNodeId;
+
+    @Builder.Default
+    @Column(name = "active", nullable = false)
     private boolean active = true;
+
+    @Builder.Default
+    @Transient
+    private boolean platformScope = false;
+
+    @PrePersist
+    protected void onSubjectPrePersist() {
+        if (platformScope || super.getTenantId() == null) {
+            super.setTenantId(null);
+        }
+    }
 }

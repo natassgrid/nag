@@ -36,5 +36,7 @@ public class CreateSubtopicRequest {
     @Size(max = 200, message = "Subtopic name must not exceed 200 characters")
     private String name;
 
+    private String code;
+
     private String description;
 }

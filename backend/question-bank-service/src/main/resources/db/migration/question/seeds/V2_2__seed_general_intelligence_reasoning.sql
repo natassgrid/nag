@@ -4,8 +4,7 @@
 -- ============================================================
 
 INSERT INTO question_service.question (
-    id, tenant_id, subject_id, topic_id, subtopic_id,
-    subject, topic, subtopic, difficulty, cognitive_level,
+    id, tenant_id, subject_id, topic_id, subtopic_id, difficulty, cognitive_level,
     question_type, content, options, answer_key, explanation,
     state, author_id
 )
@@ -15,9 +14,6 @@ SELECT
     s.id,
     t.id,
     st.id,
-    'General Intelligence and Reasoning',
-    v.topic_name,
-    v.subtopic_name,
     v.difficulty,
     v.cognitive_level,
     'SINGLE_MCQ',
@@ -270,9 +266,13 @@ FROM (VALUES
     )
 ) AS v(id, topic_name, subtopic_name, difficulty, cognitive_level, content, options, answer_key, explanation)
 JOIN question_service.subject s
-  ON s.name = 'General Intelligence and Reasoning' AND s.tenant_id = 'default'
+  ON s.code = 'REAS' AND (s.tenant_id IS NULL OR s.tenant_id = 'default')
 JOIN question_service.topic t
-  ON t.name = v.topic_name AND t.subject_id = s.id AND t.tenant_id = 'default'
-LEFT JOIN question_service.subtopic st
-  ON st.name = v.subtopic_name AND st.topic_id = t.id AND st.tenant_id = 'default'
+  ON (t.name = v.topic_name OR t.code = v.topic_name) AND t.subject_id = s.id AND (t.tenant_id IS NULL OR t.tenant_id = 'default')
+JOIN LATERAL (
+    SELECT id FROM question_service.subtopic
+    WHERE topic_id = t.id AND (v.subtopic_name IS NULL OR name = v.subtopic_name)
+    ORDER BY CASE WHEN name = v.subtopic_name THEN 0 ELSE 1 END, display_order ASC
+    LIMIT 1
+) st ON TRUE
 ON CONFLICT (id, subject_id) DO NOTHING;

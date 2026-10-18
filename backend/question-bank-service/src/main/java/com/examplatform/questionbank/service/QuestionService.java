@@ -35,6 +35,9 @@ import com.examplatform.shared.constants.QuestionStateConstants;
 import com.examplatform.shared.constants.QuestionTypeConstants;
 import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
+import com.examplatform.shared.taxonomy.TaxonomyClient;
+import com.examplatform.shared.taxonomy.TaxonomyNames;
+import com.examplatform.shared.taxonomy.TaxonomyNodeRef;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -69,6 +72,7 @@ public class QuestionService {
     private final EventPublisher eventPublisher;
     private final TranslationRepository translationRepository;
     private final QuestionVersionRepository questionVersionRepository;
+    private final TaxonomyClient taxonomyClient;
 
     @Value("${app.encryption.enabled:true}")
     private boolean encryptionEnabled;
@@ -89,41 +93,30 @@ public class QuestionService {
         if (request.getTopicId() == null) {
             throw new IllegalArgumentException("topicId is required to create a question");
         }
-
-        Subject subject = subjectRepository.findById(request.getSubjectId())
-                .filter(s -> tenantId.equals(s.getTenantId()))
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Subject not found for id=" + request.getSubjectId() + " in tenant " + tenantId));
-
-        Topic topic = topicRepository.findById(request.getTopicId())
-                .filter(t -> tenantId.equals(t.getTenantId()))
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Topic not found for id=" + request.getTopicId() + " in tenant " + tenantId));
-
-        if (!topic.getSubjectId().equals(subject.getId())) {
-            throw new IllegalArgumentException("Topic " + topic.getId()
-                    + " does not belong to subject " + subject.getId());
+        if (request.getSubtopicId() == null) {
+            throw new IllegalArgumentException("subtopicId is required to create a question");
         }
 
-        Long subtopicId = null;
-        String subtopicName = null;
-        if (request.getSubtopicId() != null) {
-            Subtopic subtopic = subtopicRepository.findById(request.getSubtopicId())
-                    .filter(st -> tenantId.equals(st.getTenantId()))
-                    .orElseThrow(() -> new IllegalArgumentException(
-                            "Subtopic not found for id=" + request.getSubtopicId() + " in tenant " + tenantId));
-            if (!subtopic.getTopicId().equals(topic.getId())) {
-                throw new IllegalArgumentException("Subtopic " + subtopic.getId()
-                        + " does not belong to topic " + topic.getId());
-            }
-            subtopicId = subtopic.getId();
-            subtopicName = subtopic.getName();
+        if (taxonomyClient != null && !taxonomyClient.validateChain(request.getSubjectId(), request.getTopicId(), request.getSubtopicId(), tenantId)) {
+            throw new IllegalArgumentException("Invalid taxonomy hierarchy chain: subjectId=" + request.getSubjectId()
+                    + ", topicId=" + request.getTopicId() + ", subtopicId=" + request.getSubtopicId() + " in tenant " + tenantId);
         }
+
+        TaxonomyNames names = taxonomyClient != null
+                ? taxonomyClient.resolveNames(new TaxonomyNodeRef(request.getSubjectId(), request.getTopicId(), request.getSubtopicId()), tenantId)
+                : new TaxonomyNames(null, null, null);
+
+        String sName = names.subjectName() != null ? names.subjectName()
+                : subjectRepository.findById(request.getSubjectId()).map(Subject::getName).orElse("Unknown Subject");
+        String tName = names.topicName() != null ? names.topicName()
+                : topicRepository.findById(request.getTopicId()).map(Topic::getName).orElse("Unknown Topic");
+        String stName = names.subtopicName() != null ? names.subtopicName()
+                : subtopicRepository.findById(request.getSubtopicId()).map(Subtopic::getName).orElse("Unknown Subtopic");
 
         return new ResolvedHierarchy(
-                subject.getId(), subject.getName(),
-                topic.getId(), topic.getName(),
-                subtopicId, subtopicName);
+                request.getSubjectId(), sName,
+                request.getTopicId(), tName,
+                request.getSubtopicId(), stName);
     }
 
     /**
@@ -195,9 +188,6 @@ public class QuestionService {
                 .subjectId(hierarchy.subjectId())
                 .topicId(hierarchy.topicId())
                 .subtopicId(hierarchy.subtopicId())
-                .subject(hierarchy.subjectName())
-                .topic(hierarchy.topicName())
-                .subtopic(hierarchy.subtopicName())
                 .chapter(request.getChapter())
                 .difficulty(request.getDifficulty().name())
                 .benchmarkTimeSeconds(resolveBenchmarkTimeSeconds(request.getBenchmarkTimeSeconds(), request.getDifficulty()))
@@ -314,7 +304,7 @@ public class QuestionService {
      */
     @Transactional(readOnly = true)
     public org.springframework.data.domain.Page<QuestionResponse> listQuestions(
-            String subject, Long subjectId, String topic, Long topicId,
+            String subject, Long subjectId, String topic, Long topicId, Long subtopicId,
             String difficulty, String state, String search,
             String targetLang, String translationStatus,
             String sort, String order,
@@ -345,7 +335,12 @@ public class QuestionService {
                 Long parsedId = Long.parseLong(subject.trim());
                 spec = spec.and((root, query, cb) -> cb.equal(root.get("subjectId"), parsedId));
             } catch (NumberFormatException e) {
-                spec = spec.and(fieldEquals(SharedConstants.SUBJECT, subject));
+                Long resolvedSubjId = subjectRepository.findByNameAndTenantId(subject.trim(), tenantId)
+                        .or(() -> subjectRepository.findByNameAndTenantIdIsNull(subject.trim()))
+                        .map(Subject::getId).orElse(null);
+                if (resolvedSubjId != null) {
+                    spec = spec.and((root, query, cb) -> cb.equal(root.get("subjectId"), resolvedSubjId));
+                }
             }
         }
 
@@ -356,8 +351,17 @@ public class QuestionService {
                 Long parsedTopicId = Long.parseLong(topic.trim());
                 spec = spec.and((root, query, cb) -> cb.equal(root.get("topicId"), parsedTopicId));
             } catch (NumberFormatException e) {
-                spec = spec.and(fieldEquals("topic", topic));
+                Long resolvedTopicId = topicRepository.findByNameAndSubjectIdAndTenantId(topic.trim(), subjectId, tenantId)
+                        .or(() -> topicRepository.findByNameAndSubjectIdAndTenantIdIsNull(topic.trim(), subjectId))
+                        .map(Topic::getId).orElse(null);
+                if (resolvedTopicId != null) {
+                    spec = spec.and((root, query, cb) -> cb.equal(root.get("topicId"), resolvedTopicId));
+                }
             }
+        }
+
+        if (subtopicId != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("subtopicId"), subtopicId));
         }
 
         if (difficulty != null && !difficulty.isBlank()) {
@@ -399,8 +403,18 @@ public class QuestionService {
             String subject, Long subjectId, String topic, Long topicId,
             String difficulty, String state, String search,
             String targetLang, String translationStatus,
+            String sort, String order,
             int page, int size, String tenantId) {
-        return listQuestions(subject, subjectId, topic, topicId, difficulty, state, search, targetLang, translationStatus, "updatedAt", "desc", page, size, tenantId);
+        return listQuestions(subject, subjectId, topic, topicId, null, difficulty, state, search, targetLang, translationStatus, sort, order, page, size, tenantId);
+    }
+
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<QuestionResponse> listQuestions(
+            String subject, Long subjectId, String topic, Long topicId,
+            String difficulty, String state, String search,
+            String targetLang, String translationStatus,
+            int page, int size, String tenantId) {
+        return listQuestions(subject, subjectId, topic, topicId, null, difficulty, state, search, targetLang, translationStatus, "updatedAt", "desc", page, size, tenantId);
     }
 
     @Transactional(readOnly = true)
@@ -408,22 +422,22 @@ public class QuestionService {
             String subject, Long subjectId, String topic, Long topicId,
             String difficulty, String state, String search,
             int page, int size, String tenantId) {
-        return listQuestions(subject, subjectId, topic, topicId, difficulty, state, search, null, null, "updatedAt", "desc", page, size, tenantId);
+        return listQuestions(subject, subjectId, topic, topicId, null, difficulty, state, search, null, null, "updatedAt", "desc", page, size, tenantId);
     }
 
     @Transactional(readOnly = true)
     public org.springframework.data.domain.Page<QuestionResponse> listQuestions(
             String subject, String topic, String difficulty, String state,
             String search, int page, int size, String tenantId) {
-        return listQuestions(subject, null, topic, null, difficulty, state, search, null, null, "updatedAt", "desc", page, size, tenantId);
+        return listQuestions(subject, null, topic, null, null, difficulty, state, search, null, null, "updatedAt", "desc", page, size, tenantId);
     }
 
     private String resolveQuestionSortProperty(String sort) {
         if (sort == null || sort.isBlank()) return "updatedAt";
         return switch (sort.trim().toLowerCase()) {
-            case SharedConstants.SUBJECT, "subjectname" -> SharedConstants.SUBJECT;
-            case "topic", "topicname" -> "topic";
-            case "subtopic" -> "subtopic";
+            case SharedConstants.SUBJECT, "subjectname", "subjectid" -> "subjectId";
+            case "topic", "topicname", "topicid" -> "topicId";
+            case "subtopic", "subtopicname", "subtopicid" -> "subtopicId";
             case "chapter" -> "chapter";
             case SharedConstants.DIFFICULTY -> SharedConstants.DIFFICULTY;
             case "cognitivelevel" -> "cognitiveLevel";
@@ -484,7 +498,7 @@ public class QuestionService {
     }
 
     private static final List<String> SEARCHABLE_QUESTION_FIELDS = List.of(
-        SharedConstants.SUBJECT, "topic", "subtopic", "chapter", SharedConstants.DIFFICULTY,
+            "chapter", SharedConstants.DIFFICULTY,
             "cognitiveLevel", "questionType", SharedConstants.CONTENT, "explanation", "state", "sourceReferences"
     );
 
@@ -670,15 +684,15 @@ public class QuestionService {
     }
 
     /**
-     * Finds published questions matching blueprint criteria for Paper Generator.
-     * Only PUBLISHED questions (final approver sign-off complete) are eligible for paper assembly.
+     * Finds published questions matching blueprint criteria by numeric IDs.
      */
     @Transactional(readOnly = true)
-    public List<QuestionResponse> findBlueprintQuestions(String subject, String topic, String difficulty, String cognitiveLevel, String tenantId) {
+    public List<QuestionResponse> findBlueprintQuestions(Long subjectId, Long topicId, Long subtopicId, String difficulty, String cognitiveLevel, String tenantId) {
         String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         List<Question> questions = questionRepository.findBlueprintQuestions(
-                subject != null ? subject.trim() : "",
-                topic != null ? topic.trim() : "",
+                subjectId,
+                topicId,
+                subtopicId,
                 (difficulty != null && !difficulty.isBlank()) ? difficulty.trim() : null,
                 (cognitiveLevel != null && !cognitiveLevel.isBlank()) ? cognitiveLevel.trim() : null,
                 effectiveTenant
@@ -686,14 +700,44 @@ public class QuestionService {
 
         if (questions.isEmpty()) {
             questions = questionRepository.findBlueprintQuestionsFallback(
-                    subject != null ? subject.trim() : "",
-                    topic != null ? topic.trim() : "",
+                    subjectId,
+                    topicId,
+                    subtopicId,
                     (difficulty != null && !difficulty.isBlank()) ? difficulty.trim() : null,
                     effectiveTenant
-        );
+            );
         }
 
         return questions.stream().map(this::toResponse).toList();
+    }
+
+    /**
+     * Finds published questions matching blueprint criteria for Paper Generator (legacy string overload).
+     */
+    @Transactional(readOnly = true)
+    public List<QuestionResponse> findBlueprintQuestions(String subject, String topic, String difficulty, String cognitiveLevel, String tenantId) {
+        Long subjId = null;
+        if (subject != null && !subject.isBlank()) {
+            try {
+                subjId = Long.parseLong(subject.trim());
+            } catch (NumberFormatException e) {
+                subjId = subjectRepository.findByNameAndTenantId(subject.trim(), tenantId)
+                        .or(() -> subjectRepository.findByNameAndTenantIdIsNull(subject.trim()))
+                        .map(Subject::getId).orElse(null);
+            }
+        }
+        Long topId = null;
+        if (topic != null && !topic.isBlank()) {
+            try {
+                topId = Long.parseLong(topic.trim());
+            } catch (NumberFormatException e) {
+                Long finalSubjId = subjId;
+                topId = topicRepository.findByNameAndSubjectIdAndTenantId(topic.trim(), finalSubjId, tenantId)
+                        .or(() -> topicRepository.findByNameAndSubjectIdAndTenantIdIsNull(topic.trim(), finalSubjId))
+                        .map(Topic::getId).orElse(null);
+            }
+        }
+        return findBlueprintQuestions(subjId, topId, null, difficulty, cognitiveLevel, tenantId);
     }
 
     /**
@@ -766,7 +810,14 @@ public class QuestionService {
             activeTransStatus = "MISSING";
         }
 
+        TaxonomyNames names = taxonomyClient != null
+                ? taxonomyClient.resolveNames(new TaxonomyNodeRef(question.getSubjectId(), question.getTopicId(), question.getSubtopicId()), question.getTenantId())
+                : new TaxonomyNames(null, null, null);
+
         return QuestionResponse.builderFrom(question)
+                .subject(names.subjectName())
+                .topic(names.topicName())
+                .subtopic(names.subtopicName())
                 .options(options)
                 .translatedLanguages(translatedLangs)
                 .translationStatusMap(statusMap)

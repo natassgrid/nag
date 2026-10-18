@@ -132,8 +132,8 @@ public class MicroLessonBatchRunner {
         for (Subtopic sub : rawCandidates) {
             if (resolved.size() >= max) break;
             if (!forceRegenerate) {
-                boolean alreadyCovered = microLessonRepository.existsBySubtopicIdAndTargetExamAndStatusIn(
-                        sub.getId(), targetExam, approvedStatuses);
+                boolean alreadyCovered = microLessonRepository.existsBySubtopicIdAndStatusIn(
+                        sub.getId(), approvedStatuses);
                 if (alreadyCovered) {
                     continue;
                 }

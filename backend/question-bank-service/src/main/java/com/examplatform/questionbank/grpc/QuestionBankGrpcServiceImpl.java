@@ -16,6 +16,9 @@ import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.repository.PassageRepository;
 import com.examplatform.questionbank.repository.QuestionRepository;
 import com.examplatform.shared.constants.SharedConstants;
+import com.examplatform.shared.taxonomy.TaxonomyClient;
+import com.examplatform.shared.taxonomy.TaxonomyNames;
+import com.examplatform.shared.taxonomy.TaxonomyNodeRef;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.grpc.stub.StreamObserver;
@@ -35,6 +38,7 @@ public class QuestionBankGrpcServiceImpl extends QuestionBankGrpcServiceGrpc.Que
     private final QuestionRepository questionRepository;
     private final PassageRepository passageRepository;
     private final ObjectMapper objectMapper;
+    private final TaxonomyClient taxonomyClient;
 
     @Override
     public void getQuestionsForPaper(PaperQuestionsGrpcRequest request,
@@ -84,20 +88,22 @@ public class QuestionBankGrpcServiceImpl extends QuestionBankGrpcServiceGrpc.Que
     @Override
     public void matchBlueprint(BlueprintMatchGrpcRequest request,
                                StreamObserver<BlueprintMatchGrpcResponse> responseObserver) {
-        log.info("gRPC matchBlueprint: subject={}, topic={}, difficulty={}, cognitiveLevel={}, tenant={}",
-                request.getSubject(), request.getTopic(), request.getDifficulty(),
-                request.getCognitiveLevel(), request.getTenantId());
+        log.info("gRPC matchBlueprint: subjectId={}, topicId={}, subtopicId={}, difficulty={}, cognitiveLevel={}, tenant={}",
+                request.getSubjectId(), request.getTopicId(), request.getSubtopicId(),
+                request.getDifficulty(), request.getCognitiveLevel(), request.getTenantId());
 
         try {
-            String subject = request.getSubject().isBlank() ? null : request.getSubject().trim();
-            String topic = request.getTopic().isBlank() ? null : request.getTopic().trim();
+            Long subjectId = request.getSubjectId();
+            Long topicId = request.getTopicId() > 0 ? request.getTopicId() : null;
+            Long subtopicId = request.getSubtopicId() > 0 ? request.getSubtopicId() : null;
             String difficulty = request.getDifficulty().isBlank() ? null : request.getDifficulty().trim();
             String cognitiveLevel = request.getCognitiveLevel().isBlank() ? null : request.getCognitiveLevel().trim();
             String tenantId = request.getTenantId().isBlank() ? SharedConstants.DEFAULT_TENANT : request.getTenantId().trim();
 
             List<Question> questions = questionRepository.findBlueprintQuestions(
-                    subject != null ? subject : "",
-                    topic != null ? topic : "",
+                    subjectId,
+                    topicId,
+                    subtopicId,
                     difficulty,
                     cognitiveLevel,
                     tenantId
@@ -105,8 +111,9 @@ public class QuestionBankGrpcServiceImpl extends QuestionBankGrpcServiceGrpc.Que
 
             if (questions.isEmpty()) {
                 questions = questionRepository.findBlueprintQuestionsFallback(
-                        subject != null ? subject : "",
-                        topic != null ? topic : "",
+                        subjectId,
+                        topicId,
+                        subtopicId,
                         difficulty,
                         tenantId
                 );
@@ -164,6 +171,7 @@ public class QuestionBankGrpcServiceImpl extends QuestionBankGrpcServiceGrpc.Que
         if (q.getId() != null) b.setId(q.getId().toString());
         if (q.getTopicId() != null) b.setTopicId(q.getTopicId().toString());
         if (q.getSubjectId() != null) b.setSubjectId(q.getSubjectId().toString());
+        if (q.getSubtopicId() != null) b.setSubtopicId(q.getSubtopicId().toString());
 
         applyIfPresent(q.getContent(), b::setContent);
         applyIfPresent(q.getQuestionType(), b::setQuestionType);
@@ -171,8 +179,14 @@ public class QuestionBankGrpcServiceImpl extends QuestionBankGrpcServiceGrpc.Que
         applyIfPresent(q.getCognitiveLevel(), b::setCognitiveLevel);
         applyIfPresent(q.getAnswerKey(), b::setAnswerKey);
         applyIfPresent(q.getExplanation(), b::setExplanation);
-        applyIfPresent(q.getSubject(), b::setSubject);
-        applyIfPresent(q.getTopic(), b::setTopic);
+
+        if (taxonomyClient != null) {
+            TaxonomyNames names = taxonomyClient.resolveNames(
+                    new TaxonomyNodeRef(q.getSubjectId(), q.getTopicId(), q.getSubtopicId()), q.getTenantId());
+            applyIfPresent(names.subjectName(), b::setSubject);
+            applyIfPresent(names.topicName(), b::setTopic);
+            applyIfPresent(names.subtopicName(), b::setSubtopic);
+        }
 
         if (q.getPassageId() != null) {
             b.setPassageId(q.getPassageId().toString());

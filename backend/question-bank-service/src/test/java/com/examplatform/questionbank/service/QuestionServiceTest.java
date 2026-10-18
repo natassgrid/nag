@@ -23,7 +23,12 @@ import com.examplatform.questionbank.ai.embedding.EmbeddingService;
 import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.domain.QuestionVersion;
 import com.examplatform.questionbank.domain.Subject;
+import com.examplatform.questionbank.domain.Subtopic;
 import com.examplatform.questionbank.domain.Topic;
+import com.examplatform.shared.taxonomy.TaxonomyClient;
+import com.examplatform.shared.taxonomy.TaxonomyNames;
+import com.examplatform.shared.taxonomy.TaxonomyNodeRef;
+import org.springframework.test.util.ReflectionTestUtils;
 import com.examplatform.questionbank.domain.enums.CognitiveLevel;
 import com.examplatform.questionbank.domain.enums.DifficultyLevel;
 import com.examplatform.questionbank.domain.enums.QuestionType;
@@ -101,6 +106,9 @@ class QuestionServiceTest {
     @Mock
     private QuestionVersionRepository questionVersionRepository;
 
+    @Mock
+    private TaxonomyClient taxonomyClient;
+
     @InjectMocks
     private QuestionService questionService;
 
@@ -115,11 +123,7 @@ class QuestionServiceTest {
                     Long id = inv.getArgument(0);
                     Subject s = Subject.builder().name("Mathematics").code("MATH").build();
                     s.setTenantId(currentTenantId);
-                    try {
-                        var idField = s.getClass().getSuperclass().getDeclaredField("id");
-                        idField.setAccessible(true);
-                        idField.set(s, id != null ? id : 1L);
-                    } catch (Exception e) {}
+                    ReflectionTestUtils.setField(s, "id", id != null ? id : 1L);
                     return Optional.of(s);
                 });
 
@@ -129,13 +133,27 @@ class QuestionServiceTest {
                     Long id = inv.getArgument(0);
                     Topic t = Topic.builder().name("Calculus").subjectId(1L).build();
                     t.setTenantId(currentTenantId);
-                    try {
-                        var idField = t.getClass().getSuperclass().getDeclaredField("id");
-                        idField.setAccessible(true);
-                        idField.set(t, id != null ? id : 10L);
-                    } catch (Exception e) {}
+                    ReflectionTestUtils.setField(t, "id", id != null ? id : 10L);
                     return Optional.of(t);
                 });
+
+        Mockito.lenient()
+                .when(subtopicRepository.findById(any()))
+                .thenAnswer(inv -> {
+                    Long id = inv.getArgument(0);
+                    Subtopic st = Subtopic.builder().name("Differentiation").topicId(10L).build();
+                    st.setTenantId(currentTenantId);
+                    ReflectionTestUtils.setField(st, "id", id != null ? id : 100L);
+                    return Optional.of(st);
+                });
+
+        Mockito.lenient()
+                .when(taxonomyClient.validateChain(any(), any(), any(), any()))
+                .thenReturn(true);
+
+        Mockito.lenient()
+                .when(taxonomyClient.resolveNames(any(TaxonomyNodeRef.class), any()))
+                .thenReturn(new TaxonomyNames("Mathematics", "Calculus", "Differentiation"));
 
         // Set @Value field that isn't injected by @InjectMocks
         try {
@@ -151,6 +169,7 @@ class QuestionServiceTest {
         return CreateQuestionRequest.builder()
                 .subjectId(1L)
                 .topicId(10L)
+                .subtopicId(100L)
                 .subject("Mathematics")
                 .topic("Calculus")
                 .subtopic("Differentiation")
@@ -391,8 +410,9 @@ class QuestionServiceTest {
             UUID q2Id = UUID.randomUUID();
 
             Question q1 = Question.builder()
-                    .subject("Physics")
-                    .topic("Mechanics")
+                    .subjectId(1L)
+                    .topicId(10L)
+                    .subtopicId(100L)
                     .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
                     .state(QuestionStateConstants.APPROVED)
                     .content("What is Newton's second law?")
@@ -404,8 +424,9 @@ class QuestionServiceTest {
             } catch (Exception ignored) {}
 
             Question q2 = Question.builder()
-                    .subject("Physics")
-                    .topic("Thermodynamics")
+                    .subjectId(1L)
+                    .topicId(10L)
+                    .subtopicId(101L)
                     .difficulty(QuestionTaxonomyConstants.Difficulty.EASY)
                     .state(QuestionStateConstants.APPROVED)
                     .content("Define isothermal process.")
@@ -478,8 +499,9 @@ class QuestionServiceTest {
             UUID qId = UUID.randomUUID();
             UUID authorId = UUID.randomUUID();
             Question question = Question.builder()
-                    .subject("Physics")
-                    .topic("Mechanics")
+                    .subjectId(1L)
+                    .topicId(10L)
+                    .subtopicId(100L)
                     .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
                     .questionType(QuestionTypeConstants.SINGLE_MCQ)
                     .state(QuestionStateConstants.DRAFT)
@@ -563,8 +585,7 @@ class QuestionServiceTest {
             Question savedQuestion = Question.builder()
                     .subjectId(1L)
                     .topicId(10L)
-                    .subject("Mathematics")
-                    .topic("Calculus")
+                    .subtopicId(100L)
                     .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
                     .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.APPLY)
                     .questionType(QuestionTypeConstants.SINGLE_MCQ)
@@ -577,6 +598,7 @@ class QuestionServiceTest {
             CreateQuestionRequest request = CreateQuestionRequest.builder()
                     .subjectId(1L)
                     .topicId(10L)
+                    .subtopicId(100L)
                     .difficulty(DifficultyLevel.MEDIUM)
                     .cognitiveLevel(CognitiveLevel.APPLY)
                     .questionType(QuestionType.SINGLE_MCQ)

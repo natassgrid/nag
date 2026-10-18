@@ -84,9 +84,6 @@ public class QuestionUpdateService {
         existing.setSubjectId(hierarchy.subjectId());
         existing.setTopicId(hierarchy.topicId());
         existing.setSubtopicId(hierarchy.subtopicId());
-        existing.setSubject(hierarchy.subjectName());
-        existing.setTopic(hierarchy.topicName());
-        existing.setSubtopic(hierarchy.subtopicName());
         existing.setChapter(request.getChapter());
         existing.setDifficulty(request.getDifficulty().name());
         existing.setCognitiveLevel(request.getCognitiveLevel().name());

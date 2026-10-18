@@ -247,36 +247,12 @@ public class MicroLessonBlueprintAgent {
             // First attempt: exact match for subject, topic, and subtopic
             List<Question> questions = questionRepository.findAll((root, query, cb) -> {
                 List<Predicate> predicates = new ArrayList<>();
-                if (subject != null && !subject.isBlank()) {
-                    predicates.add(cb.equal(cb.upper(cb.trim(root.get("subject"))), subject.trim().toUpperCase(Locale.ROOT)));
-                }
-                if (topic != null && !topic.isBlank()) {
-                    predicates.add(cb.equal(cb.upper(cb.trim(root.get("topic"))), topic.trim().toUpperCase(Locale.ROOT)));
-                }
-                if (subtopic != null && !subtopic.isBlank()) {
-                    predicates.add(cb.equal(cb.upper(cb.trim(root.get("subtopic"))), subtopic.trim().toUpperCase(Locale.ROOT)));
+                if (difficulty != null && !difficulty.isBlank()) {
+                    predicates.add(cb.equal(root.get("difficulty"), difficulty));
                 }
                 predicates.add(root.get("state").in(QuestionStateConstants.PUBLISHED, QuestionStateConstants.APPROVED));
                 return cb.and(predicates.toArray(new Predicate[0]));
             });
-
-            // Second attempt: relax subtopic, query by subject and topic
-            if ((questions == null || questions.isEmpty()) && topic != null && !topic.isBlank()) {
-                questions = questionRepository.findAll((root, query, cb) -> {
-                    List<Predicate> predicates = new ArrayList<>();
-                    if (subject != null && !subject.isBlank()) {
-                        predicates.add(cb.equal(cb.upper(cb.trim(root.get("subject"))), subject.trim().toUpperCase(Locale.ROOT)));
-                    }
-                    predicates.add(cb.equal(cb.upper(cb.trim(root.get("topic"))), topic.trim().toUpperCase(Locale.ROOT)));
-                    predicates.add(root.get("state").in(QuestionStateConstants.PUBLISHED, QuestionStateConstants.APPROVED));
-                    return cb.and(predicates.toArray(new Predicate[0]));
-                });
-            }
-
-            // Third attempt: fallback repository method
-            if ((questions == null || questions.isEmpty()) && topic != null && !topic.isBlank()) {
-                questions = questionRepository.findBlueprintQuestionsFallback(subject, topic, difficulty, "default");
-            }
 
             if (questions != null) {
                 return questions.stream()

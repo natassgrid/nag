@@ -83,7 +83,7 @@ class MicroLessonGeneratorServiceTest {
         when(requestSpec.call()).thenReturn(callResponseSpec);
         when(callResponseSpec.content()).thenReturn(jsonPayload);
 
-        when(repository.findTopBySubtopicIdAndTargetExamOrderByContentVersionDesc(100L, "JEE_ADVANCED"))
+        when(repository.findTopBySubtopicIdOrderByContentVersionDesc(100L))
                 .thenReturn(Optional.empty());
         when(repository.save(any(SubtopicMicroLesson.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -95,8 +95,7 @@ class MicroLessonGeneratorServiceTest {
         );
 
         assertThat(result).isNotNull();
-        assertThat(result.getSubtopic()).isEqualTo("Moment of Inertia");
-        assertThat(result.getTargetExam()).isEqualTo("JEE_ADVANCED");
+        assertThat(result.getSubtopicId()).isEqualTo(100L);
         assertThat(result.getStatus()).isEqualTo("AI_GENERATED");
         assertThat(result.getContentVersion()).isEqualTo(1);
         assertThat(result.getCoreConcept()).contains("atta chakki");
@@ -107,7 +106,7 @@ class MicroLessonGeneratorServiceTest {
         MicroLessonResponse response = service.toResponse(result);
         assertThat(response.cheatSheet()).hasSize(2);
         assertThat(response.stepByStepBreakdown().steps()).hasSize(2);
-        assertThat(response.getSubtopicName()).isEqualTo("Moment of Inertia");
+        assertThat(response.subtopicId()).isEqualTo(100L);
     }
 
     @Test
@@ -139,7 +138,7 @@ class MicroLessonGeneratorServiceTest {
         when(modelRouter.selectModel(anyString())).thenReturn("nova-lite");
         when(chatClient.prompt()).thenThrow(new RuntimeException("LLM network timeout"));
 
-        when(repository.findTopBySubtopicIdAndTargetExamOrderByContentVersionDesc(200L, "NEET_UG"))
+        when(repository.findTopBySubtopicIdOrderByContentVersionDesc(200L))
                 .thenReturn(Optional.of(SubtopicMicroLesson.builder().contentVersion(1).build()));
         when(repository.save(any(SubtopicMicroLesson.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -151,7 +150,7 @@ class MicroLessonGeneratorServiceTest {
         );
 
         assertThat(result).isNotNull();
-        assertThat(result.getSubtopic()).isEqualTo("Chemical Equilibrium");
+        assertThat(result.getSubtopicId()).isEqualTo(200L);
         assertThat(result.getStatus()).isEqualTo("AI_GENERATED");
         // Incremented version
         assertThat(result.getContentVersion()).isEqualTo(2);
@@ -181,7 +180,7 @@ class MicroLessonGeneratorServiceTest {
         when(requestSpec.call()).thenReturn(callResponseSpec);
         when(callResponseSpec.content()).thenReturn(jsonPayload);
 
-        when(repository.findTopBySubtopicIdAndTargetExamOrderByContentVersionDesc(100L, "JEE_MAIN"))
+        when(repository.findTopBySubtopicIdOrderByContentVersionDesc(100L))
                 .thenReturn(Optional.empty());
         when(repository.save(any(SubtopicMicroLesson.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -216,7 +215,7 @@ class MicroLessonGeneratorServiceTest {
         when(requestSpec.call()).thenReturn(callResponseSpec);
         when(callResponseSpec.content()).thenReturn(rawLlmJson);
 
-        when(repository.findTopBySubtopicIdAndTargetExamOrderByContentVersionDesc(176L, "JEE_MAIN"))
+        when(repository.findTopBySubtopicIdOrderByContentVersionDesc(176L))
                 .thenReturn(Optional.empty());
         when(repository.save(any(SubtopicMicroLesson.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -260,7 +259,7 @@ class MicroLessonGeneratorServiceTest {
         when(requestSpec.call()).thenReturn(callResponseSpec);
         when(callResponseSpec.content()).thenReturn(truncatedLlmOutput);
 
-        when(repository.findTopBySubtopicIdAndTargetExamOrderByContentVersionDesc(301L, "IBPS-PO-PRE-2027"))
+        when(repository.findTopBySubtopicIdOrderByContentVersionDesc(301L))
                 .thenReturn(Optional.empty());
         when(repository.save(any(SubtopicMicroLesson.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -299,7 +298,7 @@ class MicroLessonGeneratorServiceTest {
         when(requestSpec.call()).thenReturn(callResponseSpec);
         when(callResponseSpec.content()).thenReturn(llmOutputWithLeakedPhysicsFormula);
 
-        when(repository.findTopBySubtopicIdAndTargetExamOrderByContentVersionDesc(176L, "IBPS-PO-PRE-2027"))
+        when(repository.findTopBySubtopicIdOrderByContentVersionDesc(176L))
                 .thenReturn(Optional.empty());
         when(repository.save(any(SubtopicMicroLesson.class))).thenAnswer(inv -> inv.getArgument(0));
 

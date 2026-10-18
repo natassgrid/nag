@@ -61,6 +61,9 @@ class ReviewWorkflowServiceTest {
     @Mock
     private ReviewerAssignmentService reviewerAssignmentService;
 
+    @Mock
+    private com.examplatform.questionbank.repository.SubjectRepository subjectRepository;
+
     @Captor
     private ArgumentCaptor<String> topicCaptor;
 
@@ -83,7 +86,7 @@ class ReviewWorkflowServiceTest {
     @BeforeEach
     void setUp() {
         reviewWorkflowService = new ReviewWorkflowService(
-                eventPublisher, dynamicConfigService, reviewerAssignmentService);
+                eventPublisher, dynamicConfigService, reviewerAssignmentService, subjectRepository);
 
         questionId = UUID.randomUUID();
         authorId = UUID.randomUUID();
@@ -94,10 +97,13 @@ class ReviewWorkflowServiceTest {
 
         Mockito.lenient().when(dynamicConfigService.getBoolean(anyString(), anyString(), anyBoolean()))
                 .thenAnswer(inv -> inv.getArgument(2));
+        Mockito.lenient().when(subjectRepository.findById(1L))
+                .thenReturn(java.util.Optional.of(com.examplatform.questionbank.domain.Subject.builder().name("Mathematics").build()));
 
         testQuestion = Question.builder()
-                .subject("Mathematics")
-                .topic("Algebra")
+                .subjectId(1L)
+                .topicId(10L)
+                .subtopicId(100L)
                 .authorId(authorId)
                 .state(QuestionStateConstants.REVIEW)
                 .build();

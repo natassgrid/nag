@@ -17,6 +17,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Instant;
 import java.util.List;
@@ -47,6 +48,15 @@ class AdminMicroLessonControllerIntegrationTest extends AbstractIntegrationTest 
     @MockitoBean
     private MicroLessonCacheService cacheService;
 
+    @MockitoBean
+    private com.examplatform.questionbank.repository.SubjectRepository subjectRepository;
+
+    @MockitoBean
+    private com.examplatform.questionbank.repository.TopicRepository topicRepository;
+
+    @MockitoBean
+    private com.examplatform.questionbank.repository.SubtopicRepository subtopicRepository;
+
     private static final UUID LESSON_ID = UUID.fromString("11111111-2222-3333-4444-555555555555");
     private static final UUID REVIEWER_ID = UUID.fromString("99999999-8888-7777-6666-555555555555");
 
@@ -55,10 +65,6 @@ class AdminMicroLessonControllerIntegrationTest extends AbstractIntegrationTest 
                 .subjectId(1L)
                 .topicId(10L)
                 .subtopicId(100L)
-                .subject("Physics")
-                .topic("Mechanics")
-                .subtopic("Moment of Inertia")
-                .targetExam("JEE_MAIN")
                 .coreConcept("Rotational mass distribution concept.")
                 .trap("Neglecting the axis perpendicular distance.")
                 .cheatSheetJson("[\"$I = m r^2$\"]")
@@ -178,10 +184,22 @@ class AdminMicroLessonControllerIntegrationTest extends AbstractIntegrationTest 
         @Test
         @DisplayName("200 OK - Returns unique filter options")
         void testGetFilterOptions() throws Exception {
-            when(repository.findDistinctSubjects()).thenReturn(List.of("Physics", "Chemistry"));
-            when(repository.findDistinctTopics(any())).thenReturn(List.of("Mechanics", "Thermodynamics"));
+            com.examplatform.questionbank.domain.Subject s = com.examplatform.questionbank.domain.Subject.builder().name("Physics").build();
+            ReflectionTestUtils.setField(s, "id", 1L);
+            when(subjectRepository.findByTenantIdIsNullOrderByDisplayOrderAscNameAsc())
+                    .thenReturn(List.of(
+                            s,
+                            com.examplatform.questionbank.domain.Subject.builder().name("Chemistry").build()
+                    ));
+            when(subjectRepository.findByNameAndTenantIdIsNull("Physics")).thenReturn(Optional.of(s));
+            when(topicRepository.findBySubjectIdAndTenantIdIsNullOrderByDisplayOrderAscNameAsc(1L))
+                    .thenReturn(List.of(
+                            com.examplatform.questionbank.domain.Topic.builder().name("Mechanics").build(),
+                            com.examplatform.questionbank.domain.Topic.builder().name("Thermodynamics").build()
+                    ));
 
             mockMvc.perform(get("/api/admin/micro-lessons/filter-options")
+                            .param("subject", "Physics")
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.subjects[0]").value("Physics"))
@@ -547,7 +565,13 @@ class AdminMicroLessonControllerIntegrationTest extends AbstractIntegrationTest 
         @Test
         @DisplayName("201 Created - Creates a manually authored micro-lesson with structured content")
         void testCreateManualMicroLesson() throws Exception {
-            when(repository.findTopBySubtopicIdAndTargetExamOrderByContentVersionDesc(100L, "JEE_MAIN"))
+            when(subtopicRepository.findById(100L)).thenReturn(Optional.of(
+                    com.examplatform.questionbank.domain.Subtopic.builder()
+                            .name("Moment of Inertia")
+                            .topicId(10L)
+                            .build()
+            ));
+            when(repository.findTopBySubtopicIdOrderByContentVersionDesc(100L))
                     .thenReturn(Optional.empty());
             when(repository.save(any(SubtopicMicroLesson.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -659,7 +683,7 @@ class AdminMicroLessonControllerIntegrationTest extends AbstractIntegrationTest 
         void testUpdateMicroLesson() throws Exception {
             SubtopicMicroLesson existing = buildSampleEntity("APPROVED");
             when(repository.findById(LESSON_ID)).thenReturn(Optional.of(existing));
-            when(repository.findTopBySubtopicIdAndTargetExamOrderByContentVersionDesc(100L, "JEE_MAIN"))
+            when(repository.findTopBySubtopicIdOrderByContentVersionDesc(100L))
                     .thenReturn(Optional.of(existing));
             when(repository.save(any(SubtopicMicroLesson.class))).thenAnswer(inv -> inv.getArgument(0));
 

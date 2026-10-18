@@ -19,21 +19,40 @@
 
 package com.examplatform.questionbank.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.io.Serializable;
+
 /**
- * Request DTO for blueprint question matching from Paper Generator.
+ * Request DTO for blueprint question matching from Paper Generator using numeric IDs.
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class BlueprintMatchRequest {
+public class BlueprintMatchRequest implements Serializable {
+
+    @JsonProperty("subjectId")
+    @JsonAlias({"subject_id"})
+    private Long subjectId;
+
+    @JsonProperty("topicId")
+    @JsonAlias({"topic_id"})
+    private Long topicId;
+
+    @JsonProperty("subtopicId")
+    @JsonAlias({"subtopic_id"})
+    private Long subtopicId;
+
     private String subject;
     private String topic;
+    private String subtopic;
+
     private String difficulty;
     private String cognitiveLevel;
 }

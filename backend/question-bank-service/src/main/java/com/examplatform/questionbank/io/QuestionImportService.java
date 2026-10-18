@@ -25,6 +25,7 @@ import com.examplatform.questionbank.domain.enums.QuestionType;
 import com.examplatform.questionbank.dto.CreateQuestionRequest;
 import com.examplatform.questionbank.dto.QuestionOption;
 import com.examplatform.questionbank.service.QuestionService;
+import com.examplatform.questionbank.service.SubjectTopicService;
 import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -44,14 +45,6 @@ import java.util.zip.ZipInputStream;
 /**
  * Imports questions from a compressed ZIP archive produced by
  * {@link QuestionExportService} (or a compatible tool).
- *
- * <p>The archive may contain several batch files (JSON arrays or CSV) plus an
- * optional {@code manifest.json}. Each record is converted to a
- * {@link CreateQuestionRequest} and created through the same
- * {@link QuestionService#createQuestion} path used by the API, so validation,
- * hierarchy resolution, encryption, embedding, and audit all apply uniformly.
- * A record that fails validation or creation is recorded in the result and does
- * not abort the rest of the import.
  */
 @Slf4j
 @Service
@@ -62,14 +55,11 @@ public class QuestionImportService {
     private static final int MAX_FAILURES_REPORTED = 200;
 
     private final QuestionService questionService;
+    private final SubjectTopicService subjectTopicService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
      * Reads and imports every batch file in the archive.
-     *
-     * @param zipBytes  raw bytes of the uploaded ZIP archive
-     * @param authorId  the importing user (becomes the question author)
-     * @param tenantId  tenant identifier
      */
     public ImportResult importFromZip(byte[] zipBytes, UUID authorId, String tenantId) throws IOException {
         ImportResult result = ImportResult.builder().build();
@@ -112,17 +102,15 @@ public class QuestionImportService {
                                 String tenantId, ImportResult result) {
         List<Map<String, Object>> records;
         try {
-            records = objectMapper.readValue(content, new TypeReference<>() {
-            });
+            records = objectMapper.readValue(content, new TypeReference<>() {});
         } catch (Exception e) {
-            // whole-file parse failure — record one failure for the file
             recordFailure(result, file, -1, "Failed to parse JSON: " + e.getMessage());
             return;
         }
         for (int i = 0; i < records.size(); i++) {
             result.setTotalRecords(result.getTotalRecords() + 1);
             try {
-                CreateQuestionRequest request = fromJsonRecord(records.get(i));
+                CreateQuestionRequest request = fromJsonRecord(records.get(i), tenantId);
                 questionService.createQuestion(request, authorId, tenantId);
                 result.setImported(result.getImported() + 1);
             } catch (Exception e) {
@@ -141,7 +129,7 @@ public class QuestionImportService {
         for (int r = 1; r < rows.size(); r++) {
             result.setTotalRecords(result.getTotalRecords() + 1);
             try {
-                CreateQuestionRequest request = fromCsvRow(header, rows.get(r));
+                CreateQuestionRequest request = fromCsvRow(header, rows.get(r), tenantId);
                 questionService.createQuestion(request, authorId, tenantId);
                 result.setImported(result.getImported() + 1);
             } catch (Exception e) {
@@ -154,20 +142,40 @@ public class QuestionImportService {
     // Record -> CreateQuestionRequest mapping
     // -----------------------------------------------------------------------
 
-    private CreateQuestionRequest fromJsonRecord(Map<String, Object> rec) {
+    private CreateQuestionRequest fromJsonRecord(Map<String, Object> rec, String tenantId) {
         List<QuestionOption> options = null;
         Object rawOptions = rec.get("options");
         if (rawOptions != null) {
-            options = objectMapper.convertValue(rawOptions, new TypeReference<>() {
-            });
+            options = objectMapper.convertValue(rawOptions, new TypeReference<>() {});
         }
+
+        Long subjectId = asLong(rec.get("subjectId") != null ? rec.get("subjectId") : rec.get("subject_id"));
+        Long topicId = asLong(rec.get("topicId") != null ? rec.get("topicId") : rec.get("topic_id"));
+        Long subtopicId = asLong(rec.get("subtopicId") != null ? rec.get("subtopicId") : rec.get("subtopic_id"));
+
+        String subject = asString(rec.get(SharedConstants.SUBJECT));
+        String topic = asString(rec.get("topic"));
+        String subtopic = asString(rec.get("subtopic"));
+
+        if (subtopicId == null) {
+            if (subjectId != null && topicId != null) {
+                var ids = subjectTopicService.resolveByIds(subjectId, topicId, null, tenantId);
+                subtopicId = ids.subtopicId();
+            } else if (subject != null && topic != null) {
+                var ids = subjectTopicService.resolveOrCreateByName(subject, topic, subtopic, tenantId);
+                subjectId = ids.subjectId();
+                topicId = ids.topicId();
+                subtopicId = ids.subtopicId();
+            }
+        }
+
         return CreateQuestionRequest.builder()
-                .subjectId(asLong(rec.get("subjectId")))
-                .topicId(asLong(rec.get("topicId")))
-                .subtopicId(asLong(rec.get("subtopicId")))
-                .subject(asString(rec.get(SharedConstants.SUBJECT)))
-                .topic(asString(rec.get("topic")))
-                .subtopic(asString(rec.get("subtopic")))
+                .subjectId(subjectId)
+                .topicId(topicId)
+                .subtopicId(subtopicId)
+                .subject(subject)
+                .topic(topic)
+                .subtopic(subtopic)
                 .chapter(asString(rec.get("chapter")))
                 .difficulty(parseDifficulty(asString(rec.get(SharedConstants.DIFFICULTY))))
                 .cognitiveLevel(parseCognitive(asString(rec.get("cognitiveLevel"))))
@@ -180,26 +188,46 @@ public class QuestionImportService {
                 .build();
     }
 
-    private CreateQuestionRequest fromCsvRow(List<String> header, List<String> row) throws IOException {
-        String optionsJson = value(header, row, "optionsJson");
+    private CreateQuestionRequest fromCsvRow(List<String> header, List<String> row, String tenantId) throws IOException {
+        String optionsJson = value(header, row, "optionsJson", "options");
         List<QuestionOption> options = null;
         if (optionsJson != null && !optionsJson.isBlank()) {
-            options = objectMapper.readValue(optionsJson, new TypeReference<>() {
-            });
+            options = objectMapper.readValue(optionsJson, new TypeReference<>() {});
         }
+
+        Long subjectId = asLong(value(header, row, "subjectId", "subject_id"));
+        Long topicId = asLong(value(header, row, "topicId", "topic_id"));
+        Long subtopicId = asLong(value(header, row, "subtopicId", "subtopic_id"));
+
+        String subject = value(header, row, SharedConstants.SUBJECT, "subject_name");
+        String topic = value(header, row, "topic", "topic_name");
+        String subtopic = value(header, row, "subtopic", "subtopic_name");
+
+        if (subtopicId == null) {
+            if (subjectId != null && topicId != null) {
+                var ids = subjectTopicService.resolveByIds(subjectId, topicId, null, tenantId);
+                subtopicId = ids.subtopicId();
+            } else if (subject != null && topic != null) {
+                var ids = subjectTopicService.resolveOrCreateByName(subject, topic, subtopic, tenantId);
+                subjectId = ids.subjectId();
+                topicId = ids.topicId();
+                subtopicId = ids.subtopicId();
+            }
+        }
+
         return CreateQuestionRequest.builder()
-                .subjectId(asLong(value(header, row, "subjectId")))
-                .topicId(asLong(value(header, row, "topicId")))
-                .subtopicId(asLong(value(header, row, "subtopicId")))
-                .subject(value(header, row, SharedConstants.SUBJECT))
-                .topic(value(header, row, "topic"))
-                .subtopic(value(header, row, "subtopic"))
+                .subjectId(subjectId)
+                .topicId(topicId)
+                .subtopicId(subtopicId)
+                .subject(subject)
+                .topic(topic)
+                .subtopic(subtopic)
                 .chapter(value(header, row, "chapter"))
                 .difficulty(parseDifficulty(value(header, row, SharedConstants.DIFFICULTY)))
-                .cognitiveLevel(parseCognitive(value(header, row, "cognitiveLevel")))
-                .questionType(parseType(value(header, row, "questionType")))
+                .cognitiveLevel(parseCognitive(value(header, row, "cognitiveLevel", "cognitive_level")))
+                .questionType(parseType(value(header, row, "questionType", "question_type")))
                 .content(value(header, row, SharedConstants.CONTENT))
-                .answerKey(value(header, row, "answerKey"))
+                .answerKey(value(header, row, "answerKey", "answer_key"))
                 .explanation(value(header, row, "explanation"))
                 .references(value(header, row, "references"))
                 .options(options)
@@ -220,13 +248,17 @@ public class QuestionImportService {
         return buffer.toString(StandardCharsets.UTF_8);
     }
 
-    private static String value(List<String> header, List<String> row, String column) {
-        int idx = header.indexOf(column);
-        if (idx < 0 || idx >= row.size()) {
-            return null;
+    private static String value(List<String> header, List<String> row, String... columnNames) {
+        for (String col : columnNames) {
+            int idx = header.indexOf(col);
+            if (idx >= 0 && idx < row.size()) {
+                String v = row.get(idx);
+                if (v != null && !v.isEmpty()) {
+                    return v;
+                }
+            }
         }
-        String v = row.get(idx);
-        return (v == null || v.isEmpty()) ? null : v;
+        return null;
     }
 
     private static String asString(Object v) {
@@ -244,19 +276,44 @@ public class QuestionImportService {
         if (s.isEmpty()) {
             return null;
         }
-        return Long.parseLong(s);
+        try {
+            return Long.parseLong(s);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     private static DifficultyLevel parseDifficulty(String v) {
-        return v == null || v.isBlank() ? null : DifficultyLevel.valueOf(v.trim().toUpperCase());
+        if (v == null || v.isBlank()) {
+            return DifficultyLevel.MEDIUM;
+        }
+        try {
+            return DifficultyLevel.valueOf(v.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return DifficultyLevel.MEDIUM;
+        }
     }
 
     private static CognitiveLevel parseCognitive(String v) {
-        return v == null || v.isBlank() ? null : CognitiveLevel.valueOf(v.trim().toUpperCase());
+        if (v == null || v.isBlank()) {
+            return CognitiveLevel.UNDERSTAND;
+        }
+        try {
+            return CognitiveLevel.valueOf(v.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return CognitiveLevel.UNDERSTAND;
+        }
     }
 
     private static QuestionType parseType(String v) {
-        return v == null || v.isBlank() ? null : QuestionType.valueOf(v.trim().toUpperCase());
+        if (v == null || v.isBlank()) {
+            return QuestionType.SINGLE_MCQ;
+        }
+        try {
+            return QuestionType.valueOf(v.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return QuestionType.SINGLE_MCQ;
+        }
     }
 
     private void recordFailure(ImportResult result, String file, int recordIndex, String error) {

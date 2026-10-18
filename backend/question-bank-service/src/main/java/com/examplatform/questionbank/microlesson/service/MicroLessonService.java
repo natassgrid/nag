@@ -49,6 +49,7 @@ public class MicroLessonService {
     private final TopicRepository topicRepository;
     private final SubjectRepository subjectRepository;
     private final MicroLessonTranslationWorkflowService translationWorkflowService;
+    private final com.examplatform.questionbank.microlesson.repository.LessonEffectivenessRepository effectivenessRepository;
 
     public MicroLessonService(
             SubtopicMicroLessonRepository repository,
@@ -56,7 +57,7 @@ public class MicroLessonService {
             MicroLessonCacheService cacheService,
             KaTexValidator kaTexValidator,
             ObjectMapper objectMapper) {
-        this(repository, generatorService, cacheService, kaTexValidator, objectMapper, null, null, null, null);
+        this(repository, generatorService, cacheService, kaTexValidator, objectMapper, null, null, null, null, null);
     }
 
     public MicroLessonService(
@@ -68,7 +69,7 @@ public class MicroLessonService {
             SubtopicRepository subtopicRepository,
             TopicRepository topicRepository,
             SubjectRepository subjectRepository) {
-        this(repository, generatorService, cacheService, kaTexValidator, objectMapper, subtopicRepository, topicRepository, subjectRepository, null);
+        this(repository, generatorService, cacheService, kaTexValidator, objectMapper, subtopicRepository, topicRepository, subjectRepository, null, null);
     }
 
     @Autowired
@@ -81,7 +82,8 @@ public class MicroLessonService {
             @Autowired(required = false) SubtopicRepository subtopicRepository,
             @Autowired(required = false) TopicRepository topicRepository,
             @Autowired(required = false) SubjectRepository subjectRepository,
-            @Autowired(required = false) MicroLessonTranslationWorkflowService translationWorkflowService) {
+            @Autowired(required = false) MicroLessonTranslationWorkflowService translationWorkflowService,
+            @Autowired(required = false) com.examplatform.questionbank.microlesson.repository.LessonEffectivenessRepository effectivenessRepository) {
         this.repository = repository;
         this.generatorService = generatorService;
         this.cacheService = cacheService;
@@ -91,6 +93,7 @@ public class MicroLessonService {
         this.topicRepository = topicRepository;
         this.subjectRepository = subjectRepository;
         this.translationWorkflowService = translationWorkflowService;
+        this.effectivenessRepository = effectivenessRepository;
     }
 
     @Transactional(readOnly = true)
@@ -151,25 +154,11 @@ public class MicroLessonService {
                 predicates.add(cb.equal(root.get("subjectId"), subjectId));
             }
 
-            if (subject != null && !subject.isBlank() && !"ALL".equalsIgnoreCase(subject.trim())) {
-                predicates.add(cb.equal(cb.lower(root.get("subject")), subject.trim().toLowerCase()));
-            }
-
-            if (topic != null && !topic.isBlank() && !"ALL".equalsIgnoreCase(topic.trim())) {
-                predicates.add(cb.equal(cb.lower(root.get("topic")), topic.trim().toLowerCase()));
-            }
-
-            if (targetExam != null && !targetExam.isBlank() && !"ALL".equalsIgnoreCase(targetExam.trim())) {
-                predicates.add(cb.equal(cb.upper(root.get("targetExam")), targetExam.trim().toUpperCase()));
-            }
-
             if (search != null && !search.isBlank()) {
                 String term = "%" + search.trim().toLowerCase() + "%";
-                Predicate subtopicMatch = cb.like(cb.lower(root.get("subtopic")), term);
-                Predicate topicMatch = cb.like(cb.lower(root.get("topic")), term);
-                Predicate subjectMatch = cb.like(cb.lower(root.get("subject")), term);
                 Predicate coreConceptMatch = cb.like(cb.lower(root.get("coreConcept")), term);
-                predicates.add(cb.or(subtopicMatch, topicMatch, subjectMatch, coreConceptMatch));
+                Predicate trapMatch = cb.like(cb.lower(root.get("trap")), term);
+                predicates.add(cb.or(coreConceptMatch, trapMatch));
             }
 
             return predicates.isEmpty() ? cb.conjunction() : cb.and(predicates.toArray(new Predicate[0]));
@@ -189,8 +178,16 @@ public class MicroLessonService {
 
     @Transactional(readOnly = true)
     public MicroLessonFilterOptionsResponse getFilterOptions(String subject) {
-        List<String> subjects = repository.findDistinctSubjects();
-        List<String> topics = repository.findDistinctTopics(subject);
+        List<String> subjects = (subjectRepository != null)
+                ? subjectRepository.findByTenantIdIsNullOrderByDisplayOrderAscNameAsc().stream().map(Subject::getName).toList()
+                : List.of();
+        List<String> topics = List.of();
+        if (subject != null && subjectRepository != null && topicRepository != null) {
+            topics = subjectRepository.findByNameAndTenantIdIsNull(subject)
+                    .map(s -> topicRepository.findBySubjectIdAndTenantIdIsNullOrderByDisplayOrderAscNameAsc(s.getId())
+                            .stream().map(Topic::getName).toList())
+                    .orElse(List.of());
+        }
         List<String> statuses = List.of("ALL", "AI_GENERATED", "IN_REVIEW", "APPROVED", "PUBLISHED", "REJECTED");
         return new MicroLessonFilterOptionsResponse(subjects, topics, statuses);
     }
@@ -216,10 +213,7 @@ public class MicroLessonService {
 
         String exam = (request.targetExam() != null && !request.targetExam().isBlank())
                 ? request.targetExam().trim()
-                : null;
-        if (exam == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Target exam is required");
-        }
+                : "GENERAL";
 
         MicroLessonStructuredContent nested = request.content();
         String coreConcept = firstNonBlank(request.coreConcept(), nested != null ? nested.coreConcept() : null);
@@ -280,7 +274,7 @@ public class MicroLessonService {
                 ? resolveStatus(request.status())
                 : MicroLessonStatus.APPROVED.name();
 
-        int nextVersion = repository.findTopBySubtopicIdAndTargetExamOrderByContentVersionDesc(taxonomy.subtopicId(), exam)
+        int nextVersion = repository.findTopBySubtopicIdOrderByContentVersionDesc(taxonomy.subtopicId())
                 .map(prev -> prev.getContentVersion() + 1)
                 .orElse(1);
 
@@ -293,14 +287,19 @@ public class MicroLessonService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Failed to serialize micro-lesson content");
         }
 
+        String lessonType = (request.lessonType() != null && !request.lessonType().isBlank())
+                ? request.lessonType().trim() : "CONCEPT";
+        String difficultyLevel = (request.difficultyLevel() != null && !request.difficultyLevel().isBlank())
+                ? request.difficultyLevel().trim() : "CORE";
+        int seqNo = request.sequenceNo() != null ? request.sequenceNo() : 1;
+        int estMins = request.estimatedMinutes() != null ? request.estimatedMinutes() : 5;
+        String lang = (request.language() != null && !request.language().isBlank())
+                ? request.language().trim() : "en";
+
         SubtopicMicroLesson entity = SubtopicMicroLesson.builder()
                 .subjectId(taxonomy.subjectId())
                 .topicId(taxonomy.topicId())
                 .subtopicId(taxonomy.subtopicId())
-                .subject(taxonomy.subject())
-                .topic(taxonomy.topic())
-                .subtopic(taxonomy.subtopic())
-                .targetExam(exam)
                 .coreConcept(coreConcept)
                 .trap(trapText)
                 .cheatSheetJson(cheatSheetJson)
@@ -310,6 +309,13 @@ public class MicroLessonService {
                 .reviewedAt(Instant.now())
                 .reviewComments(request.reviewComments())
                 .contentVersion(nextVersion)
+                .lessonType(lessonType)
+                .difficultyLevel(difficultyLevel)
+                .sequenceNo(seqNo)
+                .prerequisiteLessonId(request.prerequisiteLessonId())
+                .estimatedMinutes(estMins)
+                .language(lang)
+                .qualityScore(request.qualityScore())
                 .build();
 
         SubtopicMicroLesson saved = repository.save(entity);
@@ -335,8 +341,26 @@ public class MicroLessonService {
 
         updateTaxonomyIfProvided(lesson, request);
 
-        if (request.targetExam() != null && !request.targetExam().isBlank()) {
-            lesson.setTargetExam(request.targetExam().trim());
+        if (request.lessonType() != null && !request.lessonType().isBlank()) {
+            lesson.setLessonType(request.lessonType().trim());
+        }
+        if (request.difficultyLevel() != null && !request.difficultyLevel().isBlank()) {
+            lesson.setDifficultyLevel(request.difficultyLevel().trim());
+        }
+        if (request.sequenceNo() != null) {
+            lesson.setSequenceNo(request.sequenceNo());
+        }
+        if (request.prerequisiteLessonId() != null) {
+            lesson.setPrerequisiteLessonId(request.prerequisiteLessonId());
+        }
+        if (request.estimatedMinutes() != null) {
+            lesson.setEstimatedMinutes(request.estimatedMinutes());
+        }
+        if (request.language() != null && !request.language().isBlank()) {
+            lesson.setLanguage(request.language().trim());
+        }
+        if (request.qualityScore() != null) {
+            lesson.setQualityScore(request.qualityScore());
         }
 
         MicroLessonStructuredContent nested = request.content();
@@ -400,7 +424,9 @@ public class MicroLessonService {
                 nestedSteps,
                 firstNonBlank(request.problemStatement(), nested != null ? nested.problemStatement() : (baseBreakdown != null ? baseBreakdown.questionStem() : null)),
                 firstNonBlank(request.finalAnswer(), nested != null ? nested.finalAnswer() : (baseBreakdown != null ? baseBreakdown.finalAnswer() : null)),
-                lesson.getSubtopic(),
+                (subtopicRepository != null && lesson.getSubtopicId() != null)
+                        ? subtopicRepository.findById(lesson.getSubtopicId()).map(Subtopic::getName).orElse("General")
+                        : "General",
                 structuredTrap,
                 structuredFormulas,
                 takeaways,
@@ -434,7 +460,7 @@ public class MicroLessonService {
 
         int nextVersion = Math.max(
                 lesson.getContentVersion() + 1,
-                repository.findTopBySubtopicIdAndTargetExamOrderByContentVersionDesc(lesson.getSubtopicId(), lesson.getTargetExam())
+                repository.findTopBySubtopicIdOrderByContentVersionDesc(lesson.getSubtopicId())
                         .map(prev -> prev.getContentVersion() + 1)
                         .orElse(lesson.getContentVersion() + 1)
         );
@@ -654,38 +680,12 @@ public class MicroLessonService {
     private void updateTaxonomyIfProvided(SubtopicMicroLesson lesson, UpdateMicroLessonRequest request) {
         if (request.subjectId() != null) {
             lesson.setSubjectId(request.subjectId());
-            if (request.subject() == null && subjectRepository != null) {
-                Subject sub = subjectRepository.findById(request.subjectId())
-                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Subject not found: " + request.subjectId()));
-                lesson.setSubject(sub.getName());
-            }
         }
-        if (request.subject() != null && !request.subject().isBlank()) {
-            lesson.setSubject(request.subject().trim());
-        }
-
         if (request.topicId() != null) {
             lesson.setTopicId(request.topicId());
-            if (request.topic() == null && topicRepository != null) {
-                Topic top = topicRepository.findById(request.topicId())
-                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Topic not found: " + request.topicId()));
-                lesson.setTopic(top.getName());
-            }
         }
-        if (request.topic() != null && !request.topic().isBlank()) {
-            lesson.setTopic(request.topic().trim());
-        }
-
         if (request.subtopicId() != null) {
             lesson.setSubtopicId(request.subtopicId());
-            if (request.subtopic() == null && subtopicRepository != null) {
-                Subtopic st = subtopicRepository.findById(request.subtopicId())
-                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Subtopic not found: " + request.subtopicId()));
-                lesson.setSubtopic(st.getName());
-            }
-        }
-        if (request.subtopic() != null && !request.subtopic().isBlank()) {
-            lesson.setSubtopic(request.subtopic().trim());
         }
     }
 
@@ -857,15 +857,25 @@ public class MicroLessonService {
                 return res;
             }
         }
+        String sName = null, tName = null, stName = null;
+        if (subtopicRepository != null && entity.getSubtopicId() != null) {
+            stName = subtopicRepository.findById(entity.getSubtopicId()).map(Subtopic::getName).orElse(null);
+        }
+        if (topicRepository != null && entity.getTopicId() != null) {
+            tName = topicRepository.findById(entity.getTopicId()).map(Topic::getName).orElse(null);
+        }
+        if (subjectRepository != null && entity.getSubjectId() != null) {
+            sName = subjectRepository.findById(entity.getSubjectId()).map(Subject::getName).orElse(null);
+        }
         return new MicroLessonResponse(
                 entity.getId(),
                 entity.getSubjectId(),
                 entity.getTopicId(),
                 entity.getSubtopicId(),
-                entity.getSubject(),
-                entity.getTopic(),
-                entity.getSubtopic(),
-                entity.getTargetExam(),
+                sName,
+                tName,
+                stName,
+                null,
                 entity.getCoreConcept(),
                 entity.getTrap(),
                 parseCheatSheetJson(entity.getCheatSheetJson()),
@@ -876,7 +886,15 @@ public class MicroLessonService {
                 entity.getReviewComments(),
                 entity.getContentVersion(),
                 entity.getCreatedAt(),
-                entity.getUpdatedAt()
+                entity.getUpdatedAt(),
+                entity.getLanguage(),
+                false,
+                entity.getLessonType(),
+                entity.getDifficultyLevel(),
+                entity.getSequenceNo(),
+                entity.getPrerequisiteLessonId(),
+                entity.getEstimatedMinutes(),
+                entity.getQualityScore()
         );
     }
 
@@ -951,10 +969,8 @@ public class MicroLessonService {
         // 2. Fetch PUBLISHED from database if available
         if (subtopicId != null && subtopicId > 0) {
             Optional<SubtopicMicroLesson> publishedLesson = repository
-                    .findFirstBySubtopicIdAndTargetExamAndStatusOrderByContentVersionDesc(
-                            subtopicId, exam, MicroLessonStatus.PUBLISHED.name())
-                    .or(() -> repository.findFirstBySubtopicIdAndStatusOrderByContentVersionDesc(
-                            subtopicId, MicroLessonStatus.PUBLISHED.name()));
+                    .findFirstBySubtopicIdAndStatusOrderByContentVersionDesc(
+                            subtopicId, MicroLessonStatus.PUBLISHED.name());
             if (publishedLesson.isPresent()) {
                 MicroLessonResponse response = generatorService.toResponse(publishedLesson.get());
                 cacheService.put(subtopicId, response);
@@ -963,8 +979,7 @@ public class MicroLessonService {
 
             // 3. Next check if any micro-lesson (AI_GENERATED, PENDING_REVIEW, PUBLISHED) exists
             Optional<SubtopicMicroLesson> anyLesson = repository
-                    .findTopBySubtopicIdAndTargetExamOrderByContentVersionDesc(subtopicId, exam)
-                    .or(() -> repository.findTopBySubtopicIdOrderByContentVersionDesc(subtopicId));
+                    .findTopBySubtopicIdOrderByContentVersionDesc(subtopicId);
             if (anyLesson.isPresent()) {
                 MicroLessonResponse response = generatorService.toResponse(anyLesson.get());
                 return Optional.of(response);
@@ -1055,22 +1070,113 @@ public class MicroLessonService {
                         .subjectId(resolvedSubjectId)
                         .topicId(resolvedTopicId)
                         .subtopicId(effectiveSubtopicId)
-                        .subject(resolvedSubject)
-                        .topic(resolvedTopic)
-                        .subtopic(resolvedSubtopic)
-                        .targetExam(exam)
                         .coreConcept(fallbackContent.coreConcept())
                         .trap(fallbackContent.trap())
                         .cheatSheetJson(objectMapper.writeValueAsString(fallbackContent.cheatSheet()))
                         .stepByStepBreakdownJson(objectMapper.writeValueAsString(fallbackContent.stepByStepBreakdown()))
                         .status(MicroLessonStatus.AI_GENERATED.name())
                         .contentVersion(1)
+                        .lessonType("CONCEPT")
+                        .difficultyLevel("CORE")
+                        .sequenceNo(1)
+                        .estimatedMinutes(5)
+                        .language("en")
                         .build();
                 return Optional.of(generatorService.toResponse(transientLesson));
             } catch (Exception e2) {
                 log.error("Failed to construct fallback micro-lesson: {}", e2.getMessage());
                 return Optional.empty();
             }
+        }
+    }
+
+    /**
+     * Retrieves all micro-lessons for a subtopic with optional filters (v2).
+     */
+    @Transactional(readOnly = true)
+    public List<MicroLessonResponse> getMicroLessonsForSubtopic(Long subtopicId, String lessonType, String difficulty, String language) {
+        if (subtopicId == null || subtopicId <= 0) {
+            return Collections.emptyList();
+        }
+
+        List<SubtopicMicroLesson> lessons = repository.findBySubtopicIdAndStatusOrderBySequenceNoAsc(
+                subtopicId, MicroLessonStatus.PUBLISHED.name());
+        if (lessons.isEmpty()) {
+            lessons = repository.findBySubtopicIdOrderBySequenceNoAsc(subtopicId);
+        }
+
+        List<MicroLessonResponse> responses = new ArrayList<>();
+        for (SubtopicMicroLesson lesson : lessons) {
+            if (lessonType != null && !lessonType.isBlank() && !lessonType.equalsIgnoreCase(lesson.getLessonType())) {
+                continue;
+            }
+            if (difficulty != null && !difficulty.isBlank() && !difficulty.equalsIgnoreCase(lesson.getDifficultyLevel())) {
+                continue;
+            }
+            MicroLessonResponse res = toResponse(lesson);
+            if (language != null && !language.isBlank() && !"en".equalsIgnoreCase(language.trim())) {
+                if (translationWorkflowService != null && res.id() != null) {
+                    try {
+                        res = translationWorkflowService.getLocalizedMicroLesson(res.id(), language.trim().toLowerCase(), TenantContext.get());
+                    } catch (Exception e) {
+                        res = res.withLocalization("en", true);
+                    }
+                }
+            }
+            responses.add(res);
+        }
+        return responses;
+    }
+
+    /**
+     * Learner lesson view telemetry hook.
+     */
+    @Transactional
+    public void recordLessonView(UUID lessonId) {
+        if (lessonId == null || effectivenessRepository == null) return;
+        com.examplatform.questionbank.microlesson.domain.LessonEffectiveness eff = effectivenessRepository.findById(lessonId)
+                .orElseGet(() -> com.examplatform.questionbank.microlesson.domain.LessonEffectiveness.builder()
+                        .lessonId(lessonId)
+                        .views(0L)
+                        .completions(0L)
+                        .postLessonAccuracyDelta(0.0)
+                        .build());
+        eff.setViews(eff.getViews() + 1);
+        effectivenessRepository.save(eff);
+        log.debug("Recorded view for lesson: {}", lessonId);
+    }
+
+    /**
+     * Learner lesson completion telemetry hook.
+     */
+    @Transactional
+    public void recordLessonCompletion(UUID lessonId, Double postAccuracyDelta) {
+        if (lessonId == null || effectivenessRepository == null) return;
+        com.examplatform.questionbank.microlesson.domain.LessonEffectiveness eff = effectivenessRepository.findById(lessonId)
+                .orElseGet(() -> com.examplatform.questionbank.microlesson.domain.LessonEffectiveness.builder()
+                        .lessonId(lessonId)
+                        .views(0L)
+                        .completions(0L)
+                        .postLessonAccuracyDelta(0.0)
+                        .build());
+        eff.setCompletions(eff.getCompletions() + 1);
+        if (postAccuracyDelta != null) {
+            eff.setPostLessonAccuracyDelta(postAccuracyDelta);
+        }
+        effectivenessRepository.save(eff);
+        log.debug("Recorded completion for lesson: {}, delta: {}", lessonId, postAccuracyDelta);
+    }
+
+    /**
+     * Learner progress handler.
+     */
+    @Transactional
+    public void recordProgress(LessonProgressRequest request) {
+        if (request == null || request.getLessonId() == null) return;
+        if ("COMPLETED".equalsIgnoreCase(request.getStatus())) {
+            recordLessonCompletion(request.getLessonId(), request.getPostAccuracyDelta());
+        } else {
+            recordLessonView(request.getLessonId());
         }
     }
 }

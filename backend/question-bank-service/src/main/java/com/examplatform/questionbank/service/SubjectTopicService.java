@@ -31,12 +31,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 /**
  * Service for managing the Subject → Topic → Subtopic hierarchy.
- * All operations are tenant-scoped.
+ * Supports platform-level defaults (tenant_id IS NULL) and tenant-specific additions.
  */
 @Slf4j
 @Service
@@ -53,24 +55,38 @@ public class SubjectTopicService {
 
     @Transactional(readOnly = true)
     public List<Subject> listSubjects(String tenantId) {
-        return subjectRepository.findByTenantIdOrderByNameAsc(tenantId);
+        List<Subject> platform = subjectRepository.findByTenantIdIsNullOrderByDisplayOrderAscNameAsc();
+        if (tenantId == null || tenantId.isBlank()) {
+            return platform;
+        }
+        List<Subject> tenantSubs = subjectRepository.findByTenantIdOrderByDisplayOrderAscNameAsc(tenantId);
+        List<Subject> combined = new ArrayList<>(platform);
+        combined.addAll(tenantSubs);
+        return combined;
     }
 
     @Transactional
     public Subject createSubject(String name, String code, String description, String tenantId) {
-        if (subjectRepository.existsByNameAndTenantId(name, tenantId)) {
-            throw new IllegalArgumentException("Subject with name '" + name + "' already exists");
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("Subject name is required");
+        }
+        String cleanName = name.trim();
+        if (subjectRepository.existsByNameAndTenantId(cleanName, tenantId)
+                || subjectRepository.existsByNameAndTenantIdIsNull(cleanName)) {
+            throw new IllegalArgumentException("Subject with name '" + cleanName + "' already exists");
         }
 
+        String effectiveCode = (code != null && !code.isBlank()) ? code.trim() : generateCode(cleanName);
+
         Subject subject = Subject.builder()
-                .name(name)
-                .code(code)
+                .name(cleanName)
+                .code(effectiveCode)
                 .description(description)
                 .active(true)
                 .build();
         subject.setTenantId(tenantId);
 
-        log.info("Creating subject: name={}, tenant={}", name, tenantId);
+        log.info("Creating subject: name={}, code={}, tenant={}", cleanName, effectiveCode, tenantId);
         return subjectRepository.save(subject);
     }
 
@@ -80,24 +96,44 @@ public class SubjectTopicService {
 
     @Transactional(readOnly = true)
     public List<Topic> listTopics(Long subjectId, String tenantId) {
-        return topicRepository.findBySubjectIdAndTenantIdOrderByNameAsc(subjectId, tenantId);
+        List<Topic> platform = topicRepository.findBySubjectIdAndTenantIdIsNullOrderByDisplayOrderAscNameAsc(subjectId);
+        if (tenantId == null || tenantId.isBlank()) {
+            return platform;
+        }
+        List<Topic> tenantTopics = topicRepository.findBySubjectIdAndTenantIdOrderByDisplayOrderAscNameAsc(subjectId, tenantId);
+        List<Topic> combined = new ArrayList<>(platform);
+        combined.addAll(tenantTopics);
+        return combined;
     }
 
     @Transactional
     public Topic createTopic(Long subjectId, String name, String description, String tenantId) {
-        if (topicRepository.existsByNameAndSubjectIdAndTenantId(name, subjectId, tenantId)) {
-            throw new IllegalArgumentException("Topic with name '" + name + "' already exists for this subject");
+        return createTopic(subjectId, null, name, description, tenantId);
+    }
+
+    @Transactional
+    public Topic createTopic(Long subjectId, String code, String name, String description, String tenantId) {
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("Topic name is required");
         }
+        String cleanName = name.trim();
+        if (topicRepository.existsByNameAndSubjectIdAndTenantId(cleanName, subjectId, tenantId)
+                || topicRepository.existsByNameAndSubjectIdAndTenantIdIsNull(cleanName, subjectId)) {
+            throw new IllegalArgumentException("Topic with name '" + cleanName + "' already exists for this subject");
+        }
+
+        String effectiveCode = (code != null && !code.isBlank()) ? code.trim() : generateCode(cleanName);
 
         Topic topic = Topic.builder()
                 .subjectId(subjectId)
-                .name(name)
+                .code(effectiveCode)
+                .name(cleanName)
                 .description(description)
                 .active(true)
                 .build();
         topic.setTenantId(tenantId);
 
-        log.info("Creating topic: name={}, subjectId={}, tenant={}", name, subjectId, tenantId);
+        log.info("Creating topic: name={}, code={}, subjectId={}, tenant={}", cleanName, effectiveCode, subjectId, tenantId);
         return topicRepository.save(topic);
     }
 
@@ -107,24 +143,44 @@ public class SubjectTopicService {
 
     @Transactional(readOnly = true)
     public List<Subtopic> listSubtopics(Long topicId, String tenantId) {
-        return subtopicRepository.findByTopicIdAndTenantIdOrderByNameAsc(topicId, tenantId);
+        List<Subtopic> platform = subtopicRepository.findByTopicIdAndTenantIdIsNullOrderByDisplayOrderAscNameAsc(topicId);
+        if (tenantId == null || tenantId.isBlank()) {
+            return platform;
+        }
+        List<Subtopic> tenantSubtopics = subtopicRepository.findByTopicIdAndTenantIdOrderByDisplayOrderAscNameAsc(topicId, tenantId);
+        List<Subtopic> combined = new ArrayList<>(platform);
+        combined.addAll(tenantSubtopics);
+        return combined;
     }
 
     @Transactional
     public Subtopic createSubtopic(Long topicId, String name, String description, String tenantId) {
-        if (subtopicRepository.existsByNameAndTopicIdAndTenantId(name, topicId, tenantId)) {
-            throw new IllegalArgumentException("Subtopic with name '" + name + "' already exists for this topic");
+        return createSubtopic(topicId, null, name, description, tenantId);
+    }
+
+    @Transactional
+    public Subtopic createSubtopic(Long topicId, String code, String name, String description, String tenantId) {
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("Subtopic name is required");
         }
+        String cleanName = name.trim();
+        if (subtopicRepository.existsByNameAndTopicIdAndTenantId(cleanName, topicId, tenantId)
+                || subtopicRepository.existsByNameAndTopicIdAndTenantIdIsNull(cleanName, topicId)) {
+            throw new IllegalArgumentException("Subtopic with name '" + cleanName + "' already exists for this topic");
+        }
+
+        String effectiveCode = (code != null && !code.isBlank()) ? code.trim() : generateCode(cleanName);
 
         Subtopic subtopic = Subtopic.builder()
                 .topicId(topicId)
-                .name(name)
+                .code(effectiveCode)
+                .name(cleanName)
                 .description(description)
                 .active(true)
                 .build();
         subtopic.setTenantId(tenantId);
 
-        log.info("Creating subtopic: name={}, topicId={}, tenant={}", name, topicId, tenantId);
+        log.info("Creating subtopic: name={}, code={}, topicId={}, tenant={}", cleanName, effectiveCode, topicId, tenantId);
         return subtopicRepository.save(subtopic);
     }
 
@@ -140,12 +196,10 @@ public class SubjectTopicService {
     /**
      * Resolves subject/topic/subtopic <b>ids</b> to validated ids for a tenant.
      * Unlike {@link #resolveOrCreateByName}, this method never creates new nodes.
-     * Throws {@link IllegalArgumentException} (→ 400) if any id is not found or
-     * does not belong to the expected parent.
      *
      * @param subjectId  required subject id
      * @param topicId    required topic id (must belong to subjectId)
-     * @param subtopicId optional subtopic id (when non-null, must belong to topicId)
+     * @param subtopicId required subtopic id (must belong to topicId)
      * @param tenantId   tenant scope
      */
     @Transactional(readOnly = true)
@@ -158,19 +212,29 @@ public class SubjectTopicService {
         }
 
         Subject subject = subjectRepository.findByIdAndTenantId(subjectId, tenantId)
+                .or(() -> subjectRepository.findByIdAndTenantIdIsNull(subjectId))
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Subject not found: id=" + subjectId + " tenant=" + tenantId));
 
         Topic topic = topicRepository.findByIdAndSubjectIdAndTenantId(topicId, subject.getId(), tenantId)
+                .or(() -> topicRepository.findByIdAndSubjectIdAndTenantIdIsNull(topicId, subject.getId()))
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Topic not found: id=" + topicId + " for subjectId=" + subjectId + " tenant=" + tenantId));
 
-        Long resolvedSubtopicId = null;
+        Long resolvedSubtopicId;
         if (subtopicId != null) {
             Subtopic subtopic = subtopicRepository.findByIdAndTopicIdAndTenantId(subtopicId, topic.getId(), tenantId)
+                    .or(() -> subtopicRepository.findByIdAndTopicIdAndTenantIdIsNull(subtopicId, topic.getId()))
                     .orElseThrow(() -> new IllegalArgumentException(
                             "Subtopic not found: id=" + subtopicId + " for topicId=" + topicId + " tenant=" + tenantId));
             resolvedSubtopicId = subtopic.getId();
+        } else {
+            // Pick first subtopic of topic as mandatory subtopic
+            List<Subtopic> subs = listSubtopics(topic.getId(), tenantId);
+            if (subs.isEmpty()) {
+                throw new IllegalArgumentException("Topic id=" + topicId + " has no subtopics; subtopic is mandatory");
+            }
+            resolvedSubtopicId = subs.get(0).getId();
         }
 
         return new HierarchyIds(subject.getId(), topic.getId(), resolvedSubtopicId);
@@ -195,18 +259,32 @@ public class SubjectTopicService {
             throw new IllegalArgumentException("Topic name is required to resolve hierarchy");
         }
 
-        Subject subject = subjectRepository.findByNameAndTenantId(subjectName, tenantId)
-                .orElseGet(() -> createSubject(subjectName, null, null, tenantId));
+        String sName = subjectName.trim();
+        Subject subject = subjectRepository.findByNameAndTenantId(sName, tenantId)
+                .or(() -> subjectRepository.findByNameAndTenantIdIsNull(sName))
+                .orElseGet(() -> createSubject(sName, null, null, tenantId));
 
-        Topic topic = topicRepository.findByNameAndSubjectIdAndTenantId(topicName, subject.getId(), tenantId)
-                .orElseGet(() -> createTopic(subject.getId(), topicName, null, tenantId));
+        String tName = topicName.trim();
+        Topic topic = topicRepository.findByNameAndSubjectIdAndTenantId(tName, subject.getId(), tenantId)
+                .or(() -> topicRepository.findByNameAndSubjectIdAndTenantIdIsNull(tName, subject.getId()))
+                .orElseGet(() -> createTopic(subject.getId(), null, tName, null, tenantId));
 
-        Long subtopicId = null;
+        Long subtopicId;
         if (subtopicName != null && !subtopicName.isBlank()) {
+            String stName = subtopicName.trim();
             Subtopic subtopic = subtopicRepository
-                    .findByNameAndTopicIdAndTenantId(subtopicName, topic.getId(), tenantId)
-                    .orElseGet(() -> createSubtopic(topic.getId(), subtopicName, null, tenantId));
+                    .findByNameAndTopicIdAndTenantId(stName, topic.getId(), tenantId)
+                    .or(() -> subtopicRepository.findByNameAndTopicIdAndTenantIdIsNull(stName, topic.getId()))
+                    .orElseGet(() -> createSubtopic(topic.getId(), null, stName, null, tenantId));
             subtopicId = subtopic.getId();
+        } else {
+            List<Subtopic> existing = listSubtopics(topic.getId(), tenantId);
+            if (!existing.isEmpty()) {
+                subtopicId = existing.get(0).getId();
+            } else {
+                Subtopic created = createSubtopic(topic.getId(), null, "General " + topic.getName(), null, tenantId);
+                subtopicId = created.getId();
+            }
         }
 
         return new HierarchyIds(subject.getId(), topic.getId(), subtopicId);
@@ -222,13 +300,13 @@ public class SubjectTopicService {
      */
     @Transactional(readOnly = true)
     public List<SubjectHierarchyResponse> getHierarchy(String tenantId) {
-        List<Subject> subjects = subjectRepository.findByTenantIdOrderByNameAsc(tenantId);
+        List<Subject> subjects = listSubjects(tenantId);
 
         return subjects.stream().map(subject -> {
-            List<Topic> topics = topicRepository.findBySubjectIdAndTenantIdOrderByNameAsc(subject.getId(), tenantId);
+            List<Topic> topics = listTopics(subject.getId(), tenantId);
 
             List<SubjectHierarchyResponse.TopicNode> topicNodes = topics.stream().map(topic -> {
-                List<Subtopic> subtopics = subtopicRepository.findByTopicIdAndTenantIdOrderByNameAsc(topic.getId(), tenantId);
+                List<Subtopic> subtopics = listSubtopics(topic.getId(), tenantId);
 
                 List<SubjectHierarchyResponse.SubtopicNode> subtopicNodes = subtopics.stream()
                         .map(st -> SubjectHierarchyResponse.SubtopicNode.builder()
@@ -257,5 +335,13 @@ public class SubjectTopicService {
                     .topics(topicNodes)
                     .build();
         }).collect(Collectors.toList());
+    }
+
+    private static String generateCode(String text) {
+        String clean = text.toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]+", "_");
+        if (clean.length() > 40) {
+            clean = clean.substring(0, 40);
+        }
+        return clean.replaceAll("^_+|_+$", "");
     }
 }

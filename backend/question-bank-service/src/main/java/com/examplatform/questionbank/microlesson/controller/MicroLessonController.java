@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.examplatform.questionbank.microlesson.controller;
 
+import com.examplatform.questionbank.microlesson.dto.LessonProgressRequest;
 import com.examplatform.questionbank.microlesson.dto.MicroLessonResponse;
 import com.examplatform.questionbank.microlesson.service.MicroLessonService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
+
+import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/micro-lessons")
@@ -18,22 +20,35 @@ public class MicroLessonController {
     private final MicroLessonService microLessonService;
 
     /**
-     * Candidate-facing read-only endpoint returning verified PUBLISHED micro-lesson.
-     * Backed by Redis cache (TTL 7 days) for &lt;20ms retrieval latency.
+     * Candidate-facing endpoint returning list of micro-lessons for a subtopic with filters.
+     * Supports multiple lessons per subtopic (v2) filtered by lessonType, difficulty, and language.
      */
     @GetMapping("/subtopic/{subtopicId}")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<MicroLessonResponse> getPublishedMicroLesson(
+    public ResponseEntity<List<MicroLessonResponse>> getMicroLessonsForSubtopic(
             @PathVariable Long subtopicId,
-            @RequestParam(defaultValue = "JEE_MAIN") String targetExam,
-            @RequestParam(required = false) String subtopicName,
-            @RequestParam(required = false) String topicName,
-            @RequestParam(required = false) String subjectName,
-            @RequestParam(required = false, defaultValue = "en") String lang) {
+            @RequestParam(required = false) String lessonType,
+            @RequestParam(required = false) String difficulty,
+            @RequestParam(required = false, defaultValue = "en") String language,
+            @RequestParam(required = false) String targetExam) {
 
-        return microLessonService.getPublishedMicroLesson(subtopicId, targetExam, subjectName, topicName, subtopicName, lang)
-                .map(ResponseEntity::ok)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "Published micro-lesson not available for subtopic " + subtopicId));
+        List<MicroLessonResponse> lessons = microLessonService.getMicroLessonsForSubtopic(
+                subtopicId, lessonType, difficulty, language);
+        return ResponseEntity.ok(lessons);
+    }
+
+    /**
+     * Learner lesson-progress and effectiveness hook.
+     */
+    @PostMapping("/{id}/progress")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> recordProgress(
+            @PathVariable UUID id,
+            @RequestBody(required = false) LessonProgressRequest request) {
+
+        LessonProgressRequest req = request != null ? request : new LessonProgressRequest();
+        req.setLessonId(id);
+        microLessonService.recordProgress(req);
+        return ResponseEntity.ok().build();
     }
 }

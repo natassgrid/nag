@@ -40,6 +40,14 @@ public class CreateMicroLessonRequest implements Serializable {
 
     private String targetExam;
 
+    private String lessonType;
+    private String difficultyLevel;
+    private Integer sequenceNo;
+    private UUID prerequisiteLessonId;
+    private Integer estimatedMinutes;
+    private String language;
+    private Double qualityScore;
+
     private String coreConcept;
 
     private String trap;
@@ -122,6 +130,13 @@ public class CreateMicroLessonRequest implements Serializable {
     public Long subtopicId() { return subtopicId; }
     public String subtopic() { return subtopic; }
     public String targetExam() { return targetExam; }
+    public String lessonType() { return lessonType; }
+    public String difficultyLevel() { return difficultyLevel; }
+    public Integer sequenceNo() { return sequenceNo; }
+    public UUID prerequisiteLessonId() { return prerequisiteLessonId; }
+    public Integer estimatedMinutes() { return estimatedMinutes; }
+    public String language() { return language; }
+    public Double qualityScore() { return qualityScore; }
     public String coreConcept() { return coreConcept; }
     public String trap() { return trap; }
     public TrapAlertDto trapAlert() { return trapAlert; }
