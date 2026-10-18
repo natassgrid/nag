@@ -128,22 +128,26 @@ public class QuestionDeliveryRepository {
     ) {
         String keyword = "%" + (subject != null && !subject.isBlank() ? subject.trim() : "") + "%";
         String sql = """
-            SELECT q.id, q.subject, q.topic, q.subtopic, q.difficulty, q.cognitive_level, q.question_type,
+            SELECT q.id, s.name AS subject, t.name AS topic, st.name AS subtopic, q.difficulty, q.cognitive_level, q.question_type,
                    q.content, q.options, q.answer_key, q.explanation, q.has_images,
-                   q.passage_id, p.content AS passage_content, q.passage_order_index
+                   q.passage_id, p.content AS passage_content, q.passage_order_index,
+                   q.subject_id, q.topic_id, q.subtopic_id
             FROM question_service.question q
+            LEFT JOIN question_service.subject s ON q.subject_id = s.id
+            LEFT JOIN question_service.topic t ON q.topic_id = t.id
+            LEFT JOIN question_service.subtopic st ON q.subtopic_id = st.id
             LEFT JOIN question_service.passage p ON q.passage_id = p.id
-            LEFT JOIN question_service.translation t ON q.id = t.question_id AND t.language_code = 'hi' AND t.status IN ('PUBLISHED', 'APPROVED')
+            LEFT JOIN question_service.translation t_trans ON q.id = t_trans.question_id AND t_trans.language_code = 'hi' AND t_trans.status IN ('PUBLISHED', 'APPROVED')
             WHERE (q.tenant_id = ? OR q.tenant_id = 'default')
               AND q.state = 'APPROVED'
-              AND (q.subject ILIKE ? OR q.topic ILIKE ? OR q.subtopic ILIKE ?)
-            ORDER BY (t.id IS NOT NULL) DESC, q.id
+              AND (s.name ILIKE ? OR s.code ILIKE ? OR t.name ILIKE ? OR st.name ILIKE ?)
+            ORDER BY (t_trans.id IS NOT NULL) DESC, q.id
             LIMIT ?
             """;
 
         List<QuestionDeliveryDto> matched = queryQuestions(
                 sql,
-                new Object[]{tenantId, keyword, keyword, keyword, limit * 2},
+                new Object[]{tenantId, keyword, keyword, keyword, keyword, limit * 2},
                 sectionSpec.secId(),
                 sectionSpec.secName(),
                 sectionSpec.marks(),
@@ -155,15 +159,19 @@ public class QuestionDeliveryRepository {
 
         if (filtered.size() < limit) {
             String fallbackSql = """
-                SELECT q.id, q.subject, q.topic, q.subtopic, q.difficulty, q.cognitive_level, q.question_type,
+                SELECT q.id, s.name AS subject, t.name AS topic, st.name AS subtopic, q.difficulty, q.cognitive_level, q.question_type,
                        q.content, q.options, q.answer_key, q.explanation, q.has_images,
-                       q.passage_id, p.content AS passage_content, q.passage_order_index
+                       q.passage_id, p.content AS passage_content, q.passage_order_index,
+                       q.subject_id, q.topic_id, q.subtopic_id
                 FROM question_service.question q
+                LEFT JOIN question_service.subject s ON q.subject_id = s.id
+                LEFT JOIN question_service.topic t ON q.topic_id = t.id
+                LEFT JOIN question_service.subtopic st ON q.subtopic_id = st.id
                 LEFT JOIN question_service.passage p ON q.passage_id = p.id
-                LEFT JOIN question_service.translation t ON q.id = t.question_id AND t.language_code = 'hi' AND t.status IN ('PUBLISHED', 'APPROVED')
+                LEFT JOIN question_service.translation t_trans ON q.id = t_trans.question_id AND t_trans.language_code = 'hi' AND t_trans.status IN ('PUBLISHED', 'APPROVED')
                 WHERE (q.tenant_id = ? OR q.tenant_id = 'default')
                   AND q.state = 'APPROVED'
-                ORDER BY (t.id IS NOT NULL) DESC, q.id
+                ORDER BY (t_trans.id IS NOT NULL) DESC, q.id
                 LIMIT 200
                 """;
             List<QuestionDeliveryDto> extra = queryQuestions(
@@ -204,19 +212,23 @@ public class QuestionDeliveryRepository {
 
     public List<QuestionDeliveryDto> fetchDefaultApprovedQuestions(String tenantId) {
         String sql = """
-            SELECT q.id, q.subject, q.topic, q.subtopic, q.difficulty, q.cognitive_level, q.question_type,
+            SELECT q.id, s.name AS subject, t.name AS topic, st.name AS subtopic, q.difficulty, q.cognitive_level, q.question_type,
                    q.content, q.options, q.answer_key, q.explanation, q.has_images,
-                   q.passage_id, p.content AS passage_content, q.passage_order_index
+                   q.passage_id, p.content AS passage_content, q.passage_order_index,
+                   q.subject_id, q.topic_id, q.subtopic_id
             FROM question_service.question q
+            LEFT JOIN question_service.subject s ON q.subject_id = s.id
+            LEFT JOIN question_service.topic t ON q.topic_id = t.id
+            LEFT JOIN question_service.subtopic st ON q.subtopic_id = st.id
             LEFT JOIN question_service.passage p ON q.passage_id = p.id
-            LEFT JOIN question_service.translation t ON q.id = t.question_id AND t.language_code = 'hi' AND t.status IN ('PUBLISHED', 'APPROVED')
+            LEFT JOIN question_service.translation t_trans ON q.id = t_trans.question_id AND t_trans.language_code = 'hi' AND t_trans.status IN ('PUBLISHED', 'APPROVED')
             WHERE (q.tenant_id = ? OR q.tenant_id = 'default')
               AND q.state = 'APPROVED'
-            ORDER BY (t.id IS NOT NULL) DESC, CASE
-              WHEN q.subject ILIKE '%Reasoning%' OR q.subject ILIKE '%Intelligence%' THEN 1
-              WHEN q.subject ILIKE '%Awareness%' OR q.subject ILIKE '%General Studies%' THEN 2
-              WHEN q.subject ILIKE '%Quantitative%' OR q.subject ILIKE '%Math%' THEN 3
-              WHEN q.subject ILIKE '%English%' THEN 4
+            ORDER BY (t_trans.id IS NOT NULL) DESC, CASE
+              WHEN s.name ILIKE '%Reasoning%' OR s.code = 'REAS' THEN 1
+              WHEN s.name ILIKE '%Awareness%' OR s.name ILIKE '%General Studies%' OR s.code IN ('GS', 'GSCI') THEN 2
+              WHEN s.name ILIKE '%Quantitative%' OR s.name ILIKE '%Math%' OR s.code = 'MATH' THEN 3
+              WHEN s.name ILIKE '%English%' OR s.code = 'ENG' THEN 4
               ELSE 5 END, q.id
             LIMIT 100
             """;
@@ -355,10 +367,14 @@ public class QuestionDeliveryRepository {
 
             String inSql = String.join(",", Collections.nCopies(qUuids.size(), "?"));
             String sql = String.format("""
-                SELECT q.id, q.subject, q.topic, q.subtopic, q.difficulty, q.cognitive_level, q.question_type,
+                SELECT q.id, s.name AS subject, t.name AS topic, st.name AS subtopic, q.difficulty, q.cognitive_level, q.question_type,
                        q.content, q.options, q.answer_key, q.explanation, q.has_images,
-                       q.passage_id, p.content AS passage_content, q.passage_order_index
+                       q.passage_id, p.content AS passage_content, q.passage_order_index,
+                       q.subject_id, q.topic_id, q.subtopic_id
                 FROM question_service.question q
+                LEFT JOIN question_service.subject s ON q.subject_id = s.id
+                LEFT JOIN question_service.topic t ON q.topic_id = t.id
+                LEFT JOIN question_service.subtopic st ON q.subtopic_id = st.id
                 LEFT JOIN question_service.passage p ON q.passage_id = p.id
                 WHERE q.id IN (%s)
                 """, inSql);
@@ -522,10 +538,12 @@ public class QuestionDeliveryRepository {
         try {
             return jdbcTemplate.query(
                     """
-                    SELECT id FROM question_service.question
-                    WHERE (subject ILIKE ? OR topic ILIKE ?)
-                       OR (subject ILIKE ? OR topic ILIKE ?)
-                    ORDER BY id
+                    SELECT q.id FROM question_service.question q
+                    LEFT JOIN question_service.subject s ON q.subject_id = s.id
+                    LEFT JOIN question_service.topic t ON q.topic_id = t.id
+                    WHERE (s.name ILIKE ? OR t.name ILIKE ?)
+                       OR (s.name ILIKE ? OR t.name ILIKE ?)
+                    ORDER BY q.id
                     LIMIT ?
                     """,
                     (rs, rowNum) -> rs.getObject("id", UUID.class),

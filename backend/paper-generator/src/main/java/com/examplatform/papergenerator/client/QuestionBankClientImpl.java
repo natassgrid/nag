@@ -174,15 +174,19 @@ public class QuestionBankClientImpl implements QuestionBankClient {
 
         try {
             String sql = """
-                SELECT id, subject_id, topic_id, subtopic_id, subject, topic, subtopic, difficulty, cognitive_level, usage_count, last_used_at, content, passage_id, passage_order_index
-                FROM question_service.question
-                WHERE (tenant_id = ? OR tenant_id IS NULL OR tenant_id = 'default')
-                  AND (? IS NULL OR subject_id = ?)
-                  AND (? IS NULL OR topic_id = ?)
-                  AND (? IS NULL OR subtopic_id = ?)
-                  AND state = 'PUBLISHED'
-                  AND (? IS NULL OR UPPER(TRIM(difficulty)) = UPPER(?))
-                  AND (? IS NULL OR UPPER(TRIM(cognitive_level)) = UPPER(?))
+                SELECT q.id, q.subject_id, q.topic_id, q.subtopic_id, s.name AS subject, t.name AS topic, st.name AS subtopic,
+                       q.difficulty, q.cognitive_level, q.usage_count, q.last_used_at, q.content, q.passage_id, q.passage_order_index
+                FROM question_service.question q
+                LEFT JOIN question_service.subject s ON q.subject_id = s.id
+                LEFT JOIN question_service.topic t ON q.topic_id = t.id
+                LEFT JOIN question_service.subtopic st ON q.subtopic_id = st.id
+                WHERE (q.tenant_id = ? OR q.tenant_id IS NULL OR q.tenant_id = 'default')
+                  AND (? IS NULL OR q.subject_id = ?)
+                  AND (? IS NULL OR q.topic_id = ?)
+                  AND (? IS NULL OR q.subtopic_id = ?)
+                  AND q.state = 'PUBLISHED'
+                  AND (? IS NULL OR UPPER(TRIM(q.difficulty)) = UPPER(?))
+                  AND (? IS NULL OR UPPER(TRIM(q.cognitive_level)) = UPPER(?))
                 ORDER BY RANDOM()
                 """;
 
@@ -202,14 +206,18 @@ public class QuestionBankClientImpl implements QuestionBankClient {
 
             if (cleanCognitiveLevel != null) {
                 String fallbackSql = """
-                    SELECT id, subject_id, topic_id, subtopic_id, subject, topic, subtopic, difficulty, cognitive_level, usage_count, last_used_at, content, passage_id, passage_order_index
-                    FROM question_service.question
-                    WHERE (tenant_id = ? OR tenant_id IS NULL OR tenant_id = 'default')
-                      AND (? IS NULL OR subject_id = ?)
-                      AND (? IS NULL OR topic_id = ?)
-                      AND (? IS NULL OR subtopic_id = ?)
-                      AND state = 'PUBLISHED'
-                      AND (? IS NULL OR UPPER(TRIM(difficulty)) = UPPER(?))
+                    SELECT q.id, q.subject_id, q.topic_id, q.subtopic_id, s.name AS subject, t.name AS topic, st.name AS subtopic,
+                           q.difficulty, q.cognitive_level, q.usage_count, q.last_used_at, q.content, q.passage_id, q.passage_order_index
+                    FROM question_service.question q
+                    LEFT JOIN question_service.subject s ON q.subject_id = s.id
+                    LEFT JOIN question_service.topic t ON q.topic_id = t.id
+                    LEFT JOIN question_service.subtopic st ON q.subtopic_id = st.id
+                    WHERE (q.tenant_id = ? OR q.tenant_id IS NULL OR q.tenant_id = 'default')
+                      AND (? IS NULL OR q.subject_id = ?)
+                      AND (? IS NULL OR q.topic_id = ?)
+                      AND (? IS NULL OR q.subtopic_id = ?)
+                      AND q.state = 'PUBLISHED'
+                      AND (? IS NULL OR UPPER(TRIM(q.difficulty)) = UPPER(?))
                     ORDER BY RANDOM()
                     """;
 
@@ -259,14 +267,18 @@ public class QuestionBankClientImpl implements QuestionBankClient {
         if (jdbcTemplate != null) {
             try {
                 String sql = """
-                    SELECT id, subject_id, topic_id, subtopic_id, subject, topic, subtopic, difficulty, cognitive_level, usage_count, last_used_at, content, passage_id, passage_order_index
-                    FROM question_service.question
-                    WHERE tenant_id = ?
-                      AND UPPER(TRIM(subject)) = UPPER(?)
-                      AND UPPER(TRIM(topic)) = UPPER(?)
-                      AND state = 'PUBLISHED'
-                      AND (? IS NULL OR UPPER(TRIM(difficulty)) = UPPER(?))
-                      AND (? IS NULL OR UPPER(TRIM(cognitive_level)) = UPPER(?))
+                    SELECT q.id, q.subject_id, q.topic_id, q.subtopic_id, s.name AS subject, t.name AS topic, st.name AS subtopic,
+                           q.difficulty, q.cognitive_level, q.usage_count, q.last_used_at, q.content, q.passage_id, q.passage_order_index
+                    FROM question_service.question q
+                    LEFT JOIN question_service.subject s ON q.subject_id = s.id
+                    LEFT JOIN question_service.topic t ON q.topic_id = t.id
+                    LEFT JOIN question_service.subtopic st ON q.subtopic_id = st.id
+                    WHERE (q.tenant_id = ? OR q.tenant_id = 'default' OR q.tenant_id IS NULL)
+                      AND UPPER(TRIM(s.name)) = UPPER(?)
+                      AND UPPER(TRIM(t.name)) = UPPER(?)
+                      AND q.state = 'PUBLISHED'
+                      AND (? IS NULL OR UPPER(TRIM(q.difficulty)) = UPPER(?))
+                      AND (? IS NULL OR UPPER(TRIM(q.cognitive_level)) = UPPER(?))
                     ORDER BY RANDOM()
                     """;
                 List<QuestionSummary> questions = jdbcTemplate.query(sql, QuestionBankClientImpl::mapQuestionSummary,
@@ -276,13 +288,17 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                 }
                 if (cleanCognitiveLevel != null) {
                     String fallbackSql = """
-                        SELECT id, subject_id, topic_id, subtopic_id, subject, topic, subtopic, difficulty, cognitive_level, usage_count, last_used_at, content, passage_id, passage_order_index
-                        FROM question_service.question
-                        WHERE tenant_id = ?
-                          AND UPPER(TRIM(subject)) = UPPER(?)
-                          AND UPPER(TRIM(topic)) = UPPER(?)
-                          AND state = 'PUBLISHED'
-                          AND (? IS NULL OR UPPER(TRIM(difficulty)) = UPPER(?))
+                        SELECT q.id, q.subject_id, q.topic_id, q.subtopic_id, s.name AS subject, t.name AS topic, st.name AS subtopic,
+                               q.difficulty, q.cognitive_level, q.usage_count, q.last_used_at, q.content, q.passage_id, q.passage_order_index
+                        FROM question_service.question q
+                        LEFT JOIN question_service.subject s ON q.subject_id = s.id
+                        LEFT JOIN question_service.topic t ON q.topic_id = t.id
+                        LEFT JOIN question_service.subtopic st ON q.subtopic_id = st.id
+                        WHERE (q.tenant_id = ? OR q.tenant_id = 'default' OR q.tenant_id IS NULL)
+                          AND UPPER(TRIM(s.name)) = UPPER(?)
+                          AND UPPER(TRIM(t.name)) = UPPER(?)
+                          AND q.state = 'PUBLISHED'
+                          AND (? IS NULL OR UPPER(TRIM(q.difficulty)) = UPPER(?))
                         ORDER BY RANDOM()
                         """;
                     return jdbcTemplate.query(fallbackSql, QuestionBankClientImpl::mapQuestionSummary,
@@ -364,10 +380,14 @@ public class QuestionBankClientImpl implements QuestionBankClient {
         try {
             String inSql = String.join(",", Collections.nCopies(questionIds.size(), "?"));
             String sql = String.format("""
-                SELECT id, subject, topic, difficulty, cognitive_level, usage_count, last_used_at, content, passage_id, passage_order_index
-                FROM question_service.question
-                WHERE (tenant_id = ? OR tenant_id = 'default')
-                  AND id IN (%s)
+                SELECT q.id, q.subject_id, q.topic_id, q.subtopic_id, s.name AS subject, t.name AS topic, st.name AS subtopic,
+                       q.difficulty, q.cognitive_level, q.usage_count, q.last_used_at, q.content, q.passage_id, q.passage_order_index
+                FROM question_service.question q
+                LEFT JOIN question_service.subject s ON q.subject_id = s.id
+                LEFT JOIN question_service.topic t ON q.topic_id = t.id
+                LEFT JOIN question_service.subtopic st ON q.subtopic_id = st.id
+                WHERE (q.tenant_id = ? OR q.tenant_id = 'default')
+                  AND q.id IN (%s)
                 """, inSql);
 
             List<Object> params = new ArrayList<>();

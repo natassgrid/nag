@@ -42,9 +42,14 @@ public class QuestionBankClientImpl implements QuestionBankClient {
         try {
             String inSql = String.join(",", Collections.nCopies(questionIds.size(), "?"));
             String sql = String.format("""
-                SELECT id, answer_key, question_type, subject_id, subject, topic_id, topic, subtopic_id, subtopic, difficulty, content, options, explanation, benchmark_time_seconds
-                FROM question_service.question
-                WHERE id IN (%s)
+                SELECT q.id, q.answer_key, q.question_type, q.subject_id, s.name AS subject,
+                       q.topic_id, t.name AS topic, q.subtopic_id, st.name AS subtopic,
+                       q.difficulty, q.content, q.options, q.explanation, q.benchmark_time_seconds
+                FROM question_service.question q
+                LEFT JOIN question_service.subject s ON q.subject_id = s.id
+                LEFT JOIN question_service.topic t ON q.topic_id = t.id
+                LEFT JOIN question_service.subtopic st ON q.subtopic_id = st.id
+                WHERE q.id IN (%s)
                 """, inSql);
 
             // Query translations if available
@@ -140,15 +145,17 @@ public class QuestionBankClientImpl implements QuestionBankClient {
         }
         try {
             String sql = """
-                SELECT id FROM question_service.question
-                WHERE state = 'PUBLISHED'
-                  AND LOWER(subject) LIKE LOWER(?)
-                ORDER BY created_at DESC
+                SELECT q.id FROM question_service.question q
+                JOIN question_service.subject s ON q.subject_id = s.id
+                WHERE q.state = 'PUBLISHED'
+                  AND (LOWER(s.name) LIKE LOWER(?) OR LOWER(s.code) LIKE LOWER(?))
+                ORDER BY q.created_at DESC
                 LIMIT ?
                 """;
+            String pattern = "%" + subjectPattern.trim() + "%";
             return jdbcTemplate.query(sql,
                     (rs, rowNum) -> rs.getObject("id", UUID.class),
-                    "%" + subjectPattern.trim() + "%",
+                    pattern, pattern,
                     Math.max(1, limit)
             );
         } catch (Exception e) {
@@ -169,11 +176,12 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                 Object[] params;
                 if (difficulty != null && !difficulty.isBlank()) {
                     sql = String.format("""
-                        SELECT id FROM question_service.question
-                        WHERE state = 'PUBLISHED'
-                          AND UPPER(difficulty) = ?
-                          AND LOWER(subtopic) IN (%s)
-                        ORDER BY created_at DESC
+                        SELECT q.id FROM question_service.question q
+                        JOIN question_service.subtopic st ON q.subtopic_id = st.id
+                        WHERE q.state = 'PUBLISHED'
+                          AND UPPER(q.difficulty) = ?
+                          AND LOWER(st.name) IN (%s)
+                        ORDER BY q.created_at DESC
                         LIMIT ?
                         """, inSql);
                     List<Object> pList = new ArrayList<>();
@@ -183,10 +191,11 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                     params = pList.toArray();
                 } else {
                     sql = String.format("""
-                        SELECT id FROM question_service.question
-                        WHERE state = 'PUBLISHED'
-                          AND LOWER(subtopic) IN (%s)
-                        ORDER BY created_at DESC
+                        SELECT q.id FROM question_service.question q
+                        JOIN question_service.subtopic st ON q.subtopic_id = st.id
+                        WHERE q.state = 'PUBLISHED'
+                          AND LOWER(st.name) IN (%s)
+                        ORDER BY q.created_at DESC
                         LIMIT ?
                         """, inSql);
                     List<Object> pList = new ArrayList<>();

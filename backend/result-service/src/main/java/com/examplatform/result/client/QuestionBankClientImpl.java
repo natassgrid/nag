@@ -112,10 +112,13 @@ public class QuestionBankClientImpl implements QuestionBankClient {
         try {
             String inSql = String.join(",", Collections.nCopies(questionIds.size(), "?"));
             String sql = String.format("""
-                SELECT id, subject, topic, difficulty, cognitive_level, content, options, explanation, answer_key
-                FROM question_service.question
-                WHERE (tenant_id = ? OR tenant_id = 'default')
-                  AND id IN (%s)
+                SELECT q.id, s.name AS subject, t.name AS topic, q.difficulty, q.cognitive_level,
+                       q.content, q.options, q.explanation, q.answer_key
+                FROM question_service.question q
+                LEFT JOIN question_service.subject s ON q.subject_id = s.id
+                LEFT JOIN question_service.topic t ON q.topic_id = t.id
+                WHERE (q.tenant_id = ? OR q.tenant_id = 'default')
+                  AND q.id IN (%s)
                 """, inSql);
 
             List<Object> params = new ArrayList<>();

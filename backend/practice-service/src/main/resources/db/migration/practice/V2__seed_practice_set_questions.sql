@@ -17,25 +17,28 @@ BEGIN
     IF v_has_question_table THEN
         SELECT json_agg(id ORDER BY id)::jsonb INTO v_reasoning_json
         FROM (
-            SELECT id FROM question_service.question
-            WHERE subject ILIKE '%reasoning%'
-            ORDER BY id
+            SELECT q.id FROM question_service.question q
+            JOIN question_service.subject s ON q.subject_id = s.id
+            WHERE s.name ILIKE '%reasoning%' OR s.code = 'REAS'
+            ORDER BY q.id
             LIMIT 25
         ) q;
 
         SELECT json_agg(id ORDER BY id)::jsonb INTO v_quant_json
         FROM (
-            SELECT id FROM question_service.question
-            WHERE subject ILIKE '%quantitative%'
-            ORDER BY id
+            SELECT q.id FROM question_service.question q
+            JOIN question_service.subject s ON q.subject_id = s.id
+            WHERE s.name ILIKE '%quantitative%' OR s.name ILIKE '%math%' OR s.code = 'MATH'
+            ORDER BY q.id
             LIMIT 30
         ) q;
 
         SELECT json_agg(id ORDER BY id)::jsonb INTO v_awareness_json
         FROM (
-            SELECT id FROM question_service.question
-            WHERE subject ILIKE '%awareness%' OR subject ILIKE '%science%'
-            ORDER BY id
+            SELECT q.id FROM question_service.question q
+            JOIN question_service.subject s ON q.subject_id = s.id
+            WHERE s.name ILIKE '%awareness%' OR s.name ILIKE '%science%' OR s.code IN ('GS', 'GSCI')
+            ORDER BY q.id
             LIMIT 20
         ) q;
     END IF;
