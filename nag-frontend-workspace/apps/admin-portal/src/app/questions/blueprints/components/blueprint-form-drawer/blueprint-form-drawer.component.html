@@ -90,9 +90,10 @@
                       type="button"
                       mat-icon-button
                       (click)="removeRule.emit($index)"
-                      class="!w-6 !h-6 !text-rose-400 hover:!text-rose-600 cursor-pointer"
+                      matTooltip="Remove Rule"
+                      class="rule-delete-btn !text-rose-400 hover:!text-rose-600 hover:!bg-rose-50 cursor-pointer"
                     >
-                      <mat-icon class="!text-sm">delete</mat-icon>
+                      <mat-icon>delete</mat-icon>
                     </button>
                   }
                 </div>

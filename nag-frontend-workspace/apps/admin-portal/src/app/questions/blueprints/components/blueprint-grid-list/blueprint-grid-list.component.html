@@ -88,20 +88,22 @@
           <div class="flex items-center gap-1">
             <button
               mat-icon-button
+              type="button"
               (click)="editBlueprint.emit(tpl)"
               matTooltip="Edit Blueprint"
-              class="!w-8 !h-8 !text-slate-500 hover:!text-indigo-600 cursor-pointer"
+              class="action-icon-btn !text-slate-500 hover:!text-indigo-600 hover:!bg-indigo-50 cursor-pointer"
             >
-              <mat-icon class="!text-base">edit</mat-icon>
+              <mat-icon>edit</mat-icon>
             </button>
             <button
               mat-icon-button
+              type="button"
               (click)="deleteBlueprint.emit(tpl)"
               [disabled]="deletingId() === tpl.id"
               matTooltip="Delete Blueprint"
-              class="!w-8 !h-8 !text-slate-400 hover:!text-rose-600 cursor-pointer"
+              class="action-icon-btn !text-slate-400 hover:!text-rose-600 hover:!bg-rose-50 cursor-pointer"
             >
-              <mat-icon class="!text-base">delete</mat-icon>
+              <mat-icon>delete</mat-icon>
             </button>
           </div>
         </div>

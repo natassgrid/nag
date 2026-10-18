@@ -1,3 +1,46 @@
 :host {
   display: contents;
 }
+
+.rule-delete-btn {
+  --mdc-icon-button-state-layer-size: 28px;
+  --mdc-icon-button-icon-size: 16px;
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  min-height: 28px !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 9999px !important;
+  overflow: hidden !important;
+  position: relative !important;
+
+  ::ng-deep {
+    .mat-mdc-button-persistent-ripple,
+    .mat-mdc-button-ripple {
+      width: 100% !important;
+      height: 100% !important;
+      border-radius: 9999px !important;
+      top: 0 !important;
+      left: 0 !important;
+      transform: none !important;
+    }
+
+    .mat-mdc-button-touch-target {
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    .mat-icon {
+      font-size: 16px !important;
+      width: 16px !important;
+      height: 16px !important;
+      line-height: 16px !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+    }
+  }
+}
