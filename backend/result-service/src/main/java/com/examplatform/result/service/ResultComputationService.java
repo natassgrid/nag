@@ -14,15 +14,19 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 package com.examplatform.result.service;
 
 import com.examplatform.result.domain.Result;
 import com.examplatform.result.dto.CandidateScoreInput;
+import com.examplatform.result.dto.SectionBreakdownDto;
+import com.examplatform.result.dto.TaxonomyBreakdownDto;
 import com.examplatform.result.repository.ResultRepository;
 import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
+import com.examplatform.shared.util.DataConversionUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityNotFoundException;
@@ -203,12 +207,18 @@ public class ResultComputationService {
 
     private Result buildResult(ScoredCandidate sc, UUID examId, String tenantId) {
         String sectionScoresJson = serializeSectionScores(sc.input().getSectionScores());
+        String sectionalStatusJson = serializeSectionBreakdowns(sc.input().getSectionBreakdowns(), sc.input().getQuestionLevelScores());
+        String topicBreakdownJson = serializeTopicBreakdowns(sc.input().getTopicBreakdowns(), sc.input().getSubtopicBreakdowns(), sc.input().getQuestionLevelScores());
+        BigDecimal accuracyRate = calculateAccuracyRate(sc.input());
 
         Result result = Result.builder()
                 .candidateId(sc.input().getCandidateId())
                 .examId(examId)
                 .totalScore(BigDecimal.valueOf(sc.finalScore()).setScale(2, RoundingMode.HALF_UP))
                 .sectionScoresJson(sectionScoresJson)
+                .sectionalStatusJson(sectionalStatusJson)
+                .topicBreakdownJson(topicBreakdownJson)
+                .accuracyRate(accuracyRate)
                 .overallRank(sc.rank())
                 .overallPercentile(BigDecimal.valueOf(sc.percentile()).setScale(3, RoundingMode.HALF_UP))
                 .scorecardPdfRef(null)
@@ -228,6 +238,250 @@ public class ResultComputationService {
             log.error("Failed to serialize section scores", e);
             return "{}";
         }
+    }
+
+    private String serializeSectionBreakdowns(List<SectionBreakdownDto> sectionBreakdowns,
+                                             List<Map<String, Object>> questionLevelScores) {
+        List<SectionBreakdownDto> breakdowns = sectionBreakdowns;
+        if ((breakdowns == null || breakdowns.isEmpty()) && questionLevelScores != null && !questionLevelScores.isEmpty()) {
+            breakdowns = deriveSectionBreakdownsFromQuestions(questionLevelScores);
+        }
+        if (breakdowns == null || breakdowns.isEmpty()) {
+            return null;
+        }
+        try {
+            return objectMapper.writeValueAsString(breakdowns);
+        } catch (JsonProcessingException e) {
+            log.error("Failed to serialize section breakdowns", e);
+            return null;
+        }
+    }
+
+    private String serializeTopicBreakdowns(List<TaxonomyBreakdownDto> topicBreakdowns,
+                                           List<TaxonomyBreakdownDto> subtopicBreakdowns,
+                                           List<Map<String, Object>> questionLevelScores) {
+        List<TaxonomyBreakdownDto> breakdowns = subtopicBreakdowns;
+        if (breakdowns == null || breakdowns.isEmpty()) {
+            breakdowns = topicBreakdowns;
+        }
+        if ((breakdowns == null || breakdowns.isEmpty()) && questionLevelScores != null && !questionLevelScores.isEmpty()) {
+            breakdowns = deriveTaxonomyBreakdownsFromQuestions(questionLevelScores);
+        }
+        if (breakdowns == null || breakdowns.isEmpty()) {
+            return null;
+        }
+        try {
+            for (TaxonomyBreakdownDto dto : breakdowns) {
+                if (dto != null) {
+                    dto.normalize();
+                }
+            }
+            return objectMapper.writeValueAsString(breakdowns);
+        } catch (JsonProcessingException e) {
+            log.error("Failed to serialize topic/subtopic breakdowns", e);
+            return null;
+        }
+    }
+
+    private BigDecimal calculateAccuracyRate(CandidateScoreInput input) {
+        if (input.getAccuracyRate() != null) {
+            return BigDecimal.valueOf(input.getAccuracyRate()).setScale(2, RoundingMode.HALF_UP);
+        }
+        List<Map<String, Object>> questions = input.getQuestionLevelScores();
+        if (questions == null || questions.isEmpty()) {
+            return null;
+        }
+        long attempted = questions.stream()
+                .filter(q -> {
+                    String status = Objects.toString(q.get("status"), "");
+                    return !"SKIPPED".equalsIgnoreCase(status) && !"UNATTEMPTED".equalsIgnoreCase(status);
+                })
+                .count();
+        if (attempted == 0) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+        long correct = questions.stream()
+                .filter(q -> {
+                    String status = Objects.toString(q.get("status"), "");
+                    double score = DataConversionUtils.toDouble(q.get("score"));
+                    return "CORRECT".equalsIgnoreCase(status) || score > 0;
+                })
+                .count();
+        return BigDecimal.valueOf(correct * 100.0 / attempted).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private List<SectionBreakdownDto> deriveSectionBreakdownsFromQuestions(List<Map<String, Object>> questions) {
+        Map<String, SectionAccumulator> map = new LinkedHashMap<>();
+        for (Map<String, Object> q : questions) {
+            UUID sectionId = DataConversionUtils.parseUUID(q.get("sectionId"));
+            String sectionName = Objects.toString(q.get("sectionName"), null);
+            String key = sectionId != null ? sectionId.toString() : (sectionName != null ? sectionName : "default");
+
+            SectionAccumulator acc = map.computeIfAbsent(key, k -> {
+                SectionAccumulator a = new SectionAccumulator();
+                a.sectionId = sectionId;
+                a.sectionName = sectionName != null ? sectionName : "Section";
+                Object subjIdObj = q.get("subjectId");
+                if (subjIdObj instanceof Number num) {
+                    a.subjectId = num.longValue();
+                }
+                a.subject = Objects.toString(q.get("subject"), null);
+                return a;
+            });
+
+            double maxMarks = DataConversionUtils.toDouble(q.get("maxMarks"));
+            double score = DataConversionUtils.toDouble(q.get("score"));
+            String status = Objects.toString(q.get("status"), "");
+
+            acc.questionCount++;
+            acc.maxMarks += maxMarks;
+            acc.score += score;
+
+            boolean isAttempted = !"SKIPPED".equalsIgnoreCase(status) && !"UNATTEMPTED".equalsIgnoreCase(status);
+            if (isAttempted) {
+                acc.attemptedCount++;
+                if ("CORRECT".equalsIgnoreCase(status) || score > 0) {
+                    acc.correctCount++;
+                }
+            }
+        }
+
+        List<SectionBreakdownDto> result = new ArrayList<>();
+        for (SectionAccumulator acc : map.values()) {
+            double accuracy = acc.attemptedCount > 0 ? (acc.correctCount * 100.0 / acc.attemptedCount) : 0.0;
+            result.add(SectionBreakdownDto.builder()
+                    .sectionId(acc.sectionId)
+                    .sectionName(acc.sectionName)
+                    .subjectId(acc.subjectId)
+                    .subject(acc.subject)
+                    .score(Math.round(acc.score * 100.0) / 100.0)
+                    .maxMarks(Math.round(acc.maxMarks * 100.0) / 100.0)
+                    .accuracyRate(Math.round(accuracy * 100.0) / 100.0)
+                    .questionCount(acc.questionCount)
+                    .attemptedCount(acc.attemptedCount)
+                    .correctCount(acc.correctCount)
+                    .build());
+        }
+        return result;
+    }
+
+    private List<TaxonomyBreakdownDto> deriveTaxonomyBreakdownsFromQuestions(List<Map<String, Object>> questions) {
+        Map<String, TaxonomyAccumulator> map = new LinkedHashMap<>();
+        for (Map<String, Object> q : questions) {
+            Object subIdObj = q.get("subtopicId");
+            Long subtopicId = subIdObj instanceof Number num ? num.longValue() : null;
+            String subtopic = Objects.toString(q.get("subtopic"), null);
+
+            Object topIdObj = q.get("topicId");
+            Long topicId = topIdObj instanceof Number num ? num.longValue() : null;
+            String topic = Objects.toString(q.get("topic"), null);
+
+            Object subjIdObj = q.get("subjectId");
+            Long subjectId = subjIdObj instanceof Number num ? num.longValue() : null;
+            String subject = Objects.toString(q.get("subject"), null);
+
+            String key = subtopicId != null ? ("sub-" + subtopicId)
+                    : (subtopic != null ? ("subname-" + subtopic)
+                    : (topicId != null ? ("top-" + topicId)
+                    : (topic != null ? ("topname-" + topic) : "general")));
+
+            TaxonomyAccumulator acc = map.computeIfAbsent(key, k -> {
+                TaxonomyAccumulator a = new TaxonomyAccumulator();
+                a.subjectId = subjectId;
+                a.subject = subject != null ? subject : "General";
+                a.topicId = topicId;
+                a.topic = topic != null ? topic : "General";
+                a.subtopicId = subtopicId;
+                a.subtopic = subtopic != null ? subtopic : a.topic;
+                return a;
+            });
+
+            double maxMarks = DataConversionUtils.toDouble(q.get("maxMarks"));
+            double score = DataConversionUtils.toDouble(q.get("score"));
+            String status = Objects.toString(q.get("status"), "");
+            long timeSpent = q.get("timeSpentMs") instanceof Number n ? n.longValue() : 0L;
+
+            acc.questionCount++;
+            acc.maxMarks += maxMarks;
+            acc.score += score;
+            acc.totalTimeSpentMs += timeSpent;
+
+            boolean isAttempted = !"SKIPPED".equalsIgnoreCase(status) && !"UNATTEMPTED".equalsIgnoreCase(status);
+            if (isAttempted) {
+                acc.attemptedCount++;
+                if ("CORRECT".equalsIgnoreCase(status) || score > 0) {
+                    acc.correctCount++;
+                } else {
+                    acc.incorrectCount++;
+                }
+            } else {
+                acc.skippedCount++;
+            }
+        }
+
+        List<TaxonomyBreakdownDto> result = new ArrayList<>();
+        for (TaxonomyAccumulator acc : map.values()) {
+            double accuracy = acc.attemptedCount > 0 ? (acc.correctCount * 100.0 / acc.attemptedCount) : 0.0;
+            double skipRate = acc.questionCount > 0 ? (acc.skippedCount * 100.0 / acc.questionCount) : 0.0;
+            long avgTime = acc.attemptedCount > 0 ? (acc.totalTimeSpentMs / acc.attemptedCount) : 0L;
+
+            result.add(TaxonomyBreakdownDto.builder()
+                    .subjectId(acc.subjectId)
+                    .subject(acc.subject)
+                    .subjectName(acc.subject)
+                    .topicId(acc.topicId)
+                    .topic(acc.topic)
+                    .topicName(acc.topic)
+                    .subtopicId(acc.subtopicId)
+                    .subtopic(acc.subtopic)
+                    .subtopicName(acc.subtopic)
+                    .score(Math.round(acc.score * 100.0) / 100.0)
+                    .maxMarks(Math.round(acc.maxMarks * 100.0) / 100.0)
+                    .accuracyRate(Math.round(accuracy * 100.0) / 100.0)
+                    .accuracyPercent(Math.round(accuracy * 100.0) / 100.0)
+                    .questionCount(acc.questionCount)
+                    .totalQuestions(acc.questionCount)
+                    .attemptedCount(acc.attemptedCount)
+                    .correctCount(acc.correctCount)
+                    .incorrectCount(acc.incorrectCount)
+                    .skippedCount(acc.skippedCount)
+                    .totalTimeSpentMs(acc.totalTimeSpentMs)
+                    .avgTimeSpentMs(avgTime)
+                    .benchmarkTimeMs(90000L)
+                    .skipRatePercent(Math.round(skipRate * 100.0) / 100.0)
+                    .paceRatio(1.0)
+                    .build());
+        }
+        return result;
+    }
+
+    private static class SectionAccumulator {
+        UUID sectionId;
+        String sectionName;
+        Long subjectId;
+        String subject;
+        double score;
+        double maxMarks;
+        int questionCount;
+        int attemptedCount;
+        int correctCount;
+    }
+
+    private static class TaxonomyAccumulator {
+        Long subjectId;
+        String subject;
+        Long topicId;
+        String topic;
+        Long subtopicId;
+        String subtopic;
+        double score;
+        double maxMarks;
+        int questionCount;
+        int attemptedCount;
+        int correctCount;
+        int incorrectCount;
+        int skippedCount;
+        long totalTimeSpentMs;
     }
 
     /**

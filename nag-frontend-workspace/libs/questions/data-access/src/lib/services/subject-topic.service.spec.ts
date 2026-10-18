@@ -47,9 +47,9 @@ describe('SubjectTopicService', () => {
       done();
     });
 
-    const req = httpMock.expectOne('/api/v1/subjects/hierarchy');
+    const req = httpMock.expectOne('/api/v1/taxonomy/tree');
     expect(req.request.method).toBe('GET');
-    req.flush({ data: mockHierarchy });
+    req.flush(mockHierarchy);
   });
 
   it('should fetch target examinations from /api/v1/examinations', (done) => {

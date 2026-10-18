@@ -304,8 +304,7 @@ public class PassageService {
         Question q = Question.builder()
                 .subjectId(subject.getId())
                 .topicId(passage.getTopicId() != null ? passage.getTopicId() : 0L)
-                .subject(subject.getName())
-                .topic(topicName != null ? topicName : passage.getTopic())
+                .subtopicId(passage.getSubtopicId() != null ? passage.getSubtopicId() : 1L)
                 .chapter(subReq.getChapter())
                 .difficulty(subReq.getDifficulty() != null ? subReq.getDifficulty().name() :
                     QuestionTaxonomyConstants.Difficulty.MEDIUM)
@@ -338,12 +337,11 @@ public class PassageService {
         SubQuestionPayload payload = prepareSubQuestionPayload(subReq);
 
         existing.setSubjectId(subject.getId());
-        existing.setSubject(subject.getName());
         if (passage.getTopicId() != null) {
             existing.setTopicId(passage.getTopicId());
         }
-        if (topicName != null) {
-            existing.setTopic(topicName);
+        if (passage.getSubtopicId() != null) {
+            existing.setSubtopicId(passage.getSubtopicId());
         }
         existing.setChapter(subReq.getChapter());
         if (subReq.getDifficulty() != null) existing.setDifficulty(subReq.getDifficulty().name());

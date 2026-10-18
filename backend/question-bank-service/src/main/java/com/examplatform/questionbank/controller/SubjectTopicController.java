@@ -113,9 +113,9 @@ public class SubjectTopicController {
             @Valid @RequestBody CreateTopicRequest request,
             @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
 
-        log.info("Creating topic: name={}, subjectId={}, tenant={}", request.getName(), subjectId, tenantId);
+        log.info("Creating topic: name={}, code={}, subjectId={}, tenant={}", request.getName(), request.getCode(), subjectId, tenantId);
         Topic topic = subjectTopicService.createTopic(
-                subjectId, request.getName(), request.getDescription(), tenantId);
+                subjectId, request.getCode(), request.getName(), request.getDescription(), tenantId);
         return createdPayload(topic, "Topic created successfully");
     }
 
@@ -148,9 +148,9 @@ public class SubjectTopicController {
             @Valid @RequestBody CreateSubtopicRequest request,
             @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
 
-        log.info("Creating subtopic: name={}, topicId={}, tenant={}", request.getName(), topicId, tenantId);
+        log.info("Creating subtopic: name={}, code={}, topicId={}, tenant={}", request.getName(), request.getCode(), topicId, tenantId);
         Subtopic subtopic = subjectTopicService.createSubtopic(
-                topicId, request.getName(), request.getDescription(), tenantId);
+                topicId, request.getCode(), request.getName(), request.getDescription(), tenantId);
         return createdPayload(subtopic, "Subtopic created successfully");
     }
 

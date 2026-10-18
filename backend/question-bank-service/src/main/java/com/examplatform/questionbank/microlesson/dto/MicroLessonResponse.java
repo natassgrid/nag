@@ -33,8 +33,43 @@ public record MicroLessonResponse(
         Instant createdAt,
         Instant updatedAt,
         String languageCode,
-        Boolean fallbackToEnglish
+        Boolean fallbackToEnglish,
+        String lessonType,
+        String difficultyLevel,
+        int sequenceNo,
+        UUID prerequisiteLessonId,
+        int estimatedMinutes,
+        Double qualityScore
 ) implements Serializable {
+
+    public MicroLessonResponse(
+            UUID id,
+            Long subjectId,
+            Long topicId,
+            Long subtopicId,
+            String subject,
+            String topic,
+            String subtopic,
+            String targetExam,
+            String coreConcept,
+            String trap,
+            List<String> cheatSheet,
+            StepByStepBreakdownDto stepByStepBreakdown,
+            String status,
+            UUID reviewedBy,
+            Instant reviewedAt,
+            String reviewComments,
+            int contentVersion,
+            Instant createdAt,
+            Instant updatedAt,
+            String languageCode,
+            Boolean fallbackToEnglish
+    ) {
+        this(id, subjectId, topicId, subtopicId, subject, topic, subtopic, targetExam,
+                coreConcept, trap, cheatSheet, stepByStepBreakdown, status, reviewedBy,
+                reviewedAt, reviewComments, contentVersion, createdAt, updatedAt,
+                languageCode, fallbackToEnglish, "CONCEPT", "CORE", 1, null, 5, null);
+    }
 
     public MicroLessonResponse(
             UUID id,
@@ -59,7 +94,8 @@ public record MicroLessonResponse(
     ) {
         this(id, subjectId, topicId, subtopicId, subject, topic, subtopic, targetExam,
                 coreConcept, trap, cheatSheet, stepByStepBreakdown, status, reviewedBy,
-                reviewedAt, reviewComments, contentVersion, createdAt, updatedAt, "en", false);
+                reviewedAt, reviewComments, contentVersion, createdAt, updatedAt, "en", false,
+                "CONCEPT", "CORE", 1, null, 5, null);
     }
 
     public MicroLessonResponse withLocalization(String languageCode, boolean fallbackToEnglish) {
@@ -67,7 +103,8 @@ public record MicroLessonResponse(
                 id, subjectId, topicId, subtopicId, subject, topic, subtopic, targetExam,
                 coreConcept, trap, cheatSheet, stepByStepBreakdown, status, reviewedBy,
                 reviewedAt, reviewComments, contentVersion, createdAt, updatedAt,
-                languageCode, fallbackToEnglish
+                languageCode, fallbackToEnglish, lessonType, difficultyLevel, sequenceNo,
+                prerequisiteLessonId, estimatedMinutes, qualityScore
         );
     }
 
@@ -257,4 +294,3 @@ public record MicroLessonResponse(
         );
     }
 }
-

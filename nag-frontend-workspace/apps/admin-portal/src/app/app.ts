@@ -49,6 +49,23 @@ export class App {
     return url.startsWith(prefix);
   }
 
+  isCurriculumActive(): boolean {
+    return (
+      this.isRouteActive('/questions/taxonomy') ||
+      this.isRouteActive('/questions/blueprints') ||
+      this.isRouteActive('/examinations') ||
+      this.isRouteActive('/evaluation')
+    );
+  }
+
+  isQuestionBankActive(): boolean {
+    return (
+      this.isRouteActive('/questions') &&
+      !this.isRouteActive('/questions/taxonomy') &&
+      !this.isRouteActive('/questions/blueprints')
+    );
+  }
+
   handleLogout(): void {
     this.authService.logout();
     this.router.navigate(['/login']);

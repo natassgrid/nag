@@ -45,4 +45,55 @@ public record SubtopicPerformanceDto(
         double accuracyPercent,
         double skipRatePercent,
         double paceRatio
-) implements Serializable {}
+) implements Serializable {
+
+    /**
+     * Compact constructor allowing instantiation with numeric IDs only, leaving display names null.
+     * Display names can be resolved later via TaxonomyClient or TaxonomyStore.
+     */
+    public SubtopicPerformanceDto(
+            Long subjectId,
+            Long topicId,
+            Long subtopicId,
+            int totalQuestions,
+            int attemptedCount,
+            int correctCount,
+            int incorrectCount,
+            int skippedCount,
+            long totalTimeSpentMs,
+            long avgTimeSpentMs,
+            long benchmarkTimeMs,
+            double accuracyPercent,
+            double skipRatePercent,
+            double paceRatio
+    ) {
+        this(subjectId, null, topicId, null, subtopicId, null,
+                totalQuestions, attemptedCount, correctCount, incorrectCount, skippedCount,
+                totalTimeSpentMs, avgTimeSpentMs, benchmarkTimeMs, accuracyPercent, skipRatePercent, paceRatio);
+    }
+
+    /**
+     * Returns a new instance enriched with resolved display names.
+     */
+    public SubtopicPerformanceDto withDisplayNames(String subjectName, String topicName, String subtopicName) {
+        return new SubtopicPerformanceDto(
+                this.subjectId,
+                subjectName,
+                this.topicId,
+                topicName,
+                this.subtopicId,
+                subtopicName,
+                this.totalQuestions,
+                this.attemptedCount,
+                this.correctCount,
+                this.incorrectCount,
+                this.skippedCount,
+                this.totalTimeSpentMs,
+                this.avgTimeSpentMs,
+                this.benchmarkTimeMs,
+                this.accuracyPercent,
+                this.skipRatePercent,
+                this.paceRatio
+        );
+    }
+}

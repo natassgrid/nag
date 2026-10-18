@@ -57,3 +57,18 @@ html, body {
   }
 }
 
+/* Modal Dialog Reset for clean custom layouts */
+.nag-dialog-clean {
+  .mat-mdc-dialog-container {
+    padding: 0 !important;
+    --mdc-dialog-container-shape: 1.5rem;
+  }
+  .mat-mdc-dialog-surface,
+  .mdc-dialog__surface {
+    padding: 0 !important;
+    border-radius: 1.5rem !important;
+    overflow: hidden !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+  }
+}
+

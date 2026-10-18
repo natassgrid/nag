@@ -35,8 +35,12 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import com.examplatform.delivery.dto.PaperSectionPayload;
+import com.examplatform.delivery.dto.SectionDeliveryDto;
 
 /**
  * Component responsible for parsing and normalizing question payloads from JSON, JsonNodes,
@@ -74,12 +78,41 @@ public class QuestionDeliveryParser {
         }
         try {
             PaperPayload paper = objectMapper.readValue(decryptedPaper, PaperPayload.class);
-            if (paper.getQuestions() == null || paper.getQuestions().isEmpty()) {
+            List<PaperQuestionPayload> allQuestions = new ArrayList<>();
+
+            if (paper.getSections() != null && !paper.getSections().isEmpty()) {
+                for (PaperSectionPayload section : paper.getSections()) {
+                    if (section.getQuestions() != null) {
+                        for (PaperQuestionPayload q : section.getQuestions()) {
+                            if (q.getSectionId() == null && section.getSectionId() != null) {
+                                q.setSectionId(section.getSectionId());
+                            }
+                            if ((q.getSectionName() == null || q.getSectionName().isBlank()) && section.getSectionName() != null) {
+                                q.setSectionName(section.getSectionName());
+                            }
+                            if (q.getSubjectId() == null && section.getSubjectId() != null) {
+                                q.setSubjectId(section.getSubjectId());
+                            }
+                            if ((q.getSubject() == null || q.getSubject().isBlank()) && section.getSubject() != null) {
+                                q.setSubject(section.getSubject());
+                            }
+                            allQuestions.add(q);
+                        }
+                    }
+                }
+            }
+
+            if (allQuestions.isEmpty() && paper.getQuestions() != null && !paper.getQuestions().isEmpty()) {
+                allQuestions.addAll(paper.getQuestions());
+            }
+
+            if (allQuestions.isEmpty()) {
                 return Collections.emptyList();
             }
-            List<QuestionDeliveryDto> questions = new ArrayList<>(paper.getQuestions().size());
+
+            List<QuestionDeliveryDto> questions = new ArrayList<>(allQuestions.size());
             int index = 1;
-            for (PaperQuestionPayload payload : paper.getQuestions()) {
+            for (PaperQuestionPayload payload : allQuestions) {
                 QuestionDeliveryDto q = convertToDeliveryDto(payload, index++);
                 if (q != null) {
                     questions.add(q);
@@ -90,6 +123,31 @@ public class QuestionDeliveryParser {
             log.error("Failed to parse examination paper questions JSON: {}", e.getMessage());
             return Collections.emptyList();
         }
+    }
+
+    public List<SectionDeliveryDto> parseSectionsFromPaperJson(String decryptedPaper) {
+        List<QuestionDeliveryDto> questions = parseFromPaperJson(decryptedPaper);
+        return buildSections(questions);
+    }
+
+    public List<SectionDeliveryDto> buildSections(List<QuestionDeliveryDto> questions) {
+        if (questions == null || questions.isEmpty()) {
+            return Collections.emptyList();
+        }
+        Map<String, SectionDeliveryDto> sectionMap = new LinkedHashMap<>();
+        for (QuestionDeliveryDto q : questions) {
+            String secKey = q.getSectionId() != null ? q.getSectionId() : (q.getSectionName() != null ? q.getSectionName() : "default");
+            SectionDeliveryDto sec = sectionMap.computeIfAbsent(secKey, k -> SectionDeliveryDto.builder()
+                    .sectionId(q.getSectionId())
+                    .sectionName(q.getSectionName())
+                    .subjectId(q.getSubjectId())
+                    .subject(q.getSubject())
+                    .orderIndex(sectionMap.size())
+                    .questions(new ArrayList<>())
+                    .build());
+            sec.getQuestions().add(q);
+        }
+        return new ArrayList<>(sectionMap.values());
     }
 
     public QuestionDeliveryDto parseSingleQuestionNode(JsonNode qNode, int sequenceNumber) {
@@ -135,8 +193,15 @@ public class QuestionDeliveryParser {
             correctOptionIndex = payload.getCorrectOptionIndex();
         }
 
-        String secId = resolveSectionId(subject, sequenceNumber);
-        String secName = resolveSectionName(subject, sequenceNumber);
+        String secId = payload.getSectionId() != null
+                ? payload.getSectionId().toString()
+                : resolveSectionId(subject, sequenceNumber);
+        String secName = (payload.getSectionName() != null && !payload.getSectionName().isBlank())
+                ? payload.getSectionName()
+                : resolveSectionName(subject, sequenceNumber);
+        String subtopic = (payload.getSubtopic() != null && !payload.getSubtopic().isBlank())
+                ? payload.getSubtopic()
+                : null;
         double marks = payload.getMarks() != null ? payload.getMarks() : 2.0;
         double negativeMarks = payload.getNegativeMarks() != null ? payload.getNegativeMarks() : 0.5;
 
@@ -151,7 +216,12 @@ public class QuestionDeliveryParser {
                 .negativeMarks(negativeMarks)
                 .sectionId(secId)
                 .sectionName(secName)
+                .subjectId(payload.getSubjectId())
+                .subject(subject)
+                .topicId(payload.getTopicId())
                 .topic(topic)
+                .subtopicId(payload.getSubtopicId())
+                .subtopic(subtopic)
                 .correctOptionIndex(correctOptionIndex)
                 .explanation(explanation)
                 .questionType(questionType)

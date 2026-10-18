@@ -33,6 +33,8 @@ export interface MicroLessonQueryParams {
   subject?: string;
   topic?: string;
   targetExam?: string;
+  lessonType?: string;
+  difficultyLevel?: string;
   query?: string;
   page?: number;
   size?: number;
@@ -74,6 +76,12 @@ export class MicroLessonAdminService {
       }
       if (q.targetExam && q.targetExam !== 'ALL') {
         params = params.set('targetExam', q.targetExam);
+      }
+      if (q.lessonType && q.lessonType !== 'ALL') {
+        params = params.set('lessonType', q.lessonType);
+      }
+      if (q.difficultyLevel && q.difficultyLevel !== 'ALL') {
+        params = params.set('difficultyLevel', q.difficultyLevel);
       }
       if (q.query && q.query.trim()) {
         params = params.set('query', q.query.trim());

@@ -158,8 +158,21 @@ public class QuestionBankGrpcAnswerKeyClient implements AnswerKeyClient {
                 double marks = q.getMarks() > 0 ? q.getMarks() : 1.0;
                 double negativeMarks = q.getNegativeMarks();
 
+                Long subjectId = parseSafeLong(q.getSubjectId());
+                Long topicId = parseSafeLong(q.getTopicId());
+                Long subtopicId = parseSafeLong(q.getSubtopicId());
+                String subject = !q.getSubject().isBlank() ? q.getSubject() : null;
+                String topic = !q.getTopic().isBlank() ? q.getTopic() : null;
+                String subtopic = !q.getSubtopic().isBlank() ? q.getSubtopic() : null;
+
                 AnswerKey key = AnswerKey.builder()
                         .questionId(questionId)
+                        .subjectId(subjectId)
+                        .subject(subject)
+                        .topicId(topicId)
+                        .topic(topic)
+                        .subtopicId(subtopicId)
+                        .subtopic(subtopic)
                         .questionType(questionType)
                         .correctAnswer(correctAnswer)
                         .marksPerQuestion(marks)
@@ -173,6 +186,15 @@ public class QuestionBankGrpcAnswerKeyClient implements AnswerKeyClient {
             }
         }
         return answerKeys;
+    }
+
+    private Long parseSafeLong(String str) {
+        if (str == null || str.isBlank()) return null;
+        try {
+            return Long.parseLong(str.trim());
+        } catch (NumberFormatException _) {
+            return null;
+        }
     }
 
     private String extractCorrectAnswerFromOptions(String optionsJson) {

@@ -44,13 +44,23 @@ export interface MicroLessonContent {
   quickCheckItems?: QuickCheckItem[];
 }
 
+export interface LessonVariantRef {
+  id: string;
+  lessonType: 'CONCEPT' | 'WORKED_EXAMPLES' | 'TRAPS_AND_PITFALLS' | 'CHEAT_SHEET' | 'VISUAL' | 'QUICK_RECAP';
+  difficultyLevel: 'FOUNDATION' | 'CORE' | 'ADVANCED';
+  title?: string;
+}
+
 export interface SubtopicMicroLesson {
   id: string;
   subtopicId: number;
   subtopicName: string;
   topicName: string;
   subjectName: string;
-  targetExam: string;
+  targetExam?: string;
+  lessonType?: 'CONCEPT' | 'WORKED_EXAMPLES' | 'TRAPS_AND_PITFALLS' | 'CHEAT_SHEET' | 'VISUAL' | 'QUICK_RECAP';
+  difficultyLevel?: 'FOUNDATION' | 'CORE' | 'ADVANCED';
+  availableVariants?: LessonVariantRef[];
   status: 'AI_GENERATED' | 'IN_REVIEW' | 'APPROVED' | 'PUBLISHED' | 'REJECTED';
   contentVersion: number;
   languageCode?: string;

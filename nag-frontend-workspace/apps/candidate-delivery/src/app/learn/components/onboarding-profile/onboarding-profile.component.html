@@ -1,0 +1,163 @@
+<div class="max-w-3xl mx-auto space-y-6">
+  <div class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-xs">
+    <div class="flex items-center gap-3 pb-6 border-b border-slate-100">
+      <div class="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+        <mat-icon class="!text-xl">psychology</mat-icon>
+      </div>
+      <div>
+        <h2 class="text-lg font-bold text-slate-900 leading-tight">Configure Your Learning Profile</h2>
+        <p class="text-xs text-slate-500 mt-0.5">
+          Help our exam-adaptive engine personalise your lessons, diagnostics, and spaced review rhythm.
+        </p>
+      </div>
+    </div>
+
+    <form (ngSubmit)="submitProfile()" class="space-y-6 mt-6">
+      <!-- Education Level -->
+      <div class="space-y-2">
+        <label class="block text-xs font-bold uppercase tracking-wider text-slate-700">
+          Education Level &amp; Background
+        </label>
+        <mat-form-field appearance="outline" class="w-full">
+          <mat-select [value]="educationLevel()" (selectionChange)="educationLevel.set($event.value)">
+            @for (level of educationLevels; track level.value) {
+              <mat-option [value]="level.value">{{ level.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <!-- Preferred Language & Target Exam Date -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="space-y-2">
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-700">
+            Preferred Learning Language
+          </label>
+          <mat-form-field appearance="outline" class="w-full">
+            <mat-select [value]="preferredLanguage()" (selectionChange)="preferredLanguage.set($event.value)">
+              @for (lang of languages; track lang.code) {
+                <mat-option [value]="lang.code">{{ lang.label }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        </div>
+
+        <div class="space-y-2">
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-700">
+            Target Exam Date
+          </label>
+          <mat-form-field appearance="outline" class="w-full">
+            <input
+              matInput
+              type="date"
+              [value]="targetDate()"
+              (input)="targetDate.set($any($event.target).value)"
+            />
+          </mat-form-field>
+        </div>
+      </div>
+
+      <!-- Daily Study Commitment -->
+      <div class="space-y-3">
+        <label class="block text-xs font-bold uppercase tracking-wider text-slate-700">
+          Daily Study Commitment (Minutes / Day)
+        </label>
+        <div class="flex flex-wrap gap-2.5">
+          @for (minutes of studyTimes; track minutes) {
+            <button
+              type="button"
+              (click)="dailyStudyMinutes.set(minutes)"
+              class="px-4 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer"
+              [ngClass]="{
+                'bg-indigo-600 text-white border-indigo-600 shadow-xs': dailyStudyMinutes() === minutes,
+                'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100': dailyStudyMinutes() !== minutes
+              }"
+            >
+              {{ minutes }} mins / day
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- Prior Experience -->
+      <div class="space-y-3">
+        <label class="block text-xs font-bold uppercase tracking-wider text-slate-700">
+          Prior Preparation Level
+        </label>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <button
+            type="button"
+            (click)="priorExperience.set('BEGINNER')"
+            class="p-3.5 rounded-2xl border text-left transition-all cursor-pointer"
+            [ngClass]="{
+              'bg-indigo-50/70 border-indigo-500 ring-2 ring-indigo-500/20': priorExperience() === 'BEGINNER',
+              'bg-slate-50 border-slate-200 hover:bg-slate-100': priorExperience() !== 'BEGINNER'
+            }"
+          >
+            <div class="font-bold text-xs text-slate-900">Beginner</div>
+            <div class="text-[11px] text-slate-500 mt-1">Starting fresh from foundational concepts</div>
+          </button>
+          <button
+            type="button"
+            (click)="priorExperience.set('INTERMEDIATE')"
+            class="p-3.5 rounded-2xl border text-left transition-all cursor-pointer"
+            [ngClass]="{
+              'bg-indigo-50/70 border-indigo-500 ring-2 ring-indigo-500/20': priorExperience() === 'INTERMEDIATE',
+              'bg-slate-50 border-slate-200 hover:bg-slate-100': priorExperience() !== 'INTERMEDIATE'
+            }"
+          >
+            <div class="font-bold text-xs text-slate-900">Intermediate</div>
+            <div class="text-[11px] text-slate-500 mt-1">Familiar with core formulas and basic drills</div>
+          </button>
+          <button
+            type="button"
+            (click)="priorExperience.set('ADVANCED')"
+            class="p-3.5 rounded-2xl border text-left transition-all cursor-pointer"
+            [ngClass]="{
+              'bg-indigo-50/70 border-indigo-500 ring-2 ring-indigo-500/20': priorExperience() === 'ADVANCED',
+              'bg-slate-50 border-slate-200 hover:bg-slate-100': priorExperience() !== 'ADVANCED'
+            }"
+          >
+            <div class="font-bold text-xs text-slate-900">Advanced</div>
+            <div class="text-[11px] text-slate-500 mt-1">Focusing on high-speed drills and mock sections</div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Preferred Lesson Formats -->
+      <div class="space-y-3">
+        <label class="block text-xs font-bold uppercase tracking-wider text-slate-700">
+          Preferred Micro-Lesson Formats (Select Multiple)
+        </label>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+          @for (opt of lessonTypeOptions; track opt.type) {
+            <button
+              type="button"
+              (click)="toggleLessonType(opt.type)"
+              class="flex items-center gap-2 p-3 rounded-2xl border text-left transition-all cursor-pointer"
+              [ngClass]="{
+                'bg-indigo-50 text-indigo-900 border-indigo-300 font-bold shadow-2xs': isLessonTypeSelected(opt.type),
+                'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100': !isLessonTypeSelected(opt.type)
+              }"
+            >
+              <mat-icon class="!text-lg text-indigo-600">{{ opt.icon }}</mat-icon>
+              <span class="text-xs">{{ opt.label }}</span>
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- Action Footer -->
+      <div class="pt-4 border-t border-slate-100 flex justify-end">
+        <button
+          mat-flat-button
+          type="submit"
+          class="!bg-indigo-600 hover:!bg-indigo-700 !text-white !font-bold !rounded-2xl !py-2.5 !px-6 cursor-pointer"
+        >
+          <span>Save Profile &amp; Choose Target Exam</span>
+          <mat-icon class="!text-base">arrow_forward</mat-icon>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

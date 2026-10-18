@@ -6,22 +6,22 @@
     </div>
   } @else {
     <!-- Top Welcome Header -->
-    <header class="dashboard-header bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <header class="dashboard-header bg-white p-6 rounded-3xl border border-slate-200 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
       <div class="flex items-center gap-4">
-        <div class="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
+        <div class="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
           <mat-icon class="!text-2xl">auto_awesome</mat-icon>
         </div>
         <div>
           <h1 class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-            <span>AI Study Plan &amp; Insights</span>
-            @if (!isColdStart() && dashboardData().learningPath) {
+            <span>Adaptive Learning Dashboard</span>
+            @if (activeEnrollment(); as enr) {
               <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                DLP Active
+                Target: {{ enr.examinationCode }}
               </span>
             }
           </h1>
           <p class="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
-            Your customized roadmap to mastering conceptual gaps, adaptive pacing, and unlocking full mock exams.
+            Real-time exam readiness, Today's next-best activity, and spaced repetition schedule.
           </p>
         </div>
       </div>
@@ -40,515 +40,60 @@
         <a
           routerLink="/learn/roadmap"
           mat-flat-button
-          color="primary"
           class="!bg-indigo-600 hover:!bg-indigo-700 !text-white !font-bold !text-xs !rounded-xl !px-4 !py-2.5 shadow-md flex items-center gap-1.5 cursor-pointer"
         >
           <mat-icon class="!text-sm">trending_up</mat-icon>
-          <span>View 3-Phase Roadmap</span>
+          <span>View Syllabus Roadmap</span>
         </a>
       </div>
     </header>
 
-    <!-- 4-Step Guided Learning Journey Stepper Banner -->
-    <section class="journey-stepper-container bg-white rounded-2xl border border-slate-200 p-6 shadow-2xs space-y-4" aria-label="4-Step Guided Learning Journey">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-4">
-        <div class="flex items-center gap-2.5">
-          <div class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
-            <mat-icon class="!text-xl">alt_route</mat-icon>
-          </div>
-          <div>
-            <h2 class="text-sm sm:text-base font-bold text-slate-900">
-              How Your Adaptive Learning Journey Works
-            </h2>
-            <p class="text-xs text-slate-500">
-              4-Step Student Flow to accelerate mastery from diagnostic practice to exam readiness
-            </p>
-          </div>
-        </div>
-        <div class="inline-flex items-center gap-1.5 self-start sm:self-auto text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-full">
-          <span>Current Stage:</span>
-          <span>Step {{ activeJourneyStep() }} of 4</span>
-        </div>
-      </div>
+    <!-- 1. Exam Readiness Score Meter -->
+    <app-readiness-score-meter
+      [score]="readinessScore()"
+      [targetBenchmark]="85"
+      [masteredCount]="progress()?.masteredCount || 4"
+      [learningCount]="progress()?.learningCount || 2"
+      [totalSubtopics]="progress()?.totalSubtopics || 9"
+      [examTitle]="activeEnrollment()?.examinationTitle || 'Competitive Examination'"
+    />
 
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 pt-1">
-        <!-- Step 1: Baseline Diagnostic Practice -->
-        <div
-          class="step-card relative rounded-xl border p-4 transition-all duration-200 flex flex-col justify-between"
-          [ngClass]="{
-            'border-indigo-500 bg-indigo-50/40 shadow-xs ring-2 ring-indigo-500/20': activeJourneyStep() === 1,
-            'border-emerald-200 bg-emerald-50/30': activeJourneyStep() > 1,
-            'border-slate-200 bg-white opacity-70': activeJourneyStep() < 1
-          }"
-        >
-          <div class="space-y-2">
-            <div class="flex items-center justify-between">
-              <span
-                class="w-7 h-7 rounded-lg text-xs font-black flex items-center justify-center"
-                [ngClass]="{
-                  'bg-indigo-600 text-white': activeJourneyStep() === 1,
-                  'bg-emerald-600 text-white': activeJourneyStep() > 1,
-                  'bg-slate-100 text-slate-600': activeJourneyStep() < 1
-                }"
-              >
-                @if (activeJourneyStep() > 1) {
-                  &#10003;
-                } @else {
-                  1
-                }
-              </span>
-              @if (activeJourneyStep() === 1) {
-                <span class="text-[10px] uppercase font-bold tracking-wider text-indigo-600 bg-indigo-100/70 px-2 py-0.5 rounded-md">
-                  Active
-                </span>
-              } @else if (activeJourneyStep() > 1) {
-                <span class="text-[10px] uppercase font-bold tracking-wider text-emerald-600 bg-emerald-100/70 px-2 py-0.5 rounded-md">
-                  Passed
-                </span>
-              }
-            </div>
-            <div>
-              <h3 class="text-xs sm:text-sm font-bold text-slate-900">1. Baseline Diagnostic Practice</h3>
-              <p class="text-[11px] text-slate-500 mt-1 leading-snug">
-                Complete mock test sessions to identify your conceptual &amp; application gaps.
-              </p>
-            </div>
-          </div>
-          <div class="mt-4 pt-2 border-t border-slate-100">
-            <a
-              routerLink="/practice"
-              class="inline-flex items-center text-xs font-bold text-indigo-600 hover:text-indigo-800 gap-1"
-            >
-              <span>Go to Practice</span>
-              <mat-icon class="!text-sm !w-4 !h-4">arrow_forward</mat-icon>
-            </a>
-          </div>
-        </div>
+    <!-- 2. Today's Next-Best-Activity Hero Card -->
+    <app-next-activity-hero
+      [activity]="nextActivity()"
+      [completing]="completingActivity()"
+      (start)="onStartNextActivity($event)"
+      (complete)="onCompleteNextActivity($event)"
+    />
 
-        <!-- Step 2: AI Diagnosis & 7-Day Study Plan -->
-        <div
-          class="step-card relative rounded-xl border p-4 transition-all duration-200 flex flex-col justify-between"
-          [ngClass]="{
-            'border-indigo-500 bg-indigo-50/40 shadow-xs ring-2 ring-indigo-500/20': activeJourneyStep() === 2,
-            'border-emerald-200 bg-emerald-50/30': activeJourneyStep() > 2,
-            'border-slate-200 bg-white opacity-70': activeJourneyStep() < 2
-          }"
-        >
-          <div class="space-y-2">
-            <div class="flex items-center justify-between">
-              <span
-                class="w-7 h-7 rounded-lg text-xs font-black flex items-center justify-center"
-                [ngClass]="{
-                  'bg-indigo-600 text-white': activeJourneyStep() === 2,
-                  'bg-emerald-600 text-white': activeJourneyStep() > 2,
-                  'bg-slate-100 text-slate-600': activeJourneyStep() < 2
-                }"
-              >
-                @if (activeJourneyStep() > 2) {
-                  &#10003;
-                } @else {
-                  2
-                }
-              </span>
-              @if (activeJourneyStep() === 2) {
-                <span class="text-[10px] uppercase font-bold tracking-wider text-indigo-600 bg-indigo-100/70 px-2 py-0.5 rounded-md">
-                  Active
-                </span>
-              } @else if (activeJourneyStep() > 2) {
-                <span class="text-[10px] uppercase font-bold tracking-wider text-emerald-600 bg-emerald-100/70 px-2 py-0.5 rounded-md">
-                  Passed
-                </span>
-              }
-            </div>
-            <div>
-              <h3 class="text-xs sm:text-sm font-bold text-slate-900">2. AI Diagnosis &amp; Study Plan</h3>
-              <p class="text-[11px] text-slate-500 mt-1 leading-snug">
-                Review targeted weak topics and structured 7-day daily tasks.
-              </p>
-            </div>
-          </div>
-          <div class="mt-4 pt-2 border-t border-slate-100">
-            <a
-              href="#study-plan"
-              (click)="$event.preventDefault(); scrollToStudyPlan()"
-              class="inline-flex items-center text-xs font-bold text-indigo-600 hover:text-indigo-800 gap-1 cursor-pointer"
-            >
-              <span>Review Study Plan</span>
-              <mat-icon class="!text-sm !w-4 !h-4">arrow_downward</mat-icon>
-            </a>
-          </div>
-        </div>
-
-        <!-- Step 3: Phase 1 Concept Micro-Lessons -->
-        <div
-          class="step-card relative rounded-xl border p-4 transition-all duration-200 flex flex-col justify-between"
-          [ngClass]="{
-            'border-indigo-500 bg-indigo-50/40 shadow-xs ring-2 ring-indigo-500/20': activeJourneyStep() === 3,
-            'border-emerald-200 bg-emerald-50/30': activeJourneyStep() > 3,
-            'border-slate-200 bg-white opacity-70': activeJourneyStep() < 3
-          }"
-        >
-          <div class="space-y-2">
-            <div class="flex items-center justify-between">
-              <span
-                class="w-7 h-7 rounded-lg text-xs font-black flex items-center justify-center"
-                [ngClass]="{
-                  'bg-indigo-600 text-white': activeJourneyStep() === 3,
-                  'bg-emerald-600 text-white': activeJourneyStep() > 3,
-                  'bg-slate-100 text-slate-600': activeJourneyStep() < 3
-                }"
-              >
-                @if (activeJourneyStep() > 3) {
-                  &#10003;
-                } @else {
-                  3
-                }
-              </span>
-              @if (activeJourneyStep() === 3) {
-                <span class="text-[10px] uppercase font-bold tracking-wider text-indigo-600 bg-indigo-100/70 px-2 py-0.5 rounded-md">
-                  Active
-                </span>
-              } @else if (activeJourneyStep() > 3) {
-                <span class="text-[10px] uppercase font-bold tracking-wider text-emerald-600 bg-emerald-100/70 px-2 py-0.5 rounded-md">
-                  Passed
-                </span>
-              }
-            </div>
-            <div>
-              <h3 class="text-xs sm:text-sm font-bold text-slate-900">3. Phase 1 Concept Micro-Lessons</h3>
-              <p class="text-[11px] text-slate-500 mt-1 leading-snug">
-                Study bite-sized remedial lessons to fix foundational conceptual gaps.
-              </p>
-            </div>
-          </div>
-          <div class="mt-4 pt-2 border-t border-slate-100">
-            <a
-              routerLink="/learn/roadmap"
-              class="inline-flex items-center text-xs font-bold text-indigo-600 hover:text-indigo-800 gap-1"
-            >
-              <span>Explore Lessons</span>
-              <mat-icon class="!text-sm !w-4 !h-4">arrow_forward</mat-icon>
-            </a>
-          </div>
-        </div>
-
-        <!-- Step 4: Adaptive Quiz & Gatekeeper Verification -->
-        <div
-          class="step-card relative rounded-xl border p-4 transition-all duration-200 flex flex-col justify-between"
-          [ngClass]="{
-            'border-indigo-500 bg-indigo-50/40 shadow-xs ring-2 ring-indigo-500/20': activeJourneyStep() === 4,
-            'border-emerald-200 bg-emerald-50/30': isGatekeeperPassed(dashboardData().learningPath),
-            'border-slate-200 bg-white opacity-70': activeJourneyStep() < 4
-          }"
-        >
-          <div class="space-y-2">
-            <div class="flex items-center justify-between">
-              <span
-                class="w-7 h-7 rounded-lg text-xs font-black flex items-center justify-center"
-                [ngClass]="{
-                  'bg-emerald-600 text-white': isGatekeeperPassed(dashboardData().learningPath),
-                  'bg-indigo-600 text-white': activeJourneyStep() === 4 && !isGatekeeperPassed(dashboardData().learningPath),
-                  'bg-slate-100 text-slate-600': activeJourneyStep() < 4
-                }"
-              >
-                @if (isGatekeeperPassed(dashboardData().learningPath)) {
-                  &#10003;
-                } @else {
-                  4
-                }
-              </span>
-              @if (isGatekeeperPassed(dashboardData().learningPath)) {
-                <span class="text-[10px] uppercase font-bold tracking-wider text-emerald-600 bg-emerald-100/70 px-2 py-0.5 rounded-md">
-                  Unlocked
-                </span>
-              } @else if (activeJourneyStep() === 4) {
-                <span class="text-[10px] uppercase font-bold tracking-wider text-indigo-600 bg-indigo-100/70 px-2 py-0.5 rounded-md">
-                  Active
-                </span>
-              }
-            </div>
-            <div>
-              <h3 class="text-xs sm:text-sm font-bold text-slate-900">4. Adaptive Quiz &amp; Gatekeeper</h3>
-              <p class="text-[11px] text-slate-500 mt-1 leading-snug">
-                Clear Phase 2 mini-quizzes &amp; Phase 3 Gatekeeper to unlock full mock exams.
-              </p>
-            </div>
-          </div>
-          <div class="mt-4 pt-2 border-t border-slate-100">
-            <a
-              routerLink="/learn/roadmap"
-              class="inline-flex items-center text-xs font-bold text-indigo-600 hover:text-indigo-800 gap-1"
-            >
-              <span>View Gatekeeper</span>
-              <mat-icon class="!text-sm !w-4 !h-4">arrow_forward</mat-icon>
-            </a>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Active DLP Overview Ribbon (If Learning Path Exists & Student is Not Cold Start) -->
-    @if (!isColdStart() && dashboardData().summary; as summary) {
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
-            <mat-icon class="!text-xl">menu_book</mat-icon>
-          </div>
-          <div>
-            <div class="text-xs text-slate-500 font-medium">Total Subtopics</div>
-            <div class="text-lg font-black text-slate-900">{{ summary.totalSubtopics }}</div>
-          </div>
-        </div>
-
-        <div class="bg-white p-4 rounded-xl border border-rose-200 shadow-2xs flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
-            <mat-icon class="!text-xl">error_outline</mat-icon>
-          </div>
-          <div>
-            <div class="text-xs text-rose-600 font-medium">Conceptual Gaps</div>
-            <div class="text-lg font-black text-rose-700">{{ summary.conceptualGapsCount }}</div>
-          </div>
-        </div>
-
-        <div class="bg-white p-4 rounded-xl border border-amber-200 shadow-2xs flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-            <mat-icon class="!text-xl">warning_amber</mat-icon>
-          </div>
-          <div>
-            <div class="text-xs text-amber-600 font-medium">Application Gaps</div>
-            <div class="text-lg font-black text-amber-700">{{ summary.applicationGapsCount }}</div>
-          </div>
-        </div>
-
-        <div class="bg-white p-4 rounded-xl border border-emerald-200 shadow-2xs flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-            <mat-icon class="!text-xl">verified</mat-icon>
-          </div>
-          <div>
-            <div class="text-xs text-emerald-600 font-medium">Syllabus Mastery</div>
-            <div class="text-lg font-black text-emerald-700">{{ summary.masteryPercentage | number:'1.0-1' }}%</div>
-          </div>
-        </div>
-      </div>
+    <!-- 3. Due Spaced-Repetition Reviews -->
+    @if (dueReviews().length > 0) {
+      <app-spaced-reviews-panel
+        [reviews]="dueReviews()"
+        (reviewNow)="onReviewSubtopic($event)"
+      />
     }
 
-    <!-- Main Content Area: Recommendations vs Cold Start -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- 4. 4-Step Guided Learning Journey Stepper Banner -->
+    <app-journey-stepper-banner
+      [activeJourneyStep]="activeJourneyStep()"
+      [gatekeeperPassed]="!!dashboardData().learningPath?.gatekeeperPassed"
+      [isColdStart]="isColdStart()"
+      (startDiagnostic)="onStartDiagnosticTest()"
+      (scrollToPlan)="scrollToStudyPlan()"
+    />
+
+    <!-- 5. Bottom Insights & Study Plan Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6" id="study-plan">
       <div class="lg:col-span-2 space-y-6">
-        @if (!isColdStart() && dashboardData().learningPath; as lp) {
-          <!-- Active Learning Path Card -->
-          <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-2xs space-y-4">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <mat-icon class="text-indigo-600">route</mat-icon>
-                <h2 class="text-base font-bold text-slate-900">Current Dynamic Learning Path</h2>
-              </div>
-              <span class="text-xs font-semibold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200">
-                Target: {{ getTargetExam(lp) }}
-              </span>
-            </div>
-
-            <p class="text-xs text-slate-600">
-              Your Dynamic Learning Path is configured to automatically adapt as you complete remedial micro-lessons, adaptive quizzes, and practice drills.
-            </p>
-
-            <div class="p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
-              <div>
-                <div class="text-xs font-bold text-slate-700">
-                  Current Stage: {{ getPhaseLabel(lp.milestoneGraph.currentPhase) }}
-                </div>
-                <div class="text-[11px] text-slate-500 mt-0.5">
-                  @if (isGatekeeperPassed(lp)) {
-                    <span class="text-emerald-600 font-bold">Gatekeeper Passed - All Full-Length Mock Exams Unlocked</span>
-                  } @else {
-                    Remediation &amp; adaptive verification underway
-                  }
-                </div>
-              </div>
-              <a
-                routerLink="/learn/roadmap"
-                mat-stroked-button
-                class="!text-indigo-600 !border-indigo-300 !text-xs !font-bold cursor-pointer"
-              >
-                Open Roadmap &rarr;
-              </a>
-            </div>
-          </div>
-        }
-
-        <!-- Cold Start / Onboarding Banner (When isColdStart() is true) -->
-        @if (isColdStart()) {
-          <div class="bg-gradient-to-br from-indigo-900 via-slate-900 to-indigo-950 text-white rounded-2xl p-8 shadow-xl space-y-6">
-            <div class="flex items-center gap-3">
-              <span class="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-300">
-                <mat-icon class="!text-2xl">rocket_launch</mat-icon>
-              </span>
-              <div>
-                <h2 class="text-lg font-bold text-white leading-tight">Step 1: Start Your Adaptive Learning Journey</h2>
-                <p class="text-xs text-indigo-200">Take your baseline diagnostic test or generate a starter 7-day study plan.</p>
-              </div>
-            </div>
-
-            <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">
-              NextGen Assessment Grid analyzes your accuracy, pacing ratio, and skip rates to identify conceptual and application gaps. Get remedial bite-sized micro-lessons and adaptive mini-quizzes customized for your target examination.
-            </p>
-
-            @if (generateError()) {
-              <div class="p-3 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-200 text-xs">
-                {{ generateError() }}
-              </div>
-            }
-
-            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
-              <div class="flex items-center gap-2 bg-slate-800/80 px-3 py-2 rounded-xl border border-slate-700">
-                <label for="coldStartExamTarget" class="text-xs font-semibold text-slate-400">Target:</label>
-                <select
-                  id="coldStartExamTarget"
-                  [ngModel]="selectedExam()"
-                  (ngModelChange)="selectedExam.set($event)"
-                  class="bg-transparent text-xs font-bold text-white focus:outline-none cursor-pointer"
-                >
-                  @for (exam of examTargets; track exam.value) {
-                    <option [value]="exam.value" class="bg-slate-900 text-white">{{ exam.label }}</option>
-                  }
-                </select>
-              </div>
-
-              <!-- Primary CTA: Take Baseline Diagnostic Test -->
-              <button
-                type="button"
-                mat-flat-button
-                color="primary"
-                [disabled]="isGenerating()"
-                (click)="onStartDiagnosticTest()"
-                class="!bg-indigo-500 hover:!bg-indigo-600 !text-white !font-bold !text-xs !py-3 !px-5 !rounded-xl shadow-lg cursor-pointer flex items-center justify-center gap-1.5"
-              >
-                <mat-icon class="!text-base">play_arrow</mat-icon>
-                <span>Take Baseline Diagnostic Test</span>
-              </button>
-
-              <!-- Secondary CTA: Generate Starter 7-Day Study Plan -->
-              <button
-                type="button"
-                mat-stroked-button
-                [disabled]="isGenerating()"
-                (click)="onGenerateLearningPath()"
-                class="!border-slate-600 !text-slate-200 hover:!text-white hover:!bg-slate-800/60 !text-xs !font-semibold !py-2.5 !px-4 !rounded-xl cursor-pointer text-center flex items-center justify-center gap-1.5"
-              >
-                @if (isGenerating()) {
-                  <mat-spinner diameter="16" class="!inline-block"></mat-spinner>
-                  <span>Generating Plan...</span>
-                } @else {
-                  <span class="inline-flex items-center gap-1.5">
-                    <mat-icon class="!text-base">auto_awesome</mat-icon>
-                    <span>Generate Starter 7-Day Study Plan</span>
-                  </span>
-                }
-              </button>
-            </div>
-          </div>
-        }
-
-        <!-- Active Recommendations Card (When not cold start and recommendations exist with content) -->
-        @if (!isColdStart() && !hasNoRecommendations() && dashboardData().recommendation) {
-          <app-recommendation-card [recommendation]="dashboardData().recommendation!"></app-recommendation-card>
-        }
-
-        <!-- "Generate My 7-Day AI Study Plan" CTA Card (When not cold start, but no recommendations yet) -->
-        @if (!isColdStart() && hasNoRecommendations()) {
-          <div class="bg-white rounded-2xl border border-slate-200 p-8 shadow-2xs space-y-5 text-center sm:text-left">
-            <div class="flex flex-col sm:flex-row items-center gap-4">
-              <div class="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
-                <mat-icon class="!text-2xl">menu_book</mat-icon>
-              </div>
-              <div>
-                <h3 class="text-base font-bold text-slate-900">Generate My 7-Day AI Study Plan</h3>
-                <p class="text-xs text-slate-500 mt-0.5">
-                  Your baseline diagnostic data is ready! Generate a personalized 7-day schedule with topic-specific tasks and focus areas.
-                </p>
-              </div>
-            </div>
-
-            @if (generateError()) {
-              <div class="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs">
-                {{ generateError() }}
-              </div>
-            }
-
-            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
-              <div class="flex items-center gap-2 bg-slate-50 px-3 py-2 rounded-xl border border-slate-200">
-                <label for="generatePlanExamTarget" class="text-xs font-semibold text-slate-500">Target:</label>
-                <select
-                  id="generatePlanExamTarget"
-                  [ngModel]="selectedExam()"
-                  (ngModelChange)="selectedExam.set($event)"
-                  class="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
-                >
-                  @for (exam of examTargets; track exam.value) {
-                    <option [value]="exam.value">{{ exam.label }}</option>
-                  }
-                </select>
-              </div>
-
-              <button
-                type="button"
-                mat-flat-button
-                color="primary"
-                [disabled]="isGenerating()"
-                (click)="onRefreshRecommendations()"
-                class="!bg-indigo-600 hover:!bg-indigo-700 !text-white !font-bold !text-xs !py-3 !px-5 !rounded-xl shadow-md cursor-pointer flex items-center justify-center gap-2"
-              >
-                @if (isGenerating()) {
-                  <mat-spinner diameter="16" class="!inline-block"></mat-spinner>
-                  <span>Generating Study Plan...</span>
-                } @else {
-                  <span class="inline-flex items-center gap-1.5">
-                    <mat-icon class="!text-base">auto_awesome</mat-icon>
-                    <span>Generate My 7-Day AI Study Plan</span>
-                  </span>
-                }
-              </button>
-            </div>
-          </div>
+        @if (dashboardData().recommendation; as rec) {
+          <app-recommendation-card [recommendation]="rec"></app-recommendation-card>
         }
       </div>
 
-      <!-- Right Aside: Learner Profile & Subject Breakdown -->
       <aside class="space-y-6">
-        @if (dashboardData().profile) {
-          <app-learner-profile-insights [profile]="dashboardData().profile!"></app-learner-profile-insights>
-        }
-
-        <!-- Subject-Wise Mastery Breakdown -->
-        @if (dashboardData().summary; as summary) {
-          @if (getSubjectSummaryList(summary).length > 0) {
-            <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs space-y-4">
-              <div class="flex items-center gap-2">
-                <mat-icon class="text-indigo-600">pie_chart</mat-icon>
-                <h3 class="text-sm font-bold text-slate-900">Subject Mastery Breakdown</h3>
-              </div>
-
-              <div class="space-y-3">
-                @for (sub of getSubjectSummaryList(summary); track sub.subjectName) {
-                  <div class="space-y-1">
-                    <div class="flex items-center justify-between text-xs">
-                      <span class="font-bold text-slate-700">{{ sub.subjectName }}</span>
-                      <span class="font-semibold text-slate-500">{{ sub.avgAccuracyPercent | number:'1.0-1' }}% acc</span>
-                    </div>
-                    <mat-progress-bar
-                      mode="determinate"
-                      [value]="sub.avgAccuracyPercent"
-                      class="!h-2 !rounded-full"
-                    ></mat-progress-bar>
-                    <div class="flex items-center justify-between text-[10px] text-slate-400 font-medium">
-                      <span>{{ sub.conceptualGapsCount }} conceptual gap(s)</span>
-                      <span>{{ sub.proficientCount }} / {{ sub.totalSubtopics }} proficient</span>
-                    </div>
-                  </div>
-                }
-              </div>
-            </div>
-          }
+        @if (dashboardData().profile; as prof) {
+          <app-learner-profile-insights [profile]="prof"></app-learner-profile-insights>
         }
       </aside>
     </div>

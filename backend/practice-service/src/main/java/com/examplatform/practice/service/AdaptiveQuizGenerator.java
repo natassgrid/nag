@@ -62,6 +62,105 @@ public class AdaptiveQuizGenerator {
     }
 
     /**
+     * Synthesizes an adaptive practice set by numeric subtopic ID adhering to
+     * 70% Easy/Medium and 30% Hard ratio under Unified Exam Spine.
+     */
+    @Transactional
+    public PracticeSetDto generateAdaptiveSetBySubtopic(
+            UUID candidateId,
+            Long subtopicId,
+            Long topicId,
+            Long subjectId,
+            UUID enrollmentId,
+            UUID examId,
+            int totalQuestions) {
+        return generateAdaptiveSetBySubtopics(
+                candidateId,
+                subtopicId != null ? List.of(subtopicId) : Collections.emptyList(),
+                topicId,
+                subjectId,
+                enrollmentId,
+                examId,
+                totalQuestions,
+                false
+        );
+    }
+
+    @Transactional
+    public PracticeSetDto generateAdaptiveSetBySubtopics(
+            UUID candidateId,
+            List<Long> subtopicIds,
+            Long topicId,
+            Long subjectId,
+            UUID enrollmentId,
+            UUID examId,
+            int totalQuestions,
+            boolean isGatekeeper) {
+
+        int targetTotal = Math.clamp(totalQuestions, 10, 30);
+        int easyMediumTarget = (int) Math.round(targetTotal * 0.70);
+        int hardTarget = targetTotal - easyMediumTarget;
+
+        List<Long> sIds = (subtopicIds != null) ? subtopicIds : Collections.emptyList();
+        List<UUID> finalQuestionIds = collectQuestionIdsBySubtopic(sIds, targetTotal, easyMediumTarget, hardTarget);
+        String questionIdsJson = serializeQuestionIds(finalQuestionIds);
+
+        String setName = isGatekeeper ? "Gatekeeper Assessment" : "Adaptive Practice Quiz";
+        String source = isGatekeeper ? "GATEKEEPER_TEST" : "ADAPTIVE_QUIZ";
+
+        PracticeSet practiceSet = PracticeSet.builder()
+                .name(setName)
+                .description(String.format("Adaptive drill (70%% Easy/Medium, 30%% Hard) on subtopics: %s", sIds))
+                .createdBy(candidateId)
+                .source(source)
+                .questionIds(questionIdsJson)
+                .durationMinutes(isGatekeeper ? 45 : 30)
+                .subjectId(subjectId)
+                .topicId(topicId)
+                .subtopicId(sIds.size() == 1 ? sIds.getFirst() : null)
+                .published(true)
+                .totalQuestions(finalQuestionIds.size())
+                .build();
+
+        PracticeSet saved = practiceSetRepository.save(practiceSet);
+        log.info("Synthesized adaptive set {} with {} questions for candidate {}, subtopics: {}",
+                saved.getId(), finalQuestionIds.size(), candidateId, sIds);
+
+        return practiceSetService.toDto(saved);
+    }
+
+    private List<UUID> collectQuestionIdsBySubtopic(
+            List<Long> subtopicIds,
+            int targetTotal,
+            int easyMediumTarget,
+            int hardTarget) {
+
+        Set<UUID> selectedIds = new LinkedHashSet<>();
+
+        List<UUID> easyQuestions = questionBankClient.findQuestionsBySubtopics(subtopicIds, "EASY", easyMediumTarget);
+        List<UUID> mediumQuestions = questionBankClient.findQuestionsBySubtopics(subtopicIds, "MEDIUM", easyMediumTarget);
+        addQuestions(selectedIds, easyQuestions, easyMediumTarget);
+        addQuestions(selectedIds, mediumQuestions, easyMediumTarget);
+
+        List<UUID> hardQuestions = questionBankClient.findQuestionsBySubtopics(subtopicIds, "HARD", hardTarget);
+        addQuestions(selectedIds, hardQuestions, targetTotal);
+
+        if (selectedIds.size() < targetTotal) {
+            List<UUID> anyQuestions = questionBankClient.findQuestionsBySubtopics(
+                    subtopicIds, null, targetTotal - selectedIds.size());
+            selectedIds.addAll(anyQuestions);
+        }
+
+        if (selectedIds.isEmpty()) {
+            for (int i = 0; i < targetTotal; i++) {
+                selectedIds.add(UUID.randomUUID());
+            }
+        }
+
+        return new ArrayList<>(selectedIds);
+    }
+
+    /**
      * Synthesizes a multi-topic Baseline Diagnostic Practice Set for cold-start candidates
      * with a balanced 40% Easy, 40% Medium, 20% Hard distribution across published questions.
      */

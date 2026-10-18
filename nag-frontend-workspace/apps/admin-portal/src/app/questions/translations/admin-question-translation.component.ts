@@ -50,7 +50,7 @@ export class AdminQuestionTranslationComponent implements OnInit {
   private readonly questionBankService = inject(QuestionBankService);
   private readonly subjectTopicService = inject(SubjectTopicService);
 
-  readonly languages = INDIC_TRANSLATION_LANGUAGES;
+  readonly languages = INDIC_TRANSLATION_LANGUAGES.filter((l) => l.code !== 'en');
   readonly selectedLanguage = signal<string>('hi');
   readonly currentTab = signal<'list' | 'batch'>('list');
 

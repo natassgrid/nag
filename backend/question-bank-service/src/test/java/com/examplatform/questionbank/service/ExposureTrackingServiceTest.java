@@ -68,8 +68,9 @@ class ExposureTrackingServiceTest {
         String shiftId = "SHIFT-A";
 
         Question question = Question.builder()
-                .subject("Mathematics")
-                .topic("Algebra")
+                .subjectId(1L)
+                .topicId(10L)
+                .subtopicId(100L)
                 .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
                 .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.APPLY)
                 .questionType("MCQ")
@@ -88,7 +89,6 @@ class ExposureTrackingServiceTest {
         Question saved = captor.getValue();
         assertThat(saved.getUsageCount()).isEqualTo(3);
         assertThat(saved.getLastUsedAt()).isNotNull();
-        assertThat(saved.getUsedInExamIdsJson()).contains(examId.toString());
         assertThat(saved.getUsedInShiftIdsJson()).contains(shiftId);
     }
 
@@ -102,14 +102,14 @@ class ExposureTrackingServiceTest {
         String newShift = "SHIFT-B";
 
         Question question = Question.builder()
-                .subject("Physics")
-                .topic("Mechanics")
+                .subjectId(1L)
+                .topicId(10L)
+                .subtopicId(100L)
                 .difficulty(QuestionTaxonomyConstants.Difficulty.HARD)
                 .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.ANALYZE)
                 .questionType("MCQ")
                 .authorId(UUID.randomUUID())
                 .usageCount(1)
-                .usedInExamIdsJson("[\"" + existingExamId + "\"]")
                 .usedInShiftIdsJson("[\"" + existingShift + "\"]")
                 .build();
 
@@ -123,8 +123,6 @@ class ExposureTrackingServiceTest {
 
         Question saved = captor.getValue();
         assertThat(saved.getUsageCount()).isEqualTo(2);
-        assertThat(saved.getUsedInExamIdsJson()).contains(existingExamId.toString());
-        assertThat(saved.getUsedInExamIdsJson()).contains(newExamId.toString());
         assertThat(saved.getUsedInShiftIdsJson()).contains(existingShift);
         assertThat(saved.getUsedInShiftIdsJson()).contains(newShift);
     }

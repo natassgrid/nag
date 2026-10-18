@@ -7,7 +7,15 @@ import {
   Subtopic,
   SubjectHierarchy,
   TargetExaminationOption,
+  TaxonomySubjectNode,
+  TaxonomyTopicNode,
+  TaxonomySubtopicNode,
+  TaxonomyOverrideRequest,
+  MergeTaxonomyRequest,
+  ReorderTaxonomyRequest,
 } from '../models/taxonomy.model';
+import { TaxonomyStore } from './taxonomy.store';
+
 
 @Injectable({
   providedIn: 'root',
@@ -20,7 +28,21 @@ export class SubjectTopicService {
   getSubjects(): Observable<Subject[]> {
     return this.http
       .get<{ data?: Subject[] } | Subject[]>(this.baseUrl)
-      .pipe(map((res) => (Array.isArray(res) ? res : (res as any)?.data || [])));
+      .pipe(
+        map((res) => (Array.isArray(res) ? res : (res as any)?.data || [])),
+        catchError(() =>
+          this.getTaxonomyTree().pipe(
+            map((tree) =>
+              (tree || []).map((s) => ({
+                id: s.id,
+                name: s.name,
+                code: s.code,
+                description: s.description,
+              }))
+            )
+          )
+        )
+      );
   }
 
   getSubject(id: number): Observable<Subject> {
@@ -48,7 +70,22 @@ export class SubjectTopicService {
   getTopics(subjectId: number): Observable<Topic[]> {
     return this.http
       .get<{ data?: Topic[] } | Topic[]>(`${this.baseUrl}/${subjectId}/topics`)
-      .pipe(map((res) => (Array.isArray(res) ? res : (res as any)?.data || [])));
+      .pipe(
+        map((res) => (Array.isArray(res) ? res : (res as any)?.data || [])),
+        catchError(() =>
+          this.getTaxonomyTree().pipe(
+            map((tree) => {
+              const sub = (tree || []).find((s) => s.id === subjectId);
+              return (sub?.topics || []).map((t) => ({
+                id: t.id,
+                subjectId,
+                name: t.name,
+                description: t.description,
+              }));
+            })
+          )
+        )
+      );
   }
 
   createTopic(subjectId: number, data: { name: string; description?: string }): Observable<Topic> {
@@ -60,7 +97,23 @@ export class SubjectTopicService {
   getSubtopics(subjectId: number, topicId: number): Observable<Subtopic[]> {
     return this.http
       .get<{ data?: Subtopic[] } | Subtopic[]>(`${this.baseUrl}/${subjectId}/topics/${topicId}/subtopics`)
-      .pipe(map((res) => (Array.isArray(res) ? res : (res as any)?.data || [])));
+      .pipe(
+        map((res) => (Array.isArray(res) ? res : (res as any)?.data || [])),
+        catchError(() =>
+          this.getTaxonomyTree().pipe(
+            map((tree) => {
+              const sub = (tree || []).find((s) => s.id === subjectId);
+              const top = (sub?.topics || []).find((t) => t.id === topicId);
+              return (top?.subtopics || []).map((st) => ({
+                id: st.id,
+                topicId,
+                name: st.name,
+                description: st.description,
+              }));
+            })
+          )
+        )
+      );
   }
 
   createSubtopic(subjectId: number, topicId: number, data: { name: string; description?: string }): Observable<Subtopic> {
@@ -70,9 +123,83 @@ export class SubjectTopicService {
   }
 
   getHierarchy(): Observable<SubjectHierarchy[]> {
-    return this.http
-      .get<{ data?: SubjectHierarchy[] } | SubjectHierarchy[]>(`${this.baseUrl}/hierarchy`)
-      .pipe(map((res) => (Array.isArray(res) ? res : (res as any)?.data || [])));
+    return this.getTaxonomyTree().pipe(
+      map((tree) => {
+        if (!tree || tree.length === 0) return [];
+        return tree.map((s) => ({
+          id: s.id,
+          name: s.name,
+          code: s.code,
+          description: s.description,
+          questionCount: s.questionCount,
+          topics: (s.topics || []).map((t) => ({
+            id: t.id,
+            name: t.name,
+            description: t.description,
+            questionCount: t.questionCount,
+            subtopics: (t.subtopics || []).map((st) => ({
+              id: st.id,
+              name: st.name,
+              description: st.description,
+              questionCount: st.questionCount,
+            })),
+          })),
+        }));
+      }),
+      catchError(() =>
+        this.http
+          .get<{ data?: SubjectHierarchy[] } | SubjectHierarchy[]>(`${this.baseUrl}/hierarchy`)
+          .pipe(map((res) => (Array.isArray(res) ? res : (res as any)?.data || [])))
+      )
+    );
+  }
+
+  // ── Unified Exam Spine Taxonomy Operations ─────────────────────────────
+
+  private readonly taxonomyStore = inject(TaxonomyStore);
+
+  /** Signal of effective taxonomy tree from store */
+  readonly taxonomyTree = this.taxonomyStore.tree;
+  readonly taxonomyLoading = this.taxonomyStore.loading;
+
+  getTaxonomyTree(examId?: string): Observable<TaxonomySubjectNode[]> {
+    return this.taxonomyStore.loadTree(examId);
+  }
+
+  applyOverrides(requests: TaxonomyOverrideRequest[]): Observable<void> {
+    return this.taxonomyStore.applyOverrides(requests);
+  }
+
+  mergeNodes(request: MergeTaxonomyRequest): Observable<void> {
+    return this.taxonomyStore.mergeNodes(request);
+  }
+
+  reorderNodes(request: ReorderTaxonomyRequest): Observable<void> {
+    return this.taxonomyStore.reorderNodes(request);
+  }
+
+  nodeName(type: 'SUBJECT' | 'TOPIC' | 'SUBTOPIC' | string, id: number | null | undefined): string {
+    return this.taxonomyStore.nodeName(type, id);
+  }
+
+  subjectName(id: number | null | undefined): string {
+    return this.taxonomyStore.subjectName(id);
+  }
+
+  topicName(id: number | null | undefined): string {
+    return this.taxonomyStore.topicName(id);
+  }
+
+  subtopicName(id: number | null | undefined): string {
+    return this.taxonomyStore.subtopicName(id);
+  }
+
+  getTopicsForSubject(subjectId: number | null | undefined): TaxonomyTopicNode[] {
+    return this.taxonomyStore.getTopicsForSubject(subjectId);
+  }
+
+  getSubtopicsForTopic(topicId: number | null | undefined): TaxonomySubtopicNode[] {
+    return this.taxonomyStore.getSubtopicsForTopic(topicId);
   }
 
   /**
@@ -134,3 +261,4 @@ export class SubjectTopicService {
     return this.getExaminations(page, size);
   }
 }
+

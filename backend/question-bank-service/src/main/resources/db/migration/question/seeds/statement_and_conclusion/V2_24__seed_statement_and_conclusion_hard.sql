@@ -14,7 +14,7 @@ DECLARE
     v_top_id BIGINT;
 BEGIN
     -- Subject: General Intelligence and Reasoning
-    SELECT id INTO v_subj_id FROM question_service.subject WHERE name = 'General Intelligence and Reasoning' AND tenant_id = v_tenant_id LIMIT 1;
+    SELECT id INTO v_subj_id FROM question_service.subject WHERE code = 'REAS' AND (tenant_id IS NULL OR tenant_id = v_tenant_id) LIMIT 1;
     IF v_subj_id IS NULL THEN
         INSERT INTO question_service.subject (tenant_id, name, code, description)
         VALUES (v_tenant_id, 'General Intelligence and Reasoning', 'GIR', 'General Intelligence and Reasoning covering verbal and non-verbal reasoning, deductive logic, and critical evaluation')
@@ -22,7 +22,7 @@ BEGIN
     END IF;
 
     -- Topic: Statement and Conclusion
-    SELECT id INTO v_top_id FROM question_service.topic WHERE name = 'Statement and Conclusion' AND subject_id = v_subj_id AND tenant_id = v_tenant_id LIMIT 1;
+    SELECT id INTO v_top_id FROM question_service.topic WHERE (name = 'Statement and Conclusion' OR code = 'STATEMENT_CONCLUSION') AND subject_id = v_subj_id LIMIT 1;
     IF v_top_id IS NULL THEN
         INSERT INTO question_service.topic (tenant_id, subject_id, name, description)
         VALUES (v_tenant_id, v_subj_id, 'Statement and Conclusion', 'Analytical, deductive, and formal logic conclusions derived strictly from given statements')
@@ -49,8 +49,7 @@ END $$;
 
 -- Step 2: Insert 50 HARD Questions for Statement and Conclusion
 INSERT INTO question_service.question (
-    id, tenant_id, subject_id, topic_id, subtopic_id,
-    subject, topic, subtopic, difficulty, cognitive_level,
+    id, tenant_id, subject_id, topic_id, subtopic_id, difficulty, cognitive_level,
     question_type, content, options, answer_key, explanation,
     state, author_id
 )
@@ -60,9 +59,6 @@ SELECT
     s.id,
     t.id,
     st.id,
-    'General Intelligence and Reasoning',
-    'Statement and Conclusion',
-    v.subtopic_name,
     'HARD',
     v.cognitive_level,
     'SINGLE_MCQ',
@@ -70,7 +66,7 @@ SELECT
     v.options::jsonb,
     v.answer_key,
     v.explanation,
-    'APPROVED',
+    'PUBLISHED',
     '00000000-0000-0000-0000-000000000001'::uuid
 FROM (VALUES
     -- 1. Conditional Implication & Contrapositive
@@ -575,9 +571,13 @@ FROM (VALUES
     )
 ) AS v(id, subtopic_name, cognitive_level, content, options, answer_key, explanation)
 JOIN question_service.subject s
-  ON s.name = 'General Intelligence and Reasoning' AND s.tenant_id = 'default'
+  ON s.code = 'REAS' AND (s.tenant_id IS NULL OR s.tenant_id = 'default')
 JOIN question_service.topic t
-  ON t.name = 'Statement and Conclusion' AND t.subject_id = s.id AND t.tenant_id = 'default'
-LEFT JOIN question_service.subtopic st
-  ON st.name = v.subtopic_name AND st.topic_id = t.id AND st.tenant_id = 'default'
+  ON (t.name = 'Statement and Conclusion' OR t.code = 'STATEMENT_CONCLUSION') AND t.subject_id = s.id AND (t.tenant_id IS NULL OR t.tenant_id = 'default')
+JOIN LATERAL (
+    SELECT id FROM question_service.subtopic
+    WHERE topic_id = t.id AND (v.subtopic_name IS NULL OR name = v.subtopic_name)
+    ORDER BY CASE WHEN name = v.subtopic_name THEN 0 ELSE 1 END, display_order ASC
+    LIMIT 1
+) st ON TRUE
 ON CONFLICT (id, subject_id) DO NOTHING;

@@ -46,6 +46,17 @@ export interface MicroLessonContent {
   quickCheckItems?: QuickCheckItem[];
 }
 
+export type MicroLessonType =
+  | 'CONCEPT'
+  | 'WORKED_EXAMPLES'
+  | 'TRAPS_AND_PITFALLS'
+  | 'CHEAT_SHEET'
+  | 'VISUAL'
+  | 'QUICK_RECAP'
+  | 'STORY_ANALOGY';
+
+export type MicroLessonDifficulty = 'FOUNDATION' | 'CORE' | 'ADVANCED';
+
 export interface MicroLessonReviewItem {
   id: string;
   subjectId?: number;
@@ -57,7 +68,11 @@ export interface MicroLessonReviewItem {
   subtopicName: string;
   topicName: string;
   subjectName: string;
-  targetExam: string;
+  targetExam?: string;
+  lessonType?: MicroLessonType | string;
+  difficultyLevel?: MicroLessonDifficulty | string;
+  sequenceNo?: number;
+  estimatedMinutes?: number;
   status: 'AI_GENERATED' | 'IN_REVIEW' | 'APPROVED' | 'PUBLISHED' | 'REJECTED' | 'DRAFT';
   contentVersion: number;
   reviewerNotes?: string | null;
@@ -84,7 +99,11 @@ export interface CreateMicroLessonRequest {
   subtopicId?: number;
   subtopic?: string;
   subtopicName?: string;
-  targetExam: string;
+  targetExam?: string;
+  lessonType?: MicroLessonType | string;
+  difficultyLevel?: MicroLessonDifficulty | string;
+  sequenceNo?: number;
+  estimatedMinutes?: number;
   status?: string;
   coreConcept: string;
   trap?: string;
@@ -136,6 +155,8 @@ export interface GenerateMicroLessonRequest {
   subtopicId?: number;
   subtopic: string;
   targetExam?: string;
+  lessonType?: string;
+  difficultyLevel?: string;
   referenceText?: string;
   promptNotes?: string;
 }
@@ -332,6 +353,11 @@ export function adaptToReviewItem(raw: any): MicroLessonReviewItem {
     subjectName: subject,
     topicName: topic,
     subtopicName: subtopic,
+    targetExam: raw.targetExam || '',
+    lessonType: raw.lessonType || 'CONCEPT',
+    difficultyLevel: raw.difficultyLevel || 'CORE',
+    sequenceNo: raw.sequenceNo ?? 1,
+    estimatedMinutes: raw.estimatedMinutes ?? 5,
     coreConcept,
     trap: trapAlert,
     reviewerNotes: raw.reviewerNotes || raw.reviewComments || '',

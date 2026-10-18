@@ -13,8 +13,8 @@
     (createTopic)="createTopic.emit($event)"
   ></nag-taxonomy-selector>
 
-  <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs grid grid-cols-1 md:grid-cols-3 gap-4">
-    <div>
+  <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="lg:col-span-2">
       <label class="block text-xs font-bold text-slate-700 uppercase mb-1.5">
         Subtopic Title / Override *
       </label>
@@ -30,7 +30,39 @@
 
     <div>
       <label class="block text-xs font-bold text-slate-700 uppercase mb-1.5">
-        Target Examination *
+        Lesson Type *
+      </label>
+      <select
+        id="authoring-lesson-type"
+        [ngModel]="lessonType()"
+        (ngModelChange)="lessonTypeChange.emit($event)"
+        class="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+      >
+        @for (opt of lessonTypeOptions; track opt.value) {
+          <option [value]="opt.value">{{ opt.label }}</option>
+        }
+      </select>
+    </div>
+
+    <div>
+      <label class="block text-xs font-bold text-slate-700 uppercase mb-1.5">
+        Difficulty Level *
+      </label>
+      <select
+        id="authoring-difficulty-level"
+        [ngModel]="difficultyLevel()"
+        (ngModelChange)="difficultyLevelChange.emit($event)"
+        class="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+      >
+        @for (opt of difficultyOptions; track opt.value) {
+          <option [value]="opt.value">{{ opt.label }}</option>
+        }
+      </select>
+    </div>
+
+    <div>
+      <label class="block text-xs font-bold text-slate-700 uppercase mb-1.5">
+        Target Exam (Universal / Specific)
       </label>
       <select
         id="authoring-target-exam"
@@ -58,6 +90,35 @@
           <option [value]="st.value">{{ st.label }}</option>
         }
       </select>
+    </div>
+
+    <div>
+      <label class="block text-xs font-bold text-slate-700 uppercase mb-1.5">
+        Est. Reading Time (Mins)
+      </label>
+      <input
+        type="number"
+        id="authoring-est-minutes"
+        min="1"
+        max="60"
+        [ngModel]="estimatedMinutes()"
+        (ngModelChange)="estimatedMinutesChange.emit(+$event)"
+        class="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+      />
+    </div>
+
+    <div>
+      <label class="block text-xs font-bold text-slate-700 uppercase mb-1.5">
+        Sequence # in Subtopic
+      </label>
+      <input
+        type="number"
+        id="authoring-sequence-no"
+        min="1"
+        [ngModel]="sequenceNo()"
+        (ngModelChange)="sequenceNoChange.emit(+$event)"
+        class="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+      />
     </div>
   </div>
 </div>

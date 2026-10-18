@@ -22,6 +22,13 @@ export interface ExamItem {
   marks: number;
   negativeMarks: number;
   subject?: string;
+  sectionId?: string | number;
+  sectionName?: string;
+  subjectId?: number;
+  topicId?: number;
+  subtopicId?: number;
+  topicName?: string;
+  subtopicName?: string;
   correctOptionId?: string;
   selectedOptionId?: string;
   isFlagged?: boolean;

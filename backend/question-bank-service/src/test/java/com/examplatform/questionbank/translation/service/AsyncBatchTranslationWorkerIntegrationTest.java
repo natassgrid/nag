@@ -63,6 +63,9 @@ class AsyncBatchTranslationWorkerIntegrationTest extends AbstractIntegrationTest
     @Autowired
     private TranslationRepository translationRepository;
 
+    @Autowired
+    private com.examplatform.questionbank.repository.SubjectRepository subjectRepository;
+
     @MockitoBean
     private IndicTrans2Service indicTrans2Service;
 
@@ -81,8 +84,7 @@ class AsyncBatchTranslationWorkerIntegrationTest extends AbstractIntegrationTest
         Question q1 = Question.builder()
                 .subjectId(1L)
                 .topicId(10L)
-                .subject("Physics")
-                .topic("Mechanics")
+                .subtopicId(100L)
                 .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
                 .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.UNDERSTAND)
                 .questionType("MCQ")
@@ -96,8 +98,7 @@ class AsyncBatchTranslationWorkerIntegrationTest extends AbstractIntegrationTest
         Question q2 = Question.builder()
                 .subjectId(2L)
                 .topicId(20L)
-                .subject("Chemistry")
-                .topic("Organic")
+                .subtopicId(200L)
                 .difficulty(QuestionTaxonomyConstants.Difficulty.EASY)
                 .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.REMEMBER)
                 .questionType("MCQ")
@@ -173,11 +174,15 @@ class AsyncBatchTranslationWorkerIntegrationTest extends AbstractIntegrationTest
     @Test
     @DisplayName("Worker filters by subject correctly on real database")
     void shouldFilterBySubjectOnRealDatabase() throws Exception {
+        Long mathSubjectId = subjectRepository.findByNameAndTenantId("Mathematics", TENANT_ID)
+                .or(() -> subjectRepository.findByNameAndTenantIdIsNull("Mathematics"))
+                .map(com.examplatform.questionbank.domain.Subject::getId)
+                .orElse(1L);
+
         Question q1 = Question.builder()
-                .subjectId(3L)
+                .subjectId(mathSubjectId)
                 .topicId(30L)
-                .subject("Mathematics")
-                .topic("Algebra")
+                .subtopicId(300L)
                 .difficulty(QuestionTaxonomyConstants.Difficulty.HARD)
                 .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.APPLY)
                 .questionType("MCQ")
@@ -189,10 +194,9 @@ class AsyncBatchTranslationWorkerIntegrationTest extends AbstractIntegrationTest
         q1.setTenantId(TENANT_ID);
 
         Question q2 = Question.builder()
-                .subjectId(4L)
+                .subjectId(mathSubjectId + 9999L)
                 .topicId(40L)
-                .subject("History")
-                .topic("Modern India")
+                .subtopicId(400L)
                 .difficulty(QuestionTaxonomyConstants.Difficulty.EASY)
                 .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.REMEMBER)
                 .questionType("MCQ")

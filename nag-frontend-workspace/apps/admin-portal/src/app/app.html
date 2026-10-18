@@ -26,11 +26,74 @@
               <span>Dashboard</span>
             </a>
 
-            <!-- 2. Question Bank Sub-Menu -->
+            <!-- 2. Curriculum Sub-Menu (Taxonomy, Blueprints, Examinations) -->
+            <button
+              type="button"
+              [matMenuTriggerFor]="curriculumMenu"
+              [ngClass]="{ 'bg-slate-800 text-white font-semibold': isCurriculumActive() }"
+              class="px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/60 transition-colors flex items-center gap-1.5 focus:outline-none"
+            >
+              <mat-icon class="!text-lg">account_tree</mat-icon>
+              <span>Curriculum</span>
+              <mat-icon class="!text-sm opacity-60">arrow_drop_down</mat-icon>
+            </button>
+            <mat-menu #curriculumMenu="matMenu" class="custom-nav-menu">
+              <a mat-menu-item routerLink="/questions/taxonomy">
+                <mat-icon class="text-amber-600">account_tree</mat-icon>
+                <div class="inline-flex flex-col text-left">
+                  <span class="font-bold text-xs text-slate-900">Taxonomy &amp; Hierarchy</span>
+                  <span class="text-[10px] text-slate-500">Platform canonical tree &amp; tenant overrides</span>
+                </div>
+              </a>
+              <a mat-menu-item routerLink="/questions/blueprints">
+                <mat-icon class="text-blue-600">rule</mat-icon>
+                <div class="inline-flex flex-col text-left">
+                  <span class="font-bold text-xs text-slate-900">Rule Blueprints</span>
+                  <span class="text-[10px] text-slate-500">Reusable quota distributions &amp; inventory audits</span>
+                </div>
+              </a>
+              <a mat-menu-item routerLink="/examinations">
+                <mat-icon class="text-indigo-600">assignment</mat-icon>
+                <div class="inline-flex flex-col text-left">
+                  <span class="font-bold text-xs text-slate-900">Examination Directory</span>
+                  <span class="text-[10px] text-slate-500">Syllabus scope, sections &amp; blueprint contracts</span>
+                </div>
+              </a>
+              <a mat-menu-item routerLink="/examinations/scheduling">
+                <mat-icon class="text-purple-600">calendar_month</mat-icon>
+                <div class="inline-flex flex-col text-left">
+                  <span class="font-bold text-xs text-slate-900">Scheduling &amp; Shifts</span>
+                  <span class="text-[10px] text-slate-500">Sessions, timing shifts, amendments &amp; approvals</span>
+                </div>
+              </a>
+              <a mat-menu-item routerLink="/examinations/centres">
+                <mat-icon class="text-amber-600">domain</mat-icon>
+                <div class="inline-flex flex-col text-left">
+                  <span class="font-bold text-xs text-slate-900">Test Centre Registry</span>
+                  <span class="text-[10px] text-slate-500">Nationwide venues, labs &amp; seat capacities</span>
+                </div>
+              </a>
+              <a mat-menu-item routerLink="/examinations/paper-gen">
+                <mat-icon class="text-blue-600">auto_awesome</mat-icon>
+                <div class="inline-flex flex-col text-left">
+                  <span class="font-bold text-xs text-slate-900">Paper Assembly Engine</span>
+                  <span class="text-[10px] text-slate-500">Automated paper generation &amp; encrypted bundles</span>
+                </div>
+              </a>
+              <a mat-menu-item routerLink="/evaluation/grading">
+                <mat-icon class="text-emerald-600">grading</mat-icon>
+                <div class="inline-flex flex-col text-left">
+                  <span class="font-bold text-xs text-slate-900">Evaluation &amp; Grading</span>
+                  <span class="text-[10px] text-slate-500">Automated grading, score normalization &amp; ranking</span>
+                </div>
+              </a>
+            </mat-menu>
+
+            <!-- 3. Question Bank Sub-Menu -->
             <button
               type="button"
               [matMenuTriggerFor]="questionsMenu"
-              [ngClass]="{ 'bg-slate-800 text-white font-semibold': isRouteActive('/questions') }"
+              [ngClass]="{ 'bg-slate-800 text-white font-semibold': isQuestionBankActive() }"
               class="px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/60 transition-colors flex items-center gap-1.5 focus:outline-none"
             >
               <mat-icon class="!text-lg">quiz</mat-icon>
@@ -48,85 +111,22 @@
               <a mat-menu-item routerLink="/questions/authoring">
                 <mat-icon class="text-purple-600">edit_note</mat-icon>
                 <div class="inline-flex flex-col text-left">
-                  <span class="font-bold text-xs text-slate-900">Author Question & Passage</span>
-                  <span class="text-[10px] text-slate-500">MCQ, LaTeX equations & comprehension passage editor</span>
-                </div>
-              </a>
-              <a mat-menu-item routerLink="/questions/taxonomy">
-                <mat-icon class="text-amber-600">account_tree</mat-icon>
-                <div class="inline-flex flex-col text-left">
-                  <span class="font-bold text-xs text-slate-900">Taxonomy & Subjects</span>
-                  <span class="text-[10px] text-slate-500">Manage 3-tier Subject &rsaquo; Topic &rsaquo; Subtopic hierarchy</span>
+                  <span class="font-bold text-xs text-slate-900">Author Question &amp; Passage</span>
+                  <span class="text-[10px] text-slate-500">MCQ, LaTeX equations &amp; comprehension passage editor</span>
                 </div>
               </a>
               <a mat-menu-item routerLink="/questions/ai-generate">
                 <mat-icon class="text-indigo-500">psychology</mat-icon>
                 <div class="inline-flex flex-col text-left">
                   <span class="font-bold text-xs text-slate-900">AI Question Generator</span>
-                  <span class="text-[10px] text-slate-500">Cognitive-level synthesis, duplicate screening & batch</span>
-                </div>
-              </a>
-              <a mat-menu-item routerLink="/questions/blueprints">
-                <mat-icon class="text-blue-600">rule</mat-icon>
-                <div class="inline-flex flex-col text-left">
-                  <span class="font-bold text-xs text-slate-900">Rule Blueprints</span>
-                  <span class="text-[10px] text-slate-500">Quota distributions & inventory sufficiency audit</span>
+                  <span class="text-[10px] text-slate-500">Cognitive-level synthesis, duplicate screening &amp; batch</span>
                 </div>
               </a>
               <a mat-menu-item routerLink="/questions/translations">
                 <mat-icon class="text-emerald-600">translate</mat-icon>
                 <div class="inline-flex flex-col text-left">
-                  <span class="font-bold text-xs text-slate-900">Translation & Indic AI</span>
-                  <span class="text-[10px] text-slate-500">IndicTrans2 AI localization & batch workers</span>
-                </div>
-              </a>
-            </mat-menu>
-
-            <!-- 3. Examinations Sub-Menu -->
-            <button
-              type="button"
-              [matMenuTriggerFor]="examsMenu"
-              [ngClass]="{ 'bg-slate-800 text-white font-semibold': isRouteActive('/examinations') || isRouteActive('/evaluation') }"
-              class="px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/60 transition-colors flex items-center gap-1.5 focus:outline-none"
-            >
-              <mat-icon class="!text-lg">assignment</mat-icon>
-              <span>Examinations</span>
-              <mat-icon class="!text-sm opacity-60">arrow_drop_down</mat-icon>
-            </button>
-            <mat-menu #examsMenu="matMenu" class="custom-nav-menu">
-              <a mat-menu-item routerLink="/examinations">
-                <mat-icon class="text-indigo-600">assignment</mat-icon>
-                <div class="inline-flex flex-col text-left">
-                  <span class="font-bold text-xs text-slate-900">Examination Directory</span>
-                  <span class="text-[10px] text-slate-500">Configure blueprints, marking rules & publish</span>
-                </div>
-              </a>
-              <a mat-menu-item routerLink="/examinations/scheduling">
-                <mat-icon class="text-purple-600">calendar_month</mat-icon>
-                <div class="inline-flex flex-col text-left">
-                  <span class="font-bold text-xs text-slate-900">Scheduling & Shifts</span>
-                  <span class="text-[10px] text-slate-500">Sessions, timing shifts, amendments & approvals</span>
-                </div>
-              </a>
-              <a mat-menu-item routerLink="/examinations/centres">
-                <mat-icon class="text-amber-600">domain</mat-icon>
-                <div class="inline-flex flex-col text-left">
-                  <span class="font-bold text-xs text-slate-900">Test Centre Registry</span>
-                  <span class="text-[10px] text-slate-500">Nationwide venues, labs & seat capacities</span>
-                </div>
-              </a>
-              <a mat-menu-item routerLink="/examinations/paper-gen">
-                <mat-icon class="text-blue-600">auto_awesome</mat-icon>
-                <div class="inline-flex flex-col text-left">
-                  <span class="font-bold text-xs text-slate-900">Paper Assembly Engine</span>
-                  <span class="text-[10px] text-slate-500">Automated paper generation & encrypted bundles</span>
-                </div>
-              </a>
-              <a mat-menu-item routerLink="/evaluation/grading">
-                <mat-icon class="text-emerald-600">grading</mat-icon>
-                <div class="inline-flex flex-col text-left">
-                  <span class="font-bold text-xs text-slate-900">Evaluation & Grading</span>
-                  <span class="text-[10px] text-slate-500">Automated grading, score normalization & ranking</span>
+                  <span class="font-bold text-xs text-slate-900">Translation &amp; Indic AI</span>
+                  <span class="text-[10px] text-slate-500">IndicTrans2 AI localization &amp; batch workers</span>
                 </div>
               </a>
             </mat-menu>
@@ -154,10 +154,18 @@
                 <mat-icon class="text-purple-600">psychology</mat-icon>
                 <div class="inline-flex flex-col text-left">
                   <span class="font-bold text-xs text-slate-900">Micro-Lesson Review Desk</span>
-                  <span class="text-[10px] text-slate-500">Review AI-generated remedial micro-lessons & LaTeX</span>
+                  <span class="text-[10px] text-slate-500">Review AI-generated remedial micro-lessons &amp; LaTeX</span>
+                </div>
+              </a>
+              <a mat-menu-item routerLink="/learning/micro-lessons/authoring">
+                <mat-icon class="text-emerald-600">post_add</mat-icon>
+                <div class="inline-flex flex-col text-left">
+                  <span class="font-bold text-xs text-slate-900">Micro-Lesson Authoring Studio</span>
+                  <span class="text-[10px] text-slate-500">Compose multi-variant lessons across types &amp; difficulty</span>
                 </div>
               </a>
             </mat-menu>
+
 
             <!-- 5. Administration Sub-Menu -->
             <button

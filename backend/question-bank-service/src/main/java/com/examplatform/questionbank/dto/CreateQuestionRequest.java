@@ -56,7 +56,8 @@ public class CreateQuestionRequest {
     @NotNull(message = "Topic id is required")
     private Long topicId;
 
-    /** Numeric FK to the subtopic (optional). */
+    /** Numeric FK to the subtopic (mandatory). */
+    @NotNull(message = "Subtopic id is required")
     private Long subtopicId;
 
     /**

@@ -76,6 +76,7 @@ public class AsyncBatchTranslationWorker {
     private final TranslationRepository translationRepository;
     private final IndicTrans2Service indicTrans2Service;
     private final TranslationWorkflowService translationWorkflowService;
+    private final com.examplatform.questionbank.repository.SubjectRepository subjectRepository;
 
     private final Set<UUID> activeJobIds = ConcurrentHashMap.newKeySet();
 
@@ -402,11 +403,19 @@ public class AsyncBatchTranslationWorker {
                     Long parsedSubjectId = Long.parseLong(trimmed);
                     predicates.add(cb.equal(root.get("subjectId"), parsedSubjectId));
                 } catch (NumberFormatException _) {
-                    String pattern = "%" + trimmed.toLowerCase() + "%";
-                    predicates.add(cb.or(
-                            cb.equal(cb.lower(root.get(SharedConstants.SUBJECT)), trimmed.toLowerCase()),
-                            cb.like(cb.lower(root.get(SharedConstants.SUBJECT)), pattern)
-                    ));
+                    Long resolvedSubjectId = subjectRepository != null
+                            ? subjectRepository.findByNameAndTenantId(trimmed, tenantId)
+                                    .or(() -> subjectRepository.findByNameAndTenantIdIsNull(trimmed))
+                                    .or(() -> subjectRepository.findByCodeAndTenantId(trimmed, tenantId))
+                                    .or(() -> subjectRepository.findByCodeAndTenantIdIsNull(trimmed))
+                                    .map(com.examplatform.questionbank.domain.Subject::getId)
+                                    .orElse(null)
+                            : null;
+                    if (resolvedSubjectId != null) {
+                        predicates.add(cb.equal(root.get("subjectId"), resolvedSubjectId));
+                    } else {
+                        predicates.add(cb.disjunction());
+                    }
                 }
             }
 

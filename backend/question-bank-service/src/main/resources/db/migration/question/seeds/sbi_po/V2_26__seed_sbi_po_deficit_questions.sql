@@ -10,7 +10,7 @@
 --   Rule 6: General Intelligence and Reasoning > Coding and Decoding (EASY, APPLY) - 4 Qs
 --   Rule 7: General Intelligence and Reasoning > Problem Solving (HARD, ANALYZE) - 9 Qs
 --   Rule 8: General Intelligence and Reasoning > Drawing Inferences (MEDIUM, ANALYZE) - 5 Qs
--- Format Standard: Valid UUIDs, JSONB options, LaTeX math ($$..$$), state='APPROVED'
+-- Format Standard: Valid UUIDs, JSONB options, LaTeX math ($$..$$), state='PUBLISHED'
 -- UUID Range: a1260000-0000-0000-0000-000000000001 to a1260000-0000-0000-0000-000000000052
 -- ============================================================
 
@@ -57,8 +57,7 @@ ON CONFLICT (name, subject_id, tenant_id) DO NOTHING;
 
 -- Step 3: Insert the 52 Assessment Questions
 INSERT INTO question_service.question (
-    id, tenant_id, subject_id, topic_id, subtopic_id,
-    subject, topic, subtopic, difficulty, cognitive_level,
+    id, tenant_id, subject_id, topic_id, subtopic_id, difficulty, cognitive_level,
     question_type, content, options, answer_key, explanation,
     state, author_id
 )
@@ -67,10 +66,7 @@ SELECT
     'default',
     s.id,
     t.id,
-    NULL,
-    v.subject_name,
-    v.topic_name,
-    v.subtopic_name,
+    st.id,
     v.difficulty,
     v.cognitive_level,
     'SINGLE_MCQ',
@@ -78,7 +74,7 @@ SELECT
     v.options::jsonb,
     v.answer_key,
     v.explanation,
-    'APPROVED',
+    'PUBLISHED',
     '00000000-0000-0000-0000-000000000001'::uuid
 FROM (VALUES
     -- =========================================================================
@@ -850,7 +846,13 @@ II. Municipal corporations have eliminated manual offline tax collection counter
     )
 ) AS v(id, subject_name, topic_name, subtopic_name, difficulty, cognitive_level, content, options, answer_key, explanation)
 JOIN question_service.subject s
-  ON s.name = v.subject_name AND s.tenant_id = 'default'
+  ON (s.name = v.subject_name OR s.code = CASE WHEN v.subject_name LIKE 'Quant%' THEN 'MATH' WHEN v.subject_name LIKE 'Gen%Intel%' THEN 'REAS' WHEN v.subject_name LIKE 'Gen%Aware%' THEN 'GS' WHEN v.subject_name LIKE 'Eng%' THEN 'ENG' ELSE 'GS' END) AND (s.tenant_id IS NULL OR s.tenant_id = 'default')
 JOIN question_service.topic t
-  ON t.name = v.topic_name AND t.subject_id = s.id AND t.tenant_id = 'default'
+  ON (t.name = v.topic_name OR t.code = v.topic_name) AND t.subject_id = s.id AND (t.tenant_id IS NULL OR t.tenant_id = 'default')
+JOIN LATERAL (
+    SELECT id FROM question_service.subtopic
+    WHERE topic_id = t.id AND (v.subtopic_name IS NULL OR name = v.subtopic_name)
+    ORDER BY CASE WHEN name = v.subtopic_name THEN 0 ELSE 1 END, display_order ASC
+    LIMIT 1
+) st ON TRUE
 ON CONFLICT (id, subject_id) DO NOTHING;

@@ -1,8 +1,27 @@
-// SPDX-License-Identifier: AGPL-3.0-only
+/*
+ * SPDX-License-Identifier: AGPL-3.0-only
+ *
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, version 3 of the License.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+
 package com.examplatform.questionbank.microlesson.domain;
 
 import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.entity.BaseEntity;
+import jakarta.persistence.AttributeOverride;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
@@ -13,8 +32,13 @@ import org.hibernate.type.SqlTypes;
 import java.time.Instant;
 import java.util.UUID;
 
+/**
+ * Micro-lesson entity v2: supports multiple multi-modal lessons per subtopic
+ * varied by {@code lessonType} and {@code difficultyLevel}.
+ */
 @Entity
 @Table(name = "subtopic_micro_lesson", schema = "question_service")
+@AttributeOverride(name = "tenantId", column = @Column(name = "tenant_id", updatable = false, nullable = true, columnDefinition = "varchar(255)"))
 @Getter
 @Setter
 @NoArgsConstructor
@@ -31,18 +55,28 @@ public class SubtopicMicroLesson extends BaseEntity {
     @Column(name = "subtopic_id", nullable = false)
     private Long subtopicId;
 
-    @Column(name = "subject", nullable = false, length = 100)
-    private String subject;
-
-    @Column(name = "topic", nullable = false, length = 200)
-    private String topic;
-
-    @Column(name = "subtopic", nullable = false, length = 200)
-    private String subtopic;
-
-    @Column(name = "target_exam", nullable = false, length = 50)
+    @Column(name = "lesson_type", nullable = false, length = 30)
     @Builder.Default
-    private String targetExam = "JEE_MAIN";
+    private String lessonType = "CONCEPT";
+
+    @Column(name = "difficulty_level", nullable = false, length = 20)
+    @Builder.Default
+    private String difficultyLevel = "CORE";
+
+    @Column(name = "sequence_no", nullable = false)
+    @Builder.Default
+    private int sequenceNo = 1;
+
+    @Column(name = "prerequisite_lesson_id")
+    private UUID prerequisiteLessonId;
+
+    @Column(name = "estimated_minutes", nullable = false)
+    @Builder.Default
+    private int estimatedMinutes = 5;
+
+    @Column(name = "language", nullable = false, length = 10)
+    @Builder.Default
+    private String language = "en";
 
     @Column(name = "core_concept", nullable = false, columnDefinition = "text")
     private String coreConcept;
@@ -70,6 +104,9 @@ public class SubtopicMicroLesson extends BaseEntity {
 
     @Column(name = "review_comments", columnDefinition = "text")
     private String reviewComments;
+
+    @Column(name = "quality_score")
+    private Double qualityScore;
 
     @Column(name = "content_version", nullable = false)
     @Builder.Default

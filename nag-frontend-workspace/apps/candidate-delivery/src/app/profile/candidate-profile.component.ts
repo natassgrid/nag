@@ -67,6 +67,8 @@ function createEmptyProfile(userId = '', username = ''): CandidateProfile {
   };
 }
 
+import { AdaptiveLearningService } from '../learn/services/adaptive-learning.service';
+
 @Component({
   selector: 'app-candidate-profile',
   standalone: true,
@@ -91,9 +93,11 @@ function createEmptyProfile(userId = '', username = ''): CandidateProfile {
 })
 export class CandidateProfileComponent implements OnInit {
   private readonly http = inject(HttpClient);
+  private readonly learningService = inject(AdaptiveLearningService);
   readonly authService = inject(AuthService);
   readonly i18nService = inject(I18nService, { optional: true });
 
+  readonly activeEnrollment = this.learningService.activeEnrollment;
   readonly activeTab = signal<ProfileTab>('personal');
   readonly loading = signal<boolean>(false);
   readonly saving = signal<boolean>(false);

@@ -4,7 +4,7 @@ import { MatCardModule } from '@angular/material/card';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatChipsModule } from '@angular/material/chips';
-import { LearnerProfile } from '../../models';
+import { RecommendationLearnerProfile } from '../../models';
 
 @Component({
   selector: 'app-learner-profile-insights',
@@ -15,7 +15,7 @@ import { LearnerProfile } from '../../models';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class LearnerProfileInsightsComponent {
-  profile = input.required<LearnerProfile>();
+  profile = input.required<RecommendationLearnerProfile>();
 
   protected getTopicAccuracyList(topicMap: Record<string, { accuracy: number; attempts: number }>) {
     return Object.entries(topicMap || {}).map(([topic, data]) => ({ topic, ...data }));

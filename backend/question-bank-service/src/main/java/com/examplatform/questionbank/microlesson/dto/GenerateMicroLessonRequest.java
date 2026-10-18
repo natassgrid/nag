@@ -12,5 +12,24 @@ public record GenerateMicroLessonRequest(
         String subtopic,
         String targetExam,
         String referenceText,
-        String promptNotes
-) implements Serializable {}
+        String promptNotes,
+        String lessonType,
+        String difficultyLevel,
+        String language
+) implements Serializable {
+
+    public GenerateMicroLessonRequest(
+            Long subjectId,
+            String subject,
+            Long topicId,
+            String topic,
+            Long subtopicId,
+            String subtopic,
+            String targetExam,
+            String referenceText,
+            String promptNotes
+    ) {
+        this(subjectId, subject, topicId, topic, subtopicId, subtopic, targetExam,
+                referenceText, promptNotes, "CONCEPT", "CORE", "en");
+    }
+}

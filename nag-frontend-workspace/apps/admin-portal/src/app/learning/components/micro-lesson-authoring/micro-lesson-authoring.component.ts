@@ -55,6 +55,10 @@ export class MicroLessonAuthoringComponent implements OnInit {
 
   readonly examOptions = signal<TargetExamOption[]>(DEFAULT_EXAM_OPTIONS);
   readonly targetExam = signal<string>('JEE_MAIN');
+  readonly lessonType = signal<string>('CONCEPT');
+  readonly difficultyLevel = signal<string>('CORE');
+  readonly sequenceNo = signal<number>(1);
+  readonly estimatedMinutes = signal<number>(5);
   readonly status = signal<string>('APPROVED');
 
   readonly coreConcept = signal<string>(DEFAULT_CORE_CONCEPT);
@@ -113,6 +117,10 @@ export class MicroLessonAuthoringComponent implements OnInit {
         this.loadingLesson.set(false);
         const p = parseLessonForAuthoring(lesson);
         this.targetExam.set(p.targetExam);
+        this.lessonType.set(p.lessonType);
+        this.difficultyLevel.set(p.difficultyLevel);
+        this.sequenceNo.set(p.sequenceNo);
+        this.estimatedMinutes.set(p.estimatedMinutes);
         this.status.set(p.status);
         this.customSubtopicName.set(p.subtopicCustomName);
         this.coreConcept.set(p.coreConcept);
@@ -241,7 +249,11 @@ export class MicroLessonAuthoringComponent implements OnInit {
    * author to review and save as usual.
    */
   applyImportedLesson(data: ParsedAuthoringLessonState): void {
-    if (data.targetExam) this.targetExam.set(data.targetExam);
+    if (data.targetExam !== undefined) this.targetExam.set(data.targetExam);
+    if (data.lessonType) this.lessonType.set(data.lessonType);
+    if (data.difficultyLevel) this.difficultyLevel.set(data.difficultyLevel);
+    if (data.sequenceNo) this.sequenceNo.set(data.sequenceNo);
+    if (data.estimatedMinutes) this.estimatedMinutes.set(data.estimatedMinutes);
     if (data.status) this.status.set(data.status);
     if (data.subtopicCustomName) this.customSubtopicName.set(data.subtopicCustomName);
     this.coreConcept.set(data.coreConcept);
@@ -269,7 +281,12 @@ export class MicroLessonAuthoringComponent implements OnInit {
       subjectId: this.selectedSubjectId(), subjectName: this.resolvedSubjectName(),
       topicId: this.selectedTopicId(), topicName: this.resolvedTopicName(),
       subtopicId: this.selectedSubtopicId(), subtopicName: this.resolvedSubtopicName(),
-      targetExam: this.targetExam(), status: this.status(), coreConcept: this.coreConcept(),
+      targetExam: this.targetExam(),
+      lessonType: this.lessonType(),
+      difficultyLevel: this.difficultyLevel(),
+      sequenceNo: this.sequenceNo(),
+      estimatedMinutes: this.estimatedMinutes(),
+      status: this.status(), coreConcept: this.coreConcept(),
       trapAlert: this.trapAlert(), formulaEntries: this.formulaEntries(),
       problemStatement: this.problemStatement(), steps: this.steps(), finalAnswer: this.finalAnswer(),
       keyTakeaways: this.keyTakeaways(), quickCheckItems: this.quickCheckItems(), reviewerNotes: this.reviewerNotes(),

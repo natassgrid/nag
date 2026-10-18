@@ -273,9 +273,9 @@ class DeterministicMicroLessonAgentTest {
     @DisplayName("Incorporate real sample questions from blueprint into StepByStepBreakdown")
     void testIncorporateSampleQuestionFromBlueprint() {
         Question sampleQuestion = Question.builder()
-                .subject("Physics")
-                .topic("Mechanics")
-                .subtopic("Moment of Inertia")
+                .subjectId(1L)
+                .topicId(10L)
+                .subtopicId(100L)
                 .content("Calculate the moment of inertia of a solid cylinder of mass $$2\\text{ kg}$$ and radius $$0.4\\text{ m}$$.")
                 .answerKey("0.16 \\text{ kg}\\cdot\\text{m}^2")
                 .explanation("Step 1: Formula for solid cylinder is $$I = \\frac{1}{2} M R^2$$.\nStep 2: Substitute $$M=2, R=0.4$$ to get $$I = \\frac{1}{2} \\times 2 \\times 0.16 = 0.16$$.\nStep 3: Units are $$\\text{kg}\\cdot\\text{m}^2$$.")

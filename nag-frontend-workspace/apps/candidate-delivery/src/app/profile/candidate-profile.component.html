@@ -48,6 +48,33 @@
   <!-- Top Overview Card -->
   <nag-profile-overview-card [profile]="profile()" />
 
+  <!-- Target Exam Enrollment Banner -->
+  @if (activeEnrollment(); as enr) {
+    <div class="bg-indigo-50/70 border border-indigo-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0">
+          <mat-icon class="!text-xl">track_changes</mat-icon>
+        </div>
+        <div>
+          <div class="text-[10px] font-bold uppercase tracking-wider text-indigo-700">Enrolled Target Examination</div>
+          <div class="text-sm font-bold text-slate-900">{{ enr.examinationTitle }} ({{ enr.examinationCode }})</div>
+          <div class="text-[11px] text-slate-500">
+            Target Date: {{ enr.targetDate || 'Not specified' }} &bull; Readiness Score: <span class="font-bold text-indigo-600">{{ enr.readinessScore }}%</span>
+          </div>
+        </div>
+      </div>
+      <a
+        mat-flat-button
+        routerLink="/learn/onboarding"
+        [queryParams]="{ step: 'exam-picker' }"
+        class="!bg-indigo-600 hover:!bg-indigo-700 !text-white !font-bold !rounded-xl !text-xs cursor-pointer shrink-0"
+      >
+        <mat-icon class="!text-sm">swap_horiz</mat-icon>
+        <span>Switch Target Exam</span>
+      </a>
+    </div>
+  }
+
   <!-- Tab Navigation -->
   <nag-profile-tab-nav
     [activeTab]="activeTab()"

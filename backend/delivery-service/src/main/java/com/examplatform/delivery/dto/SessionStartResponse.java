@@ -30,7 +30,7 @@ import java.util.UUID;
 
 /**
  * Response returned after a session is successfully started.
- * Contains session details, timing, navigation mode, exam title, and delivery questions.
+ * Contains session details, timing, navigation mode, exam title, structured sections, and delivery questions.
  */
 @Data
 @Builder
@@ -53,6 +53,7 @@ public class SessionStartResponse {
     private String firstQuestionContent;
     private int totalQuestions;
     private List<QuestionDeliveryDto> questions;
+    private List<SectionDeliveryDto> sections;
 
     // Dynamically configured delivery parameters
     @Builder.Default

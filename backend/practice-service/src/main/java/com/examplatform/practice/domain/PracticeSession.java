@@ -22,6 +22,12 @@ public class PracticeSession extends BaseEntity {
     @Column(name = "practice_set_id", nullable = false, columnDefinition = "uuid")
     private UUID practiceSetId;
 
+    @Column(name = "enrollment_id", columnDefinition = "uuid")
+    private UUID enrollmentId;
+
+    @Column(name = "exam_id", columnDefinition = "uuid")
+    private UUID examId;
+
     @Column(nullable = false, length = 30)
     @Builder.Default
     private String mode = "TIMED"; // TIMED | UNTIMED | SECTION_WISE

@@ -179,7 +179,7 @@ class MicroLessonAiResilienceTest {
         resilienceExecutor.getCircuitBreaker().transitionToOpenState();
         assertThat(resilienceExecutor.getCircuitBreakerState()).isEqualTo(CircuitBreaker.State.OPEN);
 
-        when(repository.findTopBySubtopicIdAndTargetExamOrderByContentVersionDesc(101L, "JEE_MAIN"))
+        when(repository.findTopBySubtopicIdOrderByContentVersionDesc(101L))
                 .thenReturn(Optional.empty());
         when(repository.save(any(SubtopicMicroLesson.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -191,7 +191,7 @@ class MicroLessonAiResilienceTest {
         );
 
         assertThat(result).isNotNull();
-        assertThat(result.getSubtopic()).isEqualTo("Angular Momentum");
+        assertThat(result.getSubtopicId()).isEqualTo(101L);
         assertThat(result.getStatus()).isEqualTo("AI_GENERATED");
         assertThat(result.getCoreConcept()).isNotBlank();
         // ChatClient should never have been invoked because circuit is open
@@ -282,7 +282,7 @@ class MicroLessonAiResilienceTest {
         when(criticAgent.review(any(), any(), any(), any())).thenReturn(unapprovedResult);
         when(refinementAgent.refine(any(), any(), any())).thenAnswer(inv -> inv.getArgument(0));
 
-        when(repository.findTopBySubtopicIdAndTargetExamOrderByContentVersionDesc(100L, "JEE_MAIN"))
+        when(repository.findTopBySubtopicIdOrderByContentVersionDesc(100L))
                 .thenReturn(Optional.empty());
         when(repository.save(any(SubtopicMicroLesson.class))).thenAnswer(inv -> inv.getArgument(0));
 

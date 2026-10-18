@@ -64,11 +64,39 @@ public class PaperSerializer {
             List<UUID> questionIds = extractQuestionIds(paper.getPaperDefinitionJson());
             List<QuestionGroup> questionGroups = extractQuestionGroups(paper.getPaperDefinitionJson());
 
+            List<PaperDocument.PaperSectionDocument> sectionDocs = new ArrayList<>();
+            if (paper.getSections() != null && !paper.getSections().isEmpty()) {
+                for (com.examplatform.papergenerator.domain.PaperSection ps : paper.getSections()) {
+                    List<PaperDocument.PaperQuestionDocument> qDocs = new ArrayList<>();
+                    if (ps.getQuestions() != null) {
+                        for (com.examplatform.papergenerator.domain.PaperQuestion pq : ps.getQuestions()) {
+                            qDocs.add(PaperDocument.PaperQuestionDocument.builder()
+                                    .questionId(pq.getQuestionId())
+                                    .position(pq.getPosition())
+                                    .subtopicId(pq.getSubtopicId())
+                                    .build());
+                        }
+                    }
+                    sectionDocs.add(PaperDocument.PaperSectionDocument.builder()
+                            .sectionId(ps.getId())
+                            .blueprintSectionId(ps.getBlueprintSectionId())
+                            .examinationSectionId(ps.getExaminationSectionId())
+                            .name(ps.getName())
+                            .orderIndex(ps.getOrderIndex())
+                            .questions(qDocs)
+                            .build());
+                }
+            }
+
             PaperDocument document = PaperDocument.builder()
                     .schemaVersion(CURRENT_SCHEMA_VERSION)
                     .examId(paper.getExamId())
                     .shiftId(paper.getShiftId())
+                    .blueprintId(paper.getBlueprintId())
+                    .blueprintVersion(paper.getBlueprintVersion())
+                    .name(paper.getName())
                     .questionIds(questionIds)
+                    .sections(sectionDocs)
                     .questionGroups(questionGroups != null ? questionGroups : new ArrayList<>())
                     .difficultyScore(paper.getDifficultyScore())
                     .generatedAt(paper.getCreatedAt() != null ? paper.getCreatedAt() : Instant.now())

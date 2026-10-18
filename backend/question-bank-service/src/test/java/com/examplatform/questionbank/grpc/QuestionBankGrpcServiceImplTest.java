@@ -12,6 +12,8 @@ import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.repository.PassageRepository;
 import com.examplatform.questionbank.repository.QuestionRepository;
 import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.examplatform.shared.taxonomy.TaxonomyClient;
+import com.examplatform.shared.taxonomy.TaxonomyNames;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.grpc.stub.StreamObserver;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,6 +29,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -41,6 +44,9 @@ class QuestionBankGrpcServiceImplTest {
     private PassageRepository passageRepository;
 
     @Mock
+    private TaxonomyClient taxonomyClient;
+
+    @Mock
     private StreamObserver<PaperQuestionsGrpcResponse> paperQuestionsObserver;
 
     @Mock
@@ -53,7 +59,7 @@ class QuestionBankGrpcServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        grpcService = new QuestionBankGrpcServiceImpl(questionRepository, passageRepository, new ObjectMapper());
+        grpcService = new QuestionBankGrpcServiceImpl(questionRepository, passageRepository, new ObjectMapper(), taxonomyClient);
     }
 
     @Test
@@ -61,6 +67,9 @@ class QuestionBankGrpcServiceImplTest {
     void getQuestionsForPaperSuccess() {
         UUID qId = UUID.randomUUID();
         Question q = Question.builder()
+                .subjectId(1L)
+                .topicId(10L)
+                .subtopicId(100L)
                 .content("What is the capital of India?")
                 .questionType("MCQ")
                 .difficulty(QuestionTaxonomyConstants.Difficulty.EASY)
@@ -68,6 +77,7 @@ class QuestionBankGrpcServiceImplTest {
         ReflectionTestUtils.setField(q, "id", qId);
 
         when(questionRepository.findByTenantId(eq("tenant-1"))).thenReturn(List.of(q));
+        when(taxonomyClient.resolveNames(any(com.examplatform.shared.taxonomy.TaxonomyNodeRef.class), any())).thenReturn(new TaxonomyNames("General Studies", "Polity", "Capitals"));
 
         PaperQuestionsGrpcRequest request = PaperQuestionsGrpcRequest.newBuilder()
                 .setPaperId(UUID.randomUUID().toString())
@@ -84,6 +94,7 @@ class QuestionBankGrpcServiceImplTest {
         assertThat(response.getQuestionsCount()).isEqualTo(1);
         assertThat(response.getQuestions(0).getId()).isEqualTo(qId.toString());
         assertThat(response.getQuestions(0).getContent()).isEqualTo("What is the capital of India?");
+        assertThat(response.getQuestions(0).getSubtopicId()).isEqualTo("100");
     }
 
     @Test
@@ -97,6 +108,9 @@ class QuestionBankGrpcServiceImplTest {
         ReflectionTestUtils.setField(passage, "id", passageId);
 
         Question q = Question.builder()
+                .subjectId(1L)
+                .topicId(10L)
+                .subtopicId(100L)
                 .content("Sample question")
                 .passageId(passageId)
                 .passageOrderIndex(0)
@@ -105,6 +119,7 @@ class QuestionBankGrpcServiceImplTest {
 
         when(questionRepository.findQuestionsByIdsIn(eq(List.of(qId)), eq("tenant-1"))).thenReturn(List.of(q));
         when(passageRepository.findAllById(eq(List.of(passageId)))).thenReturn(List.of(passage));
+        when(taxonomyClient.resolveNames(any(com.examplatform.shared.taxonomy.TaxonomyNodeRef.class), any())).thenReturn(new TaxonomyNames("English", "Comprehension", "Passage Analysis"));
 
         BatchFindQuestionsGrpcRequest request = BatchFindQuestionsGrpcRequest.newBuilder()
                 .addQuestionIds(qId.toString())
@@ -131,8 +146,9 @@ class QuestionBankGrpcServiceImplTest {
     void matchBlueprintSuccess() {
         UUID qId = UUID.randomUUID();
         Question q = Question.builder()
-                .subject("Physics")
-                .topic("Thermodynamics")
+                .subjectId(101L)
+                .topicId(202L)
+                .subtopicId(303L)
                 .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
                 .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.APPLY)
                 .content("Calculate entropy change...")
@@ -141,13 +157,15 @@ class QuestionBankGrpcServiceImplTest {
         ReflectionTestUtils.setField(q, "id", qId);
 
         when(questionRepository.findBlueprintQuestions(
-                eq("Physics"), eq("Thermodynamics"), eq(QuestionTaxonomyConstants.Difficulty.MEDIUM), eq(
+                eq(101L), eq(202L), eq(303L), eq(QuestionTaxonomyConstants.Difficulty.MEDIUM), eq(
                 QuestionTaxonomyConstants.CognitiveLevel.APPLY), eq("tenant-1")
         )).thenReturn(List.of(q));
+        when(taxonomyClient.resolveNames(any(com.examplatform.shared.taxonomy.TaxonomyNodeRef.class), any())).thenReturn(new TaxonomyNames("Physics", "Thermodynamics", "Entropy"));
 
         BlueprintMatchGrpcRequest request = BlueprintMatchGrpcRequest.newBuilder()
-                .setSubject("Physics")
-                .setTopic("Thermodynamics")
+                .setSubjectId(101L)
+                .setTopicId(202L)
+                .setSubtopicId(303L)
                 .setDifficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
                 .setCognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.APPLY)
                 .setTenantId("tenant-1")
@@ -164,9 +182,13 @@ class QuestionBankGrpcServiceImplTest {
         assertThat(response.getQuestions(0).getId()).isEqualTo(qId.toString());
         assertThat(response.getQuestions(0).getSubject()).isEqualTo("Physics");
         assertThat(response.getQuestions(0).getTopic()).isEqualTo("Thermodynamics");
+        assertThat(response.getQuestions(0).getSubtopic()).isEqualTo("Entropy");
+        assertThat(response.getQuestions(0).getSubjectId()).isEqualTo("101");
+        assertThat(response.getQuestions(0).getTopicId()).isEqualTo("202");
+        assertThat(response.getQuestions(0).getSubtopicId()).isEqualTo("303");
         assertThat(response.getQuestions(0).getDifficulty()).isEqualTo(QuestionTaxonomyConstants.Difficulty.MEDIUM);
         assertThat(response.getQuestions(0).getCognitiveLevel()).isEqualTo(
-            QuestionTaxonomyConstants.CognitiveLevel.APPLY);
+                QuestionTaxonomyConstants.CognitiveLevel.APPLY);
         assertThat(response.getQuestions(0).getUsageCount()).isEqualTo(3);
     }
 
@@ -175,25 +197,28 @@ class QuestionBankGrpcServiceImplTest {
     void matchBlueprintFallbackSuccess() {
         UUID qId = UUID.randomUUID();
         Question q = Question.builder()
-                .subject("Physics")
-                .topic("Thermodynamics")
+                .subjectId(101L)
+                .topicId(202L)
+                .subtopicId(303L)
                 .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
                 .content("Fallback question...")
                 .build();
         ReflectionTestUtils.setField(q, "id", qId);
 
         when(questionRepository.findBlueprintQuestions(
-                eq("Physics"), eq("Thermodynamics"), eq(QuestionTaxonomyConstants.Difficulty.MEDIUM), eq(
+                eq(101L), eq(202L), eq(303L), eq(QuestionTaxonomyConstants.Difficulty.MEDIUM), eq(
                 QuestionTaxonomyConstants.CognitiveLevel.APPLY), eq("tenant-1")
         )).thenReturn(List.of());
 
         when(questionRepository.findBlueprintQuestionsFallback(
-                eq("Physics"), eq("Thermodynamics"), eq(QuestionTaxonomyConstants.Difficulty.MEDIUM), eq("tenant-1")
+                eq(101L), eq(202L), eq(303L), eq(QuestionTaxonomyConstants.Difficulty.MEDIUM), eq("tenant-1")
         )).thenReturn(List.of(q));
+        when(taxonomyClient.resolveNames(any(com.examplatform.shared.taxonomy.TaxonomyNodeRef.class), any())).thenReturn(new TaxonomyNames("Physics", "Thermodynamics", "Fallback"));
 
         BlueprintMatchGrpcRequest request = BlueprintMatchGrpcRequest.newBuilder()
-                .setSubject("Physics")
-                .setTopic("Thermodynamics")
+                .setSubjectId(101L)
+                .setTopicId(202L)
+                .setSubtopicId(303L)
                 .setDifficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
                 .setCognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.APPLY)
                 .setTenantId("tenant-1")

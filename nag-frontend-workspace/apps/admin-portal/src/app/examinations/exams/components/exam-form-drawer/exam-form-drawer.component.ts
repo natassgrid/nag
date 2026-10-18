@@ -3,6 +3,8 @@ import {
   ChangeDetectionStrategy,
   input,
   output,
+  signal,
+  inject,
   OnChanges,
   SimpleChanges,
 } from '@angular/core';
@@ -13,10 +15,17 @@ import {
   ExaminationResponse,
   CreateExamRequest,
   ExamSection,
+  ExamSyllabusNode,
+  ExaminationService,
 } from '@nag-frontend-workspace/examinations-data-access';
+import {
+  BlueprintTemplateService,
+  TaxonomyStore,
+} from '@nag-frontend-workspace/questions-data-access';
 import { ExamFormGeneralComponent } from '../exam-form-general/exam-form-general.component';
 import { ExamFormRulesComponent } from '../exam-form-rules/exam-form-rules.component';
 import { ExamFormSectionsComponent } from '../exam-form-sections/exam-form-sections.component';
+import { ExamFormSyllabusComponent } from '../exam-form-syllabus/exam-form-syllabus.component';
 
 @Component({
   selector: 'nag-exam-form-drawer',
@@ -28,18 +37,27 @@ import { ExamFormSectionsComponent } from '../exam-form-sections/exam-form-secti
     ExamFormGeneralComponent,
     ExamFormRulesComponent,
     ExamFormSectionsComponent,
+    ExamFormSyllabusComponent,
   ],
   templateUrl: './exam-form-drawer.component.html',
   styleUrl: './exam-form-drawer.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ExamFormDrawerComponent implements OnChanges {
+  private readonly blueprintService = inject(BlueprintTemplateService);
+  private readonly taxonomyStore = inject(TaxonomyStore);
+  private readonly examService = inject(ExaminationService);
+
   readonly isOpen = input<boolean>(false);
   readonly editingExam = input<ExaminationResponse | null>(null);
   readonly isSaving = input<boolean>(false);
 
   readonly closeDrawer = output<void>();
   readonly saveExam = output<CreateExamRequest>();
+
+  readonly availableBlueprints = signal<Array<{ id: string; name: string; code?: string }>>([]);
+  readonly taxonomyTree = this.taxonomyStore.tree;
+  readonly taxonomySubjects = this.taxonomyStore.subjects;
 
   formName = '';
   formCode = '';
@@ -56,6 +74,8 @@ export class ExamFormDrawerComponent implements OnChanges {
   formCalcPolicy = 'NONE';
   formReviewFlag = true;
   formIsPractice = false;
+  formBlueprintId = '';
+  formSyllabusNodes: ExamSyllabusNode[] = [];
   formSections: ExamSection[] = [
     { name: 'Physics', questionCount: 25, marksPerQuestion: 4 },
     { name: 'Chemistry', questionCount: 25, marksPerQuestion: 4 },
@@ -63,6 +83,13 @@ export class ExamFormDrawerComponent implements OnChanges {
   ];
 
   ngOnChanges(changes: SimpleChanges): void {
+    if (changes['isOpen'] && this.isOpen()) {
+      this.loadBlueprints();
+      if (this.taxonomyTree().length === 0) {
+        this.taxonomyStore.loadTree().subscribe();
+      }
+    }
+
     if (changes['isOpen'] || changes['editingExam']) {
       const exam = this.editingExam();
       if (exam) {
@@ -81,13 +108,49 @@ export class ExamFormDrawerComponent implements OnChanges {
         this.formCalcPolicy = this.normalizeCalcPolicy(exam.calculatorPolicy);
         this.formReviewFlag = !!exam.reviewFlagEnabled;
         this.formIsPractice = !!exam.isPractice;
+        this.formBlueprintId = exam.blueprintId || '';
+        this.formSyllabusNodes = exam.syllabusNodes?.length
+          ? JSON.parse(JSON.stringify(exam.syllabusNodes))
+          : [];
+
         this.formSections = exam.sections?.length
           ? JSON.parse(JSON.stringify(exam.sections))
           : [{ name: 'General Section', questionCount: 50, marksPerQuestion: 2 }];
+
+        // Load persisted syllabus nodes if not on root object
+        if (exam.id && this.formSyllabusNodes.length === 0) {
+          this.examService.getSyllabus(exam.id).subscribe({
+            next: (s) => {
+              if (s?.nodes && Array.isArray(s.nodes)) {
+                this.formSyllabusNodes = s.nodes;
+              }
+            },
+            error: () => {
+              // Silently ignore if syllabus not yet saved
+            },
+          });
+        }
       } else {
         this.resetForm();
       }
     }
+  }
+
+  loadBlueprints(): void {
+    this.blueprintService.listTemplates().subscribe({
+      next: (list) => {
+        this.availableBlueprints.set(
+          (list || []).map((b) => ({
+            id: String(b.id),
+            name: b.name,
+            code: (b as any).code,
+          }))
+        );
+      },
+      error: () => {
+        // Fallback or empty
+      },
+    });
   }
 
   onClose(): void {
@@ -130,7 +193,9 @@ export class ExamFormDrawerComponent implements OnChanges {
       calculatorPolicy: this.formCalcPolicy,
       reviewFlagEnabled: this.formReviewFlag,
       isPractice: this.formIsPractice,
+      blueprintId: this.formBlueprintId.trim() || undefined,
       sections: this.formSections,
+      syllabusNodes: this.formSyllabusNodes,
     };
 
     this.saveExam.emit(payload);
@@ -152,6 +217,8 @@ export class ExamFormDrawerComponent implements OnChanges {
     this.formCalcPolicy = 'NONE';
     this.formReviewFlag = true;
     this.formIsPractice = false;
+    this.formBlueprintId = '';
+    this.formSyllabusNodes = [];
     this.formSections = [
       { name: 'Physics', questionCount: 25, marksPerQuestion: 4 },
       { name: 'Chemistry', questionCount: 25, marksPerQuestion: 4 },

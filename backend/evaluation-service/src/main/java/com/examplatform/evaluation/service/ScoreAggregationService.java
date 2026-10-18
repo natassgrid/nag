@@ -21,6 +21,8 @@ package com.examplatform.evaluation.service;
 
 import com.examplatform.evaluation.domain.Evaluation;
 import com.examplatform.evaluation.dto.AggregatedScoreResult;
+import com.examplatform.evaluation.dto.SectionScoreBreakdown;
+import com.examplatform.evaluation.dto.TaxonomyScoreBreakdown;
 import com.examplatform.evaluation.repository.EvaluationRepository;
 import com.examplatform.shared.constants.MessagingConstants;
 import com.examplatform.shared.constants.SharedConstants;
@@ -34,6 +36,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -97,12 +100,101 @@ public class ScoreAggregationService {
                 .map(Evaluation::getMaxMarks)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        // Compute section-wise scores (grouped by evaluationType)
+        // Compute section-wise scores
         Map<String, BigDecimal> sectionScores = evaluations.stream()
                 .collect(Collectors.groupingBy(
-                        e -> e.getEvaluationType().name(),
+                        e -> {
+                            if (e.getSectionName() != null && !e.getSectionName().isBlank()) {
+                                return e.getSectionName();
+                            }
+                            if (e.getSectionId() != null) {
+                                return e.getSectionId().toString();
+                            }
+                            return e.getEvaluationType().name();
+                        },
                         Collectors.reducing(BigDecimal.ZERO, Evaluation::getScore, BigDecimal::add)
                 ));
+
+        // Compute structured section breakdowns
+        Map<String, List<Evaluation>> bySection = evaluations.stream()
+                .collect(Collectors.groupingBy(e -> {
+                    if (e.getSectionId() != null) return e.getSectionId().toString();
+                    if (e.getSectionName() != null && !e.getSectionName().isBlank()) return e.getSectionName();
+                    return "default";
+                }, LinkedHashMap::new, Collectors.toList()));
+
+        List<SectionScoreBreakdown> sectionBreakdowns = bySection.values().stream().map(list -> {
+            Evaluation first = list.get(0);
+            UUID secId = first.getSectionId();
+            String secName = first.getSectionName();
+            BigDecimal secScore = list.stream().map(Evaluation::getScore).reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal secMax = list.stream().map(Evaluation::getMaxMarks).reduce(BigDecimal.ZERO, BigDecimal::add);
+            int qCount = list.size();
+            int attempted = (int) list.stream().filter(e -> e.getScore() != null && e.getScore().compareTo(BigDecimal.ZERO) != 0).count();
+            int correct = (int) list.stream().filter(e -> e.getScore() != null && e.getScore().compareTo(BigDecimal.ZERO) > 0).count();
+            BigDecimal accuracy = qCount > 0
+                    ? BigDecimal.valueOf(correct * 100.0 / qCount).setScale(2, RoundingMode.HALF_UP)
+                    : BigDecimal.ZERO;
+            return new SectionScoreBreakdown(
+                    secId, secName,
+                    secScore.setScale(2, RoundingMode.HALF_UP),
+                    secMax.setScale(2, RoundingMode.HALF_UP),
+                    qCount, attempted, correct, accuracy);
+        }).toList();
+
+        // Compute topic breakdowns
+        Map<String, List<Evaluation>> byTopic = evaluations.stream()
+                .filter(e -> e.getTopicId() != null || (e.getTopic() != null && !e.getTopic().isBlank()))
+                .collect(Collectors.groupingBy(e -> {
+                    if (e.getTopicId() != null) return String.valueOf(e.getTopicId());
+                    return e.getTopic();
+                }, LinkedHashMap::new, Collectors.toList()));
+
+        List<TaxonomyScoreBreakdown> topicBreakdowns = byTopic.values().stream().map(list -> {
+            Evaluation first = list.get(0);
+            BigDecimal tScore = list.stream().map(Evaluation::getScore).reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal tMax = list.stream().map(Evaluation::getMaxMarks).reduce(BigDecimal.ZERO, BigDecimal::add);
+            int qCount = list.size();
+            int attempted = (int) list.stream().filter(e -> e.getScore() != null && e.getScore().compareTo(BigDecimal.ZERO) != 0).count();
+            int correct = (int) list.stream().filter(e -> e.getScore() != null && e.getScore().compareTo(BigDecimal.ZERO) > 0).count();
+            BigDecimal accuracy = qCount > 0
+                    ? BigDecimal.valueOf(correct * 100.0 / qCount).setScale(2, RoundingMode.HALF_UP)
+                    : BigDecimal.ZERO;
+            return new TaxonomyScoreBreakdown(
+                    first.getSubjectId(), first.getSubject(),
+                    first.getTopicId(), first.getTopic(),
+                    null, null,
+                    tScore.setScale(2, RoundingMode.HALF_UP),
+                    tMax.setScale(2, RoundingMode.HALF_UP),
+                    qCount, attempted, correct, accuracy);
+        }).toList();
+
+        // Compute subtopic breakdowns
+        Map<String, List<Evaluation>> bySubtopic = evaluations.stream()
+                .filter(e -> e.getSubtopicId() != null || (e.getSubtopic() != null && !e.getSubtopic().isBlank()))
+                .collect(Collectors.groupingBy(e -> {
+                    if (e.getSubtopicId() != null) return String.valueOf(e.getSubtopicId());
+                    return e.getSubtopic();
+                }, LinkedHashMap::new, Collectors.toList()));
+
+        List<TaxonomyScoreBreakdown> subtopicBreakdowns = bySubtopic.values().stream().map(list -> {
+            Evaluation first = list.get(0);
+            BigDecimal stScore = list.stream().map(Evaluation::getScore).reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal stMax = list.stream().map(Evaluation::getMaxMarks).reduce(BigDecimal.ZERO, BigDecimal::add);
+            int qCount = list.size();
+            int attempted = (int) list.stream().filter(e -> e.getScore() != null && e.getScore().compareTo(BigDecimal.ZERO) != 0).count();
+            int correct = (int) list.stream().filter(e -> e.getScore() != null && e.getScore().compareTo(BigDecimal.ZERO) > 0).count();
+            BigDecimal accuracy = qCount > 0
+                    ? BigDecimal.valueOf(correct * 100.0 / qCount).setScale(2, RoundingMode.HALF_UP)
+                    : BigDecimal.ZERO;
+            return new TaxonomyScoreBreakdown(
+                    first.getSubjectId(), first.getSubject(),
+                    first.getTopicId(), first.getTopic(),
+                    first.getSubtopicId(), first.getSubtopic(),
+                    stScore.setScale(2, RoundingMode.HALF_UP),
+                    stMax.setScale(2, RoundingMode.HALF_UP),
+                    qCount, attempted, correct, accuracy);
+        }).toList();
 
         AggregatedScoreResult result = new AggregatedScoreResult(
                 sessionId.toString(),
@@ -111,7 +203,10 @@ public class ScoreAggregationService {
                 totalMaxMarks.setScale(2, RoundingMode.HALF_UP),
                 sectionScores,
                 evaluations.size(),
-                tenantId
+                tenantId,
+                sectionBreakdowns,
+                topicBreakdowns,
+                subtopicBreakdowns
         );
 
         // Publish aggregation event
@@ -139,6 +234,15 @@ public class ScoreAggregationService {
             event.put("totalRawScore", aggregation.totalRawScore());
             event.put("totalMaxMarks", aggregation.totalMaxMarks());
             event.put("sectionScores", aggregation.sectionScores());
+            if (aggregation.sectionBreakdowns() != null) {
+                event.put("sectionBreakdowns", aggregation.sectionBreakdowns());
+            }
+            if (aggregation.topicBreakdowns() != null) {
+                event.put("topicBreakdowns", aggregation.topicBreakdowns());
+            }
+            if (aggregation.subtopicBreakdowns() != null) {
+                event.put("subtopicBreakdowns", aggregation.subtopicBreakdowns());
+            }
             event.put("evaluationCount", aggregation.evaluationCount());
             event.put(SharedConstants.TENANT_ID, aggregation.tenantId());
             event.put(SharedConstants.OCCURRED_AT, Instant.now().toString());
@@ -162,11 +266,21 @@ public class ScoreAggregationService {
         try {
             // Build question-level score entries
             List<Map<String, Object>> questionLevelScores = evaluations.stream()
-                    .map(e -> Map.<String, Object>of(
-                        SharedConstants.QUESTION_ID, e.getQuestionId().toString(),
-                            "score", e.getScore(),
-                            "maxMarks", e.getMaxMarks()
-                    ))
+                    .map(e -> {
+                        Map<String, Object> map = new HashMap<>();
+                        map.put(SharedConstants.QUESTION_ID, e.getQuestionId().toString());
+                        map.put("score", e.getScore());
+                        map.put("maxMarks", e.getMaxMarks());
+                        if (e.getSectionId() != null) map.put("sectionId", e.getSectionId().toString());
+                        if (e.getSectionName() != null) map.put("sectionName", e.getSectionName());
+                        if (e.getSubjectId() != null) map.put("subjectId", e.getSubjectId());
+                        if (e.getSubject() != null) map.put("subject", e.getSubject());
+                        if (e.getTopicId() != null) map.put("topicId", e.getTopicId());
+                        if (e.getTopic() != null) map.put("topic", e.getTopic());
+                        if (e.getSubtopicId() != null) map.put("subtopicId", e.getSubtopicId());
+                        if (e.getSubtopic() != null) map.put("subtopic", e.getSubtopic());
+                        return map;
+                    })
                     .toList();
 
             Map<String, Object> event = new java.util.HashMap<>();
@@ -176,6 +290,15 @@ public class ScoreAggregationService {
             event.put("examId", examId != null ? examId.toString() : "");
             event.put("totalRawScore", aggregation.totalRawScore());
             event.put("sectionScores", aggregation.sectionScores() != null ? aggregation.sectionScores() : java.util.Map.of());
+            if (aggregation.sectionBreakdowns() != null) {
+                event.put("sectionBreakdowns", aggregation.sectionBreakdowns());
+            }
+            if (aggregation.topicBreakdowns() != null) {
+                event.put("topicBreakdowns", aggregation.topicBreakdowns());
+            }
+            if (aggregation.subtopicBreakdowns() != null) {
+                event.put("subtopicBreakdowns", aggregation.subtopicBreakdowns());
+            }
             event.put("questionLevelScores", questionLevelScores);
             event.put(SharedConstants.TENANT_ID, tenantId);
             event.put("evaluatedAt", java.time.Instant.now().toString());

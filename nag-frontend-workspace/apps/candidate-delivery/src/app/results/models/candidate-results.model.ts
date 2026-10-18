@@ -1,11 +1,40 @@
+export interface SubtopicScoreBreakdown {
+  subtopicId: number;
+  subtopicName: string;
+  marksObtained: number;
+  maxMarks: number;
+  accuracyRate: number;
+  questionsAttempted: number;
+  questionsTotal: number;
+}
+
+export interface TopicScoreBreakdown {
+  topicId: number;
+  topicName: string;
+  marksObtained: number;
+  maxMarks: number;
+  accuracyRate: number;
+  questionsAttempted: number;
+  questionsTotal: number;
+  subtopics?: SubtopicScoreBreakdown[];
+}
+
 export interface SubjectScore {
+  sectionId?: string | number;
+  sectionName?: string;
+  subjectId?: number;
   subject: string;
+  topicId?: number;
+  subtopicId?: number;
+  topicName?: string;
+  subtopicName?: string;
   marksObtained: number;
   maxMarks: number;
   accuracyRate: number;
   questionsAttempted: number;
   questionsTotal: number;
   cutoffMarks?: number;
+  topics?: TopicScoreBreakdown[];
 }
 
 export interface ScorecardRecord {

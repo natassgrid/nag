@@ -38,7 +38,7 @@ spring:
             - id: candidate-service
               uri: ${CANDIDATE_SERVICE_URI:http://localhost:8082}
               predicates:
-                - Path=/api/v1/candidates/**
+                - Path=/api/v1/candidates/**,/api/v1/learner/**
               filters:
                 - StripPrefix=0
 
@@ -193,7 +193,7 @@ spring:
             - id: recommendation-service
               uri: ${RECOMMENDATION_SERVICE_URI:http://localhost:8098}
               predicates:
-                - Path=/api/recommendations/**,/api/learning-path/**
+                - Path=/api/recommendations/**,/api/learning-path/**,/api/v1/learning/**
               filters:
                 - StripPrefix=0
 

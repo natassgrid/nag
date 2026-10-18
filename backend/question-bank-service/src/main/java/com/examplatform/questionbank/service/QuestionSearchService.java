@@ -14,14 +14,20 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 package com.examplatform.questionbank.service;
 
 import com.examplatform.questionbank.domain.Question;
+import com.examplatform.questionbank.domain.Subject;
 import com.examplatform.questionbank.dto.QuestionResponse;
 import com.examplatform.questionbank.repository.QuestionRepository;
+import com.examplatform.questionbank.repository.SubjectRepository;
 import com.examplatform.shared.constants.QuestionStateConstants;
+import com.examplatform.shared.taxonomy.TaxonomyClient;
+import com.examplatform.shared.taxonomy.TaxonomyNames;
+import com.examplatform.shared.taxonomy.TaxonomyNodeRef;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -36,10 +42,7 @@ import java.util.stream.Collectors;
 
 /**
  * Full-text search service for questions.
- * Falls back to JPA LIKE queries when OpenSearch is unavailable.
- * Production deployment should use OpenSearch for sub-2-second p95 response.
- *
- * Validates: Requirements 19.3, 26.5
+ * Falls back to JPA queries when OpenSearch is unavailable.
  */
 @Slf4j
 @Service
@@ -47,39 +50,45 @@ import java.util.stream.Collectors;
 public class QuestionSearchService {
 
     private final QuestionRepository questionRepository;
+    private final SubjectRepository subjectRepository;
+    private final TaxonomyClient taxonomyClient;
 
     /**
      * Search questions by query text, subject, and difficulty.
-     * Currently uses JPA fallback with smart multi-field matching on metadata and content.
-     * Production: replace with OpenSearch client call for 100M+ question support.
-     *
-     * @param query      free-text search query
-     * @param subject    optional subject filter
-     * @param difficulty optional difficulty filter
-     * @param page       page number (0-based)
-     * @param size       page size
-     * @param tenantId   tenant identifier
-     * @return paginated question results
      */
     public Page<QuestionResponse> search(String query, String subject, String difficulty,
                                          int page, int size, String tenantId) {
         log.debug("Searching questions: query='{}', subject='{}', difficulty='{}', tenant={}",
                 query, subject, difficulty, tenantId);
 
-        // JPA fallback: filter by subject and state=PUBLISHED, then apply LIKE on topic/content
-        List<Question> allMatches = questionRepository
-                .findBySubjectAndStateAndTenantId(
-                        subject != null ? subject : "%",
-                    QuestionStateConstants.PUBLISHED,
-                        tenantId);
+        List<Question> allMatches;
+        Long subjectId = null;
+        if (subject != null && !subject.isBlank() && !"%".equals(subject)) {
+            try {
+                subjectId = Long.parseLong(subject.trim());
+            } catch (NumberFormatException e) {
+                subjectId = subjectRepository.findByNameAndTenantId(subject.trim(), tenantId)
+                        .or(() -> subjectRepository.findByNameAndTenantIdIsNull(subject.trim()))
+                        .map(Subject::getId)
+                        .orElse(null);
+            }
+        }
+
+        if (subjectId != null) {
+            allMatches = questionRepository.findBySubjectIdAndStateAndTenantId(
+                    subjectId, QuestionStateConstants.PUBLISHED, tenantId);
+        } else {
+            allMatches = questionRepository.findByTenantId(tenantId).stream()
+                    .filter(q -> QuestionStateConstants.PUBLISHED.equals(q.getState()))
+                    .toList();
+        }
 
         // Apply in-memory filtering for query and difficulty
         String lowerQuery = query != null ? query.toLowerCase() : "";
         List<Question> filtered = allMatches.stream()
                 .filter(q -> difficulty == null || difficulty.isBlank()
                         || difficulty.equalsIgnoreCase(q.getDifficulty()))
-                .filter(q -> lowerQuery.isBlank()
-                        || matchesQuery(q, lowerQuery))
+                .filter(q -> lowerQuery.isBlank() || matchesQuery(q, lowerQuery))
                 .toList();
 
         // Paginate
@@ -114,10 +123,7 @@ public class QuestionSearchService {
     }
 
     private boolean matchesAnyField(Question q, String queryToken) {
-        return containsIgnoreCase(q.getSubject(), queryToken)
-                || containsIgnoreCase(q.getTopic(), queryToken)
-                || containsIgnoreCase(q.getSubtopic(), queryToken)
-                || containsIgnoreCase(q.getChapter(), queryToken)
+        return containsIgnoreCase(q.getChapter(), queryToken)
                 || containsIgnoreCase(q.getDifficulty(), queryToken)
                 || containsIgnoreCase(q.getCognitiveLevel(), queryToken)
                 || containsIgnoreCase(q.getQuestionType(), queryToken)
@@ -136,14 +142,22 @@ public class QuestionSearchService {
                 ? LocalDateTime.ofInstant(question.getCreatedAt(), ZoneId.systemDefault())
                 : null;
 
+        TaxonomyNames names = null;
+        if (taxonomyClient != null) {
+            names = taxonomyClient.resolveNames(new TaxonomyNodeRef(question.getSubjectId(), question.getTopicId(), question.getSubtopicId()), question.getTenantId());
+        }
+        if (names == null) {
+            names = new TaxonomyNames(null, null, null);
+        }
+
         return QuestionResponse.builder()
                 .id(question.getId())
                 .subjectId(question.getSubjectId())
                 .topicId(question.getTopicId())
                 .subtopicId(question.getSubtopicId())
-                .subject(question.getSubject())
-                .topic(question.getTopic())
-                .subtopic(question.getSubtopic())
+                .subject(names.subjectName())
+                .topic(names.topicName())
+                .subtopic(names.subtopicName())
                 .chapter(question.getChapter())
                 .difficulty(question.getDifficulty())
                 .cognitiveLevel(question.getCognitiveLevel())

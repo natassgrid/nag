@@ -20,6 +20,7 @@
 package com.examplatform.result.consumer;
 
 import com.examplatform.result.domain.Result;
+import com.examplatform.result.dto.CandidateScoreInput;
 import com.examplatform.result.repository.ResultRepository;
 import com.examplatform.result.service.QuestionAnalyticsService;
 import com.examplatform.result.service.ResultComputationService;
@@ -30,6 +31,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
@@ -41,6 +43,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -212,5 +215,82 @@ class EvaluationCompletedConsumerTest {
     void malformedPayload_handledGracefully() {
         // Should not throw — consumer must not crash on bad messages
         consumer.onEvaluationCompleted("not-valid-json", "some-key");
+    }
+
+    @Test
+    @DisplayName("SPEC-RS3-T4: Event with section and taxonomy breakdowns passes them to CandidateScoreInput")
+    void eventWithBreakdowns_propagatesToScoreInput() throws Exception {
+        UUID secId = UUID.randomUUID();
+        Map<String, Object> secMap = Map.of(
+                "sectionId", secId.toString(),
+                "sectionName", "Chemistry Section 1",
+                "subjectId", 1003L,
+                "subject", "Chemistry",
+                "score", 30.0,
+                "maxMarks", 40.0,
+                "accuracyRate", 75.0,
+                "questionCount", 10,
+                "attemptedCount", 8,
+                "correctCount", 6
+        );
+
+        Map<String, Object> subMap = Map.ofEntries(
+                Map.entry("subjectId", 1003L),
+                Map.entry("subject", "Chemistry"),
+                Map.entry("topicId", 2003L),
+                Map.entry("topic", "Organic Chemistry"),
+                Map.entry("subtopicId", 3003L),
+                Map.entry("subtopic", "Aldehydes & Ketones"),
+                Map.entry("score", 12.0),
+                Map.entry("maxMarks", 16.0),
+                Map.entry("accuracyRate", 75.0),
+                Map.entry("questionCount", 4),
+                Map.entry("attemptedCount", 4),
+                Map.entry("correctCount", 3),
+                Map.entry("totalTimeSpentMs", 120000L)
+        );
+
+        String payload = objectMapper.writeValueAsString(Map.of(
+                "eventType", "EVALUATION_COMPLETED",
+                "sessionId", sessionId.toString(),
+                "candidateId", candidateId.toString(),
+                "examId", examId.toString(),
+                "totalRawScore", 30.0,
+                "sectionScores", Map.of("Chemistry Section 1", 30.0),
+                "sectionBreakdowns", List.of(secMap),
+                "subtopicBreakdowns", List.of(subMap),
+                SharedConstants.TENANT_ID, "default",
+                "questionLevelScores", List.of()
+        ));
+
+        Result mockResult = Result.builder()
+                .candidateId(candidateId)
+                .examId(examId)
+                .totalScore(BigDecimal.valueOf(30.0))
+                .digiLockerPushed(false)
+                .build();
+        mockResult.setTenantId("default");
+
+        when(resultRepository.findByCandidateIdAndExamIdAndTenantId(candidateId, examId, "default"))
+                .thenReturn(Optional.empty());
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<CandidateScoreInput>> captor = ArgumentCaptor.forClass(List.class);
+        when(resultComputationService.computeResults(eq(examId), captor.capture(), anyBoolean(), eq("default")))
+                .thenReturn(List.of(mockResult));
+
+        consumer.onEvaluationCompleted(payload, sessionId.toString());
+
+        List<CandidateScoreInput> capturedInputs = captor.getValue();
+        assertThat(capturedInputs).hasSize(1);
+        CandidateScoreInput input = capturedInputs.get(0);
+
+        assertThat(input.getSectionBreakdowns()).hasSize(1);
+        assertThat(input.getSectionBreakdowns().get(0).getSectionId()).isEqualTo(secId);
+        assertThat(input.getSectionBreakdowns().get(0).getSubjectId()).isEqualTo(1003L);
+
+        assertThat(input.getSubtopicBreakdowns()).hasSize(1);
+        assertThat(input.getSubtopicBreakdowns().get(0).getSubtopicId()).isEqualTo(3003L);
+        assertThat(input.getSubtopicBreakdowns().get(0).getSubtopic()).isEqualTo("Aldehydes & Ketones");
     }
 }

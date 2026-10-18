@@ -22,10 +22,18 @@ package com.examplatform.papergenerator.service;
 import com.examplatform.papergenerator.client.QuestionBankClient;
 import com.examplatform.papergenerator.crypto.CanonicalPaperManifest;
 import com.examplatform.papergenerator.crypto.MerkleTree;
+import com.examplatform.papergenerator.domain.Blueprint;
+import com.examplatform.papergenerator.domain.BlueprintSection;
 import com.examplatform.papergenerator.domain.Paper;
+import com.examplatform.papergenerator.domain.PaperQuestion;
+import com.examplatform.papergenerator.domain.PaperSection;
 import com.examplatform.papergenerator.dto.*;
+import com.examplatform.papergenerator.dto.BlueprintRule;
 import com.examplatform.papergenerator.exception.InsufficientQuestionsException;
+import com.examplatform.papergenerator.repository.BlueprintRepository;
+import com.examplatform.papergenerator.repository.PaperQuestionRepository;
 import com.examplatform.papergenerator.repository.PaperRepository;
+import com.examplatform.papergenerator.repository.PaperSectionRepository;
 import com.examplatform.shared.constants.MessagingConstants;
 import com.examplatform.shared.constants.QuestionStateConstants;
 import com.examplatform.shared.constants.QuestionTaxonomyConstants;
@@ -33,6 +41,7 @@ import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -50,8 +59,8 @@ import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_
 
 /**
  * Service responsible for blueprint-driven paper assembly and feasibility verification.
- * Selects questions satisfying subject/topic/difficulty/cognitive ratios,
- * enforces reuse policies, computes difficulty scores, preserves comprehension passage groups,
+ * Selects questions satisfying subject/topic/subtopic/difficulty/cognitive ratios,
+ * enforces reuse policies, builds structured PaperDocument sections,
  * calculates cryptographic Merkle tree root hashes, and alerts admins on question deficits.
  *
  * Validates: Requirements 8.1, 8.2, 8.3, 8.4, 8.5, Issue #156
@@ -75,6 +84,9 @@ public class PaperAssemblyService {
     private final EventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
     private final ExaminationLookupService examinationLookupService;
+    private final PaperSectionRepository paperSectionRepository;
+    private final PaperQuestionRepository paperQuestionRepository;
+    private final BlueprintRepository blueprintRepository;
 
     @Autowired
     public PaperAssemblyService(
@@ -82,12 +94,27 @@ public class PaperAssemblyService {
             PaperRepository paperRepository,
             EventPublisher eventPublisher,
             ObjectMapper objectMapper,
-            @Nullable ExaminationLookupService examinationLookupService) {
+            @Nullable ExaminationLookupService examinationLookupService,
+            @Autowired(required = false) PaperSectionRepository paperSectionRepository,
+            @Autowired(required = false) PaperQuestionRepository paperQuestionRepository,
+            @Autowired(required = false) BlueprintRepository blueprintRepository) {
         this.questionBankClient = questionBankClient;
         this.paperRepository = paperRepository;
         this.eventPublisher = eventPublisher;
         this.objectMapper = objectMapper;
         this.examinationLookupService = examinationLookupService;
+        this.paperSectionRepository = paperSectionRepository;
+        this.paperQuestionRepository = paperQuestionRepository;
+        this.blueprintRepository = blueprintRepository;
+    }
+
+    public PaperAssemblyService(
+            QuestionBankClient questionBankClient,
+            PaperRepository paperRepository,
+            EventPublisher eventPublisher,
+            ObjectMapper objectMapper,
+            @Nullable ExaminationLookupService examinationLookupService) {
+        this(questionBankClient, paperRepository, eventPublisher, objectMapper, examinationLookupService, null, null, null);
     }
 
     public PaperAssemblyService(
@@ -95,12 +122,13 @@ public class PaperAssemblyService {
             PaperRepository paperRepository,
             EventPublisher eventPublisher,
             ObjectMapper objectMapper) {
-        this(questionBankClient, paperRepository, eventPublisher, objectMapper, null);
+        this(questionBankClient, paperRepository, eventPublisher, objectMapper, null, null, null, null);
     }
 
     /**
      * Checks blueprint rules against current question bank availability without generating a paper.
      * Evaluates question reuse policies, computes surpluses/deficits, and optionally alerts admins on deficit.
+     * Granularity is evaluated at subtopic level when provided.
      *
      * @param rules       the list of blueprint rules to evaluate
      * @param examId      optional exam UUID for context
@@ -145,9 +173,13 @@ public class PaperAssemblyService {
             int needed = rule.getQuestionCount();
             totalNeeded += needed;
 
-            List<QuestionSummary> candidates = questionBankClient.findAvailableQuestions(
-                    rule.getSubject(), rule.getTopic(),
-                    rule.getDifficulty(), rule.getCognitiveLevel(), tenantId);
+            List<QuestionSummary> candidates = (rule.getSubjectId() != null)
+                    ? questionBankClient.findAvailableQuestions(
+                            rule.getSubjectId(), rule.getTopicId(), rule.getSubtopicId(),
+                            rule.getDifficulty(), rule.getCognitiveLevel(), tenantId)
+                    : questionBankClient.findAvailableQuestions(
+                            rule.getSubject(), rule.getTopic(),
+                            rule.getDifficulty(), rule.getCognitiveLevel(), tenantId);
 
             List<QuestionSummary> eligible = candidates.stream()
                     .filter(this::isEligibleForReuse)
@@ -158,12 +190,16 @@ public class PaperAssemblyService {
 
             if (available < needed) {
                 int deficit = needed - available;
-                log.warn("Blueprint rule deficit detected: subject={}, topic={}, difficulty={}, needed={}, available={}, deficit={}",
-                        rule.getSubject(), rule.getTopic(), rule.getDifficulty(), needed, available, deficit);
+                log.warn("Blueprint rule deficit detected: subjectId={}, topicId={}, subtopicId={}, needed={}, available={}, deficit={}",
+                        rule.getSubjectId(), rule.getTopicId(), rule.getSubtopicId(), needed, available, deficit);
 
                 GapDetail gap = GapDetail.builder()
+                        .subjectId(rule.getSubjectId())
+                        .topicId(rule.getTopicId())
+                        .subtopicId(rule.getSubtopicId())
                         .subject(rule.getSubject())
                         .topic(rule.getTopic())
+                        .subtopic(rule.getSubtopic())
                         .difficulty(rule.getDifficulty())
                         .needed(needed)
                         .available(available)
@@ -171,8 +207,12 @@ public class PaperAssemblyService {
                 gapDetails.add(gap);
 
                 ruleDetails.add(RuleFeasibilityDetail.builder()
+                        .subjectId(rule.getSubjectId())
+                        .topicId(rule.getTopicId())
+                        .subtopicId(rule.getSubtopicId())
                         .subject(rule.getSubject())
                         .topic(rule.getTopic())
+                        .subtopic(rule.getSubtopic())
                         .difficulty(rule.getDifficulty())
                         .cognitiveLevel(rule.getCognitiveLevel())
                         .needed(needed)
@@ -184,8 +224,12 @@ public class PaperAssemblyService {
             } else {
                 int surplus = available - needed;
                 ruleDetails.add(RuleFeasibilityDetail.builder()
+                        .subjectId(rule.getSubjectId())
+                        .topicId(rule.getTopicId())
+                        .subtopicId(rule.getSubtopicId())
                         .subject(rule.getSubject())
                         .topic(rule.getTopic())
+                        .subtopic(rule.getSubtopic())
                         .difficulty(rule.getDifficulty())
                         .cognitiveLevel(rule.getCognitiveLevel())
                         .needed(needed)
@@ -228,7 +272,57 @@ public class PaperAssemblyService {
     }
 
     /**
-     * Generates a paper from the given blueprint request.
+     * ID-based sufficiency check: verifies whether all rules of a saved blueprint can be satisfied,
+     * scaled by shift count and buffer.
+     */
+    @Transactional(readOnly = true)
+    public BlueprintFeasibilityResponse checkBlueprintSufficiencyById(
+            UUID blueprintId,
+            @Nullable UUID examId,
+            @Nullable Integer shifts,
+            String tenantId,
+            boolean notifyAdmin) {
+
+        if (blueprintRepository == null) {
+            return checkBlueprintSufficiency(List.of(), examId, null, tenantId, notifyAdmin);
+        }
+
+        Optional<Blueprint> bpOpt = blueprintRepository.findVisibleById(blueprintId, tenantId);
+        if (bpOpt.isEmpty()) {
+            throw new EntityNotFoundException("Blueprint not found: " + blueprintId);
+        }
+
+        Blueprint bp = bpOpt.get();
+        int shiftMultiplier = (shifts != null && shifts > 1) ? shifts : 1;
+        List<BlueprintRule> rules = new ArrayList<>();
+
+        if (bp.getSections() != null) {
+            for (BlueprintSection s : bp.getSections()) {
+                if (s.getRules() != null) {
+                    for (com.examplatform.papergenerator.domain.BlueprintRule r : s.getRules()) {
+                        rules.add(BlueprintRule.builder()
+                                .id(r.getId())
+                                .subjectId(r.getSubjectId())
+                                .topicId(r.getTopicId())
+                                .subtopicId(r.getSubtopicId())
+                                .subject(s.getName())
+                                .difficulty(r.getDifficulty())
+                                .cognitiveLevel(r.getCognitiveLevel())
+                                .questionCount(r.getQuestionCount() * shiftMultiplier)
+                                .marksOverride(r.getMarksOverride())
+                                .orderIndex(r.getOrderIndex())
+                                .build());
+                    }
+                }
+            }
+        }
+
+        return checkBlueprintSufficiency(rules, examId, null, tenantId, notifyAdmin);
+    }
+
+    /**
+     * Generates a paper from the given blueprint request, preserving relational sections
+     * and recording question positions and subtopic snapshots.
      */
     public Paper generatePaper(PaperGenerationRequest request, UUID generatedBy, String tenantId) {
         log.info("Starting paper generation for examId={}, shiftId={}, isPractice={}, tenantId={}",
@@ -237,39 +331,134 @@ public class PaperAssemblyService {
         List<UUID> selectedQuestionIds = new ArrayList<>();
         List<QuestionSummary> allSelectedQuestions = new ArrayList<>();
         List<GapDetail> gapDetails = new ArrayList<>();
+        List<PaperSection> paperSections = new ArrayList<>();
 
-        for (BlueprintRule rule : request.getBlueprintRules()) {
-            List<QuestionSummary> candidates = questionBankClient.findAvailableQuestions(
-                    rule.getSubject(), rule.getTopic(),
-                    rule.getDifficulty(), rule.getCognitiveLevel(), tenantId);
+        UUID blueprintId = request.getBlueprintId();
+        int blueprintVersion = 1;
+        int globalPos = 1;
 
-            // Enforce reuse policies
-            List<QuestionSummary> eligible = candidates.stream()
-                    .filter(this::isEligibleForReuse)
-                    .toList();
+        if (blueprintId != null && blueprintRepository != null) {
+            Optional<Blueprint> bpOpt = blueprintRepository.findVisibleById(blueprintId, tenantId);
+            if (bpOpt.isPresent()) {
+                Blueprint bp = bpOpt.get();
+                blueprintVersion = bp.getBlueprintVersion();
 
-            // Select required number of questions
-            List<QuestionSummary> selected = eligible.stream()
-                    .limit(rule.getQuestionCount())
-                    .toList();
+                if (bp.getSections() != null) {
+                    for (BlueprintSection s : bp.getSections()) {
+                        PaperSection ps = PaperSection.builder()
+                                .blueprintSectionId(s.getId())
+                                .name(s.getName())
+                                .orderIndex(s.getOrderIndex())
+                                .questions(new ArrayList<>())
+                                .build();
+                        ps.setTenantId(tenantId);
 
-            if (selected.size() < rule.getQuestionCount()) {
-                log.warn("Insufficient questions for rule: subject={}, topic={}, difficulty={}, needed={}, available={}",
-                        rule.getSubject(), rule.getTopic(), rule.getDifficulty(),
-                        rule.getQuestionCount(), selected.size());
-                gapDetails.add(GapDetail.builder()
-                        .subject(rule.getSubject())
-                        .topic(rule.getTopic())
-                        .difficulty(rule.getDifficulty())
-                        .needed(rule.getQuestionCount())
-                        .available(selected.size())
-                        .build());
+                        if (s.getRules() != null) {
+                            for (com.examplatform.papergenerator.domain.BlueprintRule rule : s.getRules()) {
+                                List<QuestionSummary> candidates = questionBankClient.findAvailableQuestions(
+                                        rule.getSubjectId(), rule.getTopicId(), rule.getSubtopicId(),
+                                        rule.getDifficulty(), rule.getCognitiveLevel(), tenantId);
+
+                                List<QuestionSummary> eligible = candidates.stream()
+                                        .filter(this::isEligibleForReuse)
+                                        .toList();
+
+                                List<QuestionSummary> selected = eligible.stream()
+                                        .limit(rule.getQuestionCount())
+                                        .toList();
+
+                                if (selected.size() < rule.getQuestionCount()) {
+                                    gapDetails.add(GapDetail.builder()
+                                            .subjectId(rule.getSubjectId())
+                                            .topicId(rule.getTopicId())
+                                            .subtopicId(rule.getSubtopicId())
+                                            .difficulty(rule.getDifficulty())
+                                            .needed(rule.getQuestionCount())
+                                            .available(selected.size())
+                                            .build());
+                                }
+
+                                for (QuestionSummary q : selected) {
+                                    PaperQuestion pq = PaperQuestion.builder()
+                                            .paperSection(ps)
+                                            .questionId(q.getQuestionId())
+                                            .position(globalPos++)
+                                            .subtopicId(q.getSubtopicId())
+                                            .build();
+                                    pq.setTenantId(tenantId);
+                                    ps.addQuestion(pq);
+                                }
+
+                                selectedQuestionIds.addAll(selected.stream().map(QuestionSummary::getQuestionId).toList());
+                                allSelectedQuestions.addAll(selected);
+                            }
+                        }
+                        paperSections.add(ps);
+                    }
+                }
             }
+        }
 
-            selectedQuestionIds.addAll(selected.stream()
-                    .map(QuestionSummary::getQuestionId)
-                    .toList());
-            allSelectedQuestions.addAll(selected);
+        // Fallback: legacy list of blueprint rules if blueprintId not resolved
+        if (paperSections.isEmpty() && request.getBlueprintRules() != null) {
+            PaperSection defaultSection = PaperSection.builder()
+                    .name("Default Section")
+                    .orderIndex(0)
+                    .questions(new ArrayList<>())
+                    .build();
+            defaultSection.setTenantId(tenantId);
+
+            for (BlueprintRule rule : request.getBlueprintRules()) {
+                List<QuestionSummary> candidates = (rule.getSubjectId() != null)
+                        ? questionBankClient.findAvailableQuestions(
+                                rule.getSubjectId(), rule.getTopicId(), rule.getSubtopicId(),
+                                rule.getDifficulty(), rule.getCognitiveLevel(), tenantId)
+                        : questionBankClient.findAvailableQuestions(
+                                rule.getSubject(), rule.getTopic(),
+                                rule.getDifficulty(), rule.getCognitiveLevel(), tenantId);
+
+                List<QuestionSummary> eligible = candidates.stream()
+                        .filter(this::isEligibleForReuse)
+                        .toList();
+
+                List<QuestionSummary> selected = eligible.stream()
+                        .limit(rule.getQuestionCount())
+                        .toList();
+
+                if (selected.size() < rule.getQuestionCount()) {
+                    log.warn("Insufficient questions for rule: subject={}, topic={}, difficulty={}, needed={}, available={}",
+                            rule.getSubject(), rule.getTopic(), rule.getDifficulty(),
+                            rule.getQuestionCount(), selected.size());
+                    gapDetails.add(GapDetail.builder()
+                            .subjectId(rule.getSubjectId())
+                            .topicId(rule.getTopicId())
+                            .subtopicId(rule.getSubtopicId())
+                            .subject(rule.getSubject())
+                            .topic(rule.getTopic())
+                            .subtopic(rule.getSubtopic())
+                            .difficulty(rule.getDifficulty())
+                            .needed(rule.getQuestionCount())
+                            .available(selected.size())
+                            .build());
+                }
+
+                for (QuestionSummary q : selected) {
+                    PaperQuestion pq = PaperQuestion.builder()
+                            .paperSection(defaultSection)
+                            .questionId(q.getQuestionId())
+                            .position(globalPos++)
+                            .subtopicId(q.getSubtopicId())
+                            .build();
+                    pq.setTenantId(tenantId);
+                    defaultSection.addQuestion(pq);
+                }
+
+                selectedQuestionIds.addAll(selected.stream()
+                        .map(QuestionSummary::getQuestionId)
+                        .toList());
+                allSelectedQuestions.addAll(selected);
+            }
+            paperSections.add(defaultSection);
         }
 
         // If any rules cannot be satisfied, notify admin and throw exception with gap report
@@ -287,6 +476,7 @@ public class PaperAssemblyService {
 
         // Build topic distribution
         Map<String, Long> topicDistribution = allSelectedQuestions.stream()
+                .filter(q -> q.getTopic() != null)
                 .collect(Collectors.groupingBy(QuestionSummary::getTopic, Collectors.counting()));
 
         // Group questions that belong to passages
@@ -309,9 +499,33 @@ public class PaperAssemblyService {
             questionGroups.add(new QuestionGroup(entry.getKey(), orderedSubQIds));
         }
 
+        // Build structured paper sections for PaperDocument
+        List<PaperDocument.PaperSectionDocument> sectionDocs = new ArrayList<>();
+        for (PaperSection ps : paperSections) {
+            List<PaperDocument.PaperQuestionDocument> qDocs = (ps.getQuestions() != null)
+                    ? ps.getQuestions().stream()
+                            .map(pq -> PaperDocument.PaperQuestionDocument.builder()
+                                    .questionId(pq.getQuestionId())
+                                    .position(pq.getPosition())
+                                    .subtopicId(pq.getSubtopicId())
+                                    .build())
+                            .toList()
+                    : List.of();
+
+            sectionDocs.add(PaperDocument.PaperSectionDocument.builder()
+                    .sectionId(ps.getId())
+                    .blueprintSectionId(ps.getBlueprintSectionId())
+                    .examinationSectionId(ps.getExaminationSectionId())
+                    .name(ps.getName())
+                    .orderIndex(ps.getOrderIndex())
+                    .questions(qDocs)
+                    .build());
+        }
+
         // Build paper definition and topic distribution JSON
         Map<String, Object> defMap = new LinkedHashMap<>();
         defMap.put("questionIds", selectedQuestionIds);
+        defMap.put("sections", sectionDocs);
         if (!questionGroups.isEmpty()) {
             defMap.put("questionGroups", questionGroups);
         }
@@ -346,6 +560,8 @@ public class PaperAssemblyService {
         Paper paper = Paper.builder()
                 .name(paperName)
                 .examId(request.getExamId())
+                .blueprintId(blueprintId)
+                .blueprintVersion(blueprintVersion)
                 .shiftId(request.getShiftId())
                 .variant(variant)
                 .paperRootHash(paperRootHash)
@@ -360,6 +576,21 @@ public class PaperAssemblyService {
         paper.setTenantId(tenantId);
 
         Paper savedPaper = paperRepository.save(paper);
+
+        // Persist relational sections and questions
+        for (PaperSection ps : paperSections) {
+            ps.setPaper(savedPaper);
+        }
+        if (paperSectionRepository != null && !paperSections.isEmpty()) {
+            paperSectionRepository.saveAll(paperSections);
+            if (paperQuestionRepository != null) {
+                List<PaperQuestion> allPQs = paperSections.stream()
+                        .flatMap(ps -> ps.getQuestions().stream())
+                        .toList();
+                paperQuestionRepository.saveAll(allPQs);
+            }
+        }
+        savedPaper.setSections(paperSections);
 
         // Publish async job result to Kafka
         publishPaperEvent(savedPaper);

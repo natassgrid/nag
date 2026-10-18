@@ -53,6 +53,7 @@ public class ReviewWorkflowService {
     private final EventPublisher eventPublisher;
     private final DynamicConfigService dynamicConfigService;
     private final ReviewerAssignmentService reviewerAssignmentService;
+    private final com.examplatform.questionbank.repository.SubjectRepository subjectRepository;
 
     /**
      * Processes a lifecycle transition event and triggers appropriate workflow actions.
@@ -75,6 +76,15 @@ public class ReviewWorkflowService {
         }
     }
 
+    private String resolveSubjectName(Question question) {
+        if (question.getSubjectId() == null) {
+            return "General";
+        }
+        return subjectRepository.findById(question.getSubjectId())
+                .map(com.examplatform.questionbank.domain.Subject::getName)
+                .orElse("Subject #" + question.getSubjectId());
+    }
+
     /**
      * DRAFT -> REVIEW: Assign to available reviewer(s) by subject specialization,
      * load-balance, and publish lifecycle event and reviewer notifications.
@@ -83,8 +93,9 @@ public class ReviewWorkflowService {
         boolean dualReviewRequired = dynamicConfigService.getBoolean(
                 QuestionBankConstants.CONFIG_DUAL_REVIEW_REQUIRED, tenantId, true);
 
+        String subjectName = resolveSubjectName(question);
         ReviewerAssignment assignment = reviewerAssignmentService.assignReviewers(
-                question.getSubject(), question.getAuthorId(), tenantId, dualReviewRequired);
+                subjectName, question.getAuthorId(), tenantId, dualReviewRequired);
 
         UUID primaryReviewer = assignment.getPrimaryReviewerId();
         UUID secondaryReviewer = assignment.getSecondaryReviewerId();
@@ -92,7 +103,8 @@ public class ReviewWorkflowService {
         Map<String, Object> lifecycleEvent = new HashMap<>();
         lifecycleEvent.put(SharedConstants.EVENT_TYPE, QuestionBankConstants.EVENT_SUBMITTED_FOR_REVIEW);
         lifecycleEvent.put(SharedConstants.QUESTION_ID, question.getId());
-        lifecycleEvent.put(SharedConstants.SUBJECT, question.getSubject());
+        lifecycleEvent.put(SharedConstants.SUBJECT, subjectName);
+        lifecycleEvent.put(SharedConstants.SUBJECT_ID, question.getSubjectId());
         lifecycleEvent.put(SharedConstants.AUTHOR_ID, question.getAuthorId());
         lifecycleEvent.put(QuestionBankConstants.KEY_ASSIGNED_REVIEWER,
                 primaryReviewer != null ? primaryReviewer.toString() : QuestionBankConstants.VALUE_UNASSIGNED);
@@ -115,15 +127,15 @@ public class ReviewWorkflowService {
                     QuestionBankConstants.KEY_TYPE, QuestionBankConstants.NOTIF_QUESTION_ASSIGNED_FOR_REVIEW,
                     SharedConstants.RECIPIENT_ID, assignedReviewerId,
                     SharedConstants.QUESTION_ID, question.getId(),
-                    SharedConstants.SUBJECT, question.getSubject(),
+                    SharedConstants.SUBJECT, subjectName,
                     SharedConstants.TENANT_ID, tenantId,
-                    SharedConstants.MESSAGE, "A new question for subject '" + question.getSubject() + "' has been assigned to you for review."
+                    SharedConstants.MESSAGE, "A new question for subject '" + subjectName + "' has been assigned to you for review."
             );
             publishNotification(assignedReviewerId, notification);
         }
 
         log.info("Question submitted for review: questionId={}, subject={}, primaryReviewer={}, secondaryReviewer={}, dualReviewRequired={}, tenant={}",
-                question.getId(), question.getSubject(), primaryReviewer, secondaryReviewer, dualReviewRequired, tenantId);
+                question.getId(), subjectName, primaryReviewer, secondaryReviewer, dualReviewRequired, tenantId);
     }
 
     /**
@@ -136,9 +148,12 @@ public class ReviewWorkflowService {
 
         reviewerAssignmentService.releaseReviewerLoad(actorId, tenantId);
 
+        String subjectName = resolveSubjectName(question);
         Map<String, Object> lifecycleEvent = createLifecyclePayload(QuestionBankConstants.EVENT_REVIEWER_APPROVED, question.getId(), tenantId);
         lifecycleEvent.put(SharedConstants.REVIEWER_ID, actorId);
         lifecycleEvent.put(SharedConstants.AUTHOR_ID, question.getAuthorId());
+        lifecycleEvent.put(SharedConstants.SUBJECT, subjectName);
+        lifecycleEvent.put(SharedConstants.SUBJECT_ID, question.getSubjectId());
         publishLifecycleEvent(question.getId(), lifecycleEvent);
 
         // Notify author that their question was approved by reviewer
@@ -147,9 +162,9 @@ public class ReviewWorkflowService {
                 SharedConstants.RECIPIENT_ID, question.getAuthorId(),
                 SharedConstants.QUESTION_ID, question.getId(),
                 SharedConstants.REVIEWER_ID, actorId,
-                SharedConstants.SUBJECT, question.getSubject(),
+                SharedConstants.SUBJECT, subjectName,
                 SharedConstants.TENANT_ID, tenantId,
-                SharedConstants.MESSAGE, SharedConstants.YOUR_QUESTION_FOR_SUBJECT_PREFIX + question.getSubject() + "' has been approved by the reviewer."
+                SharedConstants.MESSAGE, SharedConstants.YOUR_QUESTION_FOR_SUBJECT_PREFIX + subjectName + "' has been approved by the reviewer."
         );
         publishNotification(question.getAuthorId(), notification);
 
@@ -168,10 +183,13 @@ public class ReviewWorkflowService {
 
         reviewerAssignmentService.releaseReviewerLoad(actorId, tenantId);
 
+        String subjectName = resolveSubjectName(question);
         Map<String, Object> lifecycleEvent = createLifecyclePayload(QuestionBankConstants.EVENT_RETURNED_TO_DRAFT, question.getId(), tenantId);
         lifecycleEvent.put(SharedConstants.REVIEWER_ID, actorId);
         lifecycleEvent.put(SharedConstants.AUTHOR_ID, question.getAuthorId());
         lifecycleEvent.put(QuestionBankConstants.KEY_COMMENTS, comments != null ? comments : "");
+        lifecycleEvent.put(SharedConstants.SUBJECT, subjectName);
+        lifecycleEvent.put(SharedConstants.SUBJECT_ID, question.getSubjectId());
         publishLifecycleEvent(question.getId(), lifecycleEvent);
 
         // Notify author that their question was returned for revision
@@ -182,7 +200,7 @@ public class ReviewWorkflowService {
                 SharedConstants.REVIEWER_ID, actorId,
                 QuestionBankConstants.KEY_COMMENTS, comments != null ? comments : "",
                 SharedConstants.TENANT_ID, tenantId,
-                SharedConstants.MESSAGE, SharedConstants.YOUR_QUESTION_FOR_SUBJECT_PREFIX + question.getSubject() +
+                SharedConstants.MESSAGE, SharedConstants.YOUR_QUESTION_FOR_SUBJECT_PREFIX + subjectName +
                         "' was returned with comments: " + (comments != null ? comments : QuestionBankConstants.DEFAULT_NO_COMMENTS)
         );
         publishNotification(question.getAuthorId(), notification);
@@ -195,10 +213,12 @@ public class ReviewWorkflowService {
      * APPROVED -> PUBLISHED: Final approval given. Question available in bank.
      */
     private void handlePublished(Question question, UUID actorId, String tenantId) {
+        String subjectName = resolveSubjectName(question);
         Map<String, Object> lifecycleEvent = createLifecyclePayload(QuestionBankConstants.EVENT_QUESTION_PUBLISHED, question.getId(), tenantId);
         lifecycleEvent.put(QuestionBankConstants.KEY_PUBLISHER_ID, actorId);
         lifecycleEvent.put(SharedConstants.AUTHOR_ID, question.getAuthorId());
-        lifecycleEvent.put(SharedConstants.SUBJECT, question.getSubject());
+        lifecycleEvent.put(SharedConstants.SUBJECT, subjectName);
+        lifecycleEvent.put(SharedConstants.SUBJECT_ID, question.getSubjectId());
         publishLifecycleEvent(question.getId(), lifecycleEvent);
 
         // Notify author that their question has been published
@@ -206,9 +226,9 @@ public class ReviewWorkflowService {
                 QuestionBankConstants.KEY_TYPE, QuestionBankConstants.EVENT_QUESTION_PUBLISHED,
                 SharedConstants.RECIPIENT_ID, question.getAuthorId(),
                 SharedConstants.QUESTION_ID, question.getId(),
-                SharedConstants.SUBJECT, question.getSubject(),
+                SharedConstants.SUBJECT, subjectName,
                 SharedConstants.TENANT_ID, tenantId,
-                SharedConstants.MESSAGE, SharedConstants.YOUR_QUESTION_FOR_SUBJECT_PREFIX + question.getSubject() + "' has been published to the question bank."
+                SharedConstants.MESSAGE, SharedConstants.YOUR_QUESTION_FOR_SUBJECT_PREFIX + subjectName + "' has been published to the question bank."
         );
         publishNotification(question.getAuthorId(), notification);
 

@@ -235,7 +235,7 @@ public class MicroLessonGeneratorService {
         }
 
         // Determine next version
-        int nextVersion = repository.findTopBySubtopicIdAndTargetExamOrderByContentVersionDesc(subtopicId, exam)
+        int nextVersion = repository.findTopBySubtopicIdOrderByContentVersionDesc(subtopicId)
                 .map(prev -> prev.getContentVersion() + 1)
                 .orElse(1);
 
@@ -252,16 +252,17 @@ public class MicroLessonGeneratorService {
                 .subjectId(subjectId)
                 .topicId(topicId)
                 .subtopicId(subtopicId)
-                .subject(subject != null ? subject : "General")
-                .topic(topic != null ? topic : "General")
-                .subtopic(subtopic)
-                .targetExam(exam)
                 .coreConcept(content.coreConcept())
                 .trap(content.trap())
                 .cheatSheetJson(cheatSheetJson)
                 .stepByStepBreakdownJson(stepJson)
                 .status(MicroLessonStatus.AI_GENERATED.name())
                 .contentVersion(nextVersion)
+                .lessonType("CONCEPT")
+                .difficultyLevel(difficulty != null ? difficulty : "CORE")
+                .sequenceNo(1)
+                .estimatedMinutes(5)
+                .language("en")
                 .build();
 
         return repository.save(entity);
@@ -344,10 +345,10 @@ public class MicroLessonGeneratorService {
                 entity.getSubjectId(),
                 entity.getTopicId(),
                 entity.getSubtopicId(),
-                entity.getSubject(),
-                entity.getTopic(),
-                entity.getSubtopic(),
-                entity.getTargetExam(),
+                null,
+                null,
+                null,
+                null,
                 entity.getCoreConcept(),
                 entity.getTrap(),
                 cheatSheet,
@@ -358,7 +359,15 @@ public class MicroLessonGeneratorService {
                 entity.getReviewComments(),
                 entity.getContentVersion(),
                 entity.getCreatedAt(),
-                entity.getUpdatedAt()
+                entity.getUpdatedAt(),
+                entity.getLanguage(),
+                false,
+                entity.getLessonType(),
+                entity.getDifficultyLevel(),
+                entity.getSequenceNo(),
+                entity.getPrerequisiteLessonId(),
+                entity.getEstimatedMinutes(),
+                entity.getQualityScore()
         );
     }
 

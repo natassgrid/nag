@@ -35,7 +35,7 @@ export interface Recommendation {
 
 export type RecommendationResponse = Recommendation;
 
-export interface LearnerProfile {
+export interface RecommendationLearnerProfile {
   candidateId: string;
   totalPracticeSessions: number;
   totalSessionsCompleted?: number;
@@ -44,3 +44,5 @@ export interface LearnerProfile {
   strongTopics: string[];
   topicAccuracyMap: Record<string, { accuracy: number; attempts: number }>;
 }
+
+export type LegacyLearnerProfile = RecommendationLearnerProfile;

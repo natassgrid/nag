@@ -179,9 +179,15 @@ class QuestionBankClientImplTest {
                     @Override
                     public void matchBlueprint(BlueprintMatchGrpcRequest request,
                                                StreamObserver<BlueprintMatchGrpcResponse> responseObserver) {
+                        assertThat(request.getSubjectId()).isEqualTo(11L);
+                        assertThat(request.getTopicId()).isEqualTo(100L);
+                        assertThat(request.getSubtopicId()).isEqualTo(1000L);
                         BlueprintMatchGrpcResponse response = BlueprintMatchGrpcResponse.newBuilder()
                                 .addQuestions(QuestionSummaryGrpc.newBuilder()
                                         .setId(qId.toString())
+                                        .setSubjectId("11")
+                                        .setTopicId("100")
+                                        .setSubtopicId("1000")
                                         .setSubject("Chemistry")
                                         .setTopic("Organic")
                                         .setDifficulty(QuestionTaxonomyConstants.Difficulty.EASY)
@@ -204,11 +210,14 @@ class QuestionBankClientImplTest {
                 jdbcTemplate, "http://localhost:8083", true, "localhost", grpcPort);
 
         List<QuestionSummary> results = grpcClient.findAvailableQuestions(
-                "Chemistry", "Organic", QuestionTaxonomyConstants.Difficulty.EASY,
-            QuestionTaxonomyConstants.CognitiveLevel.REMEMBER, "tenant-1");
+                11L, 100L, 1000L, QuestionTaxonomyConstants.Difficulty.EASY,
+                QuestionTaxonomyConstants.CognitiveLevel.REMEMBER, "tenant-1");
 
         assertThat(results).hasSize(1);
         assertThat(results.get(0).getQuestionId()).isEqualTo(qId);
+        assertThat(results.get(0).getSubjectId()).isEqualTo(11L);
+        assertThat(results.get(0).getTopicId()).isEqualTo(100L);
+        assertThat(results.get(0).getSubtopicId()).isEqualTo(1000L);
         assertThat(results.get(0).getSubject()).isEqualTo("Chemistry");
         assertThat(results.get(0).getTopic()).isEqualTo("Organic");
         assertThat(results.get(0).getContent()).isEqualTo("Structure of Benzene?");
@@ -238,8 +247,8 @@ class QuestionBankClientImplTest {
                 jdbcTemplate, "http://localhost:8083", true, "localhost", grpcPort);
 
         List<QuestionSummary> results = grpcClient.findAvailableQuestions(
-                "Computer Knowledge", "Computer Basics", QuestionTaxonomyConstants.Difficulty.EASY,
-            QuestionTaxonomyConstants.CognitiveLevel.REMEMBER, "tenant-1");
+                5L, 50L, 500L, QuestionTaxonomyConstants.Difficulty.EASY,
+                QuestionTaxonomyConstants.CognitiveLevel.REMEMBER, "tenant-1");
 
         assertThat(results).isEmpty();
     }

@@ -16,6 +16,8 @@ export interface MicroLessonQueryParams {
   topicName?: string;
   subjectName?: string;
   lang?: string;
+  lessonType?: string;
+  difficulty?: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -23,10 +25,44 @@ export class MicroLessonService {
   private readonly http = inject(HttpClient);
   private readonly apiUrl = '/api/micro-lessons';
 
+  getMicroLessonsBySubtopic(
+    subtopicId: number,
+    paramsOrTargetExam?: string | MicroLessonQueryParams
+  ): Observable<SubtopicMicroLesson[]> {
+    let params = this.buildParams(paramsOrTargetExam);
+
+    return this.http
+      .get<any>(`${this.apiUrl}/subtopic/${subtopicId}`, { params })
+      .pipe(
+        map((raw) => {
+          if (Array.isArray(raw)) {
+            return raw.map((item) => this.normalizeMicroLesson(item));
+          }
+          const single = this.normalizeMicroLesson(raw);
+          return [single];
+        })
+      );
+  }
+
   getPublishedMicroLesson(
     subtopicId: number,
     paramsOrTargetExam?: string | MicroLessonQueryParams
   ): Observable<SubtopicMicroLesson> {
+    const params = this.buildParams(paramsOrTargetExam);
+
+    return this.http
+      .get<any>(`${this.apiUrl}/subtopic/${subtopicId}`, { params })
+      .pipe(
+        map((raw) => {
+          if (Array.isArray(raw)) {
+            return this.normalizeMicroLesson(raw[0]);
+          }
+          return this.normalizeMicroLesson(raw);
+        })
+      );
+  }
+
+  private buildParams(paramsOrTargetExam?: string | MicroLessonQueryParams): HttpParams {
     let params = new HttpParams();
     if (typeof paramsOrTargetExam === 'string') {
       if (paramsOrTargetExam) {
@@ -48,11 +84,14 @@ export class MicroLessonService {
       if (paramsOrTargetExam.lang) {
         params = params.set('lang', paramsOrTargetExam.lang);
       }
+      if (paramsOrTargetExam.lessonType) {
+        params = params.set('lessonType', paramsOrTargetExam.lessonType);
+      }
+      if (paramsOrTargetExam.difficulty) {
+        params = params.set('difficulty', paramsOrTargetExam.difficulty);
+      }
     }
-
-    return this.http
-      .get<any>(`${this.apiUrl}/subtopic/${subtopicId}`, { params })
-      .pipe(map((raw) => this.normalizeMicroLesson(raw)));
+    return params;
   }
 
   getMicroLessonByLanguage(

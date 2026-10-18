@@ -93,6 +93,20 @@
   <!-- Right Side Actions: Candidate Profile Dropdown & Live Exam -->
   <div class="flex items-center gap-2 sm:gap-3">
     @if (isAuthenticated()) {
+      @if (activeEnrollment(); as enr) {
+        <a
+          routerLink="/learn/onboarding"
+          [queryParams]="{ step: 'exam-picker' }"
+          class="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 text-slate-300 hover:text-white border border-slate-700 hover:border-slate-600 text-xs transition-colors cursor-pointer"
+          title="Click to Switch Target Exam"
+        >
+          <mat-icon class="!text-sm text-indigo-400">track_changes</mat-icon>
+          <span class="text-slate-400 font-normal">Target:</span>
+          <span class="font-bold text-white">{{ enr.examinationCode }}</span>
+          <mat-icon class="!text-xs text-slate-400">swap_horiz</mat-icon>
+        </a>
+      }
+
       <!-- Unified Candidate Account Dropdown Button -->
       <button
         type="button"
@@ -131,6 +145,14 @@
           <div class="inline-flex flex-col text-left">
             <span class="font-bold text-xs text-slate-900">Profile &amp; KYC</span>
             <span class="text-[10px] text-slate-500">Aadhaar KYC, DigiLocker &amp; Details</span>
+          </div>
+        </a>
+
+        <a mat-menu-item routerLink="/learn/onboarding" [queryParams]="{ step: 'exam-picker' }">
+          <mat-icon class="text-indigo-600">track_changes</mat-icon>
+          <div class="inline-flex flex-col text-left">
+            <span class="font-bold text-xs text-slate-900">Switch Target Exam</span>
+            <span class="text-[10px] text-slate-500">Currently: {{ activeEnrollment()?.examinationCode || 'None' }}</span>
           </div>
         </a>
 

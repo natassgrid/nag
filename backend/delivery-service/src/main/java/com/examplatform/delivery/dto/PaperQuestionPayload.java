@@ -29,6 +29,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * POJO representing a single question item in an examination paper definition.
@@ -46,11 +47,29 @@ public class PaperQuestionPayload {
     @JsonAlias("text")
     private String content;
 
+    @JsonAlias({"section_id", "sectionId"})
+    private UUID sectionId;
+
+    @JsonAlias({"section_name", "sectionName"})
+    private String sectionName;
+
+    @JsonAlias({"subject_id", "subjectId"})
+    private Long subjectId;
+
     @JsonAlias(SharedConstants.SUBJECT)
     private String subject;
 
+    @JsonAlias({"topic_id", "topicId"})
+    private Long topicId;
+
     @Builder.Default
     private String topic = "General";
+
+    @JsonAlias({"subtopic_id", "subtopicId"})
+    private Long subtopicId;
+
+    @JsonAlias({"subtopic", "subtopic_name"})
+    private String subtopic;
 
     private String explanation;
 

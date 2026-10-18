@@ -94,4 +94,34 @@ class AdaptiveQuizGeneratorTest {
         assertThat(saved.getDurationMinutes()).isEqualTo(45);
         assertThat(saved.getName()).contains("Gatekeeper Test");
     }
+
+    @Test
+    @DisplayName("Generates adaptive quiz by numeric subtopic ID adhering to 70/30 ratio")
+    void testAdaptiveSetGenerationBySubtopicId() throws Exception {
+        Long subtopicId = 101L;
+        Long topicId = 10L;
+        Long subjectId = 1L;
+        UUID enrollmentId = UUID.randomUUID();
+        UUID examId = UUID.randomUUID();
+
+        List<UUID> easyIds = List.of(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID());
+        List<UUID> medIds = List.of(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID());
+        List<UUID> hardIds = List.of(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID());
+
+        when(questionBankClient.findQuestionsBySubtopics(eq(List.of(subtopicId)), eq("EASY"), eq(14))).thenReturn(easyIds);
+        when(questionBankClient.findQuestionsBySubtopics(eq(List.of(subtopicId)), eq("MEDIUM"), eq(14))).thenReturn(medIds);
+        when(questionBankClient.findQuestionsBySubtopics(eq(List.of(subtopicId)), eq("HARD"), eq(6))).thenReturn(hardIds);
+        when(practiceSetRepository.save(any(PracticeSet.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        generator.generateAdaptiveSetBySubtopic(CANDIDATE_ID, subtopicId, topicId, subjectId, enrollmentId, examId, 20);
+
+        ArgumentCaptor<PracticeSet> captor = ArgumentCaptor.forClass(PracticeSet.class);
+        verify(practiceSetRepository).save(captor.capture());
+
+        PracticeSet saved = captor.getValue();
+        assertThat(saved.getSubtopicId()).isEqualTo(subtopicId);
+        assertThat(saved.getTopicId()).isEqualTo(topicId);
+        assertThat(saved.getSubjectId()).isEqualTo(subjectId);
+        assertThat(saved.getSource()).isEqualTo("ADAPTIVE_QUIZ");
+    }
 }

@@ -31,11 +31,31 @@ public interface SubjectRepository extends JpaRepository<Subject, Long> {
 
     Optional<Subject> findByIdAndTenantId(Long id, String tenantId);
 
+    Optional<Subject> findByIdAndTenantIdIsNull(Long id);
+
     List<Subject> findByTenantId(String tenantId);
+
+    List<Subject> findByTenantIdIsNull();
 
     List<Subject> findByTenantIdOrderByNameAsc(String tenantId);
 
+    List<Subject> findByTenantIdIsNullOrderByDisplayOrderAscNameAsc();
+
+    List<Subject> findByTenantIdOrderByDisplayOrderAscNameAsc(String tenantId);
+
     Optional<Subject> findByNameAndTenantId(String name, String tenantId);
 
+    Optional<Subject> findByNameAndTenantIdIsNull(String name);
+
+    Optional<Subject> findByCodeAndTenantId(String code, String tenantId);
+
+    Optional<Subject> findByCodeAndTenantIdIsNull(String code);
+
     boolean existsByNameAndTenantId(String name, String tenantId);
+
+    boolean existsByNameAndTenantIdIsNull(String name);
+
+    boolean existsByCodeAndTenantId(String code, String tenantId);
+
+    boolean existsByCodeAndTenantIdIsNull(String code);
 }

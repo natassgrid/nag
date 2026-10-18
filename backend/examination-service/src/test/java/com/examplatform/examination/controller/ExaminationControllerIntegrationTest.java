@@ -67,8 +67,10 @@ class ExaminationControllerIntegrationTest extends AbstractIntegrationTest {
                 .totalMarks(300)
                 .navigationPolicy(NavigationPolicy.FLEXIBLE)
                 .calculatorPolicy(CalculatorPolicy.NONE)
+                .blueprintId(UUID.fromString("a1000000-0000-0000-0000-000000000001"))
                 .sections(List.of(
                         Section.builder()
+                                .subjectId(1L)
                                 .name("Paper 1")
                                 .subject("Teaching & Research Aptitude")
                                 .questionCount(50)
@@ -589,6 +591,72 @@ class ExaminationControllerIntegrationTest extends AbstractIntegrationTest {
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EXAM_CONTROLLER"))))
                     .andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.status").value(404));
+        }
+    }
+
+    // =========================================================================
+    // 5. GET & PUT /api/v1/examinations/{examId}/syllabus
+    // =========================================================================
+    @Nested
+    @DisplayName("GET & PUT /api/v1/examinations/{examId}/syllabus")
+    class SyllabusEndpoints {
+
+        @Test
+        @DisplayName("+ve: EXAM_CONTROLLER retrieves examination syllabus - returns 200 OK")
+        void examControllerCanGetSyllabus() throws Exception {
+            com.examplatform.examination.dto.ExamSyllabusResponse response =
+                    com.examplatform.examination.dto.ExamSyllabusResponse.builder()
+                            .examinationId(EXAM_ID)
+                            .nodes(List.of(
+                                    com.examplatform.examination.dto.ExamSyllabusNodeDto.builder()
+                                            .nodeType(com.examplatform.shared.taxonomy.TaxonomyNodeType.SUBJECT)
+                                            .nodeId(1L)
+                                            .weightagePct(100.0)
+                                            .build()
+                            ))
+                            .build();
+
+            when(examinationService.getSyllabus(eq(EXAM_ID), anyString())).thenReturn(response);
+
+            mockMvc.perform(get("/api/v1/examinations/{examId}/syllabus", EXAM_ID)
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EXAM_CONTROLLER"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("success"))
+                    .andExpect(jsonPath("$.data.examinationId").value(EXAM_ID.toString()))
+                    .andExpect(jsonPath("$.data.nodes[0].nodeId").value(1));
+        }
+
+        @Test
+        @DisplayName("+ve: EXAM_CONTROLLER updates examination syllabus - returns 200 OK")
+        void examControllerCanUpdateSyllabus() throws Exception {
+            com.examplatform.examination.dto.ExamSyllabusRequest request =
+                    com.examplatform.examination.dto.ExamSyllabusRequest.builder()
+                            .nodes(List.of(
+                                    com.examplatform.examination.dto.ExamSyllabusNodeDto.builder()
+                                            .nodeType(com.examplatform.shared.taxonomy.TaxonomyNodeType.SUBJECT)
+                                            .nodeId(1L)
+                                            .weightagePct(100.0)
+                                            .build()
+                            ))
+                            .build();
+
+            com.examplatform.examination.dto.ExamSyllabusResponse response =
+                    com.examplatform.examination.dto.ExamSyllabusResponse.builder()
+                            .examinationId(EXAM_ID)
+                            .nodes(request.getNodes())
+                            .build();
+
+            when(examinationService.updateSyllabus(eq(EXAM_ID), anyList(), eq(TENANT_ID))).thenReturn(response);
+
+            mockMvc.perform(put("/api/v1/examinations/{examId}/syllabus", EXAM_ID)
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EXAM_CONTROLLER")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("success"))
+                    .andExpect(jsonPath("$.data.examinationId").value(EXAM_ID.toString()));
         }
     }
 }

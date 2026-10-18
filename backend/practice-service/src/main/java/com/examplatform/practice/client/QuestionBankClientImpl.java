@@ -42,9 +42,14 @@ public class QuestionBankClientImpl implements QuestionBankClient {
         try {
             String inSql = String.join(",", Collections.nCopies(questionIds.size(), "?"));
             String sql = String.format("""
-                SELECT id, answer_key, question_type, subject_id, subject, topic_id, topic, subtopic_id, subtopic, difficulty, content, options, explanation, benchmark_time_seconds
-                FROM question_service.question
-                WHERE id IN (%s)
+                SELECT q.id, q.answer_key, q.question_type, q.subject_id, s.name AS subject,
+                       q.topic_id, t.name AS topic, q.subtopic_id, st.name AS subtopic,
+                       q.difficulty, q.content, q.options, q.explanation, q.benchmark_time_seconds
+                FROM question_service.question q
+                LEFT JOIN question_service.subject s ON q.subject_id = s.id
+                LEFT JOIN question_service.topic t ON q.topic_id = t.id
+                LEFT JOIN question_service.subtopic st ON q.subtopic_id = st.id
+                WHERE q.id IN (%s)
                 """, inSql);
 
             // Query translations if available
@@ -140,15 +145,17 @@ public class QuestionBankClientImpl implements QuestionBankClient {
         }
         try {
             String sql = """
-                SELECT id FROM question_service.question
-                WHERE state = 'PUBLISHED'
-                  AND LOWER(subject) LIKE LOWER(?)
-                ORDER BY created_at DESC
+                SELECT q.id FROM question_service.question q
+                JOIN question_service.subject s ON q.subject_id = s.id
+                WHERE q.state IN ('APPROVED', 'PUBLISHED')
+                  AND (LOWER(s.name) LIKE LOWER(?) OR LOWER(s.code) LIKE LOWER(?))
+                ORDER BY q.created_at DESC
                 LIMIT ?
                 """;
+            String pattern = "%" + subjectPattern.trim() + "%";
             return jdbcTemplate.query(sql,
                     (rs, rowNum) -> rs.getObject("id", UUID.class),
-                    "%" + subjectPattern.trim() + "%",
+                    pattern, pattern,
                     Math.max(1, limit)
             );
         } catch (Exception e) {
@@ -169,11 +176,12 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                 Object[] params;
                 if (difficulty != null && !difficulty.isBlank()) {
                     sql = String.format("""
-                        SELECT id FROM question_service.question
-                        WHERE state = 'PUBLISHED'
-                          AND UPPER(difficulty) = ?
-                          AND LOWER(subtopic) IN (%s)
-                        ORDER BY created_at DESC
+                        SELECT q.id FROM question_service.question q
+                        JOIN question_service.subtopic st ON q.subtopic_id = st.id
+                        WHERE q.state IN ('APPROVED', 'PUBLISHED')
+                          AND UPPER(q.difficulty) = ?
+                          AND LOWER(st.name) IN (%s)
+                        ORDER BY q.created_at DESC
                         LIMIT ?
                         """, inSql);
                     List<Object> pList = new ArrayList<>();
@@ -183,10 +191,11 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                     params = pList.toArray();
                 } else {
                     sql = String.format("""
-                        SELECT id FROM question_service.question
-                        WHERE state = 'PUBLISHED'
-                          AND LOWER(subtopic) IN (%s)
-                        ORDER BY created_at DESC
+                        SELECT q.id FROM question_service.question q
+                        JOIN question_service.subtopic st ON q.subtopic_id = st.id
+                        WHERE q.state IN ('APPROVED', 'PUBLISHED')
+                          AND LOWER(st.name) IN (%s)
+                        ORDER BY q.created_at DESC
                         LIMIT ?
                         """, inSql);
                     List<Object> pList = new ArrayList<>();
@@ -200,8 +209,8 @@ public class QuestionBankClientImpl implements QuestionBankClient {
 
             // Fallback: select questions by difficulty
             String fallbackSql = (difficulty != null && !difficulty.isBlank())
-                    ? "SELECT id FROM question_service.question WHERE state = 'PUBLISHED' AND UPPER(difficulty) = ? ORDER BY created_at DESC LIMIT ?"
-                    : "SELECT id FROM question_service.question WHERE state = 'PUBLISHED' ORDER BY created_at DESC LIMIT ?";
+                    ? "SELECT id FROM question_service.question WHERE state IN ('APPROVED', 'PUBLISHED') AND UPPER(difficulty) = ? ORDER BY created_at DESC LIMIT ?"
+                    : "SELECT id FROM question_service.question WHERE state IN ('APPROVED', 'PUBLISHED') ORDER BY created_at DESC LIMIT ?";
             Object[] fallbackParams = (difficulty != null && !difficulty.isBlank())
                     ? new Object[]{difficulty.trim().toUpperCase(), limit}
                     : new Object[]{limit};
@@ -209,6 +218,60 @@ public class QuestionBankClientImpl implements QuestionBankClient {
             return jdbcTemplate.query(fallbackSql, (rs, rowNum) -> rs.getObject("id", UUID.class), fallbackParams);
         } catch (Exception e) {
             log.warn("Failed to query questions for adaptive quiz: {}", e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    @Override
+    public List<UUID> findQuestionsBySubtopics(List<Long> subtopicIds, String difficulty, int limit) {
+        if (jdbcTemplate == null || limit <= 0) {
+            return Collections.emptyList();
+        }
+        try {
+            if (subtopicIds != null && !subtopicIds.isEmpty()) {
+                String inSql = String.join(",", Collections.nCopies(subtopicIds.size(), "?"));
+                String sql;
+                Object[] params;
+                if (difficulty != null && !difficulty.isBlank()) {
+                    sql = String.format("""
+                        SELECT id FROM question_service.question
+                        WHERE state IN ('APPROVED', 'PUBLISHED')
+                          AND UPPER(difficulty) = ?
+                          AND subtopic_id IN (%s)
+                        ORDER BY created_at DESC
+                        LIMIT ?
+                        """, inSql);
+                    List<Object> pList = new ArrayList<>();
+                    pList.add(difficulty.trim().toUpperCase());
+                    pList.addAll(subtopicIds);
+                    pList.add(limit);
+                    params = pList.toArray();
+                } else {
+                    sql = String.format("""
+                        SELECT id FROM question_service.question
+                        WHERE state IN ('APPROVED', 'PUBLISHED')
+                          AND subtopic_id IN (%s)
+                        ORDER BY created_at DESC
+                        LIMIT ?
+                        """, inSql);
+                    List<Object> pList = new ArrayList<>(subtopicIds);
+                    pList.add(limit);
+                    params = pList.toArray();
+                }
+                List<UUID> result = jdbcTemplate.query(sql, (rs, rowNum) -> rs.getObject("id", UUID.class), params);
+                if (!result.isEmpty()) return result;
+            }
+
+            String fallbackSql = (difficulty != null && !difficulty.isBlank())
+                    ? "SELECT id FROM question_service.question WHERE state IN ('APPROVED', 'PUBLISHED') AND UPPER(difficulty) = ? ORDER BY created_at DESC LIMIT ?"
+                    : "SELECT id FROM question_service.question WHERE state IN ('APPROVED', 'PUBLISHED') ORDER BY created_at DESC LIMIT ?";
+            Object[] fallbackParams = (difficulty != null && !difficulty.isBlank())
+                    ? new Object[]{difficulty.trim().toUpperCase(), limit}
+                    : new Object[]{limit};
+
+            return jdbcTemplate.query(fallbackSql, (rs, rowNum) -> rs.getObject("id", UUID.class), fallbackParams);
+        } catch (Exception e) {
+            log.warn("Failed to query questions for adaptive quiz by subtopic_id: {}", e.getMessage());
             return Collections.emptyList();
         }
     }

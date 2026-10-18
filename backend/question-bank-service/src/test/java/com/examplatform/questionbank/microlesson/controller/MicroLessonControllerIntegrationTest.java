@@ -23,8 +23,10 @@ import java.util.UUID;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
+import org.springframework.http.MediaType;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -39,6 +41,9 @@ class MicroLessonControllerIntegrationTest extends AbstractIntegrationTest {
 
     @MockitoBean
     private MicroLessonCacheService cacheService;
+
+    @MockitoBean
+    private com.examplatform.questionbank.microlesson.repository.LessonEffectivenessRepository effectivenessRepository;
 
     private static final UUID LESSON_ID = UUID.fromString("12345678-1234-1234-1234-123456789abc");
 
@@ -79,114 +84,124 @@ class MicroLessonControllerIntegrationTest extends AbstractIntegrationTest {
     class GetMicroLessonForSubtopic {
 
         @Test
-        @DisplayName("200 OK - Delivers micro-lesson from cache when cached")
-        void testCacheHitReturnsMicroLesson() throws Exception {
-            MicroLessonResponse response = buildSampleResponse();
-            when(cacheService.getCached(100L)).thenReturn(Optional.of(response));
-
-            mockMvc.perform(get("/api/micro-lessons/subtopic/100")
-                            .param("targetExam", "JEE_MAIN")
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.subtopic").value("Rotational Motion"))
-                    .andExpect(jsonPath("$.targetExam").value("JEE_MAIN"))
-                    .andExpect(jsonPath("$.coreConcept").isNotEmpty())
-                    .andExpect(jsonPath("$.cheatSheet").isArray())
-                    .andExpect(jsonPath("$.stepByStepBreakdown.steps").isArray())
-                    .andExpect(jsonPath("$.content.coreConcept").isNotEmpty())
-                    .andExpect(jsonPath("$.content.trapAlert.title").isNotEmpty())
-                    .andExpect(jsonPath("$.content.formulaCheatSheet").isArray())
-                    .andExpect(jsonPath("$.content.stepByStepBreakdown").isArray())
-                    .andExpect(jsonPath("$.content.keyTakeaways").isArray());
-
-            verify(cacheService).getCached(100L);
-            verifyNoInteractions(repository);
-        }
-
-        @Test
-        @DisplayName("200 OK - Fetches from database and populates cache on cache miss")
-        void testCacheMissFetchesFromDatabase() throws Exception {
-            when(cacheService.getCached(100L)).thenReturn(Optional.empty());
-
+        @DisplayName("200 OK - Delivers list of micro-lessons for subtopic")
+        void testGetMicroLessonsForSubtopic() throws Exception {
             SubtopicMicroLesson entity = SubtopicMicroLesson.builder()
                     .subtopicId(100L)
-                    .targetExam("JEE_MAIN")
+                    .lessonType("CONCEPT")
+                    .difficultyLevel("CORE")
+                    .sequenceNo(1)
                     .status("PUBLISHED")
+                    .coreConcept("Torque produces angular acceleration.")
+                    .trap("Sign convention trap")
+                    .cheatSheetJson("[]")
+                    .stepByStepBreakdownJson("{}")
                     .build();
             ReflectionTestUtils.setField(entity, "id", LESSON_ID);
 
-            when(repository.findFirstBySubtopicIdAndTargetExamAndStatusOrderByContentVersionDesc(
-                    100L, "JEE_MAIN", "PUBLISHED"))
-                    .thenReturn(Optional.of(entity));
+            when(repository.findBySubtopicIdAndStatusOrderBySequenceNoAsc(100L, "PUBLISHED"))
+                    .thenReturn(List.of(entity));
 
             MicroLessonResponse response = buildSampleResponse();
             when(generatorService.toResponse(entity)).thenReturn(response);
 
             mockMvc.perform(get("/api/micro-lessons/subtopic/100")
-                            .param("targetExam", "JEE_MAIN")
+                            .param("lessonType", "CONCEPT")
+                            .param("difficulty", "CORE")
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.subtopic").value("Rotational Motion"))
-                    .andExpect(jsonPath("$.content.coreConcept").isNotEmpty());
+                    .andExpect(jsonPath("$").isArray())
+                    .andExpect(jsonPath("$[0].subtopic").value("Rotational Motion"))
+                    .andExpect(jsonPath("$[0].coreConcept").isNotEmpty())
+                    .andExpect(jsonPath("$[0].cheatSheet").isArray());
 
-            verify(cacheService).getCached(100L);
-            verify(cacheService).put(eq(100L), any(MicroLessonResponse.class));
+            verify(repository).findBySubtopicIdAndStatusOrderBySequenceNoAsc(100L, "PUBLISHED");
         }
 
         @Test
-        @DisplayName("404 Not Found - Returns 404 when no published micro-lesson exists")
-        void testNotFoundWhenNoMicroLessonPublished() throws Exception {
-            when(cacheService.getCached(999L)).thenReturn(Optional.empty());
-            when(repository.findFirstBySubtopicIdAndTargetExamAndStatusOrderByContentVersionDesc(
-                    999L, "JEE_MAIN", "PUBLISHED"))
-                    .thenReturn(Optional.empty());
-            when(repository.findFirstBySubtopicIdAndStatusOrderByContentVersionDesc(
-                    999L, "PUBLISHED"))
-                    .thenReturn(Optional.empty());
+        @DisplayName("200 OK - Filters micro-lessons by lessonType and difficulty")
+        void testFilterMicroLessons() throws Exception {
+            SubtopicMicroLesson conceptLesson = SubtopicMicroLesson.builder()
+                    .subtopicId(100L)
+                    .lessonType("CONCEPT")
+                    .difficultyLevel("CORE")
+                    .sequenceNo(1)
+                    .status("PUBLISHED")
+                    .coreConcept("Concept lesson")
+                    .trap("Trap")
+                    .cheatSheetJson("[]")
+                    .stepByStepBreakdownJson("{}")
+                    .build();
+            ReflectionTestUtils.setField(conceptLesson, "id", LESSON_ID);
+
+            SubtopicMicroLesson workedExample = SubtopicMicroLesson.builder()
+                    .subtopicId(100L)
+                    .lessonType("WORKED_EXAMPLE")
+                    .difficultyLevel("ADVANCED")
+                    .sequenceNo(2)
+                    .status("PUBLISHED")
+                    .coreConcept("Worked example")
+                    .trap("Trap")
+                    .cheatSheetJson("[]")
+                    .stepByStepBreakdownJson("{}")
+                    .build();
+            UUID workedExampleId = UUID.randomUUID();
+            ReflectionTestUtils.setField(workedExample, "id", workedExampleId);
+
+            when(repository.findBySubtopicIdAndStatusOrderBySequenceNoAsc(100L, "PUBLISHED"))
+                    .thenReturn(List.of(conceptLesson, workedExample));
+
+            MicroLessonResponse conceptResponse = buildSampleResponse();
+            when(generatorService.toResponse(conceptLesson)).thenReturn(conceptResponse);
+
+            mockMvc.perform(get("/api/micro-lessons/subtopic/100")
+                            .param("lessonType", "CONCEPT")
+                            .param("difficulty", "CORE")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$").isArray())
+                    .andExpect(jsonPath("$.length()").value(1))
+                    .andExpect(jsonPath("$[0].subtopic").value("Rotational Motion"));
+        }
+
+        @Test
+        @DisplayName("200 OK - Returns empty array when no micro-lessons exist")
+        void testEmptyWhenNoLessons() throws Exception {
+            when(repository.findBySubtopicIdAndStatusOrderBySequenceNoAsc(999L, "PUBLISHED"))
+                    .thenReturn(List.of());
+            when(repository.findBySubtopicIdOrderBySequenceNoAsc(999L))
+                    .thenReturn(List.of());
 
             mockMvc.perform(get("/api/micro-lessons/subtopic/999")
-                            .param("targetExam", "JEE_MAIN")
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))))
-                    .andExpect(status().isNotFound());
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$").isArray())
+                    .andExpect(jsonPath("$").isEmpty());
+        }
+    }
+
+    @Nested
+    @DisplayName("POST /api/micro-lessons/{id}/progress")
+    class RecordProgress {
+
+        @Test
+        @DisplayName("200 OK - Records lesson completion telemetry successfully")
+        void testRecordProgressCompletion() throws Exception {
+            mockMvc.perform(post("/api/micro-lessons/" + LESSON_ID + "/progress")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"status\":\"COMPLETED\",\"postAccuracyDelta\":0.25}")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))))
+                    .andExpect(status().isOk());
         }
 
         @Test
-        @DisplayName("200 OK - Synthesizes micro-lesson on demand when subtopicName is provided")
-        void testOnDemandSynthesisWhenTaxonomyProvided() throws Exception {
-            when(cacheService.getCached(555L)).thenReturn(Optional.empty());
-            when(repository.findFirstBySubtopicIdAndTargetExamAndStatusOrderByContentVersionDesc(
-                    555L, "JEE_MAIN", "PUBLISHED"))
-                    .thenReturn(Optional.empty());
-            when(repository.findFirstBySubtopicIdAndStatusOrderByContentVersionDesc(
-                    555L, "PUBLISHED"))
-                    .thenReturn(Optional.empty());
-            when(repository.findTopBySubtopicIdAndTargetExamOrderByContentVersionDesc(
-                    555L, "JEE_MAIN"))
-                    .thenReturn(Optional.empty());
-            when(repository.findTopBySubtopicIdOrderByContentVersionDesc(555L))
-                    .thenReturn(Optional.empty());
-
-            SubtopicMicroLesson generatedEntity = SubtopicMicroLesson.builder()
-                    .subtopicId(555L)
-                    .targetExam("JEE_MAIN")
-                    .status("AI_GENERATED")
-                    .build();
-            when(generatorService.generateForSubtopic(eq(1L), eq("Physics"), eq(1L), eq("Mechanics"), eq(555L), eq("Friction"), eq("JEE_MAIN")))
-                    .thenReturn(generatedEntity);
-
-            MicroLessonResponse generatedResponse = buildSampleResponse();
-            when(generatorService.toResponse(generatedEntity)).thenReturn(generatedResponse);
-
-            mockMvc.perform(get("/api/micro-lessons/subtopic/555")
-                            .param("targetExam", "JEE_MAIN")
-                            .param("subtopicName", "Friction")
-                            .param("topicName", "Mechanics")
-                            .param("subjectName", "Physics")
+        @DisplayName("200 OK - Records lesson view telemetry successfully")
+        void testRecordProgressView() throws Exception {
+            mockMvc.perform(post("/api/micro-lessons/" + LESSON_ID + "/progress")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"status\":\"VIEW\"}")
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.content.coreConcept").isNotEmpty());
-
-            verify(generatorService).generateForSubtopic(eq(1L), eq("Physics"), eq(1L), eq("Mechanics"), eq(555L), eq("Friction"), eq("JEE_MAIN"));
+                    .andExpect(status().isOk());
         }
     }
 }

@@ -105,6 +105,8 @@ public class PracticeSessionService {
         PracticeSession session = PracticeSession.builder()
                 .candidateId(candidateId)
                 .practiceSetId(practiceSet.getId())
+                .enrollmentId(req.enrollmentId())
+                .examId(req.examId())
                 .mode(mode)
                 .status("IN_PROGRESS")
                 .startedAt(Instant.now())
@@ -249,7 +251,9 @@ public class PracticeSessionService {
                 evaluated.getTotalMarks(), evaluated.getTopicWiseBreakdown(),
                 evaluated.getSubtopicWiseBreakdown(),
                 practiceSetSource,
-                targetExam
+                targetExam,
+                evaluated.getEnrollmentId(),
+                evaluated.getExamId()
         ));
 
         return practiceResultService.getResult(sessionId, candidateId);

@@ -115,6 +115,7 @@ public class QuestionController {
             @RequestParam(required = false) Long subjectId,
             @RequestParam(required = false) String topic,
             @RequestParam(required = false) Long topicId,
+            @RequestParam(required = false) Long subtopicId,
             @RequestParam(required = false) String difficulty,
             @RequestParam(required = false) String state,
             @RequestParam(required = false) String search,
@@ -126,11 +127,11 @@ public class QuestionController {
             @RequestParam(defaultValue = "20") int size,
             @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) {
 
-        log.info("Listing questions: tenant={}, subject={}, subjectId={}, topic={}, topicId={}, difficulty={}, state={}, targetLang={}, translationStatus={}, sort={}, order={}, page={}, size={}",
-                tenantId, subject, subjectId, topic, topicId, difficulty, state, targetLang, translationStatus, sort, order, page, size);
+        log.info("Listing questions: tenant={}, subject={}, subjectId={}, topic={}, topicId={}, subtopicId={}, difficulty={}, state={}, targetLang={}, translationStatus={}, sort={}, order={}, page={}, size={}",
+                tenantId, subject, subjectId, topic, topicId, subtopicId, difficulty, state, targetLang, translationStatus, sort, order, page, size);
 
         Page<QuestionResponse> responses = questionService.listQuestions(
-                subject, subjectId, topic, topicId, difficulty, state, search, targetLang, translationStatus, sort, order, page, size, tenantId);
+                subject, subjectId, topic, topicId, subtopicId, difficulty, state, search, targetLang, translationStatus, sort, order, page, size, tenantId);
         return ResponseEntity.ok(ApiResponse.success(responses, "Questions retrieved successfully"));
     }
 
@@ -438,13 +439,22 @@ public class QuestionController {
             @Valid @RequestBody BlueprintMatchRequest request,
             @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, required = false) String tenantId) {
 
-        List<QuestionResponse> questions = questionService.findBlueprintQuestions(
-                request.getSubject(),
-                request.getTopic(),
-                request.getDifficulty(),
-                request.getCognitiveLevel(),
-                tenantId
-        );
+        List<QuestionResponse> questions = (request.getSubjectId() != null)
+                ? questionService.findBlueprintQuestions(
+                        request.getSubjectId(),
+                        request.getTopicId(),
+                        request.getSubtopicId(),
+                        request.getDifficulty(),
+                        request.getCognitiveLevel(),
+                        tenantId
+                )
+                : questionService.findBlueprintQuestions(
+                        request.getSubject(),
+                        request.getTopic(),
+                        request.getDifficulty(),
+                        request.getCognitiveLevel(),
+                        tenantId
+                );
         return ResponseEntity.ok(ApiResponse.success(questions, "Blueprint questions retrieved successfully"));
     }
 

@@ -1,0 +1,52 @@
+/*
+ * SPDX-License-Identifier: AGPL-3.0-only
+ *
+ * NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+ * Copyright (C) 2026 NAG Contributors
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, version 3 of the License.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+
+package com.examplatform.papergenerator.dto;
+
+import jakarta.validation.constraints.NotBlank;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class BlueprintRequest {
+
+    private String code;
+
+    @NotBlank(message = "Blueprint name is required")
+    private String name;
+
+    private String description;
+
+    private UUID examId;
+
+    @Builder.Default
+    private List<BlueprintSectionDto> sections = new ArrayList<>();
+
+    @Builder.Default
+    private List<BlueprintRule> rules = new ArrayList<>();
+}

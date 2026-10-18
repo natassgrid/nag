@@ -50,7 +50,7 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
      */
     Optional<Question> findByIdAndSubjectId(UUID id, Long subjectId);
 
-    List<Question> findBySubjectAndStateAndTenantId(String subject, String state, String tenantId);
+    List<Question> findBySubjectIdAndStateAndTenantId(Long subjectId, String state, String tenantId);
 
     List<Question> findByAuthorIdAndTenantId(UUID authorId, String tenantId);
 
@@ -62,7 +62,7 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
 
     Page<Question> findByTenantId(String tenantId, Pageable pageable);
 
-    Page<Question> findBySubjectAndTenantId(String subject, String tenantId, Pageable pageable);
+    Page<Question> findBySubjectIdAndTenantId(Long subjectId, String tenantId, Pageable pageable);
 
     List<Question> findByPassageIdOrderByPassageOrderIndexAsc(UUID passageId);
 
@@ -80,7 +80,7 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
      */
     @Query(value = """
             SELECT q.id FROM question_service.question q
-            WHERE q.state = 'PUBLISHED'
+            WHERE q.state IN ('APPROVED', 'PUBLISHED')
               AND q.embedding IS NOT NULL
               AND (1 - (q.embedding OPERATOR(public.<=>) cast(:embedding as public.halfvec(384)))) >= :threshold
             ORDER BY q.embedding OPERATOR(public.<=>) cast(:embedding as public.halfvec(384)) ASC
@@ -96,11 +96,12 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
      * Validates: Requirements FR-2 (Duplicate Detection), FR-3 (RAG retrieval)
      */
     @Query(value = """
-            SELECT q.id AS id, q.subject AS subject, q.content AS content,
+            SELECT q.id AS id, s.name AS subject, q.content AS content,
                    1 - (q.embedding OPERATOR(public.<=>) cast(:queryVec AS public.halfvec(384))) AS similarity
             FROM question_service.question q
+            JOIN question_service.subject s ON s.id = q.subject_id
             WHERE q.tenant_id = :tenantId
-              AND q.subject = :subject
+              AND s.name = :subject
               AND q.embedding IS NOT NULL
             ORDER BY q.embedding OPERATOR(public.<=>) cast(:queryVec AS public.halfvec(384))
             LIMIT :limit
@@ -115,12 +116,14 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
      * Finds top similar questions scoped to a specific topic within a subject and tenant.
      */
     @Query(value = """
-            SELECT q.id AS id, q.subject AS subject, q.content AS content,
+            SELECT q.id AS id, s.name AS subject, q.content AS content,
                    1 - (q.embedding OPERATOR(public.<=>) cast(:queryVec AS public.halfvec(384))) AS similarity
             FROM question_service.question q
+            JOIN question_service.subject s ON s.id = q.subject_id
+            JOIN question_service.topic t ON t.id = q.topic_id
             WHERE q.tenant_id = :tenantId
-              AND q.subject = :subject
-              AND q.topic = :topic
+              AND s.name = :subject
+              AND t.name = :topic
               AND q.embedding IS NOT NULL
             ORDER BY q.embedding OPERATOR(public.<=>) cast(:queryVec AS public.halfvec(384))
             LIMIT :limit
@@ -136,9 +139,10 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
      * Finds top similar questions across all subjects within a tenant (cross-subject global semantic search).
      */
     @Query(value = """
-            SELECT q.id AS id, q.subject AS subject, q.content AS content,
+            SELECT q.id AS id, s.name AS subject, q.content AS content,
                    1 - (q.embedding OPERATOR(public.<=>) cast(:queryVec AS public.halfvec(384))) AS similarity
             FROM question_service.question q
+            JOIN question_service.subject s ON s.id = q.subject_id
             WHERE q.tenant_id = :tenantId
               AND q.embedding IS NOT NULL
             ORDER BY q.embedding OPERATOR(public.<=>) cast(:queryVec AS public.halfvec(384))
@@ -153,12 +157,14 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
      * Multi-attribute filtered vector search for RAG question assembly and blueprint composition.
      */
     @Query(value = """
-            SELECT q.id AS id, q.subject AS subject, q.content AS content,
+            SELECT q.id AS id, s.name AS subject, q.content AS content,
                    1 - (q.embedding OPERATOR(public.<=>) cast(:queryVec AS public.halfvec(384))) AS similarity
             FROM question_service.question q
+            JOIN question_service.subject s ON s.id = q.subject_id
+            JOIN question_service.topic t ON t.id = q.topic_id
             WHERE (q.tenant_id = :tenantId OR q.tenant_id = 'default')
-              AND (:subject IS NULL OR UPPER(TRIM(q.subject)) = UPPER(TRIM(:subject)))
-              AND (:topic IS NULL OR UPPER(TRIM(q.topic)) = UPPER(TRIM(:topic)))
+              AND (:subject IS NULL OR UPPER(TRIM(s.name)) = UPPER(TRIM(:subject)))
+              AND (:topic IS NULL OR UPPER(TRIM(t.name)) = UPPER(TRIM(:topic)))
               AND (:difficulty IS NULL OR UPPER(TRIM(q.difficulty)) = UPPER(TRIM(:difficulty)))
               AND (:cognitiveLevel IS NULL OR UPPER(TRIM(q.cognitive_level)) = UPPER(TRIM(:cognitiveLevel)))
               AND q.embedding IS NOT NULL
@@ -195,43 +201,46 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
     void updateEmbedding(@Param("id") UUID id, @Param("embedding") String embedding);
 
     /**
-     * Finds published questions matching blueprint criteria (subject, topic, difficulty, cognitive level).
-     * Only PUBLISHED questions are eligible for paper assembly — APPROVED questions have not yet
-     * received final approver sign-off and must not appear in generated papers.
+     * Finds published questions matching blueprint criteria by numeric IDs.
+     * Only PUBLISHED questions are eligible for paper assembly.
      */
     @Query(value = """
             SELECT * FROM question_service.question
             WHERE (tenant_id = :tenantId OR tenant_id = 'default')
-              AND UPPER(TRIM(subject)) = UPPER(TRIM(:subject))
-              AND UPPER(TRIM(topic)) = UPPER(TRIM(:topic))
-              AND state = 'PUBLISHED'
+              AND subject_id = :subjectId
+              AND (:topicId IS NULL OR :topicId = 0 OR topic_id = :topicId)
+              AND (:subtopicId IS NULL OR :subtopicId = 0 OR subtopic_id = :subtopicId)
+              AND state IN ('APPROVED', 'PUBLISHED')
               AND (:difficulty IS NULL OR UPPER(TRIM(difficulty)) = UPPER(TRIM(:difficulty)))
               AND (:cognitiveLevel IS NULL OR UPPER(TRIM(cognitive_level)) = UPPER(TRIM(:cognitiveLevel)))
             ORDER BY RANDOM()
             """, nativeQuery = true)
     List<Question> findBlueprintQuestions(
-            @Param(SharedConstants.SUBJECT) String subject,
-            @Param("topic") String topic,
+            @Param("subjectId") Long subjectId,
+            @Param("topicId") Long topicId,
+            @Param("subtopicId") Long subtopicId,
             @Param(SharedConstants.DIFFICULTY) String difficulty,
             @Param("cognitiveLevel") String cognitiveLevel,
             @Param(SharedConstants.TENANT_ID) String tenantId);
 
     /**
      * Fallback lookup for blueprint questions ignoring cognitive level if exact match has no rows.
-     * Only PUBLISHED questions are eligible for paper assembly.
+     * Only PUBLISHED or APPROVED questions are eligible for paper assembly.
      */
     @Query(value = """
             SELECT * FROM question_service.question
             WHERE (tenant_id = :tenantId OR tenant_id = 'default')
-              AND UPPER(TRIM(subject)) = UPPER(TRIM(:subject))
-              AND UPPER(TRIM(topic)) = UPPER(TRIM(:topic))
-              AND state = 'PUBLISHED'
+              AND subject_id = :subjectId
+              AND (:topicId IS NULL OR :topicId = 0 OR topic_id = :topicId)
+              AND (:subtopicId IS NULL OR :subtopicId = 0 OR subtopic_id = :subtopicId)
+              AND state IN ('APPROVED', 'PUBLISHED')
               AND (:difficulty IS NULL OR UPPER(TRIM(difficulty)) = UPPER(TRIM(:difficulty)))
             ORDER BY RANDOM()
             """, nativeQuery = true)
     List<Question> findBlueprintQuestionsFallback(
-            @Param(SharedConstants.SUBJECT) String subject,
-            @Param("topic") String topic,
+            @Param("subjectId") Long subjectId,
+            @Param("topicId") Long topicId,
+            @Param("subtopicId") Long subtopicId,
             @Param(SharedConstants.DIFFICULTY) String difficulty,
             @Param(SharedConstants.TENANT_ID) String tenantId);
 

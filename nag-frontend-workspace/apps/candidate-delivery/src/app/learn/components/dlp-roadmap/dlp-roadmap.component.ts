@@ -12,14 +12,18 @@ import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatChipsModule } from '@angular/material/chips';
-import { MatTooltipModule } from '@angular/material/tooltip';
+
 import {
   DynamicLearningPath,
   MilestonePhase,
   MilestoneItem,
 } from '../../models/learning-path.model';
+import { SubtopicMastery } from '../../models/learner.model';
 import { LearningPathService } from '../../services/learning-path.service';
+import { AdaptiveLearningService } from '../../services/adaptive-learning.service';
+import { ReadinessScoreMeterComponent } from '../readiness-score-meter/readiness-score-meter.component';
+import { SyllabusMasteryTreeComponent } from '../syllabus-mastery-tree/syllabus-mastery-tree.component';
+import { PhasedMilestonesListComponent } from '../phased-milestones-list/phased-milestones-list.component';
 
 @Component({
   selector: 'app-dlp-roadmap',
@@ -31,8 +35,9 @@ import { LearningPathService } from '../../services/learning-path.service';
     MatButtonModule,
     MatIconModule,
     MatProgressBarModule,
-    MatChipsModule,
-    MatTooltipModule,
+    ReadinessScoreMeterComponent,
+    SyllabusMasteryTreeComponent,
+    PhasedMilestonesListComponent,
   ],
   templateUrl: './dlp-roadmap.component.html',
   styleUrl: './dlp-roadmap.component.scss',
@@ -40,6 +45,7 @@ import { LearningPathService } from '../../services/learning-path.service';
 })
 export class DlpRoadmapComponent implements OnInit {
   private readonly learningPathService = inject(LearningPathService);
+  private readonly learningService = inject(AdaptiveLearningService);
   private readonly router = inject(Router);
 
   readonly learningPath = signal<DynamicLearningPath | null>(null);
@@ -47,6 +53,10 @@ export class DlpRoadmapComponent implements OnInit {
   readonly actionInProgress = signal<boolean>(false);
   readonly message = signal<string | null>(null);
   readonly error = signal<string | null>(null);
+
+  readonly activeEnrollment = this.learningService.activeEnrollment;
+  readonly readinessScore = this.learningService.readinessScore;
+  readonly progress = this.learningService.progress;
 
   readonly phases = computed<MilestonePhase[]>(() => {
     return this.learningPath()?.milestoneGraph?.phases || [];
@@ -59,53 +69,29 @@ export class DlpRoadmapComponent implements OnInit {
     if (cp === 'PHASE_2_ADAPTIVE_QUIZ') return 2;
     if (cp === 'PHASE_3_GATEKEEPER') return 3;
     if (cp === 'COMPLETED') return 4;
-    if (typeof cp === 'number') return cp;
     const num = Number(cp);
     return isNaN(num) ? 1 : num;
   });
 
   readonly isDiagnosticRequired = computed<boolean>(() => {
-    const cp = this.learningPath()?.milestoneGraph?.currentPhase;
-    return cp === 'DIAGNOSTIC_REQUIRED' || this.currentPhaseNumber() === 0;
-  });
-
-  readonly gatekeeperPassed = computed<boolean>(() => {
-    const lp = this.learningPath();
-    return !!(lp?.gatekeeperPassed || lp?.milestoneGraph?.gatekeeperPassed);
+    return this.currentPhaseNumber() === 0;
   });
 
   readonly overallProgressPercent = computed<number>(() => {
     const lp = this.learningPath();
-    if (!lp) return 0;
-    const cp = lp.milestoneGraph?.currentPhase;
-    if (cp === 'DIAGNOSTIC_REQUIRED' || this.currentPhaseNumber() === 0) {
-      return 0;
-    }
-    if (
-      lp.status === 'COMPLETED' ||
-      lp.gatekeeperPassed ||
-      lp.milestoneGraph?.gatekeeperPassed ||
-      cp === 'COMPLETED'
-    ) {
-      return 100;
-    }
-
+    if (!lp || this.isDiagnosticRequired()) return 0;
+    if (lp.status === 'COMPLETED' || lp.gatekeeperPassed) return 100;
     const phase1 = lp.milestoneGraph?.phases?.find((p) => p.phaseNumber === 1);
     const items = phase1?.items || [];
-    const completedItems = items.filter((i) => this.isItemCompleted(i)).length;
-    const p1Progress =
-      items.length > 0 ? (completedItems / items.length) * 40 : 40;
-
-    const currentP = this.currentPhaseNumber();
-    if (currentP === 1) {
-      return Math.round(p1Progress);
-    } else if (currentP === 2) {
-      return Math.round(40 + 30);
-    } else if (currentP === 3) {
-      return Math.round(40 + 30 + 20);
-    }
+    const completed = items.filter((i) => i.completed || i.status === 'COMPLETED').length;
+    const p1Progress = items.length > 0 ? (completed / items.length) * 40 : 40;
+    if (this.currentPhaseNumber() === 1) return Math.round(p1Progress);
+    if (this.currentPhaseNumber() === 2) return 70;
+    if (this.currentPhaseNumber() === 3) return 90;
     return 100;
   });
+
+  readonly gatekeeperPassed = computed<boolean>(() => !!this.learningPath()?.gatekeeperPassed);
 
   ngOnInit(): void {
     this.loadLearningPath();
@@ -113,136 +99,81 @@ export class DlpRoadmapComponent implements OnInit {
 
   loadLearningPath(): void {
     this.loading.set(true);
-    this.error.set(null);
     this.learningPathService.getLearningPath().subscribe({
       next: (data) => {
         this.learningPath.set(data);
         this.loading.set(false);
       },
       error: () => {
-        // If not found or initial state, attempt to generate
-        this.generateLearningPath();
+        this.learningPathService.generateLearningPath().subscribe({
+          next: (data) => {
+            this.learningPath.set(data);
+            this.loading.set(false);
+          },
+          error: () => this.loading.set(false),
+        });
       },
     });
   }
 
-  generateLearningPath(): void {
-    this.loading.set(true);
-    this.learningPathService.generateLearningPath().subscribe({
-      next: (data) => {
-        this.learningPath.set(data);
-        this.loading.set(false);
-      },
-      error: (err) => {
-        this.error.set(
-          err?.error?.message ||
-            'Unable to initialize Dynamic Learning Path. Please complete a practice test to diagnose focus areas.'
-        );
-        this.loading.set(false);
-      },
-    });
-  }
-
-  isItemCompleted(item: MilestoneItem): boolean {
-    return item.completed === true || item.status === 'COMPLETED';
-  }
-
-  getItemId(item: MilestoneItem): string {
-    return (
-      item.milestoneId ||
-      item.id ||
-      String(item.subtopicId || item.subtopicName || '')
-    );
-  }
-
-  private hashString(str: string): number {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      hash = (hash << 5) - hash + str.charCodeAt(i);
-      hash |= 0;
-    }
-    return hash;
+  onStudyLesson(item: MilestoneItem): void {
+    this.onStudyMicroLesson(item);
   }
 
   onStudyMicroLesson(item: MilestoneItem): void {
-    const milestoneId = item.milestoneId || item.id;
-    const subtopicId =
-      item.subtopicId ||
-      Math.abs(this.hashString(item.subtopicName || 'general'));
+    const subtopicId = item.subtopicId || 301;
     this.router.navigate(['/learn/lesson', subtopicId], {
-      queryParams: {
-        milestoneId,
-        subtopicName: item.subtopicName,
-        topicName: item.topicName,
-        subjectName: item.subjectName,
-        targetExam:
-          this.learningPath()?.targetExam ||
-          this.learningPath()?.examTarget ||
-          'JEE_MAIN',
+      queryParams: { milestoneId: item.milestoneId || item.id },
+    });
+  }
+
+  onSelectSubtopicFromTree(subtopic: SubtopicMastery): void {
+    this.router.navigate(['/learn/lesson', subtopic.subtopicId]);
+  }
+
+  onPracticeFromTree(subtopic: SubtopicMastery): void {
+    this.router.navigate(['/practice']);
+  }
+
+  onStartQuiz(phase?: MilestonePhase): void {
+    this.actionInProgress.set(true);
+    this.learningPathService.startAdaptiveQuiz().subscribe({
+      next: (res) => {
+        this.actionInProgress.set(false);
+        this.router.navigate(['/practice'], { queryParams: { setId: res.practiceSetId || res.quizSessionId } });
       },
+      error: () => this.actionInProgress.set(false),
+    });
+  }
+
+  onStartAdaptiveQuiz(phase?: MilestonePhase): void {
+    this.onStartQuiz(phase);
+  }
+
+  onSubmitAdaptiveQuizScore(score: number, sessionId = 'quiz-session'): void {
+    this.learningPathService.submitAdaptiveQuiz(sessionId, score).subscribe({
+      next: (data) => this.learningPath.set(data),
+    });
+  }
+
+  onStartGatekeeper(phase?: MilestonePhase): void {
+    this.actionInProgress.set(true);
+    this.learningPathService.startGatekeeper().subscribe({
+      next: (res) => {
+        this.actionInProgress.set(false);
+        this.router.navigate(['/practice'], { queryParams: { setId: res.practiceSetId || res.gatekeeperSessionId } });
+      },
+      error: () => this.actionInProgress.set(false),
+    });
+  }
+
+  onSubmitGatekeeperScore(score: number, sessionId = 'gatekeeper-session'): void {
+    this.learningPathService.submitGatekeeper(sessionId, score).subscribe({
+      next: (data) => this.learningPath.set(data),
     });
   }
 
   onStartDiagnosticTest(): void {
-    this.actionInProgress.set(true);
-    const targetExam =
-      this.learningPath()?.targetExam ||
-      this.learningPath()?.examTarget ||
-      'JEE_MAIN';
-    this.learningPathService.startDiagnosticTest(targetExam).subscribe({
-      next: (res) => {
-        this.actionInProgress.set(false);
-        const setId = res.practiceSetId || res.quizSessionId;
-        this.router.navigate(['/practice'], { queryParams: { setId } });
-      },
-      error: () => {
-        this.actionInProgress.set(false);
-        this.router.navigate(['/practice']);
-      },
-    });
-  }
-
-  onStartAdaptiveQuiz(): void {
-    this.actionInProgress.set(true);
-    this.learningPathService.startAdaptiveQuiz().subscribe({
-      next: (res) => {
-        this.message.set(
-          `Adaptive quiz session ${res.quizSessionId.slice(
-            0,
-            8
-          )} started! Pass score: ${res.targetAccuracy}%.`
-        );
-        this.actionInProgress.set(false);
-        const setId = res.practiceSetId || res.quizSessionId;
-        this.router.navigate(['/practice'], { queryParams: { setId } });
-      },
-      error: (err) => {
-        this.error.set(err?.error?.message || 'Could not launch adaptive quiz.');
-        this.actionInProgress.set(false);
-      },
-    });
-  }
-
-  onStartGatekeeper(): void {
-    this.actionInProgress.set(true);
-    this.learningPathService.startGatekeeper().subscribe({
-      next: (res) => {
-        this.message.set(
-          `Gatekeeper test session ${res.gatekeeperSessionId.slice(
-            0,
-            8
-          )} started! Required score: >= ${res.passThreshold}%.`
-        );
-        this.actionInProgress.set(false);
-        const setId = res.practiceSetId || res.gatekeeperSessionId;
-        this.router.navigate(['/practice'], { queryParams: { setId } });
-      },
-      error: (err) => {
-        this.error.set(
-          err?.error?.message || 'Could not launch Gatekeeper test.'
-        );
-        this.actionInProgress.set(false);
-      },
-    });
+    this.router.navigate(['/learn/onboarding'], { queryParams: { step: 'diagnostic' } });
   }
 }

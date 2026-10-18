@@ -74,8 +74,9 @@ class QuestionLifecycleServiceTest {
 
     private Question buildQuestion(String state) {
         Question question = Question.builder()
-                .subject("Mathematics")
-                .topic("Algebra")
+                .subjectId(1L)
+                .topicId(10L)
+                .subtopicId(100L)
                 .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
                 .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.UNDERSTAND)
                 .questionType(QuestionTypeConstants.SINGLE_MCQ)
@@ -265,8 +266,9 @@ class QuestionLifecycleServiceTest {
 
     private Question buildQuestionWithId(UUID id, String state) {
         Question question = Question.builder()
-                .subject("Mathematics")
-                .topic("Algebra")
+                .subjectId(1L)
+                .topicId(10L)
+                .subtopicId(100L)
                 .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
                 .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.UNDERSTAND)
                 .questionType(QuestionTypeConstants.SINGLE_MCQ)

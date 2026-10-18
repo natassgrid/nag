@@ -252,10 +252,10 @@ public class MicroLessonTranslationWorkflowService {
                 lesson.getSubjectId(),
                 lesson.getTopicId(),
                 lesson.getSubtopicId(),
-                lesson.getSubject(),
-                lesson.getTopic(),
-                lesson.getSubtopic(),
-                lesson.getTargetExam(),
+                null,
+                null,
+                null,
+                null,
                 lesson.getCoreConcept(),
                 lesson.getTrap(),
                 cheatSheet,
@@ -268,7 +268,13 @@ public class MicroLessonTranslationWorkflowService {
                 lesson.getCreatedAt(),
                 lesson.getUpdatedAt(),
                 languageCode,
-                fallbackToEnglish
+                fallbackToEnglish,
+                lesson.getLessonType(),
+                lesson.getDifficultyLevel(),
+                lesson.getSequenceNo(),
+                lesson.getPrerequisiteLessonId(),
+                lesson.getEstimatedMinutes(),
+                lesson.getQualityScore()
         );
     }
 
@@ -286,10 +292,10 @@ public class MicroLessonTranslationWorkflowService {
                 lesson.getSubjectId(),
                 lesson.getTopicId(),
                 lesson.getSubtopicId(),
-                lesson.getSubject(),
-                lesson.getTopic(),
-                lesson.getSubtopic(),
-                lesson.getTargetExam(),
+                null,
+                null,
+                null,
+                null,
                 translation.getCoreConcept(),
                 translation.getTrap(),
                 cheatSheet,
@@ -302,7 +308,13 @@ public class MicroLessonTranslationWorkflowService {
                 translation.getCreatedAt(),
                 translation.getUpdatedAt(),
                 languageCode,
-                fallbackToEnglish
+                fallbackToEnglish,
+                lesson.getLessonType(),
+                lesson.getDifficultyLevel(),
+                lesson.getSequenceNo(),
+                lesson.getPrerequisiteLessonId(),
+                lesson.getEstimatedMinutes(),
+                lesson.getQualityScore()
         );
     }
 

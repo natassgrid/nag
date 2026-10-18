@@ -96,9 +96,9 @@ class MicroLessonBlueprintAgentTest {
     @SuppressWarnings("unchecked")
     void testBlueprintWithSampleQuestions() {
         Question q = Question.builder()
-                .subject("Physics")
-                .topic("Mechanics")
-                .subtopic("Moment of Inertia")
+                .subjectId(1L)
+                .topicId(10L)
+                .subtopicId(100L)
                 .content("Calculate the moment of inertia of a disc.")
                 .answerKey("0.5 kg m^2")
                 .explanation("Step 1: Formula is I = 0.5 * M * R^2.")

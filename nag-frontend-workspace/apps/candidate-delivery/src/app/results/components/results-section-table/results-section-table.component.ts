@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   input,
+  signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
@@ -17,4 +18,9 @@ import { SubjectScore } from '../../models';
 })
 export class ResultsSectionTableComponent {
   readonly subjectScores = input.required<SubjectScore[]>();
+  readonly expandedSubject = signal<string | null>(null);
+
+  toggleExpand(subject: string): void {
+    this.expandedSubject.update((curr) => (curr === subject ? null : subject));
+  }
 }

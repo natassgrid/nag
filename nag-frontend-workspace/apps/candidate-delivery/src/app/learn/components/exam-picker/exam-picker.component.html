@@ -1,0 +1,176 @@
+<div class="max-w-4xl mx-auto space-y-6">
+  <!-- Header Bar -->
+  <div class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-xs">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6 border-b border-slate-100">
+      <div>
+        <h2 class="text-lg font-bold text-slate-900 leading-tight">
+          {{ isSwitchMode() ? 'Switch Your Target Examination' : 'Choose Your Target Examination' }}
+        </h2>
+        <p class="text-xs text-slate-500 mt-0.5">
+          Selecting a target exam scopes syllabus subtopics, weighting, diagnostic baseline, and personalized study roadmaps.
+        </p>
+      </div>
+
+      <!-- Search Input -->
+      <div class="relative w-full sm:w-72">
+        <mat-icon class="!text-lg text-slate-400 absolute left-3 top-1/2 -translate-y-1/2">search</mat-icon>
+        <input
+          type="text"
+          placeholder="Search exams, authority, code..."
+          [value]="searchQuery()"
+          (input)="searchQuery.set($any($event.target).value)"
+          class="w-full pl-9 pr-4 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800"
+        />
+      </div>
+    </div>
+
+    <!-- Category Filter Chips -->
+    <div class="flex items-center gap-2 overflow-x-auto py-4">
+      @for (cat of categories(); track cat) {
+        <button
+          type="button"
+          (click)="selectedCategory.set(cat)"
+          class="px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer"
+          [ngClass]="{
+            'bg-indigo-600 text-white shadow-2xs': selectedCategory() === cat,
+            'bg-slate-100 text-slate-600 hover:bg-slate-200': selectedCategory() !== cat
+          }"
+        >
+          {{ cat === 'ALL' ? 'All Categories' : cat }}
+        </button>
+      }
+    </div>
+
+    <!-- Exams List -->
+    <div class="space-y-4 mt-2">
+      @for (exam of filteredExams(); track exam.id) {
+        <div
+          class="rounded-2xl border p-5 transition-all"
+          [ngClass]="{
+            'border-indigo-400 bg-indigo-50/40 ring-1 ring-indigo-400/50': isExamActive(exam.id),
+            'border-slate-200 bg-white hover:border-slate-300': !isExamActive(exam.id)
+          }"
+        >
+          <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div class="space-y-1.5">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="px-2.5 py-0.5 text-[10px] font-bold rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200">
+                  {{ exam.code }}
+                </span>
+                <span class="px-2.5 py-0.5 text-[10px] font-medium rounded-md bg-slate-100 text-slate-600">
+                  {{ exam.category || 'General' }}
+                </span>
+                @if (isExamActive(exam.id)) {
+                  <span class="px-2.5 py-0.5 text-[10px] font-bold rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    Currently Enrolled
+                  </span>
+                }
+              </div>
+
+              <h3 class="text-base font-bold text-slate-900">{{ exam.title || exam.name }}</h3>
+              <p class="text-xs text-slate-600 max-w-2xl">{{ exam.description }}</p>
+
+              <div class="flex flex-wrap items-center gap-4 text-[11px] text-slate-500 pt-1">
+                @if (exam.conductingAuthority) {
+                  <span class="flex items-center gap-1">
+                    <mat-icon class="!text-sm text-slate-400">account_balance</mat-icon>
+                    {{ exam.conductingAuthority }}
+                  </span>
+                }
+                <span class="flex items-center gap-1">
+                  <mat-icon class="!text-sm text-slate-400">library_books</mat-icon>
+                  {{ exam.syllabusSummary?.subjectCount ?? exam.sectionsCount ?? 0 }} Subjects &bull;
+                  {{ exam.syllabusSummary?.subtopicCount ?? exam.syllabusNodesCount ?? 0 }} Subtopics
+                </span>
+                @if (exam.durationMinutes) {
+                  <span class="flex items-center gap-1">
+                    <mat-icon class="!text-sm text-slate-400">schedule</mat-icon>
+                    {{ exam.durationMinutes }} Mins
+                  </span>
+                }
+              </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2 shrink-0">
+              <button
+                mat-flat-button
+                type="button"
+                (click)="onSelectExam(exam.id)"
+                class="!font-bold !rounded-xl !text-xs !py-2 !px-4 cursor-pointer"
+                [ngClass]="{
+                  '!bg-emerald-600 hover:!bg-emerald-700 !text-white': isExamActive(exam.id),
+                  '!bg-indigo-600 hover:!bg-indigo-700 !text-white': !isExamActive(exam.id)
+                }"
+              >
+                @if (isExamActive(exam.id)) {
+                  <mat-icon class="!text-sm">check</mat-icon>
+                }
+                @if (isExamActive(exam.id)) {
+                  <span>Active Target Exam</span>
+                } @else if (isSwitchMode()) {
+                  <span>Switch to This Exam</span>
+                } @else {
+                  <span>Target This Exam</span>
+                }
+              </button>
+
+              <button
+                type="button"
+                (click)="toggleSyllabus(exam.id)"
+                class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-0.5 cursor-pointer"
+              >
+                <span>{{ expandedExamId() === exam.id ? 'Hide Syllabus' : 'View Syllabus Tree' }}</span>
+                <mat-icon class="!text-sm leading-none">
+                  {{ expandedExamId() === exam.id ? 'expand_less' : 'expand_more' }}
+                </mat-icon>
+              </button>
+            </div>
+          </div>
+
+          <!-- Syllabus Tree Expansion Preview -->
+          @if (expandedExamId() === exam.id) {
+            <div class="mt-4 pt-4 border-t border-slate-200/80 bg-slate-50/70 -mx-5 -mb-5 p-5 rounded-b-2xl space-y-3">
+              <div class="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                <mat-icon class="!text-sm text-indigo-600">account_tree</mat-icon>
+                Exam Syllabus Architecture
+              </div>
+              @if (exam.syllabusSummary?.subjects && exam.syllabusSummary.subjects.length > 0) {
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  @for (sub of exam.syllabusSummary.subjects; track sub.subjectId) {
+                    <div class="bg-white p-3.5 rounded-xl border border-slate-200">
+                      <div class="font-bold text-xs text-slate-900">{{ sub.subjectName }}</div>
+                      <div class="mt-2 space-y-2">
+                        @for (top of sub.topics; track top.topicId) {
+                          <div class="pl-2 border-l-2 border-indigo-200">
+                            <div class="text-[11px] font-semibold text-slate-700">{{ top.topicName }}</div>
+                            <div class="flex flex-wrap gap-1 mt-1">
+                              @for (subt of top.subtopics; track subt.subtopicId) {
+                                <span class="text-[10px] px-2 py-0.5 bg-slate-100 rounded text-slate-600">
+                                  {{ subt.subtopicName }}
+                                </span>
+                              }
+                            </div>
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+              } @else {
+                <div class="p-4 text-xs text-slate-500 bg-white rounded-xl border border-slate-200">
+                  This examination has {{ exam.sectionsCount ?? exam.syllabusSummary?.subjectCount ?? 0 }} sections and {{ exam.syllabusNodesCount ?? exam.syllabusSummary?.subtopicCount ?? 0 }} configured syllabus nodes. Detailed subject breakdown is available upon enrollment.
+                </div>
+              }
+            </div>
+          }
+        </div>
+      } @empty {
+        <div class="p-8 text-center text-slate-400 text-xs">
+          No matching examinations found for "{{ searchQuery() }}".
+        </div>
+      }
+    </div>
+  </div>
+</div>

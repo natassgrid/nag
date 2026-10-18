@@ -101,7 +101,7 @@ class MicroLessonServiceTest {
         @DisplayName("Creates manual micro-lesson with structured content, resolves taxonomy, and defaults status to APPROVED")
         void testCreateManualMicroLessonSuccess() {
             stubTaxonomyRepositories();
-            when(repository.findTopBySubtopicIdAndTargetExamOrderByContentVersionDesc(100L, "JEE_MAIN"))
+            when(repository.findTopBySubtopicIdOrderByContentVersionDesc(100L))
                     .thenReturn(Optional.empty());
             when(repository.save(any(SubtopicMicroLesson.class))).thenAnswer(inv -> {
                 SubtopicMicroLesson saved = inv.getArgument(0);
@@ -178,7 +178,7 @@ class MicroLessonServiceTest {
         void testCreatePublishedPopulatesCacheAndIncrementsVersion() {
             stubTaxonomyRepositories();
             SubtopicMicroLesson prev = SubtopicMicroLesson.builder().contentVersion(2).build();
-            when(repository.findTopBySubtopicIdAndTargetExamOrderByContentVersionDesc(100L, "JEE_MAIN"))
+            when(repository.findTopBySubtopicIdOrderByContentVersionDesc(100L))
                     .thenReturn(Optional.of(prev));
             when(repository.save(any(SubtopicMicroLesson.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -265,10 +265,6 @@ class MicroLessonServiceTest {
                     .subjectId(1L)
                     .topicId(10L)
                     .subtopicId(100L)
-                    .subject("Physics")
-                    .topic("Rotational Mechanics")
-                    .subtopic("Moment of Inertia")
-                    .targetExam("JEE_MAIN")
                     .coreConcept("Old core concept")
                     .trap("Old trap")
                     .cheatSheetJson("[\"$$I = mr^2$$\"]")
@@ -279,7 +275,7 @@ class MicroLessonServiceTest {
             ReflectionTestUtils.setField(existing, "id", LESSON_ID);
 
             when(repository.findById(LESSON_ID)).thenReturn(Optional.of(existing));
-            when(repository.findTopBySubtopicIdAndTargetExamOrderByContentVersionDesc(100L, "JEE_ADVANCED"))
+            when(repository.findTopBySubtopicIdOrderByContentVersionDesc(100L))
                     .thenReturn(Optional.empty());
             when(repository.save(any(SubtopicMicroLesson.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -296,7 +292,6 @@ class MicroLessonServiceTest {
 
             MicroLessonResponse response = service.updateMicroLesson(LESSON_ID, updateReq, AUTHOR_ID);
 
-            assertThat(response.targetExam()).isEqualTo("JEE_ADVANCED");
             assertThat(response.coreConcept()).isEqualTo("Updated core concept with $$L = I \\omega$$.");
             assertThat(response.contentVersion()).isEqualTo(2);
             assertThat(response.status()).isEqualTo("APPROVED");
@@ -312,10 +307,6 @@ class MicroLessonServiceTest {
                     .subjectId(1L)
                     .topicId(10L)
                     .subtopicId(100L)
-                    .subject("Physics")
-                    .topic("Rotational Mechanics")
-                    .subtopic("Moment of Inertia")
-                    .targetExam("JEE_MAIN")
                     .coreConcept("Valid concept")
                     .trap("Valid trap")
                     .cheatSheetJson("[\"$$I = mr^2$$\"]")
@@ -365,14 +356,11 @@ class MicroLessonServiceTest {
         @Test
         @DisplayName("Returns MicroLessonResponse when ID exists")
         void testGetByIdSuccess() {
+            stubTaxonomyRepositories();
             SubtopicMicroLesson existing = SubtopicMicroLesson.builder()
                     .subjectId(1L)
                     .topicId(10L)
                     .subtopicId(100L)
-                    .subject("Physics")
-                    .topic("Rotational Mechanics")
-                    .subtopic("Moment of Inertia")
-                    .targetExam("JEE_MAIN")
                     .coreConcept("Concept")
                     .trap("Trap")
                     .cheatSheetJson("[\"$$I = mr^2$$\"]")

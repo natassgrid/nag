@@ -120,4 +120,50 @@ public class ExaminationController {
         ExaminationResponse response = examinationService.getById(examId);
         return ResponseEntity.ok(ApiResponse.success(response, "Examination retrieved successfully"));
     }
+
+    /**
+     * Retrieves the declared syllabus nodes and scoped hierarchy tree for an examination.
+     */
+    @GetMapping("/{examId}/syllabus")
+    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER', 'SUPER_ADMIN', 'QUESTION_AUTHOR', 'REVIEWER', 'CANDIDATE')")
+    public ResponseEntity<ApiResponse<com.examplatform.examination.dto.ExamSyllabusResponse>> getSyllabus(
+            @PathVariable UUID examId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, required = false) String tenantId,
+            @AuthenticationPrincipal Jwt jwt) {
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
+        com.examplatform.examination.dto.ExamSyllabusResponse response =
+                examinationService.getSyllabus(examId, effectiveTenant);
+        return ResponseEntity.ok(ApiResponse.success(response, "Examination syllabus retrieved successfully"));
+    }
+
+    /**
+     * Replaces the syllabus nodes of an examination. Only permitted in DRAFT status.
+     */
+    @PutMapping("/{examId}/syllabus")
+    @PreAuthorize("hasRole('EXAM_CONTROLLER')")
+    public ResponseEntity<ApiResponse<com.examplatform.examination.dto.ExamSyllabusResponse>> updateSyllabus(
+            @PathVariable UUID examId,
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
+            @Valid @RequestBody com.examplatform.examination.dto.ExamSyllabusRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+        com.examplatform.examination.dto.ExamSyllabusResponse response =
+                examinationService.updateSyllabus(examId, request.getNodes(), tenantId);
+        return ResponseEntity.ok(ApiResponse.success(response, "Examination syllabus updated successfully"));
+    }
+
+    /**
+     * Public / Learner catalogue endpoint for discovering published examinations available for target enrollment.
+     */
+    @GetMapping("/catalogue")
+    public ResponseEntity<ApiResponse<org.springframework.data.domain.Page<com.examplatform.examination.dto.ExamCatalogueItemResponse>>> listCatalogue(
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, required = false) String tenantId,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String category,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
+        org.springframework.data.domain.Page<com.examplatform.examination.dto.ExamCatalogueItemResponse> catalogue =
+                examinationService.listCatalogue(effectiveTenant, search, category, org.springframework.data.domain.PageRequest.of(page, size));
+        return ResponseEntity.ok(ApiResponse.success(catalogue, "Published examination catalogue retrieved successfully"));
+    }
 }

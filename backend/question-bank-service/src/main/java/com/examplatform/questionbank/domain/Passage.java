@@ -58,6 +58,9 @@ public class Passage extends BaseEntity {
     @Column(name = "topic_id")
     private Long topicId;
 
+    @Column(name = "subtopic_id")
+    private Long subtopicId;
+
     @Column(name = SharedConstants.SUBJECT, nullable = false, length = 100)
     private String subject;
 

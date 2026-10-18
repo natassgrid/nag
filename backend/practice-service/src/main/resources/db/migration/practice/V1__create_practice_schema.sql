@@ -14,6 +14,9 @@ CREATE TABLE practice_service.practice_set (
     question_ids      JSONB,
     duration_minutes  INTEGER NOT NULL DEFAULT 60,
     subject_slug      VARCHAR(100),
+    subject_id        BIGINT,
+    topic_id          BIGINT,
+    subtopic_id       BIGINT,
     published         BOOLEAN NOT NULL DEFAULT FALSE,
     total_questions   INTEGER NOT NULL DEFAULT 0,
     created_at        TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -26,6 +29,8 @@ CREATE TABLE practice_service.practice_session (
     tenant_id               VARCHAR(255) NOT NULL,
     candidate_id            UUID NOT NULL,
     practice_set_id         UUID NOT NULL REFERENCES practice_service.practice_set(id),
+    enrollment_id           UUID,
+    exam_id                 UUID,
     mode                    VARCHAR(30) NOT NULL DEFAULT 'TIMED',
     status                  VARCHAR(30) NOT NULL DEFAULT 'CREATED',
     started_at              TIMESTAMP,
@@ -38,7 +43,7 @@ CREATE TABLE practice_service.practice_session (
     total_marks             INTEGER NOT NULL DEFAULT 0,
     obtained_marks          INTEGER NOT NULL DEFAULT 0,
     topic_wise_breakdown    JSONB,
-    subtopic_wise_breakdown  JSONB,
+    subtopic_wise_breakdown JSONB,
     difficulty_breakdown    JSONB,
     timing_breakdown        JSONB,
     preferred_language      VARCHAR(30) DEFAULT 'en',
@@ -64,12 +69,15 @@ CREATE TABLE practice_service.practice_response (
     version               BIGINT NOT NULL DEFAULT 0
 );
 
+CREATE INDEX idx_practice_set_taxonomy ON practice_service.practice_set(subject_id, topic_id, subtopic_id);
 CREATE INDEX idx_practice_session_candidate ON practice_service.practice_session(candidate_id);
+CREATE INDEX idx_practice_session_enrollment ON practice_service.practice_session(enrollment_id);
+CREATE INDEX idx_practice_session_exam ON practice_service.practice_session(exam_id);
 CREATE INDEX idx_practice_response_session ON practice_service.practice_response(practice_session_id);
 
 -- Seed default published practice sets
 INSERT INTO practice_service.practice_set (
-    id, tenant_id, name, description, created_by, source, question_ids, duration_minutes, subject_slug, published, total_questions, created_at, updated_at, version
+    id, tenant_id, name, description, created_by, source, question_ids, duration_minutes, subject_slug, subject_id, topic_id, subtopic_id, published, total_questions, created_at, updated_at, version
 ) VALUES
 (
     '11111111-1111-1111-1111-111111111111',
@@ -81,6 +89,9 @@ INSERT INTO practice_service.practice_set (
     '[]'::jsonb,
     45,
     'reasoning',
+    1,
+    10,
+    101,
     TRUE,
     25,
     NOW(),
@@ -97,6 +108,9 @@ INSERT INTO practice_service.practice_set (
     '[]'::jsonb,
     60,
     'quantitative-aptitude',
+    2,
+    20,
+    201,
     TRUE,
     30,
     NOW(),
@@ -113,6 +127,9 @@ INSERT INTO practice_service.practice_set (
     '[]'::jsonb,
     30,
     'general-awareness',
+    3,
+    30,
+    301,
     TRUE,
     20,
     NOW(),

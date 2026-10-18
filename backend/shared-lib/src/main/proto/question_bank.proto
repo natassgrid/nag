@@ -30,11 +30,12 @@ message BatchFindQuestionsGrpcRequest {
 }
 
 message BlueprintMatchGrpcRequest {
-  string subject = 1;
-  string topic = 2;
-  string difficulty = 3;
-  string cognitive_level = 4;
-  string tenant_id = 5;
+  int64 subject_id = 1;
+  int64 topic_id = 2;
+  int64 subtopic_id = 3;
+  string difficulty = 4;
+  string cognitive_level = 5;
+  string tenant_id = 6;
 }
 
 message BlueprintMatchGrpcResponse {
@@ -60,6 +61,8 @@ message QuestionSummaryGrpc {
   string subject = 16;
   string topic = 17;
   int32 usage_count = 18;
+  string subtopic_id = 19;
+  string subtopic = 20;
 }
 
 message PaperQuestionsGrpcResponse {

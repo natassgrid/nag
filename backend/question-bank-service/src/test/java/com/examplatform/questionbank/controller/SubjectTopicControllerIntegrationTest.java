@@ -192,7 +192,7 @@ class SubjectTopicControllerIntegrationTest extends AbstractIntegrationTest {
             ReflectionTestUtils.setField(topic, "id", 11L);
             topic.setTenantId(TENANT_ID);
 
-            when(subjectTopicService.createTopic(eq(1L), eq("Linear Algebra"), any(), eq(TENANT_ID)))
+            when(subjectTopicService.createTopic(eq(1L), any(), eq("Linear Algebra"), any(), eq(TENANT_ID)))
                     .thenReturn(topic);
 
             mockMvc.perform(post("/api/v1/subjects/{subjectId}/topics", 1L)
@@ -247,7 +247,7 @@ class SubjectTopicControllerIntegrationTest extends AbstractIntegrationTest {
             ReflectionTestUtils.setField(subtopic, "id", 101L);
             subtopic.setTenantId(TENANT_ID);
 
-            when(subjectTopicService.createSubtopic(eq(10L), eq("Differential Equations"), any(), eq(TENANT_ID)))
+            when(subjectTopicService.createSubtopic(eq(10L), any(), eq("Differential Equations"), any(), eq(TENANT_ID)))
                     .thenReturn(subtopic);
 
             mockMvc.perform(post("/api/v1/subjects/{subjectId}/topics/{topicId}/subtopics", 1L, 10L)

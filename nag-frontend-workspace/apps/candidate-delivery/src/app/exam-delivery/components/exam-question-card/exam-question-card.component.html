@@ -10,6 +10,16 @@
           Code: {{ item().questionCode }}
         </span>
       }
+      @if (item().sectionName || item().subject) {
+        <span class="text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+          <mat-icon class="!text-xs !w-3.5 !h-3.5">category</mat-icon>
+          <span>{{ item().sectionName || item().subject }}</span>
+          @if (item().subtopicName) {
+            <span class="text-indigo-400">&bull;</span>
+            <span class="text-indigo-600 font-medium">{{ item().subtopicName }}</span>
+          }
+        </span>
+      }
       @if (isFallback()) {
         <span class="text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200 px-2.5 py-0.5 rounded-full flex items-center gap-1">
           <mat-icon class="!text-xs !w-3.5 !h-3.5">info</mat-icon>

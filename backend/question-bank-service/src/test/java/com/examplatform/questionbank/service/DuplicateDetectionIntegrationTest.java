@@ -93,6 +93,9 @@ class DuplicateDetectionIntegrationTest {
     @Mock
     private QuestionVersionRepository questionVersionRepository;
 
+    @Mock
+    private com.examplatform.shared.taxonomy.TaxonomyClient taxonomyClient;
+
     // Real SimilarityDetectionService with mocked dependencies
     private SimilarityDetectionService similarityDetectionService;
 
@@ -124,7 +127,8 @@ class DuplicateDetectionIntegrationTest {
                 embeddingService,
                 eventPublisher,
                 translationRepository,
-                questionVersionRepository
+                questionVersionRepository,
+                taxonomyClient
         );
 
         // Set encryptionEnabled = false to avoid Vault dependency in tests
@@ -186,6 +190,9 @@ class DuplicateDetectionIntegrationTest {
         lenient().when(subjectRepository.findById(SUBJECT_ID)).thenReturn(java.util.Optional.of(subject));
         lenient().when(topicRepository.findById(TOPIC_ID)).thenReturn(java.util.Optional.of(topic));
         lenient().when(subtopicRepository.findById(SUBTOPIC_ID)).thenReturn(java.util.Optional.of(subtopic));
+        lenient().when(taxonomyClient.validateChain(any(), any(), any(), any())).thenReturn(true);
+        lenient().when(taxonomyClient.resolveNames(any(com.examplatform.shared.taxonomy.TaxonomyNodeRef.class), any()))
+                .thenReturn(new com.examplatform.shared.taxonomy.TaxonomyNames(SUBJECT, "Calculus", "Differentiation"));
     }
 
     private static void setNumericId(Object entity, Long id) {

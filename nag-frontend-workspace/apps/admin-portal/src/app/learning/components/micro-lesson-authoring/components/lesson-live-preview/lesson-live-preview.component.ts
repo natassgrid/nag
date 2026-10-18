@@ -27,6 +27,9 @@ export class LessonLivePreviewComponent {
   readonly topicName = input<string>('General');
   readonly subtopicName = input<string>('Subtopic');
   readonly targetExam = input<string>('JEE_MAIN');
+  readonly lessonType = input<string>('CONCEPT');
+  readonly difficultyLevel = input<string>('CORE');
+  readonly estimatedMinutes = input<number>(5);
   readonly status = input<string>('APPROVED');
   readonly coreConcept = input<string>('');
   readonly trapAlert = input<TrapAlert>({

@@ -1,6 +1,8 @@
 import { Route } from '@angular/router';
 import { authGuard, rootGuard } from '@nag-frontend-workspace/shared-data-access-auth';
 
+import { learnerJourneyGuard } from './learn/guards/learner-journey.guard';
+
 export const appRoutes: Route[] = [
   {
     path: '',
@@ -105,9 +107,10 @@ export const appRoutes: Route[] = [
     canActivate: [authGuard],
     loadComponent: () => import('./learn/learn.component').then(m => m.LearnComponent),
     children: [
-      { path: 'recommendations', loadComponent: () => import('./learn/components/recommendations-dashboard/recommendations-dashboard.component').then(m => m.RecommendationsDashboardComponent) },
-      { path: 'roadmap', loadComponent: () => import('./learn/components/dlp-roadmap/dlp-roadmap.component').then(m => m.DlpRoadmapComponent) },
-      { path: 'lesson/:subtopicId', loadComponent: () => import('./learn/components/micro-lesson-viewer/micro-lesson-viewer.component').then(m => m.MicroLessonViewerComponent) },
+      { path: 'onboarding', loadComponent: () => import('./learn/components/learner-onboarding-flow/learner-onboarding-flow.component').then(m => m.LearnerOnboardingFlowComponent) },
+      { path: 'recommendations', canActivate: [learnerJourneyGuard], loadComponent: () => import('./learn/components/recommendations-dashboard/recommendations-dashboard.component').then(m => m.RecommendationsDashboardComponent) },
+      { path: 'roadmap', canActivate: [learnerJourneyGuard], loadComponent: () => import('./learn/components/dlp-roadmap/dlp-roadmap.component').then(m => m.DlpRoadmapComponent) },
+      { path: 'lesson/:subtopicId', canActivate: [learnerJourneyGuard], loadComponent: () => import('./learn/components/micro-lesson-viewer/micro-lesson-viewer.component').then(m => m.MicroLessonViewerComponent) },
       { path: '', redirectTo: 'recommendations', pathMatch: 'full' }
     ]
   },

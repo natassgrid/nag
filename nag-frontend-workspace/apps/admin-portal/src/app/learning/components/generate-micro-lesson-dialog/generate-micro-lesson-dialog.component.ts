@@ -9,6 +9,7 @@ import { SubjectTopicService, SubjectHierarchy, TargetExaminationOption } from '
 import { MicroLessonAdminService } from '../../services/micro-lesson-admin.service';
 import { GenerateMicroLessonRequest, MicroLessonReviewItem } from '../../models/micro-lesson.model';
 import { BatchGenerateMicroLessonDialogComponent } from '../batch-generate-dialog/batch-generate-dialog.component';
+import { DIFFICULTY_LEVEL_OPTIONS, LESSON_TYPE_OPTIONS } from '../micro-lesson-authoring/models';
 
 @Component({
   selector: 'app-generate-micro-lesson-dialog',
@@ -50,6 +51,11 @@ export class GenerateMicroLessonDialogComponent implements OnInit {
   readonly examOptions = signal<{ label: string; value: string; category?: string }[]>([]);
   readonly isLoadingExams = signal<boolean>(false);
   readonly isCustomExam = signal<boolean>(false);
+
+  readonly lessonType = signal<string>('CONCEPT');
+  readonly difficultyLevel = signal<string>('CORE');
+  readonly lessonTypeOptions = LESSON_TYPE_OPTIONS;
+  readonly difficultyOptions = DIFFICULTY_LEVEL_OPTIONS;
 
   readonly referenceText = signal<string>('');
   readonly mode = signal<'SINGLE' | 'BATCH'>('SINGLE');
@@ -296,6 +302,8 @@ export class GenerateMicroLessonDialogComponent implements OnInit {
       subtopicId: this.selectedSubtopicId() ?? undefined,
       subtopic,
       targetExam: examCode,
+      lessonType: this.lessonType(),
+      difficultyLevel: this.difficultyLevel(),
       referenceText: this.referenceText().trim() || undefined,
     };
 

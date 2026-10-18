@@ -23,22 +23,23 @@
       </a>
       <!-- Mode Selector -->
       <div class="flex items-center gap-2 bg-slate-100 p-1 rounded-2xl border border-slate-200">
-      <button
-        type="button"
-        (click)="activeTab.set('realtime')"
-        class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2"
-        [ngClass]="activeTab() === 'realtime' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'"
-      >
-        <mat-icon class="!text-sm">bolt</mat-icon> Real-Time Synthesis
-      </button>
-      <button
-        type="button"
-        (click)="activeTab.set('batch')"
-        class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2"
-        [ngClass]="activeTab() === 'batch' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'"
-      >
-        <mat-icon class="!text-sm">dynamic_feed</mat-icon> High-Throughput Batch ({{ batchItems().length }})
-      </button>
+        <button
+          type="button"
+          (click)="activeTab.set('realtime')"
+          class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer"
+          [ngClass]="activeTab() === 'realtime' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'"
+        >
+          <mat-icon class="!text-sm">bolt</mat-icon> Real-Time Synthesis
+        </button>
+        <button
+          type="button"
+          (click)="activeTab.set('batch')"
+          class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer"
+          [ngClass]="activeTab() === 'batch' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'"
+        >
+          <mat-icon class="!text-sm">dynamic_feed</mat-icon> High-Throughput Batch ({{ batchItems().length }})
+        </button>
+      </div>
     </div>
   </div>
 

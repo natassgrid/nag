@@ -55,6 +55,9 @@ class VectorSearchIntegrationTest extends AbstractIntegrationTest {
     @Autowired
     private QuestionRepository questionRepository;
 
+    @Autowired
+    private SubjectTopicService subjectTopicService;
+
     @MockitoBean
     private EmbeddingService embeddingService;
 
@@ -82,6 +85,7 @@ class VectorSearchIntegrationTest extends AbstractIntegrationTest {
     /**
      * Helper to persist a question entity directly into the database.
      */
+    @SuppressWarnings("PMD.UnusedFormalParameter")
     private Question insertQuestion(
             UUID id,
             Long subjectId,
@@ -95,11 +99,13 @@ class VectorSearchIntegrationTest extends AbstractIntegrationTest {
             String tenantId,
             float[] embedding) {
 
+        SubjectTopicService.HierarchyIds hierarchy = subjectTopicService.resolveOrCreateByName(
+                subject, topic, null, tenantId);
+
         Question question = Question.builder()
-                .subjectId(subjectId)
-                .topicId(topicId)
-                .subject(subject)
-                .topic(topic)
+                .subjectId(hierarchy.subjectId())
+                .topicId(hierarchy.topicId())
+                .subtopicId(hierarchy.subtopicId())
                 .content(content)
                 .difficulty(difficulty)
                 .cognitiveLevel(cognitiveLevel)

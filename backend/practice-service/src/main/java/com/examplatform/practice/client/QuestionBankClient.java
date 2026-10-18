@@ -12,4 +12,6 @@ public interface QuestionBankClient {
     List<UUID> findQuestionIdsBySubject(String subjectPattern, int limit);
 
     List<UUID> findQuestionsForAdaptiveQuiz(List<String> subtopics, String difficulty, int limit);
+
+    List<UUID> findQuestionsBySubtopics(List<Long> subtopicIds, String difficulty, int limit);
 }

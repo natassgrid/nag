@@ -23,8 +23,14 @@ public class PracticeSetController {
 
     @GetMapping
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<List<PracticeSetDto>> listSets() {
-        return ResponseEntity.ok(practiceSetService.getPublishedSets());
+    public ResponseEntity<List<PracticeSetDto>> listSets(
+            @org.springframework.web.bind.annotation.RequestParam(required = false) Long subjectId,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) Long topicId,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) Long subtopicId) {
+        if (subjectId == null && topicId == null && subtopicId == null) {
+            return ResponseEntity.ok(practiceSetService.getPublishedSets());
+        }
+        return ResponseEntity.ok(practiceSetService.getPublishedSets(subjectId, topicId, subtopicId));
     }
 
     @GetMapping("/{setId}")
