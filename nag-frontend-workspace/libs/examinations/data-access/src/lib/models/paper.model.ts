@@ -1,11 +1,16 @@
 export interface BlueprintRule {
+  subjectId?: number;
+  topicId?: number;
+  subtopicId?: number;
   subject: string;
   topic: string;
+  subtopic?: string;
   difficulty?: string;
   cognitiveLevel?: string;
   questionType?: string;
   targetCount?: number;
   questionCount?: number;
+  orderIndex?: number;
 }
 
 export interface PaperSummary {

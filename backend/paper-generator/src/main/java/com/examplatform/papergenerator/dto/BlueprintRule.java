@@ -61,11 +61,13 @@ public class BlueprintRule {
      */
     private String cognitiveLevel;
 
-    private int questionCount;
+    @Builder.Default
+    private Integer questionCount = 0;
 
     private Double marksOverride;
 
-    private int orderIndex;
+    @Builder.Default
+    private Integer orderIndex = 0;
 
     /**
      * Optional count of paragraph/passage sets for this rule.
@@ -76,4 +78,12 @@ public class BlueprintRule {
      * Optional expected sub-questions per passage (defaults to 3-5).
      */
     private Integer subQuestionsPerPassage;
+
+    public int getQuestionCount() {
+        return questionCount != null ? questionCount : 0;
+    }
+
+    public int getOrderIndex() {
+        return orderIndex != null ? orderIndex : 0;
+    }
 }

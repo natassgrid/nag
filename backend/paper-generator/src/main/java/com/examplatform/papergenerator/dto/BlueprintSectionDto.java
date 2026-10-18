@@ -39,7 +39,7 @@ public class BlueprintSectionDto {
     private String name;
 
     @Builder.Default
-    private int orderIndex = 0;
+    private Integer orderIndex = 0;
 
     private Long subjectId;
 
@@ -47,4 +47,8 @@ public class BlueprintSectionDto {
 
     @Builder.Default
     private List<BlueprintRule> rules = new ArrayList<>();
+
+    public int getOrderIndex() {
+        return orderIndex != null ? orderIndex : 0;
+    }
 }

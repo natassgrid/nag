@@ -112,9 +112,14 @@ public class PaperDocument {
         private UUID blueprintSectionId;
         private UUID examinationSectionId;
         private String name;
-        private int orderIndex;
+        @Builder.Default
+        private Integer orderIndex = 0;
         @Builder.Default
         private List<PaperQuestionDocument> questions = new ArrayList<>();
+
+        public int getOrderIndex() {
+            return orderIndex != null ? orderIndex : 0;
+        }
     }
 
     @Data
@@ -123,7 +128,12 @@ public class PaperDocument {
     @AllArgsConstructor
     public static class PaperQuestionDocument {
         private UUID questionId;
-        private int position;
+        @Builder.Default
+        private Integer position = 0;
         private Long subtopicId;
+
+        public int getPosition() {
+            return position != null ? position : 0;
+        }
     }
 }

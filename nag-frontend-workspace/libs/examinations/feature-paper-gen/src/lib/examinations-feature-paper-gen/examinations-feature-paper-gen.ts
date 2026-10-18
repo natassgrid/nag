@@ -352,12 +352,18 @@ export class ExaminationsFeaturePaperGen implements OnInit, OnDestroy {
     }
 
     this.isGenerating.set(true);
+    const sanitizedRules = (rulesToUse || []).map((r, idx) => ({
+      ...r,
+      orderIndex: r.orderIndex || idx + 1,
+      questionCount: Number(r.questionCount) > 0 ? Number(r.questionCount) : (Number(r.targetCount) > 0 ? Number(r.targetCount) : 5),
+    }));
+
     const req: PaperGenerationRequest = {
       examId: formData.examId,
       shiftId: formData.shiftId,
       paperName: formData.paperName || `Paper-${new Date().toISOString().substring(0, 10)}`,
       isPractice: formData.isPractice,
-      blueprintRules: rulesToUse,
+      blueprintRules: sanitizedRules,
     };
 
     this.paperService.generatePaper(req).subscribe({

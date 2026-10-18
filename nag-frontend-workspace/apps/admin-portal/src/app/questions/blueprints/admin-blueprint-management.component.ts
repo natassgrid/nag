@@ -284,6 +284,7 @@ export class AdminBlueprintManagementComponent implements OnInit {
     const rules: BlueprintRule[] = rawRules.map((r, idx) => ({
       ...r,
       orderIndex: idx + 1,
+      questionCount: Number(r.questionCount) > 0 ? Number(r.questionCount) : (Number(r.targetCount) > 0 ? Number(r.targetCount) : 5),
       subjectId: r.subjectId ? Number(r.subjectId) : undefined,
       topicId: r.topicId ? Number(r.topicId) : undefined,
       subtopicId: r.subtopicId ? Number(r.subtopicId) : undefined,
