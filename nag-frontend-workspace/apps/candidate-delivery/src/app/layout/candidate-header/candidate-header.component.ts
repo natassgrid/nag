@@ -12,6 +12,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatDividerModule } from '@angular/material/divider';
 import { NavItem, CANDIDATE_NAV_ITEMS } from '../layout.models';
+import { AdaptiveLearningService } from '../../learn/services/adaptive-learning.service';
 
 @Component({
   selector: 'nag-candidate-header',
@@ -30,11 +31,14 @@ import { NavItem, CANDIDATE_NAV_ITEMS } from '../layout.models';
 })
 export class CandidateHeaderComponent {
   private readonly router = inject(Router);
+  private readonly learningService = inject(AdaptiveLearningService);
 
   readonly isDrawerOpen = input<boolean>(false);
   readonly userName = input<string>('Guest');
   readonly isAuthenticated = input<boolean>(false);
   readonly navItems = input<NavItem[]>(CANDIDATE_NAV_ITEMS);
+
+  readonly activeEnrollment = this.learningService.activeEnrollment;
 
   readonly toggleDrawer = output<void>();
   readonly logout = output<void>();

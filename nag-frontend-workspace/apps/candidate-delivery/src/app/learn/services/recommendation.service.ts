@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
-import { Recommendation, LearnerProfile, StudyPlanItem } from '../models';
+import { Recommendation, RecommendationLearnerProfile, StudyPlanItem } from '../models';
 
 @Injectable({ providedIn: 'root' })
 export class RecommendationService {
@@ -99,7 +99,7 @@ export class RecommendationService {
     return this.http.post<void>(`${this.apiUrl}/${id}/dismiss`, {});
   }
 
-  getLearnerProfile(): Observable<LearnerProfile> {
+  getLearnerProfile(): Observable<RecommendationLearnerProfile> {
     return this.http.get<any>(`${this.apiUrl}/learner-profile`).pipe(
       map(res => {
         if (!res) return res;
@@ -108,7 +108,7 @@ export class RecommendationService {
           weakTopics: this.tryParseJson(res.weakTopics, []),
           strongTopics: this.tryParseJson(res.strongTopics, []),
           topicAccuracyMap: this.tryParseJson(res.topicAccuracyMap, {})
-        } as LearnerProfile;
+        } as RecommendationLearnerProfile;
       })
     );
   }

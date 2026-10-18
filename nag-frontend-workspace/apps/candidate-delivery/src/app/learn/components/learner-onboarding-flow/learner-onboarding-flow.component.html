@@ -1,0 +1,111 @@
+<div class="onboarding-flow-container min-h-[calc(100vh-120px)] py-8 px-4 sm:px-6">
+  <!-- Stepper Indicator -->
+  <div class="max-w-3xl mx-auto mb-8">
+    <div class="flex items-center justify-between relative">
+      <div class="absolute left-0 top-1/2 -translate-y-1/2 w-full h-0.5 bg-slate-200 z-0"></div>
+
+      <!-- Step 1: Profile -->
+      <button
+        type="button"
+        (click)="setStep('profile')"
+        class="relative z-10 flex flex-col items-center gap-1.5 focus:outline-none cursor-pointer"
+      >
+        <div
+          class="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold transition-all shadow-xs"
+          [ngClass]="{
+            'bg-indigo-600 text-white ring-4 ring-indigo-100': currentStep() === 'profile',
+            'bg-emerald-600 text-white': currentStep() !== 'profile' && profile()?.completedAt,
+            'bg-white border-2 border-slate-300 text-slate-500': currentStep() !== 'profile' && !profile()?.completedAt
+          }"
+        >
+          @if (currentStep() !== 'profile' && profile()?.completedAt) {
+            <mat-icon class="!text-sm">check</mat-icon>
+          } @else {
+            1
+          }
+        </div>
+        <span class="text-[11px] font-bold" [ngClass]="currentStep() === 'profile' ? 'text-indigo-600' : 'text-slate-600'">
+          Profile Setup
+        </span>
+      </button>
+
+      <!-- Step 2: Target Exam -->
+      <button
+        type="button"
+        (click)="setStep('exam-picker')"
+        class="relative z-10 flex flex-col items-center gap-1.5 focus:outline-none cursor-pointer"
+      >
+        <div
+          class="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold transition-all shadow-xs"
+          [ngClass]="{
+            'bg-indigo-600 text-white ring-4 ring-indigo-100': currentStep() === 'exam-picker',
+            'bg-emerald-600 text-white': currentStep() !== 'exam-picker' && activeEnrollment(),
+            'bg-white border-2 border-slate-300 text-slate-500': currentStep() !== 'exam-picker' && !activeEnrollment()
+          }"
+        >
+          @if (currentStep() !== 'exam-picker' && activeEnrollment()) {
+            <mat-icon class="!text-sm">check</mat-icon>
+          } @else {
+            2
+          }
+        </div>
+        <span class="text-[11px] font-bold" [ngClass]="currentStep() === 'exam-picker' ? 'text-indigo-600' : 'text-slate-600'">
+          Target Exam
+        </span>
+      </button>
+
+      <!-- Step 3: Diagnostic Assessment -->
+      <button
+        type="button"
+        (click)="setStep('diagnostic')"
+        class="relative z-10 flex flex-col items-center gap-1.5 focus:outline-none cursor-pointer"
+      >
+        <div
+          class="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold transition-all shadow-xs"
+          [ngClass]="{
+            'bg-indigo-600 text-white ring-4 ring-indigo-100': currentStep() === 'diagnostic',
+            'bg-emerald-600 text-white': currentStep() !== 'diagnostic' && activeEnrollment()?.diagnosticCompleted,
+            'bg-white border-2 border-slate-300 text-slate-500': currentStep() !== 'diagnostic' && !activeEnrollment()?.diagnosticCompleted
+          }"
+        >
+          @if (currentStep() !== 'diagnostic' && activeEnrollment()?.diagnosticCompleted) {
+            <mat-icon class="!text-sm">check</mat-icon>
+          } @else {
+            3
+          }
+        </div>
+        <span class="text-[11px] font-bold" [ngClass]="currentStep() === 'diagnostic' ? 'text-indigo-600' : 'text-slate-600'">
+          Diagnostic Baseline
+        </span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Step Content Views -->
+  @switch (currentStep()) {
+    @case ('profile') {
+      <app-onboarding-profile
+        [profile]="profile()"
+        (saved)="onSaveProfile($event)"
+      />
+    }
+    @case ('exam-picker') {
+      <app-exam-picker
+        [exams]="publishedExams()"
+        [activeEnrollment]="activeEnrollment()"
+        [isSwitchMode]="isSwitchMode()"
+        (selected)="onSelectExam($event)"
+      />
+    }
+    @case ('diagnostic') {
+      <app-diagnostic-runner
+        [session]="diagnosticSession()"
+        [submitting]="submittingDiagnostic()"
+        [result]="diagnosticResult()"
+        (submitted)="onSubmitDiagnostic($event)"
+        (skipped)="onSkipDiagnostic()"
+        (finished)="onFinishFlow()"
+      />
+    }
+  }
+</div>

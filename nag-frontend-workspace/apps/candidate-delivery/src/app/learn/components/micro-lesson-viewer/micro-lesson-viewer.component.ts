@@ -1,52 +1,25 @@
-import {
-  Component,
-  ChangeDetectionStrategy,
-  OnInit,
-  inject,
-  signal,
-  computed,
-  input,
-  output,
-} from '@angular/core';
+import { Component, ChangeDetectionStrategy, OnInit, inject, signal, input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
-import { MatCardModule } from '@angular/material/card';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatExpansionModule } from '@angular/material/expansion';
-import { MatChipsModule } from '@angular/material/chips';
-import { MathRendererComponent } from '@nag-frontend-workspace/shared-ui-components';
-import {
-  SubtopicMicroLesson,
-  TrapAlert,
-  FormulaEntry,
-  SUPPORTED_MICROLESSON_LANGUAGES,
-  MicroLessonLanguage,
-} from '../../models/micro-lesson.model';
-import { ExplanationIr } from '../../models/explanation-ir.model';
-import {
-  MicroLessonService,
-  MicroLessonQueryParams,
-} from '../../services/micro-lesson.service';
+
+import { SubtopicMicroLesson, LessonVariantRef } from '../../models/micro-lesson.model';
+import { LessonType, LessonDifficultyLevel } from '../../models/learner.model';
+import { MicroLessonService, MicroLessonQueryParams } from '../../services/micro-lesson.service';
+import { AdaptiveLearningService } from '../../services/adaptive-learning.service';
 import { LearningPathService } from '../../services/learning-path.service';
-import { ExplanationPlayerComponent } from '../explanation-player/explanation-player.component';
+import { MicroLessonVariantSwitcherComponent } from '../micro-lesson-variant-switcher/micro-lesson-variant-switcher.component';
+import { MicroLessonContentViewComponent } from '../micro-lesson-content-view/micro-lesson-content-view.component';
+import { MicroLessonFeedbackBarComponent } from '../micro-lesson-feedback-bar/micro-lesson-feedback-bar.component';
 
 @Component({
   selector: 'app-micro-lesson-viewer',
   standalone: true,
   imports: [
-    CommonModule,
-    FormsModule,
-    MatCardModule,
-    MatButtonModule,
-    MatIconModule,
-    MatProgressBarModule,
-    MatExpansionModule,
-    MatChipsModule,
-    MathRendererComponent,
-    ExplanationPlayerComponent,
+    CommonModule, RouterModule, MatButtonModule, MatIconModule, MatProgressBarModule,
+    MicroLessonVariantSwitcherComponent, MicroLessonContentViewComponent, MicroLessonFeedbackBarComponent,
   ],
   templateUrl: './micro-lesson-viewer.component.html',
   styleUrl: './micro-lesson-viewer.component.scss',
@@ -56,218 +29,153 @@ export class MicroLessonViewerComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly microLessonService = inject(MicroLessonService);
+  private readonly learningService = inject(AdaptiveLearningService);
   private readonly learningPathService = inject(LearningPathService);
 
-  readonly supportedLanguages: MicroLessonLanguage[] = SUPPORTED_MICROLESSON_LANGUAGES;
-  readonly regionalLanguages = SUPPORTED_MICROLESSON_LANGUAGES.filter(
-    (l) => l.code !== 'en' && l.code !== 'hi'
-  );
-  readonly selectedLanguage = signal<string>('en');
-  readonly isChangingLanguage = signal<boolean>(false);
-
-  // Optional direct inputs when rendered inside dialog or drawer
   subtopicIdInput = input<number | null>(null, { alias: 'subtopicId' });
   milestoneIdInput = input<string | null>(null, { alias: 'milestoneId' });
   completed = output<string>();
 
   readonly lesson = signal<SubtopicMicroLesson | null>(null);
+  readonly allVariants = signal<SubtopicMicroLesson[]>([]);
   readonly loading = signal<boolean>(true);
   readonly completing = signal<boolean>(false);
   readonly isCompleted = signal<boolean>(false);
   readonly error = signal<string | null>(null);
-  readonly showInteractivePlayer = signal<boolean>(false);
 
-
-  readonly interactiveExplanation = computed<ExplanationIr | null>(() => {
-    const l = this.lesson();
-    if (!l?.content?.stepByStepBreakdown) return null;
-    const b = l.content.stepByStepBreakdown;
-    const steps = b.steps || [];
-    if (steps.length === 0) return null;
-
-    const trapText =
-      typeof l.content.trapAlert === 'object' && l.content.trapAlert
-        ? l.content.trapAlert.description
-        : typeof l.content.trapAlert === 'string'
-        ? l.content.trapAlert
-        : '';
-
-    return {
-      explanationId: l.id,
-      questionId: String(l.subtopicId),
-      status: 'APPROVED',
-      problem: {
-        statement: b.problemStatement || b.questionStem || '',
-      },
-      concepts: [l.subtopicName, l.topicName].filter(Boolean),
-      steps: steps.map((s, idx) => ({
-        id: `step-${s.stepNumber}`,
-        sequence: s.stepNumber,
-        type:
-          idx === 0
-            ? 'GIVEN'
-            : idx === steps.length - 1
-            ? 'CONCLUDE'
-            : 'TRANSFORM',
-        after: s.explanation,
-        math: s.formula ? { latex: s.formula } : undefined,
-        justification: { why: s.title, formula: s.formula },
-      })),
-      hints: [
-        {
-          id: 'h1',
-          level: 1,
-          text: 'Review the formula cheat sheet in Part 3 above.',
-        },
-        {
-          id: 'h2',
-          level: 2,
-          text: 'Avoid the common trap: ' + trapText,
-        },
-      ],
-      verification: {
-        passed: true,
-        confidence: 0.98,
-        details: 'Verified with Anvaya-Prajna pedagogical curriculum rules.',
-      },
-    };
-  });
+  readonly currentType = signal<LessonType>('CONCEPT');
+  readonly currentDifficulty = signal<LessonDifficultyLevel>('CORE');
+  readonly userHelpfulRating = signal<number | null>(null);
+  readonly selectedLanguage = signal<string>('en');
 
   resolvedSubtopicId: number | null = null;
   resolvedMilestoneId: string | null = null;
   resolvedQueryParams: MicroLessonQueryParams = {};
 
   ngOnInit(): void {
-    const routeSubtopicId = this.route.snapshot?.paramMap?.get('subtopicId');
-    const qp = this.route.snapshot?.queryParamMap;
-    const routeMilestoneId = qp?.get('milestoneId');
-    const subtopicName = qp?.get('subtopicName') || undefined;
-    const topicName = qp?.get('topicName') || undefined;
-    const subjectName = qp?.get('subjectName') || undefined;
-    const targetExam = qp?.get('targetExam') || undefined;
-
-    const routeLang = qp?.get('lang') || undefined;
-    if (routeLang) {
-      this.selectedLanguage.set(routeLang);
-    }
-
-    this.resolvedSubtopicId =
-      this.subtopicIdInput() || (routeSubtopicId ? Number(routeSubtopicId) : null);
-    this.resolvedMilestoneId =
-      this.milestoneIdInput() || routeMilestoneId || null;
+    const routeSubId = this.route.snapshot.paramMap.get('subtopicId');
+    const qp = this.route.snapshot.queryParamMap;
+    this.resolvedSubtopicId = this.subtopicIdInput() || (routeSubId ? Number(routeSubId) : 301);
+    this.resolvedMilestoneId = this.milestoneIdInput() || qp.get('milestoneId') || null;
+    const routeLang = qp.get('lang');
+    if (routeLang) this.selectedLanguage.set(routeLang);
     this.resolvedQueryParams = {
-      subtopicName,
-      topicName,
-      subjectName,
-      targetExam,
-      lang: routeLang,
+      subtopicName: qp.get('subtopicName') || undefined,
+      topicName: qp.get('topicName') || undefined,
+      targetExam: qp.get('targetExam') || undefined,
+      lang: routeLang || 'en',
     };
 
+    this.currentType.set((qp.get('lessonType') as LessonType) || 'CONCEPT');
+    this.currentDifficulty.set((qp.get('difficulty') as LessonDifficultyLevel) || 'CORE');
+
     if (this.resolvedSubtopicId) {
-      this.loadLesson(this.resolvedSubtopicId, this.resolvedQueryParams);
+      this.loadLesson(this.resolvedSubtopicId);
     } else {
       this.error.set('No subtopic identifier specified for micro-lesson.');
       this.loading.set(false);
     }
   }
 
-  loadLesson(subtopicId: number, params?: MicroLessonQueryParams): void {
+  loadLesson(subtopicId: number): void {
     this.loading.set(true);
     this.error.set(null);
-    const queryParams: MicroLessonQueryParams = {
-      ...(params || {}),
-      lang: params?.lang || this.selectedLanguage(),
+    const params: MicroLessonQueryParams = {
+      ...this.resolvedQueryParams,
+      lessonType: this.currentType(),
+      difficulty: this.currentDifficulty(),
+      lang: this.selectedLanguage(),
     };
 
-    this.microLessonService
-      .getPublishedMicroLesson(subtopicId, queryParams)
-      .subscribe({
-        next: (data) => {
-          this.lesson.set(data);
-          if (data.languageCode) {
-            this.selectedLanguage.set(data.languageCode);
+    if (typeof this.microLessonService.getMicroLessonsBySubtopic === 'function') {
+      this.microLessonService.getMicroLessonsBySubtopic(subtopicId, params).subscribe({
+        next: (lessons) => {
+          this.allVariants.set(lessons || []);
+          if (lessons && lessons.length > 0) {
+            const matched = lessons.find((l) => l.lessonType === this.currentType() && l.difficultyLevel === this.currentDifficulty()) || lessons[0];
+            this.lesson.set(matched);
+            if (matched.languageCode) this.selectedLanguage.set(matched.languageCode);
           }
           this.loading.set(false);
         },
-        error: (err) => {
-          this.error.set(
-            err?.error?.message ||
-              'Micro-lesson content is currently being prepared for this subtopic.'
-          );
-          this.loading.set(false);
-        },
+        error: () => this.fallbackPublishedLesson(subtopicId, params),
       });
+    } else {
+      this.fallbackPublishedLesson(subtopicId, params);
+    }
+  }
+
+  private fallbackPublishedLesson(subtopicId: number, params: MicroLessonQueryParams): void {
+    this.microLessonService.getPublishedMicroLesson(subtopicId, params).subscribe({
+      next: (data) => {
+        this.lesson.set(data);
+        this.allVariants.set([data]);
+        if (data?.languageCode) this.selectedLanguage.set(data.languageCode);
+        this.loading.set(false);
+      },
+      error: (err) => {
+        this.error.set(err?.error?.message || 'Micro-lesson content is being generated for this subtopic.');
+        this.loading.set(false);
+      },
+    });
   }
 
   changeLanguage(lang: string): void {
     if (this.selectedLanguage() === lang) return;
     this.selectedLanguage.set(lang);
     const current = this.lesson();
-
-    if (current?.id) {
-      this.isChangingLanguage.set(true);
+    if (current?.id && typeof this.microLessonService.getMicroLessonByLanguage === 'function') {
       this.microLessonService.getMicroLessonByLanguage(current.id, lang).subscribe({
-        next: (data) => {
-          this.lesson.set(data);
-          this.isChangingLanguage.set(false);
-        },
-        error: () => {
-          if (this.resolvedSubtopicId) {
-            this.loadLesson(this.resolvedSubtopicId, {
-              ...this.resolvedQueryParams,
-              lang,
-            });
-          }
-          this.isChangingLanguage.set(false);
-        },
+        next: (data) => this.lesson.set(data),
+        error: () => this.resolvedSubtopicId && this.loadLesson(this.resolvedSubtopicId),
       });
     } else if (this.resolvedSubtopicId) {
-      this.loadLesson(this.resolvedSubtopicId, {
-        ...this.resolvedQueryParams,
-        lang,
-      });
+      this.loadLesson(this.resolvedSubtopicId);
     }
   }
 
-  isTrapObject(trap: any): trap is TrapAlert {
-    return typeof trap === 'object' && trap !== null && 'title' in trap;
+  onTypeChange(type: LessonType): void {
+    this.currentType.set(type);
+    if (this.resolvedSubtopicId) this.loadLesson(this.resolvedSubtopicId);
   }
 
-  isFormulaArray(sheet: any): sheet is FormulaEntry[] {
-    return Array.isArray(sheet);
+  onDifficultyChange(level: LessonDifficultyLevel): void {
+    this.currentDifficulty.set(level);
+    if (this.resolvedSubtopicId) this.loadLesson(this.resolvedSubtopicId);
   }
 
-  asString(val: any): string {
-    return typeof val === 'string' ? val : '';
+  onTryAnotherExplanation(): void {
+    const types: LessonType[] = ['CONCEPT', 'WORKED_EXAMPLES', 'TRAPS_AND_PITFALLS', 'CHEAT_SHEET', 'VISUAL', 'QUICK_RECAP'];
+    this.onTypeChange(types[(types.indexOf(this.currentType()) + 1) % types.length]);
   }
 
-  toggleInteractivePlayer(): void {
-    this.showInteractivePlayer.update((v) => !v);
+  onRateHelpful(rating: number): void {
+    this.userHelpfulRating.set(rating);
   }
 
   onMarkCompleted(): void {
-    if (!this.resolvedMilestoneId) {
-      this.isCompleted.set(true);
-      this.completed.emit('');
-      return;
+    this.completing.set(true);
+    const enrollment = this.learningService.activeEnrollment();
+    const aid = this.resolvedMilestoneId || `act-sub-${this.resolvedSubtopicId || 301}`;
+
+    if (enrollment) {
+      this.learningService.completeActivity(enrollment.id, aid, { status: 'COMPLETED', helpfulRating: this.userHelpfulRating() || 1 }).subscribe();
     }
 
-    this.completing.set(true);
-    this.learningPathService
-      .completeMilestone(this.resolvedMilestoneId)
-      .subscribe({
-        next: () => {
-          this.completing.set(false);
-          this.isCompleted.set(true);
-          this.completed.emit(this.resolvedMilestoneId!);
-        },
-        error: () => {
-          this.completing.set(false);
-          // Fallback optimistic completion
-          this.isCompleted.set(true);
-          this.completed.emit(this.resolvedMilestoneId!);
-        },
+    if (this.resolvedMilestoneId) {
+      this.learningPathService.completeMilestone(this.resolvedMilestoneId).subscribe({
+        next: () => this.finishCompletion(this.resolvedMilestoneId!),
+        error: () => this.finishCompletion(this.resolvedMilestoneId!),
       });
+    } else {
+      this.finishCompletion('');
+    }
+  }
+
+  private finishCompletion(id: string): void {
+    this.completing.set(false);
+    this.isCompleted.set(true);
+    this.completed.emit(id);
   }
 
   onBackToRoadmap(): void {

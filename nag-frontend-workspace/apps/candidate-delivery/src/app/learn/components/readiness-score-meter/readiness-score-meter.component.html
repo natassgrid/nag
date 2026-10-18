@@ -1,0 +1,73 @@
+<div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs flex flex-col sm:flex-row items-center gap-6">
+  <!-- Circular Meter SVG -->
+  <div class="relative w-28 h-28 shrink-0 flex items-center justify-center">
+    <svg class="w-full h-full -rotate-90" viewBox="0 0 100 100">
+      <!-- Background track -->
+      <circle
+        cx="50"
+        cy="50"
+        [attr.r]="radius"
+        class="text-slate-100"
+        stroke-width="8"
+        stroke="currentColor"
+        fill="transparent"
+      />
+      <!-- Progress circle -->
+      <circle
+        cx="50"
+        cy="50"
+        [attr.r]="radius"
+        class="text-indigo-600 transition-all duration-700 ease-out"
+        stroke-width="8"
+        [attr.stroke-dasharray]="circumference"
+        [attr.stroke-dashoffset]="strokeDashoffset()"
+        stroke-linecap="round"
+        stroke="currentColor"
+        fill="transparent"
+      />
+    </svg>
+    <div class="absolute inset-0 flex flex-col items-center justify-center text-center">
+      <span class="text-2xl font-black text-slate-900 leading-none">{{ score() }}%</span>
+      <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">Readiness</span>
+    </div>
+  </div>
+
+  <!-- Details & Metrics Breakdown -->
+  <div class="flex-1 space-y-2.5 text-center sm:text-left">
+    <div class="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+      <span class="text-xs font-bold text-slate-900">
+        {{ examTitle() || 'Target Examination' }}
+      </span>
+      <span
+        class="px-2 py-0.5 rounded-full text-[10px] font-bold border"
+        [ngClass]="statusBadgeClass()"
+      >
+        {{ statusLabel() }}
+      </span>
+    </div>
+
+    <p class="text-xs text-slate-500 max-w-md">
+      Exam readiness combines syllabus blueprint weights with your measured subtopic mastery scores.
+      Target benchmark is <strong>{{ targetBenchmark() }}%</strong>.
+    </p>
+
+    <!-- Subtopic Status Counters -->
+    <div class="flex items-center justify-center sm:justify-start gap-4 pt-1 text-xs">
+      <div class="flex items-center gap-1.5">
+        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+        <span class="font-bold text-slate-800">{{ masteredCount() }}</span>
+        <span class="text-slate-500">Mastered</span>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <span class="w-2.5 h-2.5 rounded-full bg-indigo-500"></span>
+        <span class="font-bold text-slate-800">{{ learningCount() }}</span>
+        <span class="text-slate-500">Learning</span>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <span class="w-2.5 h-2.5 rounded-full bg-slate-300"></span>
+        <span class="font-bold text-slate-800">{{ totalSubtopics() }}</span>
+        <span class="text-slate-500">Total Subtopics</span>
+      </div>
+    </div>
+  </div>
+</div>

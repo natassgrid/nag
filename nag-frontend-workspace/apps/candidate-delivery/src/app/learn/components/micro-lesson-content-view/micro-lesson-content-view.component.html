@@ -1,0 +1,141 @@
+<div class="space-y-6">
+  <!-- 1. Core Concept -->
+  @if (lesson().content.coreConcept) {
+    <div class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-3">
+      <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-indigo-700">
+        <mat-icon class="!text-base">lightbulb</mat-icon>
+        Part 1 &bull; Core Concept Foundation
+      </div>
+      <div class="text-slate-800 text-sm leading-relaxed">
+        <nag-math-renderer [content]="lesson().content.coreConcept" />
+      </div>
+    </div>
+  }
+
+  <!-- 2. Trap Alert -->
+  @if (lesson().content.trapAlert) {
+    <div class="bg-amber-50/60 rounded-3xl border border-amber-200 p-6 sm:p-8 shadow-xs space-y-3">
+      <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-800">
+        <mat-icon class="!text-base text-amber-600">warning</mat-icon>
+        Part 2 &bull; Exam Trap &amp; Negative-Marking Pitfalls
+      </div>
+      @if (asTrapAlert(lesson().content.trapAlert); as trap) {
+        <div class="space-y-2">
+          <div class="font-bold text-sm text-amber-950">{{ trap.title }}</div>
+          <div class="text-xs text-amber-900 leading-relaxed">
+            <nag-math-renderer [content]="trap.description" />
+          </div>
+          @if (trap.commonMistake) {
+            <div class="p-3 bg-white/80 rounded-xl border border-amber-200 text-xs text-amber-900 mt-2">
+              <span class="font-bold text-rose-700">Common Mistake: </span>
+              <nag-math-renderer [content]="trap.commonMistake" />
+            </div>
+          }
+          @if (trap.correctApproach) {
+            <div class="p-3 bg-emerald-50/80 rounded-xl border border-emerald-200 text-xs text-emerald-900 mt-1">
+              <span class="font-bold text-emerald-700">Correct Strategy: </span>
+              <nag-math-renderer [content]="trap.correctApproach" />
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="text-xs text-amber-900 leading-relaxed">
+          <nag-math-renderer [content]="asString(lesson().content.trapAlert)" />
+        </div>
+      }
+    </div>
+  }
+
+  <!-- 3. Formula Cheat Sheet -->
+  @if (lesson().content.formulaCheatSheet) {
+    <div class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-4">
+      <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-indigo-700">
+        <mat-icon class="!text-base">functions</mat-icon>
+        Part 3 &bull; Formula &amp; Identity Quick Sheet
+      </div>
+      @if (asFormulaArray(lesson().content.formulaCheatSheet); as formulas) {
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          @for (f of formulas; track f.name) {
+            <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1.5">
+              <div class="text-xs font-bold text-slate-800">{{ f.name }}</div>
+              <div class="p-2.5 bg-white rounded-xl border border-slate-200 font-mono text-center text-sm text-indigo-900">
+                <nag-math-renderer [content]="'$$' + f.latex + '$$'" />
+              </div>
+              @if (f.description) {
+                <div class="text-[11px] text-slate-500">{{ f.description }}</div>
+              }
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs text-slate-800 leading-relaxed">
+          <nag-math-renderer [content]="asString(lesson().content.formulaCheatSheet)" />
+        </div>
+      }
+    </div>
+  }
+
+  <!-- 4. Step-by-Step Breakdown -->
+  @if (lesson().content.stepByStepBreakdown; as b) {
+    <div class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-4">
+      <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-indigo-700">
+        <mat-icon class="!text-base">format_list_numbered</mat-icon>
+        Part 4 &bull; Step-by-Step Solved Problem Walkthrough
+      </div>
+
+      @if (b.problemStatement || b.questionStem) {
+        <div class="p-4 rounded-2xl bg-indigo-50/50 border border-indigo-100 text-xs text-indigo-950 font-medium leading-relaxed">
+          <span class="font-bold text-indigo-800">Problem: </span>
+          <nag-math-renderer [content]="b.problemStatement || b.questionStem || ''" />
+        </div>
+      }
+
+      <div class="space-y-3 pt-2">
+        @for (step of b.steps; track step.stepNumber) {
+          <div class="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 space-y-1.5">
+            <div class="flex items-center justify-between text-xs font-bold text-slate-800">
+              <span class="text-indigo-600 font-mono">{{ step.title || ('Step ' + step.stepNumber) }}</span>
+              @if (step.tip) {
+                <span class="text-[10px] font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                  Tip: {{ step.tip }}
+                </span>
+              }
+            </div>
+            <div class="text-xs text-slate-700 leading-relaxed">
+              <nag-math-renderer [content]="step.explanation" />
+            </div>
+            @if (step.formula) {
+              <div class="p-2 bg-white rounded-xl border border-slate-200 text-center text-xs font-mono text-indigo-800">
+                <nag-math-renderer [content]="'$$' + step.formula + '$$'" />
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+      @if (b.finalAnswer) {
+        <div class="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 font-bold flex items-center justify-between">
+          <span>Final Solution / Result:</span>
+          <span class="font-mono text-sm text-emerald-800">{{ b.finalAnswer }}</span>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- 5. Key Takeaways -->
+  @if (lesson().content.keyTakeaways && lesson().content.keyTakeaways!.length > 0) {
+    <div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-3">
+      <div class="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+        <mat-icon class="!text-base text-indigo-600">check_circle_outline</mat-icon>
+        Key Exam Takeaways
+      </div>
+      <ul class="space-y-1.5 text-xs text-slate-700 list-disc pl-5">
+        @for (item of lesson().content.keyTakeaways; track item) {
+          <li>
+            <nag-math-renderer [content]="item" />
+          </li>
+        }
+      </ul>
+    </div>
+  }
+</div>

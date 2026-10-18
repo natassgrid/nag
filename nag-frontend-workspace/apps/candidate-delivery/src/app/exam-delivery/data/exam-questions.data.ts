@@ -5,6 +5,14 @@ export const PREVIEW_QUESTIONS: ExamItem[] = [
     id: 'prev-1',
     order: 1,
     questionCode: 'SAMPLE-NAV-01',
+    sectionId: 'sec-arch-1',
+    sectionName: 'Orientation & Runtime Architecture',
+    subject: 'System Architecture',
+    subjectId: 100,
+    topicId: 200,
+    subtopicId: 300,
+    topicName: 'System Architecture',
+    subtopicName: 'Candidate Runtime Environment',
     content:
       '**Sample Orientation Item**: Which section of the NAG candidate runtime environment allows you to monitor unanswered questions and mark items for later review?',
     options: [
@@ -21,6 +29,14 @@ export const PREVIEW_QUESTIONS: ExamItem[] = [
     id: 'prev-2',
     order: 2,
     questionCode: 'SAMPLE-APT-02',
+    sectionId: 'sec-quant-1',
+    sectionName: 'Quantitative Aptitude',
+    subject: 'Quantitative Aptitude',
+    subjectId: 101,
+    topicId: 201,
+    subtopicId: 303,
+    topicName: 'Arithmetic & Number Systems',
+    subtopicName: 'Time, Speed & Distance',
     content:
       '**Sample Quantitative Aptitude**: A train traveling at a constant speed of $72\\text{ km/h}$ crosses a $200\\text{ m}$ long station platform in $20\\text{ seconds}$. What is the length of the train in meters?\n\n$$\\text{Speed} = 72 \\times \\frac{5}{18} = 20\\text{ m/s}$$',
     options: [
@@ -36,6 +52,14 @@ export const PREVIEW_QUESTIONS: ExamItem[] = [
     id: 'prev-3',
     order: 3,
     questionCode: 'SAMPLE-SYS-03',
+    sectionId: 'sec-arch-1',
+    sectionName: 'Orientation & Runtime Architecture',
+    subject: 'Zero-Trust Security',
+    subjectId: 100,
+    topicId: 200,
+    subtopicId: 301,
+    topicName: 'Security Protocols',
+    subtopicName: 'Zero-Trust Cryptography',
     content:
       '**Sample Architecture Pattern**: In the zero-trust assessment delivery architecture, candidate responses are periodically sealed using which cryptographic mechanism?',
     options: [
@@ -54,6 +78,14 @@ export const PRACTICE_QUESTIONS: ExamItem[] = [
     id: 'prac-1',
     order: 1,
     questionCode: 'PRAC-ALGO-101',
+    sectionId: 'sec-algo',
+    sectionName: 'Algorithms & Complexity',
+    subject: 'Computer Science',
+    subjectId: 104,
+    topicId: 205,
+    subtopicId: 310,
+    topicName: 'Heap Data Structures',
+    subtopicName: 'Floyd Build-Heap Complexity',
     content:
       'What is the tightest worst-case asymptotic time complexity of building a Max-Heap from an unsorted array of $n$ elements using Floyd’s linear build-heap algorithm?\n\n$$\\sum_{h=0}^{\\lfloor \\lg n \\rfloor} \\left\\lceil \\frac{n}{2^{h+1}} \\right\\rceil O(h) = O(n)$$',
     options: [
@@ -84,6 +116,14 @@ export const PRACTICE_QUESTIONS: ExamItem[] = [
     id: 'prac-2',
     order: 2,
     questionCode: 'PRAC-MATH-202',
+    sectionId: 'sec-math',
+    sectionName: 'Higher Mathematics',
+    subject: 'Mathematics',
+    subjectId: 105,
+    topicId: 206,
+    subtopicId: 312,
+    topicName: 'Linear Algebra & Matrices',
+    subtopicName: 'Covariance Matrix Determinants',
     content:
       'Compute the determinant of the $2 \\times 2$ covariance matrix given by:\n\n$$\\mathbf{\\Sigma} = \\begin{pmatrix} 4 & 2 \\\\ 2 & 3 \\end{pmatrix}$$',
     options: [
@@ -113,6 +153,14 @@ export const PRACTICE_QUESTIONS: ExamItem[] = [
     id: 'prac-3',
     order: 3,
     questionCode: 'PRAC-SYS-305',
+    sectionId: 'sec-sys',
+    sectionName: 'Computer Systems',
+    subject: 'Operating Systems',
+    subjectId: 104,
+    topicId: 207,
+    subtopicId: 314,
+    topicName: 'Memory Management',
+    subtopicName: 'Paging & Address Translation',
     content:
       'In an operating system with a 32-bit virtual address space and a $4\\text{ KB}$ page size, calculate the number of page entries required in a single-level page table.\n\n$$\\text{Number of Pages} = \\frac{2^{32}}{2^{12}} = 2^{20}$$',
     options: [
@@ -129,6 +177,14 @@ export const PRACTICE_QUESTIONS: ExamItem[] = [
     id: 'prac-4',
     order: 4,
     questionCode: 'PRAC-DS-404',
+    sectionId: 'sec-algo',
+    sectionName: 'Algorithms & Complexity',
+    subject: 'Computer Science',
+    subjectId: 104,
+    topicId: 205,
+    subtopicId: 311,
+    topicName: 'Advanced Data Structures',
+    subtopicName: 'Disjoint Set Union (DSU)',
     content:
       'Which data structure provides amortized $O(1)$ time complexity for both `find` and `union` operations with path compression and rank heuristics?',
     options: [

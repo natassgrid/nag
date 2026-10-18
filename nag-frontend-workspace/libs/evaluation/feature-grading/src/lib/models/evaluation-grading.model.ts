@@ -40,6 +40,8 @@ export interface GradeSubmissionPayload {
   rubricBreakdown?: RubricCriterion[];
   inlineComments?: InlineComment[];
   moderationSignOff?: ModerationSignOff;
+  sectionId?: string | number;
+  subtopicId?: number;
 }
 
 export function createDefaultRubric(maxMarks: number): RubricCriterion[] {

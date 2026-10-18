@@ -16,6 +16,14 @@ export interface GradingTask {
   awardedMarks?: number;
   comments?: string;
   status: GradingStatus;
+  sectionId?: string | number;
+  sectionName?: string;
+  subjectId?: number;
+  subjectName?: string;
+  topicId?: number;
+  topicName?: string;
+  subtopicId?: number;
+  subtopicName?: string;
 }
 
 export interface DisputeRecord {
