@@ -136,7 +136,7 @@
     (createTopic)="createQuickTopic($event)"
     (customSubtopicNameChange)="customSubtopicName.set($event)"
     (targetExamChange)="targetExam.set($event)"
-    (lessonTypeChange)="lessonType.set($event)"
+    (lessonTypeChange)="onLessonTypeChange($event)"
     (difficultyLevelChange)="difficultyLevel.set($event)"
     (sequenceNoChange)="sequenceNo.set($event)"
     (estimatedMinutesChange)="estimatedMinutes.set($event)"
@@ -158,6 +158,10 @@
 
       <app-formula-sheet-builder
         [formulas]="formulaEntries()"
+        [required]="isFormulaRequired()"
+        [applicabilityMode]="formulaPolicy().mode"
+        [applicabilityBadge]="formulaPolicy().badgeLabel"
+        [applicabilityReason]="formulaPolicy().reason"
         (formulasChange)="formulaEntries.set($event)"
       ></app-formula-sheet-builder>
 
@@ -193,6 +197,7 @@
         [coreConcept]="coreConcept()"
         [trapAlert]="trapAlert()"
         [formulas]="formulaEntries()"
+        [formulaRequired]="isFormulaRequired()"
         [problemStatement]="problemStatement()"
         [steps]="steps()"
         [finalAnswer]="finalAnswer()"

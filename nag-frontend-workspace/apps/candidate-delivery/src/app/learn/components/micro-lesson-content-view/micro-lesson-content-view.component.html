@@ -46,8 +46,8 @@
     </div>
   }
 
-  <!-- 3. Formula Cheat Sheet -->
-  @if (lesson().content.formulaCheatSheet) {
+  <!-- 3. Formula Cheat Sheet (Only rendered when formulas exist) -->
+  @if (hasFormulas(lesson().content.formulaCheatSheet)) {
     <div class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-4">
       <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-indigo-700">
         <mat-icon class="!text-base">functions</mat-icon>
@@ -55,12 +55,14 @@
       </div>
       @if (asFormulaArray(lesson().content.formulaCheatSheet); as formulas) {
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          @for (f of formulas; track f.name) {
+          @for (f of formulas; track $index) {
             <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1.5">
               <div class="text-xs font-bold text-slate-800">{{ f.name }}</div>
-              <div class="p-2.5 bg-white rounded-xl border border-slate-200 font-mono text-center text-sm text-indigo-900">
-                <nag-math-renderer [content]="'$$' + f.latex + '$$'" />
-              </div>
+              @if (f.latex) {
+                <div class="p-2.5 bg-white rounded-xl border border-slate-200 font-mono text-center text-sm text-indigo-900">
+                  <nag-math-renderer [content]="formatLatex(f.latex)" />
+                </div>
+              }
               @if (f.description) {
                 <div class="text-[11px] text-slate-500">{{ f.description }}</div>
               }

@@ -1,28 +1,72 @@
-<div class="bg-white rounded-2xl border border-emerald-200/80 p-5 shadow-xs space-y-4">
+<div
+  class="bg-white rounded-2xl border p-5 shadow-xs space-y-4 transition-all"
+  [ngClass]="{
+    'border-emerald-200/80': required(),
+    'border-slate-200/90': !required()
+  }"
+>
   <div class="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-100 pb-3">
-    <div class="flex items-center gap-2">
-      <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+    <div class="flex items-center gap-2.5">
+      <div
+        class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+        [ngClass]="{
+          'bg-emerald-50 text-emerald-600': required(),
+          'bg-slate-100 text-slate-600': !required()
+        }"
+      >
         <mat-icon class="!text-lg">functions</mat-icon>
       </div>
       <div>
-        <h3 class="text-sm font-bold text-slate-900">Part 3: KaTeX Formula Cheat Sheet Builder</h3>
-        <p class="text-[11px] text-slate-500">Build rapid-revision equations with live mathematical verification.</p>
+        <div class="flex flex-wrap items-center gap-2">
+          <h3 class="text-sm font-bold text-slate-900">Part 3: KaTeX Formula Cheat Sheet Builder</h3>
+          <span
+            class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border"
+            [ngClass]="{
+              'bg-emerald-50 text-emerald-700 border-emerald-200': required(),
+              'bg-amber-50 text-amber-700 border-amber-200': !required() && applicabilityMode() === 'OPTIONAL_NUMERICAL',
+              'bg-slate-100 text-slate-600 border-slate-200': !required() && applicabilityMode() === 'OPTIONAL_NOT_APPLICABLE'
+            }"
+          >
+            {{ applicabilityBadge() }}
+          </span>
+        </div>
+        <p class="text-[11px] text-slate-500">
+          @if (required()) {
+            Build rapid-revision equations with live mathematical verification (required for Math, Science &amp; Numerical topics).
+          } @else {
+            Optional for non-formulaic subjects — add symbolic/quantitative rules if helpful, or skip Part 3 entirely.
+          }
+        </p>
       </div>
     </div>
 
     <div class="flex items-center gap-2">
-      <button
-        type="button"
-        (click)="togglePalette()"
-        class="px-3 py-1.5 text-xs font-semibold rounded-xl border flex items-center gap-1.5 transition-all cursor-pointer"
-        [ngClass]="{
-          'bg-emerald-600 text-white border-emerald-600': showPalette(),
-          'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50': !showPalette()
-        }"
-      >
-        <mat-icon class="!text-sm leading-none">calculate</mat-icon>
-        <span>{{ showPalette() ? 'Close Palette' : 'Symbol Palette' }}</span>
-      </button>
+      @if (!required() && formulas().length > 0) {
+        <button
+          type="button"
+          (click)="clearAllFormulas()"
+          class="px-3 py-1.5 text-xs font-semibold rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 flex items-center gap-1 transition-all cursor-pointer"
+          title="Skip Part 3 for this lesson"
+        >
+          <mat-icon class="!text-sm leading-none">block</mat-icon>
+          <span>Skip Part 3</span>
+        </button>
+      }
+
+      @if (formulas().length > 0) {
+        <button
+          type="button"
+          (click)="togglePalette()"
+          class="px-3 py-1.5 text-xs font-semibold rounded-xl border flex items-center gap-1.5 transition-all cursor-pointer"
+          [ngClass]="{
+            'bg-emerald-600 text-white border-emerald-600': showPalette(),
+            'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50': !showPalette()
+          }"
+        >
+          <mat-icon class="!text-sm leading-none">calculate</mat-icon>
+          <span>{{ showPalette() ? 'Close Palette' : 'Symbol Palette' }}</span>
+        </button>
+      }
 
       <button
         type="button"
@@ -30,12 +74,25 @@
         class="px-3 py-1.5 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
       >
         <mat-icon class="!text-sm leading-none">add</mat-icon>
-        <span>Add Formula</span>
+        <span>{{ formulas().length === 0 ? 'Add Optional Formula' : 'Add Formula' }}</span>
       </button>
     </div>
   </div>
 
-  @if (showPalette()) {
+  @if (!required() && applicabilityReason()) {
+    <div
+      class="rounded-xl px-3.5 py-2.5 text-xs flex items-start gap-2.5 border"
+      [ngClass]="{
+        'bg-amber-50/70 border-amber-200/80 text-amber-900': applicabilityMode() === 'OPTIONAL_NUMERICAL',
+        'bg-slate-50 border-slate-200/80 text-slate-600': applicabilityMode() !== 'OPTIONAL_NUMERICAL'
+      }"
+    >
+      <mat-icon class="!text-base leading-none shrink-0 mt-0.5">info_outline</mat-icon>
+      <span>{{ applicabilityReason() }}</span>
+    </div>
+  }
+
+  @if (showPalette() && formulas().length > 0) {
     <div class="pt-1">
       <nag-formula-symbol-palette
         (symbolSelected)="insertSymbol($event)"
@@ -43,85 +100,109 @@
     </div>
   }
 
-  <div class="space-y-3">
-    @for (entry of formulas(); track $index) {
-      <div
-        class="p-4 rounded-xl border transition-all space-y-3"
-        [ngClass]="{
-          'border-emerald-300 bg-emerald-50/20': activeIndex() === $index,
-          'border-slate-200 bg-slate-50/50': activeIndex() !== $index
-        }"
-        (click)="activeIndex.set($index)"
-      >
-        <div class="flex items-center justify-between gap-2">
-          <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
-            Formula #{{ $index + 1 }}
-          </span>
-          @if (formulas().length > 1) {
-            <button
-              type="button"
-              (click)="removeFormula($index); $event.stopPropagation()"
-              class="text-slate-400 hover:text-rose-600 p-1 rounded-lg hover:bg-rose-50 cursor-pointer flex items-center"
-              title="Remove Formula"
-            >
-              <mat-icon class="!text-base leading-none">delete_outline</mat-icon>
-            </button>
+  @if (formulas().length === 0) {
+    <div class="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 p-5 text-center space-y-2">
+      <div class="w-9 h-9 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center mx-auto">
+        <mat-icon class="!text-lg">functions</mat-icon>
+      </div>
+      <div class="text-xs font-bold text-slate-700">
+        No KaTeX Formula Cheat Sheet Added (Skipped for Candidate View)
+      </div>
+      <p class="text-[11px] text-slate-500 max-w-lg mx-auto">
+        Part 3 is only mandatory for Mathematics, Science, and Numerical topics. Because no formulas are added, the candidate micro-lesson card will omit Part 3 cleanly.
+      </p>
+      <div class="pt-1">
+        <button
+          type="button"
+          (click)="addFormula()"
+          class="px-3 py-1.5 text-xs font-semibold rounded-xl border border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50 inline-flex items-center gap-1 transition-all cursor-pointer"
+        >
+          <mat-icon class="!text-sm leading-none">add</mat-icon>
+          <span>Add Optional Formula / Symbolic Rule</span>
+        </button>
+      </div>
+    </div>
+  } @else {
+    <div class="space-y-3">
+      @for (entry of formulas(); track $index) {
+        <div
+          class="p-4 rounded-xl border transition-all space-y-3"
+          [ngClass]="{
+            'border-emerald-300 bg-emerald-50/20': activeIndex() === $index,
+            'border-slate-200 bg-slate-50/50': activeIndex() !== $index
+          }"
+          (click)="activeIndex.set($index)"
+        >
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
+              Formula #{{ $index + 1 }}
+            </span>
+            @if (formulas().length > 1 || !required()) {
+              <button
+                type="button"
+                (click)="removeFormula($index); $event.stopPropagation()"
+                class="text-slate-400 hover:text-rose-600 p-1 rounded-lg hover:bg-rose-50 cursor-pointer flex items-center"
+                title="Remove Formula"
+              >
+                <mat-icon class="!text-base leading-none">delete_outline</mat-icon>
+              </button>
+            }
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
+            <div class="md:col-span-4">
+              <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                Formula Name / Law
+              </label>
+              <input
+                type="text"
+                [ngModel]="entry.name"
+                (ngModelChange)="updateFormula($index, 'name', $event)"
+                (focus)="activeIndex.set($index)"
+                placeholder="e.g. Parallel Axis Theorem"
+                class="w-full text-xs p-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+
+            <div class="md:col-span-8">
+              <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                LaTeX Expression ($$...$$) {{ required() ? '*' : '(Optional)' }}
+              </label>
+              <input
+                type="text"
+                [ngModel]="entry.latex"
+                (ngModelChange)="updateFormula($index, 'latex', $event)"
+                (focus)="activeIndex.set($index)"
+                placeholder="e.g. $$I = I_{\text{cm}} + Md^2$$"
+                class="w-full font-mono text-xs p-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+
+            <div class="md:col-span-12">
+              <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                Usage Note / Variable Definitions (Optional)
+              </label>
+              <input
+                type="text"
+                [ngModel]="entry.description"
+                (ngModelChange)="updateFormula($index, 'description', $event)"
+                (focus)="activeIndex.set($index)"
+                placeholder="e.g. Valid for any rigid body of mass M shifted by perpendicular distance d from COM."
+                class="w-full text-xs p-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+          </div>
+
+          @if (entry.latex && entry.latex.trim()) {
+            <div class="bg-emerald-50/80 border border-emerald-200 text-slate-900 rounded-lg px-3.5 py-2.5 text-xs overflow-x-auto flex items-center justify-between gap-2 shadow-2xs">
+              <div class="overflow-x-auto text-slate-900 font-medium">
+                <nag-math-renderer [content]="formatPreviewLatex(entry.latex)"></nag-math-renderer>
+              </div>
+              <span class="text-[10px] text-emerald-700 font-mono font-bold shrink-0 bg-emerald-100/80 px-2 py-0.5 rounded border border-emerald-200">KaTeX Live</span>
+            </div>
           }
         </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
-          <div class="md:col-span-4">
-            <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">
-              Formula Name / Law
-            </label>
-            <input
-              type="text"
-              [ngModel]="entry.name"
-              (ngModelChange)="updateFormula($index, 'name', $event)"
-              (focus)="activeIndex.set($index)"
-              placeholder="e.g. Parallel Axis Theorem"
-              class="w-full text-xs p-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            />
-          </div>
-
-          <div class="md:col-span-8">
-            <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">
-              LaTeX Expression ($$...$$) *
-            </label>
-            <input
-              type="text"
-              [ngModel]="entry.latex"
-              (ngModelChange)="updateFormula($index, 'latex', $event)"
-              (focus)="activeIndex.set($index)"
-              placeholder="e.g. $$I = I_{\text{cm}} + Md^2$$"
-              class="w-full font-mono text-xs p-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            />
-          </div>
-
-          <div class="md:col-span-12">
-            <label class="block text-[10px] font-bold text-slate-600 uppercase mb-1">
-              Usage Note / Variable Definitions (Optional)
-            </label>
-            <input
-              type="text"
-              [ngModel]="entry.description"
-              (ngModelChange)="updateFormula($index, 'description', $event)"
-              (focus)="activeIndex.set($index)"
-              placeholder="e.g. Valid for any rigid body of mass M shifted by perpendicular distance d from COM."
-              class="w-full text-xs p-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            />
-          </div>
-        </div>
-
-        @if (entry.latex && entry.latex.trim()) {
-          <div class="bg-emerald-50/80 border border-emerald-200 text-slate-900 rounded-lg px-3.5 py-2.5 text-xs overflow-x-auto flex items-center justify-between gap-2 shadow-2xs">
-            <div class="overflow-x-auto text-slate-900 font-medium">
-              <nag-math-renderer [content]="formatPreviewLatex(entry.latex)"></nag-math-renderer>
-            </div>
-            <span class="text-[10px] text-emerald-700 font-mono font-bold shrink-0 bg-emerald-100/80 px-2 py-0.5 rounded border border-emerald-200">KaTeX Live</span>
-          </div>
-        }
-      </div>
-    }
-  </div>
+      }
+    </div>
+  }
 </div>

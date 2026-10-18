@@ -256,4 +256,58 @@ describe('MicroLessonAuthoringComponent', () => {
     component.backToModerationDesk();
     expect(navSpy).toHaveBeenCalledWith(['/learning/micro-lessons']);
   });
+
+  it('should require Part 3 formula cheat sheet for Physics/Math/Numerical topics and block save when empty', () => {
+    createComponent();
+    expect(component.isFormulaRequired()).toBe(true);
+    expect(component.formulaPolicy().mode).toBe('MANDATORY');
+
+    component.formulaEntries.set([{ name: 'Formula 1', latex: '   ', description: '', variables: [] }]);
+    component.saveLesson();
+
+    expect(microLessonServiceMock.createMicroLesson).not.toHaveBeenCalled();
+    expect(component.feedback()?.type).toBe('error');
+    expect(component.feedback()?.message).toContain('Part 3 (KaTeX Formula Cheat Sheet) requires at least 1 formula');
+  });
+
+  it('should make Part 3 formula cheat sheet optional for non-Math/Science subjects like English or Indian Polity', () => {
+    subjectTopicServiceMock.getSubjects.mockReturnValue(
+      of([
+        { id: 10, name: 'Physics' },
+        { id: 40, name: 'English' },
+      ])
+    );
+    subjectTopicServiceMock.getTopics.mockImplementation((subjId: number) =>
+      subjId === 40
+        ? of([{ id: 400, name: 'Grammar', subjectId: 40 }])
+        : of(mockTopics)
+    );
+    subjectTopicServiceMock.getSubtopics.mockImplementation((subjId: number) =>
+      subjId === 40
+        ? of([{ id: 4000, name: 'Subject-Verb Agreement', topicId: 400 }])
+        : of(mockSubtopics)
+    );
+
+    createComponent();
+    component.onSubjectChange(40);
+
+    expect(component.resolvedSubjectName()).toBe('English');
+    expect(component.resolvedTopicName()).toBe('Grammar');
+    expect(component.isFormulaRequired()).toBe(false);
+    expect(component.formulaPolicy().mode).toBe('OPTIONAL_NOT_APPLICABLE');
+    expect(component.formulaEntries().length).toBe(0);
+
+    component.coreConcept.set('When two subjects are joined by "along with", the verb agrees with the first subject.');
+    component.saveLesson();
+
+    expect(microLessonServiceMock.createMicroLesson).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subject: 'English',
+        topic: 'Grammar',
+        cheatSheet: [],
+        formulaCheatSheet: [],
+      })
+    );
+    expect(component.feedback()?.type).toBe('success');
+  });
 });

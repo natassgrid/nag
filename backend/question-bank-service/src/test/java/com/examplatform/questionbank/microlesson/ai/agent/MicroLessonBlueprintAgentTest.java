@@ -130,4 +130,30 @@ class MicroLessonBlueprintAgentTest {
         assertThat(blueprint.domainCategory()).isEqualTo(DomainCategory.CHEMISTRY_ORGANIC);
         assertThat(blueprint.sampleQuestions()).isEmpty();
     }
+
+    @Test
+    @DisplayName("Determines Part 3 formula cheat sheet requirement accurately across subjects and topics")
+    void testFormulaSheetRequiredBySubjectAndTopic() {
+        // Mandatory for Math, Science, Statistics, Data Interpretation, and Numerical topics
+        assertThat(agentWithoutRepo.isFormulaSheetRequired("Mathematics", "Algebra", "Quadratic Equations", "CONCEPT")).isTrue();
+        assertThat(agentWithoutRepo.isFormulaSheetRequired("General Science", "Physics", "Optics", "CONCEPT")).isTrue();
+        assertThat(agentWithoutRepo.isFormulaSheetRequired("General Science", "Chemistry", "Mole Concept", "CONCEPT")).isTrue();
+        assertThat(agentWithoutRepo.isFormulaSheetRequired("Statistics", "Probability Theory", "Bayes Theorem", "CONCEPT")).isTrue();
+        assertThat(agentWithoutRepo.isFormulaSheetRequired("Data Interpretation and Logical Analysis", "Pie Charts", "Degree Conversion", "CONCEPT")).isTrue();
+        assertThat(agentWithoutRepo.isFormulaSheetRequired("Reasoning", "Numerical Operations", "Operator Substitution", "CONCEPT")).isTrue();
+        assertThat(agentWithoutRepo.isFormulaSheetRequired("Reasoning", "Inequalities", "Direct Inequalities", "CONCEPT")).isTrue();
+        assertThat(agentWithoutRepo.isFormulaSheetRequired("General Studies", "Everyday Science", "Basic Physics", "CONCEPT")).isTrue();
+
+        // Mandatory when lessonType is explicitly CHEAT_SHEET regardless of subject
+        assertThat(agentWithoutRepo.isFormulaSheetRequired("English", "Grammar", "Voice Conversion", "CHEAT_SHEET")).isTrue();
+
+        // Optional for English, Hindi, Polity, History, Public Admin, CDP, Banking, Verbal Reasoning
+        assertThat(agentWithoutRepo.isFormulaSheetRequired("English", "Grammar", "Subject-Verb Agreement", "CONCEPT")).isFalse();
+        assertThat(agentWithoutRepo.isFormulaSheetRequired("General Studies", "Indian Polity", "Fundamental Rights", "CONCEPT")).isFalse();
+        assertThat(agentWithoutRepo.isFormulaSheetRequired("General Studies", "Indian History", "Modern India", "CONCEPT")).isFalse();
+        assertThat(agentWithoutRepo.isFormulaSheetRequired("Public Administration and Governance", "Public Policy", "RTI Act", "CONCEPT")).isFalse();
+        assertThat(agentWithoutRepo.isFormulaSheetRequired("General Hindi", "मुहावरे एवं लोकोक्तियां", "प्रचलित मुहावरे", "CONCEPT")).isFalse();
+        assertThat(agentWithoutRepo.isFormulaSheetRequired("Reasoning", "Critical Thinking", "Statement and Argument", "CONCEPT")).isFalse();
+        assertThat(agentWithoutRepo.isFormulaSheetRequired("Child Development and Pedagogy", "Inclusive Education", "Diverse Learners", "CONCEPT")).isFalse();
+    }
 }

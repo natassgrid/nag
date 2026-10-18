@@ -252,6 +252,79 @@ class MicroLessonServiceTest {
 
             verify(repository, never()).save(any());
         }
+
+        @Test
+        @DisplayName("Allows creating micro-lesson with empty formula cheat sheet for non-Math/Science/Numerical subjects")
+        void testCreateAllowsEmptyCheatSheetForNonFormulaSubject() {
+            Subject engSubject = Subject.builder().name("English").build();
+            ReflectionTestUtils.setField(engSubject, "id", 4L);
+            Topic grammarTopic = Topic.builder().subjectId(4L).name("Grammar").build();
+            ReflectionTestUtils.setField(grammarTopic, "id", 40L);
+            Subtopic svSubtopic = Subtopic.builder().topicId(40L).name("Subject-Verb Agreement").build();
+            ReflectionTestUtils.setField(svSubtopic, "id", 400L);
+
+            when(subjectRepository.findById(4L)).thenReturn(Optional.of(engSubject));
+            when(topicRepository.findById(40L)).thenReturn(Optional.of(grammarTopic));
+            when(subtopicRepository.findById(400L)).thenReturn(Optional.of(svSubtopic));
+            when(repository.findTopBySubtopicIdOrderByContentVersionDesc(400L)).thenReturn(Optional.empty());
+            when(repository.save(any(SubtopicMicroLesson.class))).thenAnswer(inv -> {
+                SubtopicMicroLesson saved = inv.getArgument(0);
+                ReflectionTestUtils.setField(saved, "id", LESSON_ID);
+                return saved;
+            });
+
+            CreateMicroLessonRequest request = CreateMicroLessonRequest.builder()
+                    .subjectId(4L)
+                    .topicId(40L)
+                    .subtopicId(400L)
+                    .targetExam("SSC_CGL")
+                    .coreConcept("When two subjects are joined by 'along with' or 'as well as', the verb agrees with the first subject.")
+                    .trap("Matching the verb with the closer plural noun inside the prepositional phrase.")
+                    .cheatSheet(List.of())
+                    .formulaCheatSheet(List.of())
+                    .stepByStepBreakdown(new StepByStepBreakdownDto(
+                            "Identify the error: 'The captain along with the players were felicitated.'",
+                            List.of("Step 1: Isolate the principal subject 'The captain' (singular).", "Step 2: Replace plural verb 'were' with singular 'was'."),
+                            "The captain along with the players was felicitated."
+                    ))
+                    .build();
+
+            MicroLessonResponse response = service.createManualMicroLesson(request, AUTHOR_ID);
+
+            assertThat(response).isNotNull();
+            assertThat(response.subject()).isEqualTo("English");
+            assertThat(response.topic()).isEqualTo("Grammar");
+            assertThat(response.cheatSheet()).isEmpty();
+            assertThat(response.getContent().formulaCheatSheet()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("Throws 400 BAD_REQUEST when formula cheat sheet is empty for mandatory Math/Science/Numerical topic")
+        void testCreateFailsWhenCheatSheetEmptyForMandatorySubject() {
+            stubTaxonomyRepositories();
+
+            CreateMicroLessonRequest request = CreateMicroLessonRequest.builder()
+                    .subjectId(1L)
+                    .topicId(10L)
+                    .subtopicId(100L)
+                    .targetExam("JEE_MAIN")
+                    .coreConcept("Moment of inertia $$I = \\sum m_i r_i^2$$ measures rotational inertia.")
+                    .trap("Using wrong axis without parallel axis shift.")
+                    .cheatSheet(List.of())
+                    .formulaCheatSheet(List.of())
+                    .stepByStepBreakdown(new StepByStepBreakdownDto("Find I", List.of("Step 1"), "$$MR^2$$"))
+                    .build();
+
+            assertThatThrownBy(() -> service.createManualMicroLesson(request, AUTHOR_ID))
+                    .isInstanceOf(ResponseStatusException.class)
+                    .satisfies(ex -> {
+                        ResponseStatusException rse = (ResponseStatusException) ex;
+                        assertThat(rse.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+                        assertThat(rse.getReason()).contains("Cheat sheet must contain at least 1 formula");
+                    });
+
+            verify(repository, never()).save(any());
+        }
     }
 
     @Nested

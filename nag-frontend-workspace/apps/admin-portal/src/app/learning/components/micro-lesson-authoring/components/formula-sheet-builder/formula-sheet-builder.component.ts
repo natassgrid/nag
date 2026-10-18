@@ -11,6 +11,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MathRendererComponent } from '@nag-frontend-workspace/shared-ui-components';
 import { FormulaSymbolPaletteComponent } from '@nag-frontend-workspace/questions-feature-authoring';
 import { FormulaEntry } from '../../../../models/micro-lesson.model';
+import { FormulaApplicabilityMode } from '../../models/micro-lesson-authoring.model';
 
 @Component({
   selector: 'app-formula-sheet-builder',
@@ -28,6 +29,10 @@ import { FormulaEntry } from '../../../../models/micro-lesson.model';
 })
 export class FormulaSheetBuilderComponent {
   readonly formulas = input<FormulaEntry[]>([]);
+  readonly required = input<boolean>(true);
+  readonly applicabilityMode = input<FormulaApplicabilityMode>('MANDATORY');
+  readonly applicabilityBadge = input<string>('Required (Math / Science / Numerical)');
+  readonly applicabilityReason = input<string>('');
   readonly formulasChange = output<FormulaEntry[]>();
 
   readonly showPalette = signal<boolean>(false);
@@ -51,12 +56,19 @@ export class FormulaSheetBuilderComponent {
 
   removeFormula(index: number): void {
     const list = this.formulas() || [];
-    if (list.length <= 1) return;
+    if (this.required() && list.length <= 1) return;
     const updated = list.filter((_, idx) => idx !== index);
     this.formulasChange.emit(updated);
     if (this.activeIndex() >= updated.length) {
       this.activeIndex.set(Math.max(0, updated.length - 1));
     }
+  }
+
+  clearAllFormulas(): void {
+    if (this.required()) return;
+    this.formulasChange.emit([]);
+    this.activeIndex.set(0);
+    this.showPalette.set(false);
   }
 
   updateFormula(index: number, field: keyof FormulaEntry, value: string): void {

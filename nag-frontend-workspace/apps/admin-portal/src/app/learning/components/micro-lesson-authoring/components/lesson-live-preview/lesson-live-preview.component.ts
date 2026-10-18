@@ -39,11 +39,26 @@ export class LessonLivePreviewComponent {
     correctApproach: '',
   });
   readonly formulas = input<FormulaEntry[]>([]);
+  readonly formulaRequired = input<boolean>(true);
   readonly problemStatement = input<string>('');
   readonly steps = input<MicroLessonStep[]>([]);
   readonly finalAnswer = input<string>('');
   readonly keyTakeaways = input<string[]>([]);
   readonly quickCheckItems = input<QuickCheckItem[]>([]);
+
+  readonly nonEmptyFormulas = computed(() =>
+    (this.formulas() || []).filter(
+      (f) =>
+        f &&
+        ((f.latex && f.latex.trim().length > 0) ||
+          (f.description && f.description.trim().length > 0) ||
+          (f.name && f.name.trim().length > 0 && !/^formula\s+\d+$/i.test(f.name.trim())))
+    )
+  );
+
+  readonly previewFormulas = computed(() =>
+    this.formulaRequired() ? this.formulas() || [] : this.nonEmptyFormulas()
+  );
 
   readonly nonEmptyTakeaways = computed(() =>
     (this.keyTakeaways() || []).filter((t) => t && t.trim().length > 0)
