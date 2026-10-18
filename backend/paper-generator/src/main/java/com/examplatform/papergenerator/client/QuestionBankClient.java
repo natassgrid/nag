@@ -35,17 +35,19 @@ import java.util.UUID;
 public interface QuestionBankClient {
 
     /**
-     * Finds available questions matching the specified criteria from the question bank.
-     *
-     * @param subject        the subject to filter by
-     * @param topic          the topic to filter by
-     * @param difficulty     the difficulty level (EASY/MEDIUM/HARD) or null for any
-     * @param cognitiveLevel the cognitive level or null for any
-     * @param tenantId       the tenant identifier for multi-tenancy isolation
-     * @return list of question summaries matching the criteria
+     * Finds available questions matching numeric taxonomy identifiers (Subject -> Topic -> Subtopic)
+     * and difficulty / cognitive levels.
      */
-    List<QuestionSummary> findAvailableQuestions(String subject, String topic,
-                                                  String difficulty, String cognitiveLevel, String tenantId);
+    List<QuestionSummary> findAvailableQuestions(Long subjectId, Long topicId, Long subtopicId,
+                                                 String difficulty, String cognitiveLevel, String tenantId);
+
+    /**
+     * Finds available questions matching string criteria (backward compatibility).
+     */
+    default List<QuestionSummary> findAvailableQuestions(String subject, String topic,
+                                                         String difficulty, String cognitiveLevel, String tenantId) {
+        return findAvailableQuestions(null, null, null, difficulty, cognitiveLevel, tenantId);
+    }
 
     /**
      * Finds question summaries by their identifiers for paper review and summary views.

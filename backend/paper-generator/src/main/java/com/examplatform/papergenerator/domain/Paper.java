@@ -21,9 +21,7 @@ package com.examplatform.papergenerator.domain;
 
 import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.entity.BaseEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
@@ -43,7 +41,8 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(callSuper = true)
+@EqualsAndHashCode(callSuper = true, exclude = {"sections"})
+@ToString(callSuper = true, exclude = {"sections"})
 @Entity
 @Table(name = "paper", schema = "paper_generator")
 public class Paper extends BaseEntity {
@@ -54,6 +53,23 @@ public class Paper extends BaseEntity {
 
     @Column(name = "exam_id", nullable = false, columnDefinition = "uuid")
     private UUID examId;
+
+    @Column(name = "blueprint_id", columnDefinition = "uuid")
+    private UUID blueprintId;
+
+    @Builder.Default
+    @Column(name = "blueprint_version", nullable = false)
+    private int blueprintVersion = 1;
+
+    @Builder.Default
+    @OneToMany(mappedBy = "paper", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private java.util.List<PaperSection> sections = new java.util.ArrayList<>();
+
+    public void addSection(PaperSection section) {
+        if (sections == null) sections = new java.util.ArrayList<>();
+        sections.add(section);
+        section.setPaper(this);
+    }
 
     @Column(name = "shift_id", nullable = false)
     private String shiftId;

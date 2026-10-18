@@ -109,16 +109,14 @@ public class QuestionBankClientImpl implements QuestionBankClient {
     }
 
     @Override
-    public List<QuestionSummary> findAvailableQuestions(String subject, String topic,
+    public List<QuestionSummary> findAvailableQuestions(Long subjectId, Long topicId, Long subtopicId,
                                                         String difficulty, String cognitiveLevel, String tenantId) {
         String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
-        String cleanSubject = (subject != null) ? subject.trim() : "";
-        String cleanTopic = (topic != null) ? topic.trim() : "";
         String cleanDifficulty = (difficulty != null && !difficulty.isBlank()) ? difficulty.trim() : null;
         String cleanCognitiveLevel = (cognitiveLevel != null && !cognitiveLevel.isBlank()) ? cognitiveLevel.trim() : null;
 
-        log.debug("Finding questions: subject='{}', topic='{}', difficulty='{}', cognitiveLevel='{}', tenant='{}'",
-                cleanSubject, cleanTopic, cleanDifficulty, cleanCognitiveLevel, effectiveTenant);
+        log.debug("Finding questions by IDs: subjectId={}, topicId={}, subtopicId={}, difficulty='{}', cognitiveLevel='{}', tenant='{}'",
+                subjectId, topicId, subtopicId, cleanDifficulty, cleanCognitiveLevel, effectiveTenant);
 
         // 1. Try gRPC first if enabled
         if (grpcEnabled) {
@@ -129,8 +127,9 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                                 .withDeadlineAfter(grpcTimeoutMs, TimeUnit.MILLISECONDS);
 
                 BlueprintMatchGrpcRequest grpcRequest = BlueprintMatchGrpcRequest.newBuilder()
-                        .setSubject(cleanSubject)
-                        .setTopic(cleanTopic)
+                        .setSubjectId(subjectId != null ? subjectId : 0L)
+                        .setTopicId(topicId != null ? topicId : 0L)
+                        .setSubtopicId(subtopicId != null ? subtopicId : 0L)
                         .setDifficulty(cleanDifficulty != null ? cleanDifficulty : "")
                         .setCognitiveLevel(cleanCognitiveLevel != null ? cleanCognitiveLevel : "")
                         .setTenantId(effectiveTenant)
@@ -152,9 +151,10 @@ public class QuestionBankClientImpl implements QuestionBankClient {
         // 2. Try REST call to question-bank-service
         try {
             String url = questionBankServiceUrl + "/api/v1/questions/match-blueprint";
-            Map<String, String> requestBody = new HashMap<>();
-            requestBody.put(SharedConstants.SUBJECT, cleanSubject);
-            requestBody.put("topic", cleanTopic);
+            Map<String, Object> requestBody = new HashMap<>();
+            if (subjectId != null) requestBody.put("subjectId", subjectId);
+            if (topicId != null) requestBody.put("topicId", topicId);
+            if (subtopicId != null) requestBody.put("subtopicId", subtopicId);
             if (cleanDifficulty != null) requestBody.put(SharedConstants.DIFFICULTY, cleanDifficulty);
             if (cleanCognitiveLevel != null) requestBody.put("cognitiveLevel", cleanCognitiveLevel);
 
@@ -173,13 +173,13 @@ public class QuestionBankClientImpl implements QuestionBankClient {
         }
 
         try {
-            // First attempt: exact match on subject, topic, difficulty, and cognitive level
             String sql = """
-                SELECT id, subject, topic, difficulty, cognitive_level, usage_count, last_used_at, content, passage_id, passage_order_index
+                SELECT id, subject_id, topic_id, subtopic_id, subject, topic, subtopic, difficulty, cognitive_level, usage_count, last_used_at, content, passage_id, passage_order_index
                 FROM question_service.question
-                WHERE tenant_id = ?
-                  AND UPPER(TRIM(subject)) = UPPER(?)
-                  AND UPPER(TRIM(topic)) = UPPER(?)
+                WHERE (tenant_id = ? OR tenant_id IS NULL OR tenant_id = 'default')
+                  AND (? IS NULL OR subject_id = ?)
+                  AND (? IS NULL OR topic_id = ?)
+                  AND (? IS NULL OR subtopic_id = ?)
                   AND state = 'PUBLISHED'
                   AND (? IS NULL OR UPPER(TRIM(difficulty)) = UPPER(?))
                   AND (? IS NULL OR UPPER(TRIM(cognitive_level)) = UPPER(?))
@@ -187,39 +187,113 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                 """;
 
             List<QuestionSummary> questions = jdbcTemplate.query(sql, QuestionBankClientImpl::mapQuestionSummary,
-                    effectiveTenant, cleanSubject, cleanTopic, cleanDifficulty, cleanDifficulty, cleanCognitiveLevel, cleanCognitiveLevel);
+                    effectiveTenant,
+                    subjectId, subjectId,
+                    topicId, topicId,
+                    subtopicId, subtopicId,
+                    cleanDifficulty, cleanDifficulty,
+                    cleanCognitiveLevel, cleanCognitiveLevel);
 
             if (!questions.isEmpty()) {
-                log.info("Found {} questions via DB fallback for subject='{}', topic='{}', difficulty='{}', cognitiveLevel='{}'",
-                        questions.size(), cleanSubject, cleanTopic, cleanDifficulty, cleanCognitiveLevel);
+                log.info("Found {} questions via DB fallback for subjectId={}, topicId={}, subtopicId={}",
+                        questions.size(), subjectId, topicId, subtopicId);
                 return questions;
             }
 
-            // Fallback: match by difficulty if specific cognitive level produces no results
             if (cleanCognitiveLevel != null) {
-                log.info("No questions with cognitiveLevel='{}'; falling back to difficulty-only for subject='{}', topic='{}'",
-                        cleanCognitiveLevel, cleanSubject, cleanTopic);
                 String fallbackSql = """
-                    SELECT id, subject, topic, difficulty, cognitive_level, usage_count, last_used_at, content, passage_id, passage_order_index
+                    SELECT id, subject_id, topic_id, subtopic_id, subject, topic, subtopic, difficulty, cognitive_level, usage_count, last_used_at, content, passage_id, passage_order_index
                     FROM question_service.question
-                    WHERE tenant_id = ?
-                      AND UPPER(TRIM(subject)) = UPPER(?)
-                      AND UPPER(TRIM(topic)) = UPPER(?)
+                    WHERE (tenant_id = ? OR tenant_id IS NULL OR tenant_id = 'default')
+                      AND (? IS NULL OR subject_id = ?)
+                      AND (? IS NULL OR topic_id = ?)
+                      AND (? IS NULL OR subtopic_id = ?)
                       AND state = 'PUBLISHED'
                       AND (? IS NULL OR UPPER(TRIM(difficulty)) = UPPER(?))
                     ORDER BY RANDOM()
                     """;
 
                 return jdbcTemplate.query(fallbackSql, QuestionBankClientImpl::mapQuestionSummary,
-                        effectiveTenant, cleanSubject, cleanTopic, cleanDifficulty, cleanDifficulty);
+                        effectiveTenant,
+                        subjectId, subjectId,
+                        topicId, topicId,
+                        subtopicId, subtopicId,
+                        cleanDifficulty, cleanDifficulty);
             }
 
             return questions;
         } catch (Exception e) {
-            log.error("Error querying questions from question_service for subject='{}', topic='{}': {}",
-                    cleanSubject, cleanTopic, e.getMessage());
+            log.error("Error querying questions from question_service for subjectId={}, topicId={}: {}",
+                    subjectId, topicId, e.getMessage());
             return Collections.emptyList();
         }
+    }
+
+    @Override
+    public List<QuestionSummary> findAvailableQuestions(String subject, String topic,
+                                                        String difficulty, String cognitiveLevel, String tenantId) {
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
+        String cleanSubject = (subject != null) ? subject.trim() : "";
+        String cleanTopic = (topic != null) ? topic.trim() : "";
+        String cleanDifficulty = (difficulty != null && !difficulty.isBlank()) ? difficulty.trim() : null;
+        String cleanCognitiveLevel = (cognitiveLevel != null && !cognitiveLevel.isBlank()) ? cognitiveLevel.trim() : null;
+
+        // 1. Try REST call to question-bank-service
+        try {
+            String url = questionBankServiceUrl + "/api/v1/questions/match-blueprint";
+            Map<String, String> requestBody = new HashMap<>();
+            requestBody.put(SharedConstants.SUBJECT, cleanSubject);
+            requestBody.put("topic", cleanTopic);
+            if (cleanDifficulty != null) requestBody.put(SharedConstants.DIFFICULTY, cleanDifficulty);
+            if (cleanCognitiveLevel != null) requestBody.put("cognitiveLevel", cleanCognitiveLevel);
+
+            List<QuestionSummary> questions = fetchQuestionsViaRest(url, effectiveTenant, requestBody);
+            if (questions != null) {
+                return questions;
+            }
+        } catch (Exception e) {
+            log.debug("REST match-blueprint failed for subject='{}': {}", cleanSubject, e.getMessage());
+        }
+
+        // 2. Fallback to direct JDBC query
+        if (jdbcTemplate != null) {
+            try {
+                String sql = """
+                    SELECT id, subject_id, topic_id, subtopic_id, subject, topic, subtopic, difficulty, cognitive_level, usage_count, last_used_at, content, passage_id, passage_order_index
+                    FROM question_service.question
+                    WHERE tenant_id = ?
+                      AND UPPER(TRIM(subject)) = UPPER(?)
+                      AND UPPER(TRIM(topic)) = UPPER(?)
+                      AND state = 'PUBLISHED'
+                      AND (? IS NULL OR UPPER(TRIM(difficulty)) = UPPER(?))
+                      AND (? IS NULL OR UPPER(TRIM(cognitive_level)) = UPPER(?))
+                    ORDER BY RANDOM()
+                    """;
+                List<QuestionSummary> questions = jdbcTemplate.query(sql, QuestionBankClientImpl::mapQuestionSummary,
+                        effectiveTenant, cleanSubject, cleanTopic, cleanDifficulty, cleanDifficulty, cleanCognitiveLevel, cleanCognitiveLevel);
+                if (!questions.isEmpty()) {
+                    return questions;
+                }
+                if (cleanCognitiveLevel != null) {
+                    String fallbackSql = """
+                        SELECT id, subject_id, topic_id, subtopic_id, subject, topic, subtopic, difficulty, cognitive_level, usage_count, last_used_at, content, passage_id, passage_order_index
+                        FROM question_service.question
+                        WHERE tenant_id = ?
+                          AND UPPER(TRIM(subject)) = UPPER(?)
+                          AND UPPER(TRIM(topic)) = UPPER(?)
+                          AND state = 'PUBLISHED'
+                          AND (? IS NULL OR UPPER(TRIM(difficulty)) = UPPER(?))
+                        ORDER BY RANDOM()
+                        """;
+                    return jdbcTemplate.query(fallbackSql, QuestionBankClientImpl::mapQuestionSummary,
+                            effectiveTenant, cleanSubject, cleanTopic, cleanDifficulty, cleanDifficulty);
+                }
+            } catch (Exception e) {
+                log.warn("JDBC match failed for subject='{}': {}", cleanSubject, e.getMessage());
+            }
+        }
+
+        return Collections.emptyList();
     }
 
     @Override
@@ -420,10 +494,24 @@ public class QuestionBankClientImpl implements QuestionBankClient {
         Instant lastUsedAt = ts != null ? ts.toInstant() : null;
         UUID passageId = rs.getObject("passage_id", UUID.class);
         Integer passageOrderIndex = (Integer) rs.getObject("passage_order_index");
+
+        Long subjectId = null;
+        try { subjectId = rs.getObject("subject_id", Long.class); } catch (Exception ignored) {}
+        Long topicId = null;
+        try { topicId = rs.getObject("topic_id", Long.class); } catch (Exception ignored) {}
+        Long subtopicId = null;
+        try { subtopicId = rs.getObject("subtopic_id", Long.class); } catch (Exception ignored) {}
+        String subtopic = null;
+        try { subtopic = rs.getString("subtopic"); } catch (Exception ignored) {}
+
         return QuestionSummary.builder()
                 .questionId(rs.getObject("id", UUID.class))
+                .subjectId(subjectId)
+                .topicId(topicId)
+                .subtopicId(subtopicId)
                 .subject(rs.getString(SharedConstants.SUBJECT))
                 .topic(rs.getString("topic"))
+                .subtopic(subtopic)
                 .difficulty(rs.getString(SharedConstants.DIFFICULTY))
                 .cognitiveLevel(rs.getString("cognitive_level"))
                 .usageCount(rs.getInt("usage_count"))
@@ -468,8 +556,12 @@ public class QuestionBankClientImpl implements QuestionBankClient {
     private QuestionSummary toSummary(QuestionResponseDto dto) {
         return QuestionSummary.builder()
                 .questionId(dto.getId())
+                .subjectId(dto.getSubjectId())
+                .topicId(dto.getTopicId())
+                .subtopicId(dto.getSubtopicId())
                 .subject(dto.getSubject())
                 .topic(dto.getTopic())
+                .subtopic(dto.getSubtopic())
                 .difficulty(dto.getDifficulty())
                 .cognitiveLevel(dto.getCognitiveLevel())
                 .usageCount(0)
@@ -482,17 +574,34 @@ public class QuestionBankClientImpl implements QuestionBankClient {
 
     private QuestionSummary toSummaryFromGrpc(QuestionSummaryGrpc grpc) {
         UUID passageId = null;
-        grpc.getPassageId();
         if (!grpc.getPassageId().isBlank()) {
             try {
                 passageId = UUID.fromString(grpc.getPassageId());
             } catch (IllegalArgumentException ignored) {
             }
         }
+
+        Long subjectId = null;
+        if (grpc.getSubjectId() != null && !grpc.getSubjectId().isBlank()) {
+            try { subjectId = Long.parseLong(grpc.getSubjectId()); } catch (NumberFormatException ignored) {}
+        }
+        Long topicId = null;
+        if (grpc.getTopicId() != null && !grpc.getTopicId().isBlank()) {
+            try { topicId = Long.parseLong(grpc.getTopicId()); } catch (NumberFormatException ignored) {}
+        }
+        Long subtopicId = null;
+        if (grpc.getSubtopicId() != null && !grpc.getSubtopicId().isBlank()) {
+            try { subtopicId = Long.parseLong(grpc.getSubtopicId()); } catch (NumberFormatException ignored) {}
+        }
+
         return QuestionSummary.builder()
                 .questionId(UUID.fromString(grpc.getId()))
+                .subjectId(subjectId)
+                .topicId(topicId)
+                .subtopicId(subtopicId)
                 .subject(grpc.getSubject())
                 .topic(grpc.getTopic())
+                .subtopic(grpc.getSubtopic())
                 .difficulty(grpc.getDifficulty())
                 .cognitiveLevel(grpc.getCognitiveLevel())
                 .usageCount(grpc.getUsageCount())
@@ -521,8 +630,12 @@ public class QuestionBankClientImpl implements QuestionBankClient {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class QuestionResponseDto {
         private UUID id;
+        private Long subjectId;
+        private Long topicId;
+        private Long subtopicId;
         private String subject;
         private String topic;
+        private String subtopic;
         private String difficulty;
         private String cognitiveLevel;
         private String content;

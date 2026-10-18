@@ -33,8 +33,12 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class RuleFeasibilityDetail {
 
+    private Long subjectId;
+    private Long topicId;
+    private Long subtopicId;
     private String subject;
     private String topic;
+    private String subtopic;
     private String difficulty;
     private String cognitiveLevel;
     private int needed;

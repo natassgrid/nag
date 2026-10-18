@@ -36,9 +36,17 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class GapDetail {
 
+    private Long subjectId;
+
+    private Long topicId;
+
+    private Long subtopicId;
+
     private String subject;
 
     private String topic;
+
+    private String subtopic;
 
     private String difficulty;
 

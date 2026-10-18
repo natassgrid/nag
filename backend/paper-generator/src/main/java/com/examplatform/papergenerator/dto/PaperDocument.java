@@ -66,10 +66,25 @@ public class PaperDocument {
     private String shiftId;
 
     /**
+     * Optional blueprint ID and version.
+     */
+    private UUID blueprintId;
+
+    private Integer blueprintVersion;
+
+    private String name;
+
+    /**
      * Ordered list of question IDs (no content stored).
      */
     @NotEmpty
     private List<UUID> questionIds;
+
+    /**
+     * Structured sections preserving examination/blueprint boundaries.
+     */
+    @Builder.Default
+    private List<PaperSectionDocument> sections = new ArrayList<>();
 
     /**
      * Optional grouped questions by comprehension passage.
@@ -87,4 +102,28 @@ public class PaperDocument {
      */
     @NotNull
     private Instant generatedAt;
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class PaperSectionDocument {
+        private UUID sectionId;
+        private UUID blueprintSectionId;
+        private UUID examinationSectionId;
+        private String name;
+        private int orderIndex;
+        @Builder.Default
+        private List<PaperQuestionDocument> questions = new ArrayList<>();
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class PaperQuestionDocument {
+        private UUID questionId;
+        private int position;
+        private Long subtopicId;
+    }
 }

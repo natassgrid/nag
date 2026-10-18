@@ -37,9 +37,19 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class BlueprintRule {
 
+    private java.util.UUID id;
+
+    private Long subjectId;
+
+    private Long topicId;
+
+    private Long subtopicId;
+
     private String subject;
 
     private String topic;
+
+    private String subtopic;
 
     /**
      * Difficulty filter: EASY, MEDIUM, HARD, or null for any difficulty.
@@ -52,6 +62,10 @@ public class BlueprintRule {
     private String cognitiveLevel;
 
     private int questionCount;
+
+    private Double marksOverride;
+
+    private int orderIndex;
 
     /**
      * Optional count of paragraph/passage sets for this rule.

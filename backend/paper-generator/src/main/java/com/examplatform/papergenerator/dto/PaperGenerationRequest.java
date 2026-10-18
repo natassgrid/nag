@@ -60,6 +60,7 @@ public class PaperGenerationRequest {
     /** Optional expected sub-questions per passage (default 3). */
     private Integer subQuestionsPerPassage;
 
-    @NotEmpty
+    private UUID blueprintId;
+
     private List<BlueprintRule> blueprintRules;
 }

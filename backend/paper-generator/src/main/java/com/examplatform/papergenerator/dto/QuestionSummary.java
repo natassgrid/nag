@@ -42,9 +42,17 @@ public class QuestionSummary {
 
     private UUID questionId;
 
+    private Long subjectId;
+
+    private Long topicId;
+
+    private Long subtopicId;
+
     private String subject;
 
     private String topic;
+
+    private String subtopic;
 
     /**
      * Difficulty level: EASY, MEDIUM, or HARD.

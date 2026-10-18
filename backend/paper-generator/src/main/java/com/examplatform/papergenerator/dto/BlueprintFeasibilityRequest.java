@@ -38,11 +38,12 @@ import java.util.UUID;
 @AllArgsConstructor
 public class BlueprintFeasibilityRequest {
 
+    private UUID blueprintId;
     private UUID examId;
     private String shiftId;
+    private Integer shifts;
     private Boolean isPractice;
 
-    @NotEmpty(message = "blueprintRules must not be empty")
     @Valid
     private List<BlueprintRule> blueprintRules;
 
