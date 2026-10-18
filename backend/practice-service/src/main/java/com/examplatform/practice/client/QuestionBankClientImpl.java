@@ -147,7 +147,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
             String sql = """
                 SELECT q.id FROM question_service.question q
                 JOIN question_service.subject s ON q.subject_id = s.id
-                WHERE q.state = 'PUBLISHED'
+                WHERE q.state IN ('APPROVED', 'PUBLISHED')
                   AND (LOWER(s.name) LIKE LOWER(?) OR LOWER(s.code) LIKE LOWER(?))
                 ORDER BY q.created_at DESC
                 LIMIT ?
@@ -178,7 +178,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                     sql = String.format("""
                         SELECT q.id FROM question_service.question q
                         JOIN question_service.subtopic st ON q.subtopic_id = st.id
-                        WHERE q.state = 'PUBLISHED'
+                        WHERE q.state IN ('APPROVED', 'PUBLISHED')
                           AND UPPER(q.difficulty) = ?
                           AND LOWER(st.name) IN (%s)
                         ORDER BY q.created_at DESC
@@ -193,7 +193,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                     sql = String.format("""
                         SELECT q.id FROM question_service.question q
                         JOIN question_service.subtopic st ON q.subtopic_id = st.id
-                        WHERE q.state = 'PUBLISHED'
+                        WHERE q.state IN ('APPROVED', 'PUBLISHED')
                           AND LOWER(st.name) IN (%s)
                         ORDER BY q.created_at DESC
                         LIMIT ?
@@ -209,8 +209,8 @@ public class QuestionBankClientImpl implements QuestionBankClient {
 
             // Fallback: select questions by difficulty
             String fallbackSql = (difficulty != null && !difficulty.isBlank())
-                    ? "SELECT id FROM question_service.question WHERE state = 'PUBLISHED' AND UPPER(difficulty) = ? ORDER BY created_at DESC LIMIT ?"
-                    : "SELECT id FROM question_service.question WHERE state = 'PUBLISHED' ORDER BY created_at DESC LIMIT ?";
+                    ? "SELECT id FROM question_service.question WHERE state IN ('APPROVED', 'PUBLISHED') AND UPPER(difficulty) = ? ORDER BY created_at DESC LIMIT ?"
+                    : "SELECT id FROM question_service.question WHERE state IN ('APPROVED', 'PUBLISHED') ORDER BY created_at DESC LIMIT ?";
             Object[] fallbackParams = (difficulty != null && !difficulty.isBlank())
                     ? new Object[]{difficulty.trim().toUpperCase(), limit}
                     : new Object[]{limit};
@@ -235,7 +235,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                 if (difficulty != null && !difficulty.isBlank()) {
                     sql = String.format("""
                         SELECT id FROM question_service.question
-                        WHERE state = 'PUBLISHED'
+                        WHERE state IN ('APPROVED', 'PUBLISHED')
                           AND UPPER(difficulty) = ?
                           AND subtopic_id IN (%s)
                         ORDER BY created_at DESC
@@ -249,7 +249,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                 } else {
                     sql = String.format("""
                         SELECT id FROM question_service.question
-                        WHERE state = 'PUBLISHED'
+                        WHERE state IN ('APPROVED', 'PUBLISHED')
                           AND subtopic_id IN (%s)
                         ORDER BY created_at DESC
                         LIMIT ?
@@ -263,8 +263,8 @@ public class QuestionBankClientImpl implements QuestionBankClient {
             }
 
             String fallbackSql = (difficulty != null && !difficulty.isBlank())
-                    ? "SELECT id FROM question_service.question WHERE state = 'PUBLISHED' AND UPPER(difficulty) = ? ORDER BY created_at DESC LIMIT ?"
-                    : "SELECT id FROM question_service.question WHERE state = 'PUBLISHED' ORDER BY created_at DESC LIMIT ?";
+                    ? "SELECT id FROM question_service.question WHERE state IN ('APPROVED', 'PUBLISHED') AND UPPER(difficulty) = ? ORDER BY created_at DESC LIMIT ?"
+                    : "SELECT id FROM question_service.question WHERE state IN ('APPROVED', 'PUBLISHED') ORDER BY created_at DESC LIMIT ?";
             Object[] fallbackParams = (difficulty != null && !difficulty.isBlank())
                     ? new Object[]{difficulty.trim().toUpperCase(), limit}
                     : new Object[]{limit};

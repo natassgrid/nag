@@ -184,7 +184,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                   AND (? IS NULL OR q.subject_id = ?)
                   AND (? IS NULL OR q.topic_id = ?)
                   AND (? IS NULL OR q.subtopic_id = ?)
-                  AND q.state = 'PUBLISHED'
+                  AND q.state IN ('APPROVED', 'PUBLISHED')
                   AND (? IS NULL OR UPPER(TRIM(q.difficulty)) = UPPER(?))
                   AND (? IS NULL OR UPPER(TRIM(q.cognitive_level)) = UPPER(?))
                 ORDER BY RANDOM()
@@ -216,7 +216,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                       AND (? IS NULL OR q.subject_id = ?)
                       AND (? IS NULL OR q.topic_id = ?)
                       AND (? IS NULL OR q.subtopic_id = ?)
-                      AND q.state = 'PUBLISHED'
+                      AND q.state IN ('APPROVED', 'PUBLISHED')
                       AND (? IS NULL OR UPPER(TRIM(q.difficulty)) = UPPER(?))
                     ORDER BY RANDOM()
                     """;
@@ -276,7 +276,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                     WHERE (q.tenant_id = ? OR q.tenant_id = 'default' OR q.tenant_id IS NULL)
                       AND UPPER(TRIM(s.name)) = UPPER(?)
                       AND UPPER(TRIM(t.name)) = UPPER(?)
-                      AND q.state = 'PUBLISHED'
+                      AND q.state IN ('APPROVED', 'PUBLISHED')
                       AND (? IS NULL OR UPPER(TRIM(q.difficulty)) = UPPER(?))
                       AND (? IS NULL OR UPPER(TRIM(q.cognitive_level)) = UPPER(?))
                     ORDER BY RANDOM()
@@ -297,7 +297,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                         WHERE (q.tenant_id = ? OR q.tenant_id = 'default' OR q.tenant_id IS NULL)
                           AND UPPER(TRIM(s.name)) = UPPER(?)
                           AND UPPER(TRIM(t.name)) = UPPER(?)
-                          AND q.state = 'PUBLISHED'
+                          AND q.state IN ('APPROVED', 'PUBLISHED')
                           AND (? IS NULL OR UPPER(TRIM(q.difficulty)) = UPPER(?))
                         ORDER BY RANDOM()
                         """;

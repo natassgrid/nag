@@ -80,7 +80,7 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
      */
     @Query(value = """
             SELECT q.id FROM question_service.question q
-            WHERE q.state = 'PUBLISHED'
+            WHERE q.state IN ('APPROVED', 'PUBLISHED')
               AND q.embedding IS NOT NULL
               AND (1 - (q.embedding OPERATOR(public.<=>) cast(:embedding as public.halfvec(384)))) >= :threshold
             ORDER BY q.embedding OPERATOR(public.<=>) cast(:embedding as public.halfvec(384)) ASC
@@ -210,7 +210,7 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
               AND subject_id = :subjectId
               AND (:topicId IS NULL OR :topicId = 0 OR topic_id = :topicId)
               AND (:subtopicId IS NULL OR :subtopicId = 0 OR subtopic_id = :subtopicId)
-              AND state = 'PUBLISHED'
+              AND state IN ('APPROVED', 'PUBLISHED')
               AND (:difficulty IS NULL OR UPPER(TRIM(difficulty)) = UPPER(TRIM(:difficulty)))
               AND (:cognitiveLevel IS NULL OR UPPER(TRIM(cognitive_level)) = UPPER(TRIM(:cognitiveLevel)))
             ORDER BY RANDOM()
@@ -225,7 +225,7 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
 
     /**
      * Fallback lookup for blueprint questions ignoring cognitive level if exact match has no rows.
-     * Only PUBLISHED questions are eligible for paper assembly.
+     * Only PUBLISHED or APPROVED questions are eligible for paper assembly.
      */
     @Query(value = """
             SELECT * FROM question_service.question
@@ -233,7 +233,7 @@ public interface QuestionRepository extends JpaRepository<Question, UUID>, JpaSp
               AND subject_id = :subjectId
               AND (:topicId IS NULL OR :topicId = 0 OR topic_id = :topicId)
               AND (:subtopicId IS NULL OR :subtopicId = 0 OR subtopic_id = :subtopicId)
-              AND state = 'PUBLISHED'
+              AND state IN ('APPROVED', 'PUBLISHED')
               AND (:difficulty IS NULL OR UPPER(TRIM(difficulty)) = UPPER(TRIM(:difficulty)))
             ORDER BY RANDOM()
             """, nativeQuery = true)
