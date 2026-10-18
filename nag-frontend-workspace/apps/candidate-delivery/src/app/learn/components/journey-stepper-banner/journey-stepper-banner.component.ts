@@ -21,6 +21,9 @@ export class JourneyStepperBannerComponent {
   readonly activeJourneyStep = input<number>(1);
   readonly gatekeeperPassed = input<boolean>(false);
   readonly isColdStart = input<boolean>(false);
+  readonly examTitle = input<string | null>(null);
+  readonly readinessBaseline = input<number | null>(null);
+  readonly baselineLabel = input<string>('Baseline Diagnostic');
 
   readonly startDiagnostic = output<void>();
   readonly scrollToPlan = output<void>();

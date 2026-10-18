@@ -119,7 +119,7 @@
           <div class="space-y-1">
             <h4 class="text-xs font-bold text-indigo-900">Adaptive Progress Drill</h4>
             <p class="text-xs text-indigo-700">
-              Demonstrate &ge; 70% accuracy on remedial questions to advance to the final Gatekeeper milestone.
+              Demonstrate &ge; {{ phase.targetAccuracy || phase.passThreshold || 70 }}% accuracy on remedial questions to advance to the final Gatekeeper milestone.
             </p>
           </div>
           <button
@@ -141,7 +141,7 @@
           <div class="space-y-1">
             <h4 class="text-xs font-bold text-amber-900">STAT Gatekeeper Assessment</h4>
             <p class="text-xs text-amber-700">
-              Pass with &ge; 75% score to unlock full-length mocks and certify syllabus readiness.
+              Pass with &ge; {{ phase.targetAccuracy || phase.passThreshold || 75 }}% score to unlock full-length mocks and certify syllabus readiness.
             </p>
           </div>
           <button

@@ -56,9 +56,9 @@
           }
         </div>
         <div>
-          <h3 class="text-xs sm:text-sm font-bold text-slate-900">1. Baseline Diagnostic</h3>
+          <h3 class="text-xs sm:text-sm font-bold text-slate-900">1. {{ baselineLabel() || 'Baseline Diagnostic' }}</h3>
           <p class="text-[11px] text-slate-500 mt-1 leading-snug">
-            Take a baseline adaptive quiz to assess topic strengths &amp; conceptual gaps.
+            Take a baseline adaptive quiz{{ examTitle() ? ' for ' + examTitle() : '' }} to assess topic strengths &amp; conceptual gaps.
           </p>
         </div>
       </div>
@@ -75,7 +75,7 @@
         } @else {
           <span class="text-xs font-semibold text-emerald-600 flex items-center gap-1">
             <mat-icon class="!text-sm !w-4 !h-4">check_circle</mat-icon>
-            Baseline Set
+            {{ readinessBaseline() !== null && readinessBaseline() !== undefined ? 'Baseline: ' + readinessBaseline() + '%' : 'Baseline Set' }}
           </span>
         }
       </div>

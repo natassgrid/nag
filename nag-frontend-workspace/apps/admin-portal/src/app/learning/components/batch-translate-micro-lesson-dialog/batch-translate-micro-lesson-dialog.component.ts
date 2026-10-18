@@ -20,6 +20,7 @@ import {
   SubjectTopicService,
   SubjectHierarchy,
 } from '@nag-frontend-workspace/questions-data-access';
+import { ExaminationService } from '@nag-frontend-workspace/examinations-data-access';
 import { MicroLessonAdminService } from '../../services/micro-lesson-admin.service';
 import {
   MicroLessonBatchTranslationRequest,
@@ -48,6 +49,7 @@ export class BatchTranslateMicroLessonDialogComponent implements OnInit, OnDestr
   private readonly dialogRef = inject(MatDialogRef<BatchTranslateMicroLessonDialogComponent>);
   private readonly microLessonService = inject(MicroLessonAdminService);
   private readonly subjectTopicService = inject(SubjectTopicService);
+  private readonly examinationService = inject(ExaminationService, { optional: true });
 
   readonly languages: MicroLessonLanguage[] = SUPPORTED_MICROLESSON_LANGUAGES.filter(
     (l) => l.code !== 'en'
@@ -75,7 +77,7 @@ export class BatchTranslateMicroLessonDialogComponent implements OnInit, OnDestr
   readonly isCancelling = signal<boolean>(false);
   private pollSub?: Subscription;
 
-  readonly examOptions = [
+  private readonly defaultExamOptions = [
     { label: 'All Target Exams', value: 'ALL' },
     { label: 'JEE Main & Advanced', value: 'JEE_MAIN' },
     { label: 'NEET-UG Medical', value: 'NEET' },
@@ -83,6 +85,14 @@ export class BatchTranslateMicroLessonDialogComponent implements OnInit, OnDestr
     { label: 'SSC CGL', value: 'SSC_CGL' },
     { label: 'UPSC Civil Services', value: 'UPSC_CSAT' },
   ];
+
+  private readonly dynamicExamOptions = signal<Array<{ label: string; value: string }>>(
+    this.defaultExamOptions
+  );
+
+  get examOptions(): Array<{ label: string; value: string }> {
+    return this.dynamicExamOptions();
+  }
 
   readonly statusFilterOptions = [
     { label: 'All Micro-Lessons', value: 'ALL' },
@@ -117,6 +127,62 @@ export class BatchTranslateMicroLessonDialogComponent implements OnInit, OnDestr
         this.isLoadingTaxonomy.set(false);
       },
     });
+
+    if (typeof (this.subjectTopicService as any).getExaminations === 'function') {
+      this.subjectTopicService.getExaminations().subscribe({
+        next: (exams) => {
+          if (Array.isArray(exams) && exams.length > 0) {
+            const seen = new Set<string>(['ALL']);
+            const mapped: Array<{ label: string; value: string }> = [
+              { label: 'All Target Exams', value: 'ALL' },
+            ];
+            for (const ex of exams) {
+              const code = (ex.code || ex.name || '').trim();
+              if (code && !seen.has(code)) {
+                seen.add(code);
+                mapped.push({
+                  label: ex.name ? `${ex.name} (${code})` : code,
+                  value: code,
+                });
+              }
+            }
+            if (mapped.length > 1) {
+              this.dynamicExamOptions.set(mapped);
+            }
+          }
+        },
+        error: () => {
+          // Keep defaultExamOptions fallback
+        },
+      });
+    } else if (this.examinationService) {
+      this.examinationService.getExams(0, 50).subscribe({
+        next: (exams) => {
+          if (Array.isArray(exams) && exams.length > 0) {
+            const seen = new Set<string>(['ALL']);
+            const mapped: Array<{ label: string; value: string }> = [
+              { label: 'All Target Exams', value: 'ALL' },
+            ];
+            for (const ex of exams) {
+              const code = (ex.code || ex.name || '').trim();
+              if (code && !seen.has(code)) {
+                seen.add(code);
+                mapped.push({
+                  label: ex.name ? `${ex.name} (${code})` : code,
+                  value: code,
+                });
+              }
+            }
+            if (mapped.length > 1) {
+              this.dynamicExamOptions.set(mapped);
+            }
+          }
+        },
+        error: () => {
+          // Keep defaultExamOptions fallback
+        },
+      });
+    }
   }
 
   onSubjectChange(subject: string): void {

@@ -76,10 +76,13 @@ export interface LearnerEnrollment {
   id: string;
   candidateId: string;
   examinationId: string;
+  examName?: string;
   examinationTitle: string;
   examinationCode: string;
   targetDate?: string | null;
   status: EnrollmentStatus;
+  diagnosticStatus?: string;
+  diagnosticSessionId?: string;
   startedAt: string;
   diagnosticCompleted: boolean;
   readinessScore: number;
@@ -92,7 +95,9 @@ export interface CreateEnrollmentRequest {
 
 export interface DiagnosticQuestion {
   id: string;
+  questionId?: string;
   stem: string;
+  content?: string;
   options: Array<{ id: string; text: string }>;
   subjectId: number;
   subjectName: string;
@@ -108,8 +113,11 @@ export interface DiagnosticSession {
   enrollmentId: string;
   examinationId: string;
   examinationTitle: string;
+  examinationCode?: string;
+  status?: string;
   totalQuestions: number;
   estimatedMinutes: number;
+  neutralPriorPercent?: number;
   questions: DiagnosticQuestion[];
 }
 
@@ -121,17 +129,26 @@ export interface DiagnosticSubmitAnswer {
 
 export interface DiagnosticSubmitRequest {
   answers: DiagnosticSubmitAnswer[];
+  isSkip?: boolean;
 }
 
 export interface DiagnosticSubmitResult {
+  sessionId?: string;
   enrollmentId: string;
+  status?: string;
   score: number;
   totalQuestions: number;
+  correctCount?: number;
+  correctAnswers?: number;
   accuracyPercent: number;
   seededSubtopicsCount: number;
   initialReadinessScore: number;
   strengths: string[];
   weaknesses: string[];
+  baselineLabel?: string;
+  neutralPriorPercent?: number;
+  subtopicBreakdown?: Record<number, number>;
+  completedAt?: string;
 }
 
 export type ActivityType = 'LESSON' | 'PRACTICE' | 'REVISION' | 'MOCK_SECTION';

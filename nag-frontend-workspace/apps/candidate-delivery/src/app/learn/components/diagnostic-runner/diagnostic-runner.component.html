@@ -26,7 +26,9 @@
           </div>
         </div>
         <div class="p-4 rounded-2xl bg-emerald-50 border border-emerald-100 text-center">
-          <div class="text-[11px] font-bold uppercase tracking-wider text-emerald-700">Readiness Baseline</div>
+          <div class="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
+            {{ result()!.baselineLabel || 'Readiness Baseline' }}
+          </div>
           <div class="text-2xl font-black text-emerald-700 mt-1">
             {{ result()!.initialReadinessScore }}%
           </div>
@@ -41,8 +43,12 @@
             Identified Strengths
           </div>
           <ul class="text-xs text-emerald-900 space-y-1 list-disc pl-4">
-            @for (item of result()!.strengths; track item) {
-              <li>{{ item }}</li>
+            @if (result()!.strengths && result()!.strengths.length > 0) {
+              @for (item of result()!.strengths; track item) {
+                <li>{{ item }}</li>
+              }
+            } @else {
+              <li>Baseline established — complete practice drills to surface topic strengths.</li>
             }
           </ul>
         </div>
@@ -53,8 +59,12 @@
             Priority Focus Subtopics
           </div>
           <ul class="text-xs text-amber-900 space-y-1 list-disc pl-4">
-            @for (item of result()!.weaknesses; track item) {
-              <li>{{ item }}</li>
+            @if (result()!.weaknesses && result()!.weaknesses.length > 0) {
+              @for (item of result()!.weaknesses; track item) {
+                <li>{{ item }}</li>
+              }
+            } @else {
+              <li>All assessed subtopics met baseline proficiency threshold.</li>
             }
           </ul>
         </div>
@@ -200,7 +210,7 @@
           <div>
             <h3 class="text-sm font-bold text-slate-900">Skip Diagnostic Assessment?</h3>
             <p class="text-xs text-slate-500 mt-0.5">
-              Skipping initializes all syllabus subtopics with a neutral 50% prior. You can always recalibrate through practice drills later.
+              Skipping initializes all syllabus subtopics with a neutral {{ session()?.neutralPriorPercent ?? 50 }}% prior. You can always recalibrate through practice drills later.
             </p>
           </div>
         </div>

@@ -305,12 +305,15 @@ class LearnerServiceTest {
             DiagnosticResultResponse res = learnerService.submitDiagnostic(candidateId, enrollmentId, req, "default");
 
             assertThat(res.status()).isEqualTo("SKIPPED");
+            assertThat(res.initialReadinessScore()).isEqualTo(50);
+            assertThat(res.neutralPriorPercent()).isEqualTo(50);
+            assertThat(res.baselineLabel()).isEqualTo("Neutral Baseline (50% Prior)");
             assertThat(session.getStatus()).isEqualTo("SKIPPED");
             assertThat(enrollment.getDiagnosticStatus()).isEqualTo("SKIPPED");
         }
 
         @Test
-        @DisplayName("Submitting diagnostic with answers evaluates score and subtopic accuracy")
+        @DisplayName("Submitting diagnostic with answers evaluates score, readiness baseline, strengths and weaknesses")
         void shouldSubmitAndGradeDiagnosticAssessment() {
             LearnerEnrollment enrollment = LearnerEnrollment.builder()
                     .candidateId(candidateId)
@@ -349,8 +352,64 @@ class LearnerServiceTest {
 
             assertThat(res.status()).isEqualTo("COMPLETED");
             assertThat(res.correctCount()).isEqualTo(1);
+            assertThat(res.correctAnswers()).isEqualTo(1);
             assertThat(res.score()).isEqualTo(2.0);
+            assertThat(res.initialReadinessScore()).isEqualTo(50);
+            assertThat(res.seededSubtopicsCount()).isEqualTo(2);
+            assertThat(res.strengths()).containsExactly("Syllogisms");
+            assertThat(res.weaknesses()).containsExactly("Logical Deductions");
+            assertThat(res.baselineLabel()).isEqualTo("Calibrated Diagnostic Baseline");
             assertThat(enrollment.getDiagnosticStatus()).isEqualTo("COMPLETED");
+        }
+
+        @Test
+        @DisplayName("Submitting diagnostic with frontend answers payload maps questionId to session subtopics dynamically")
+        void shouldSupportFrontendAnswersPayloadFormat() throws Exception {
+            LearnerEnrollment enrollment = LearnerEnrollment.builder()
+                    .candidateId(candidateId)
+                    .examinationId(examId)
+                    .status("ACTIVE")
+                    .build();
+            enrollment.setId(enrollmentId);
+
+            UUID q1Id = UUID.fromString("d1010000-0000-0000-0000-000000000001");
+            UUID q2Id = UUID.fromString("d1010000-0000-0000-0000-000000000002");
+            List<DiagnosticQuestionDto> sessionQuestions = List.of(
+                    new DiagnosticQuestionDto(q1Id, 1, 1L, "Reasoning", 10L, "Logic", 101L, "Syllogisms", "Q1", List.of(), "MEDIUM"),
+                    new DiagnosticQuestionDto(q2Id, 2, 2L, "Quant", 20L, "Arithmetic", 201L, "Percentages", "Q2", List.of(), "EASY")
+            );
+
+            DiagnosticSession session = DiagnosticSession.builder()
+                    .enrollmentId(enrollmentId)
+                    .candidateId(candidateId)
+                    .examinationId(examId)
+                    .questionsJson(objectMapper.writeValueAsString(sessionQuestions))
+                    .totalQuestions(2)
+                    .status("IN_PROGRESS")
+                    .build();
+            session.setId(UUID.randomUUID());
+
+            when(enrollmentRepository.findByIdAndCandidateId(enrollmentId, candidateId))
+                    .thenReturn(Optional.of(enrollment));
+            when(diagnosticRepository.findByEnrollmentId(enrollmentId)).thenReturn(Optional.of(session));
+            when(diagnosticRepository.save(any(DiagnosticSession.class))).thenAnswer(i -> i.getArgument(0));
+
+            SubmitDiagnosticRequest req = new SubmitDiagnosticRequest(
+                    null,
+                    List.of(
+                            new SubmitDiagnosticRequest.DiagnosticAnswerDto(q1Id, null, null, "opt-1", 0, 22),
+                            new SubmitDiagnosticRequest.DiagnosticAnswerDto(q2Id, null, null, "opt-1", 0, 18)
+                    ),
+                    false
+            );
+
+            DiagnosticResultResponse res = learnerService.submitDiagnostic(candidateId, enrollmentId, req, "default");
+
+            assertThat(res.status()).isEqualTo("COMPLETED");
+            assertThat(res.correctAnswers()).isEqualTo(2);
+            assertThat(res.initialReadinessScore()).isEqualTo(100);
+            assertThat(res.strengths()).containsExactly("Syllogisms", "Percentages");
+            assertThat(res.weaknesses()).isEmpty();
         }
     }
 }

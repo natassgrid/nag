@@ -203,6 +203,8 @@ describe('GenerateMicroLessonDialogComponent', () => {
       subtopicId: 100,
       subtopic: 'Rotational Dynamics',
       targetExam: 'JEE_MAIN',
+      lessonType: 'CONCEPT',
+      difficultyLevel: 'CORE',
       referenceText: 'Focus on torque and angular momentum.',
     });
     expect(dialogRefMock.close).toHaveBeenCalledWith(mockCreated);

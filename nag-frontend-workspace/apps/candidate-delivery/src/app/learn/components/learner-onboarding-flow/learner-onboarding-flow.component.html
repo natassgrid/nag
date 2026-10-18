@@ -75,7 +75,7 @@
           }
         </div>
         <span class="text-[11px] font-bold" [ngClass]="currentStep() === 'diagnostic' ? 'text-indigo-600' : 'text-slate-600'">
-          Diagnostic Baseline
+          {{ activeEnrollment()?.examinationCode ? activeEnrollment()!.examinationCode + ' Diagnostic Baseline' : 'Diagnostic Baseline' }}
         </span>
       </button>
     </div>

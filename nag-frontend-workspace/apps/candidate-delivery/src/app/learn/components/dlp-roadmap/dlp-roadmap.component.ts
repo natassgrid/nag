@@ -105,7 +105,8 @@ export class DlpRoadmapComponent implements OnInit {
         this.loading.set(false);
       },
       error: () => {
-        this.learningPathService.generateLearningPath().subscribe({
+        const examCode = this.activeEnrollment()?.examinationCode;
+        this.learningPathService.generateLearningPath(examCode).subscribe({
           next: (data) => {
             this.learningPath.set(data);
             this.loading.set(false);

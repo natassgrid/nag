@@ -11,7 +11,7 @@
           Adaptive Learning Roadmap
         </h1>
         <p class="text-xs sm:text-sm text-slate-300 max-w-xl">
-          Target: <strong>{{ activeEnrollment()?.examinationTitle || 'SSC CGL 2026' }}</strong>.
+          Target: <strong>{{ activeEnrollment()?.examinationTitle || learningPath()?.examTarget || 'Target Examination' }}</strong>.
           Remediate conceptual gaps, clear adaptive drills, and unlock full mock examinations.
         </p>
       </div>
@@ -40,10 +40,10 @@
   <app-readiness-score-meter
     [score]="readinessScore()"
     [targetBenchmark]="85"
-    [masteredCount]="progress()?.masteredCount || 4"
-    [learningCount]="progress()?.learningCount || 2"
-    [totalSubtopics]="progress()?.totalSubtopics || 9"
-    [examTitle]="activeEnrollment()?.examinationTitle || 'Competitive Examination'"
+    [masteredCount]="progress()?.masteredCount ?? 0"
+    [learningCount]="progress()?.learningCount ?? 0"
+    [totalSubtopics]="progress()?.totalSubtopics ?? 0"
+    [examTitle]="activeEnrollment()?.examinationTitle || learningPath()?.examTarget || 'Competitive Examination'"
   />
 
   @if (isDiagnosticRequired()) {

@@ -45,7 +45,9 @@ export class DiagnosticRunnerComponent {
 
   readonly currentIndex = signal<number>(0);
   readonly answers = signal<Record<string, string>>({});
+  readonly questionTimeSpent = signal<Record<string, number>>({});
   readonly showSkipConfirm = signal<boolean>(false);
+  private questionEnteredAt = Date.now();
 
   readonly questions = computed<DiagnosticQuestion[]>(() => {
     return this.session()?.questions || [];
@@ -71,6 +73,18 @@ export class DiagnosticRunnerComponent {
     return Object.keys(this.answers()).length;
   });
 
+  private flushCurrentQuestionTime(): void {
+    const q = this.currentQuestion();
+    if (!q) return;
+    const now = Date.now();
+    const elapsedSec = Math.max(1, Math.round((now - this.questionEnteredAt) / 1000));
+    this.questionTimeSpent.update((prev) => ({
+      ...prev,
+      [q.id]: (prev[q.id] || 0) + elapsedSec,
+    }));
+    this.questionEnteredAt = now;
+  }
+
   selectOption(optionId: string): void {
     const q = this.currentQuestion();
     if (!q) return;
@@ -88,23 +102,27 @@ export class DiagnosticRunnerComponent {
 
   nextQuestion(): void {
     if (this.currentIndex() < this.totalQuestions() - 1) {
+      this.flushCurrentQuestionTime();
       this.currentIndex.update((i) => i + 1);
     }
   }
 
   previousQuestion(): void {
     if (this.currentIndex() > 0) {
+      this.flushCurrentQuestionTime();
       this.currentIndex.update((i) => i - 1);
     }
   }
 
   submitDiagnostic(): void {
+    this.flushCurrentQuestionTime();
     const ansMap = this.answers();
+    const timeMap = this.questionTimeSpent();
     const payload: DiagnosticSubmitRequest = {
       answers: Object.entries(ansMap).map(([questionId, selectedOptionId]) => ({
         questionId,
         selectedOptionId,
-        timeSpentSeconds: 30,
+        timeSpentSeconds: timeMap[questionId] || 1,
       })),
     };
     this.submitted.emit(payload);

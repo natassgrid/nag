@@ -11,13 +11,16 @@
 
 package com.examplatform.candidate.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonIgnoreProperties(ignoreUnknown = true)
 public record DiagnosticQuestionDto(
         UUID questionId,
         int orderIndex,
@@ -30,4 +33,14 @@ public record DiagnosticQuestionDto(
         String content,
         List<Map<String, Object>> options,
         String difficulty
-) {}
+) {
+    @JsonProperty("id")
+    public UUID id() {
+        return questionId;
+    }
+
+    @JsonProperty("stem")
+    public String stem() {
+        return content;
+    }
+}

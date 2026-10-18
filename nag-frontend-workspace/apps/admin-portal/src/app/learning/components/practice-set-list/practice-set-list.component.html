@@ -63,16 +63,43 @@
                 }
               </td>
               <td class="py-4 px-4">
-                @if (set.source === 'EXAM_CLONE') {
-                  <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    <mat-icon class="!text-xs leading-none">attach_file</mat-icon>
-                    Attached Paper
-                  </span>
-                } @else {
-                  <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 border border-slate-200">
-                    <mat-icon class="!text-xs leading-none">edit</mat-icon>
-                    Manual Curation
-                  </span>
+                @switch (set.source) {
+                  @case ('EXAM_CLONE') {
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      <mat-icon class="!text-xs leading-none">attach_file</mat-icon>
+                      Attached Paper
+                    </span>
+                  }
+                  @case ('DIAGNOSTIC_TEST') {
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200">
+                      <mat-icon class="!text-xs leading-none">troubleshoot</mat-icon>
+                      Diagnostic Baseline
+                    </span>
+                  }
+                  @case ('ADAPTIVE_QUIZ') {
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-purple-50 text-purple-700 border border-purple-200">
+                      <mat-icon class="!text-xs leading-none">psychology</mat-icon>
+                      Adaptive Drill
+                    </span>
+                  }
+                  @case ('GATEKEEPER_TEST') {
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-800 border border-amber-200">
+                      <mat-icon class="!text-xs leading-none">verified_user</mat-icon>
+                      Gatekeeper Test
+                    </span>
+                  }
+                  @case ('AUTO_GENERATED') {
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-sky-50 text-sky-700 border border-sky-200">
+                      <mat-icon class="!text-xs leading-none">auto_awesome</mat-icon>
+                      Auto Generated
+                    </span>
+                  }
+                  @default {
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 border border-slate-200">
+                      <mat-icon class="!text-xs leading-none">edit</mat-icon>
+                      Manual Curation
+                    </span>
+                  }
                 }
               </td>
               <td class="py-4 px-4 text-center">

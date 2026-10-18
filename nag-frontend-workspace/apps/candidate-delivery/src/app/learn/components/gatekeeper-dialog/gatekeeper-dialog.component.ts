@@ -10,6 +10,8 @@ import { GatekeeperStatusResponse } from '../../models/learning-path.model';
 export interface GatekeeperDialogData {
   statusResponse?: GatekeeperStatusResponse;
   mockExamTitle?: string;
+  quizTargetThreshold?: number;
+  gatekeeperPassThreshold?: number;
 }
 
 @Component({
@@ -30,6 +32,14 @@ export class GatekeeperDialogComponent {
   readonly dialogRef = inject(MatDialogRef<GatekeeperDialogComponent>);
   readonly data: GatekeeperDialogData = inject(MAT_DIALOG_DATA, { optional: true }) || {};
   private readonly router = inject(Router);
+
+  get quizTargetThreshold(): number {
+    return this.data?.quizTargetThreshold ?? 70;
+  }
+
+  get gatekeeperPassThreshold(): number {
+    return this.data?.gatekeeperPassThreshold ?? 75;
+  }
 
   get conceptualGaps(): Array<{ subtopicName: string }> {
     const gaps = this.data?.statusResponse?.conceptualGaps;

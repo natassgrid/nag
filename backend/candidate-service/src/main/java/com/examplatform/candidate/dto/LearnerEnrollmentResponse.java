@@ -23,9 +23,43 @@ public record LearnerEnrollmentResponse(
         UUID candidateId,
         UUID examinationId,
         String examName,
+        String examinationTitle,
+        String examinationCode,
         LocalDate targetDate,
         String status,
         String diagnosticStatus,
+        boolean diagnosticCompleted,
         UUID diagnosticSessionId,
-        Instant startedAt
-) {}
+        int readinessScore,
+        Instant startedAt,
+        Instant enrolledAt
+) {
+    public LearnerEnrollmentResponse(
+            UUID id,
+            UUID candidateId,
+            UUID examinationId,
+            String examName,
+            LocalDate targetDate,
+            String status,
+            String diagnosticStatus,
+            UUID diagnosticSessionId,
+            Instant startedAt
+    ) {
+        this(
+                id,
+                candidateId,
+                examinationId,
+                examName,
+                examName,
+                null,
+                targetDate,
+                status,
+                diagnosticStatus,
+                "COMPLETED".equalsIgnoreCase(diagnosticStatus) || "SKIPPED".equalsIgnoreCase(diagnosticStatus),
+                diagnosticSessionId,
+                "SKIPPED".equalsIgnoreCase(diagnosticStatus) ? 50 : 0,
+                startedAt,
+                startedAt
+        );
+    }
+}

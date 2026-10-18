@@ -2,10 +2,12 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 import { Recommendation, RecommendationLearnerProfile, StudyPlanItem } from '../models';
+import { AdaptiveLearningService } from './adaptive-learning.service';
 
 @Injectable({ providedIn: 'root' })
 export class RecommendationService {
   private readonly http = inject(HttpClient);
+  private readonly learningService = inject(AdaptiveLearningService);
   private readonly apiUrl = '/api/recommendations';
 
   private tryParseJson<T>(value: any, fallback: T): T {
@@ -34,10 +36,14 @@ export class RecommendationService {
     }));
   }
 
-  generate(examTarget: string = 'JEE_MAIN'): Observable<Recommendation> {
+  generate(examTarget?: string): Observable<Recommendation> {
+    const resolvedTarget =
+      examTarget ||
+      this.learningService.activeEnrollment()?.examinationCode ||
+      'GENERAL_COMPETITIVE';
     return this.http
       .post<any>(
-        `${this.apiUrl}/generate?examTarget=${encodeURIComponent(examTarget)}`,
+        `${this.apiUrl}/generate?examTarget=${encodeURIComponent(resolvedTarget)}`,
         {}
       )
       .pipe(
@@ -59,7 +65,7 @@ export class RecommendationService {
       );
   }
 
-  generateRecommendations(examTarget: string = 'JEE_MAIN'): Observable<Recommendation> {
+  generateRecommendations(examTarget?: string): Observable<Recommendation> {
     return this.generate(examTarget);
   }
 
