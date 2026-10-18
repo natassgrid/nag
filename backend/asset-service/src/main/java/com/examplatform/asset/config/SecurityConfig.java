@@ -19,6 +19,7 @@
 
 package com.examplatform.asset.config;
 
+import com.examplatform.shared.security.JwtAuthConfig;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
@@ -30,7 +31,6 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
-import com.examplatform.shared.security.JwtAuthConfig;
 
 /**
  * Security configuration for asset-service.

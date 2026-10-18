@@ -11,9 +11,13 @@
 
 package com.examplatform.recommendation.controller;
 
+import com.examplatform.recommendation.dto.DynamicLearningPathResponse;
 import com.examplatform.recommendation.dto.LearnerProfileDto;
+import com.examplatform.recommendation.dto.MilestoneGraphDto;
 import com.examplatform.recommendation.dto.RecommendationDto;
+import com.examplatform.recommendation.dto.RecommendationResponse;
 import com.examplatform.recommendation.service.LearnerProfileService;
+import com.examplatform.recommendation.service.LearningPathGeneratorService;
 import com.examplatform.recommendation.service.RecommendationService;
 import com.examplatform.recommendation.support.AbstractIntegrationTest;
 import org.junit.jupiter.api.DisplayName;
@@ -25,6 +29,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -35,6 +40,7 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -47,6 +53,9 @@ class RecommendationControllerIntegrationTest extends AbstractIntegrationTest {
 
     @MockitoBean
     private LearnerProfileService learnerProfileService;
+
+    @MockitoBean
+    private LearningPathGeneratorService learningPathGeneratorService;
 
     private static final UUID CANDIDATE_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
     private static final UUID RECOMMENDATION_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
@@ -100,6 +109,34 @@ class RecommendationControllerIntegrationTest extends AbstractIntegrationTest {
         @DisplayName("401 UNAUTHORIZED - Unauthenticated request is rejected")
         void unauthenticatedReturns401() throws Exception {
             mockMvc.perform(get("/api/recommendations/latest"))
+                    .andExpect(status().isUnauthorized());
+        }
+    }
+
+    @Nested
+    @DisplayName("POST /api/recommendations/generate - Generate Recommendations")
+    class GenerateEndpoint {
+
+        @Test
+        @DisplayName("200 OK - Authenticated candidate generates or refreshes recommendations")
+        void candidateCanGenerateRecommendations() throws Exception {
+            RecommendationDto dto = buildSampleRecommendation();
+            when(recommendationService.generateOrRefresh(eq(CANDIDATE_ID), eq("JEE_MAIN"))).thenReturn(dto);
+
+            mockMvc.perform(post("/api/recommendations/generate")
+                            .param("examTarget", "JEE_MAIN")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(CANDIDATE_ID.toString()))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.id").value(RECOMMENDATION_ID.toString()))
+                    .andExpect(jsonPath("$.candidateId").value(CANDIDATE_ID.toString()))
+                    .andExpect(jsonPath("$.status").value("ACTIVE"));
+        }
+
+        @Test
+        @DisplayName("401 UNAUTHORIZED - Unauthenticated request is rejected")
+        void unauthenticatedReturns401() throws Exception {
+            mockMvc.perform(post("/api/recommendations/generate"))
                     .andExpect(status().isUnauthorized());
         }
     }
@@ -168,6 +205,75 @@ class RecommendationControllerIntegrationTest extends AbstractIntegrationTest {
                     .andExpect(jsonPath("$.totalPracticeSessions").value(15))
                     .andExpect(jsonPath("$.overallAccuracy").value(78.5))
                     .andExpect(jsonPath("$.weakTopics").value("[\"Permutation & Combination\", \"Trigonometry\"]"));
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /api/recommendations/learning-path/current - Active DLP")
+    class LearningPathCurrentEndpoint {
+
+        @Test
+        @DisplayName("200 OK - Retrieves active DLP via recommendation controller")
+        void canGetLearningPath() throws Exception {
+            DynamicLearningPathResponse resp = new DynamicLearningPathResponse(
+                    UUID.randomUUID(),
+                    CANDIDATE_ID,
+                    UUID.randomUUID(),
+                    "JEE_MAIN",
+                    "ACTIVE",
+                    0,
+                    0,
+                    1,
+                    new MilestoneGraphDto(Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), 1, 100.0),
+                    Instant.now(),
+                    Instant.now()
+            );
+
+            when(learningPathGeneratorService.getCurrentActivePath(eq(CANDIDATE_ID))).thenReturn(Optional.of(resp));
+
+            mockMvc.perform(get("/api/recommendations/learning-path/current")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(CANDIDATE_ID.toString()))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.candidateId").value(CANDIDATE_ID.toString()))
+                    .andExpect(jsonPath("$.examTarget").value("JEE_MAIN"));
+        }
+    }
+
+    @Nested
+    @DisplayName("PATCH /api/recommendations/study-plan/days/{dayNumber} - Study Plan Day Completion")
+    class StudyPlanDayPatchEndpoint {
+
+        @Test
+        @DisplayName("200 OK - Updates day completion status and returns updated recommendation response")
+        void updateStudyPlanDaySuccess() throws Exception {
+            RecommendationResponse.StudyPlanDay day1 = new RecommendationResponse.StudyPlanDay(
+                    1, "Quantitative Aptitude", List.of("Revise formulas", "Solve 10 problems"), 30, true
+            );
+            RecommendationResponse response = new RecommendationResponse(
+                    RECOMMENDATION_ID,
+                    CANDIDATE_ID,
+                    UUID.randomUUID(),
+                    "ACTIVE",
+                    Instant.now(),
+                    List.of(),
+                    List.of(day1),
+                    List.of("ps-1"),
+                    "Keep up the momentum!"
+            );
+
+            when(recommendationService.updateStudyPlanDay(eq(CANDIDATE_ID), eq(1), eq(true)))
+                    .thenReturn(response);
+
+            mockMvc.perform(patch("/api/recommendations/study-plan/days/1")
+                            .param("completed", "true")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(CANDIDATE_ID.toString()))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.id").value(RECOMMENDATION_ID.toString()))
+                    .andExpect(jsonPath("$.studyPlan[0].day").value(1))
+                    .andExpect(jsonPath("$.studyPlan[0].focusTopic").value("Quantitative Aptitude"))
+                    .andExpect(jsonPath("$.studyPlan[0].completed").value(true));
         }
     }
 }

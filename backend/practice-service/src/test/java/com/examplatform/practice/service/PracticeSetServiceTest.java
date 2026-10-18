@@ -20,7 +20,8 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class PracticeSetServiceTest {
@@ -63,6 +64,29 @@ class PracticeSetServiceTest {
         assertThat(dtos.get(0).source()).isEqualTo("EXAM_CLONE");
         assertThat(dtos.get(0).totalQuestions()).isEqualTo(25);
         verify(practiceSetRepository).findByPublishedTrue();
+    }
+
+    @Test
+    @DisplayName("getPublishedSets - filters out ADAPTIVE_QUIZ and GATEKEEPER_TEST from catalog")
+    void testGetPublishedSetsFiltersRemedialSets() {
+        PracticeSet adaptiveSet = PracticeSet.builder()
+                .name("Adaptive Practice Quiz")
+                .source("ADAPTIVE_QUIZ")
+                .published(true)
+                .build();
+        PracticeSet gatekeeperSet = PracticeSet.builder()
+                .name("GATE_CS Gatekeeper Test")
+                .source("GATEKEEPER_TEST")
+                .published(true)
+                .build();
+
+        when(practiceSetRepository.findByPublishedTrue()).thenReturn(List.of(practiceSet, adaptiveSet, gatekeeperSet));
+
+        List<PracticeSetDto> dtos = practiceSetService.getPublishedSets();
+
+        assertThat(dtos).hasSize(1);
+        assertThat(dtos.get(0).name()).isEqualTo("Math Practice Blueprint");
+        assertThat(dtos.get(0).source()).isEqualTo("EXAM_CLONE");
     }
 
     @Test

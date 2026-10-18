@@ -51,3 +51,8 @@ include 'backend:monolith-app'
 
 include 'backend:practice-service'
 include 'backend:recommendation-service'
+
+// ── Composite Build: Anvaya-Prajna AI Explanation Engine ────────────────────
+if (file('../anvaya-prajna').exists()) {
+    includeBuild '../anvaya-prajna'
+}

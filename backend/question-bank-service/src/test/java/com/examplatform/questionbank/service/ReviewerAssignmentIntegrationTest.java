@@ -26,6 +26,9 @@ import com.examplatform.questionbank.dto.ReviewerDto;
 import com.examplatform.questionbank.dto.TransitionRequest;
 import com.examplatform.questionbank.repository.QuestionRepository;
 import com.examplatform.questionbank.support.AbstractIntegrationTest;
+import com.examplatform.shared.constants.QuestionStateConstants;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.examplatform.shared.constants.QuestionTypeConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -39,9 +42,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @DisplayName("Reviewer Assignment Workflow Integration Test")
 class ReviewerAssignmentIntegrationTest extends AbstractIntegrationTest {
@@ -100,25 +101,25 @@ class ReviewerAssignmentIntegrationTest extends AbstractIntegrationTest {
                 .topicId(10L)
                 .subject("Mathematics")
                 .topic("Calculus")
-                .difficulty("MEDIUM")
-                .cognitiveLevel("APPLY")
-                .questionType("SINGLE_MCQ")
+                .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
+                .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.APPLY)
+                .questionType(QuestionTypeConstants.SINGLE_MCQ)
                 .content("Calculate the derivative of f(x) = x^2.")
                 .answerKey("2x")
-                .state("DRAFT")
+                .state(QuestionStateConstants.DRAFT)
                 .authorId(authorId)
                 .build();
         question.setTenantId(tenantId);
         question = questionRepository.save(question);
 
         TransitionRequest transitionRequest = TransitionRequest.builder()
-                .targetState("REVIEW")
+                .targetState(QuestionStateConstants.REVIEW)
                 .build();
 
         QuestionResponse response = questionLifecycleService.transition(
                 question.getId(), transitionRequest, authorId, tenantId);
 
-        assertThat(response.getState()).isEqualTo("REVIEW");
+        assertThat(response.getState()).isEqualTo(QuestionStateConstants.REVIEW);
 
         ArgumentCaptor<String> topicCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
@@ -137,6 +138,6 @@ class ReviewerAssignmentIntegrationTest extends AbstractIntegrationTest {
 
         // Approve question and ensure load decrements
         QuestionResponse approvedResponse = questionLifecycleService.approve(question.getId(), reviewer1Id, tenantId);
-        assertThat(approvedResponse.getState()).isEqualTo("APPROVED");
+        assertThat(approvedResponse.getState()).isEqualTo(QuestionStateConstants.APPROVED);
     }
 }

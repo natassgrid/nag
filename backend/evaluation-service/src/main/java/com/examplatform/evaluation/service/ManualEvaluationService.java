@@ -21,6 +21,7 @@ package com.examplatform.evaluation.service;
 
 import com.examplatform.evaluation.domain.Evaluation;
 import com.examplatform.evaluation.repository.EvaluationRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -135,12 +136,12 @@ public class ManualEvaluationService {
     public void notifyEvaluatorsForManualReview(UUID sessionId, UUID candidateId, String tenantId) {
         try {
             Map<String, Object> event = Map.of(
-                    "eventType", "MANUAL_EVALUATION_REQUIRED",
+                SharedConstants.EVENT_TYPE, "MANUAL_EVALUATION_REQUIRED",
                     "sessionId", sessionId.toString(),
                     "candidateId", candidateId.toString(),
                     "evaluatorsRequired", 2,
-                    "tenantId", tenantId,
-                    "occurredAt", Instant.now().toString()
+                SharedConstants.TENANT_ID, tenantId,
+                SharedConstants.OCCURRED_AT, Instant.now().toString()
             );
             eventPublisher.publish(EVALUATION_EVENTS_TOPIC, sessionId.toString(), event);
             log.info("Manual evaluation notification sent for session {}", sessionId);
@@ -189,13 +190,13 @@ public class ManualEvaluationService {
     private void publishScoreRecordedEvent(Evaluation evaluation) {
         try {
             Map<String, Object> event = Map.of(
-                    "eventType", "MANUAL_SCORE_RECORDED",
+                SharedConstants.EVENT_TYPE, "MANUAL_SCORE_RECORDED",
                     "evaluationId", evaluation.getId().toString(),
                     "sessionId", evaluation.getSessionId().toString(),
                     "evaluatorId", evaluation.getEvaluatorId().toString(),
                     "score", evaluation.getScore().toString(),
-                    "status", evaluation.getStatus().name(),
-                    "occurredAt", Instant.now().toString()
+                SharedConstants.STATUS, evaluation.getStatus().name(),
+                SharedConstants.OCCURRED_AT, Instant.now().toString()
             );
             eventPublisher.publish(EVALUATION_EVENTS_TOPIC, evaluation.getId().toString(), event);
         } catch (Exception e) {

@@ -84,6 +84,7 @@ class ShiftAssignmentGrpcServiceImplTest {
         assertThat(response.getDurationMinutes()).isEqualTo(120);
         assertThat(response.getIsAssigned()).isTrue();
         assertThat(response.getPaperId()).isEqualTo(examId.toString());
+        assertThat(response.getNavigationPolicy()).isEqualTo("FLEXIBLE");
     }
 
     @Test
@@ -92,6 +93,7 @@ class ShiftAssignmentGrpcServiceImplTest {
         when(examShiftRepository.findById(eq(shiftId))).thenReturn(Optional.empty());
         Examination exam = Examination.builder()
                 .durationMinutes(150)
+                .navigationPolicy("SEQUENTIAL")
                 .build();
         when(examinationRepository.findById(eq(examId))).thenReturn(Optional.of(exam));
 
@@ -111,5 +113,6 @@ class ShiftAssignmentGrpcServiceImplTest {
         ShiftAssignmentGrpcResponse response = captor.getValue();
         assertThat(response.getDurationMinutes()).isEqualTo(150);
         assertThat(response.getIsAssigned()).isTrue();
+        assertThat(response.getNavigationPolicy()).isEqualTo("SEQUENTIAL");
     }
 }

@@ -25,6 +25,8 @@ import com.examplatform.evaluation.dto.CandidateResponse;
 import com.examplatform.evaluation.dto.MarkingScheme;
 import com.examplatform.evaluation.repository.EvaluationRepository;
 import com.examplatform.shared.config.DynamicConfigService;
+import com.examplatform.shared.constants.QuestionTypeConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -35,16 +37,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
 
 /**
  * Auto-evaluation service for objective question types (Single_MCQ, Multi_MCQ, Numerical).
@@ -56,7 +53,6 @@ import java.util.stream.Collectors;
 @Transactional
 public class AutoEvaluationService {
 
-    private static final String AUDIT_TOPIC = "exam.audit.events";
 
     private final EvaluationRepository evaluationRepository;
     private final ObjectMapper objectMapper;
@@ -96,7 +92,7 @@ public class AutoEvaluationService {
             if (resp == null || !resp.isAttempted()) {
                 // Unattempted -> zero marks
                 score = BigDecimal.ZERO;
-            } else if ("MULTI_MCQ".equals(answerKey.getQuestionType())) {
+            } else if (QuestionTypeConstants.MULTI_MCQ.equals(answerKey.getQuestionType())) {
                 // Partial marking for Multi MCQ
                 double negativeMarks = answerKey.getNegativeMarks() > 0 ? answerKey.getNegativeMarks() : 2.0;
                 MarkingScheme scheme = answerKey.getMarkingScheme() != null
@@ -152,16 +148,16 @@ public class AutoEvaluationService {
                                               int evaluationCount, String tenantId, boolean anonymized) {
         try {
             Map<String, Object> event = Map.of(
-                    "eventType", "EVALUATION_CREATED",
+                SharedConstants.EVENT_TYPE, "EVALUATION_CREATED",
                     "sessionId", sessionId.toString(),
                     "candidateId", anonymized ? ("ANON-" + UUID.nameUUIDFromBytes(candidateId.toString().getBytes())) : candidateId.toString(),
                     "evaluationCount", evaluationCount,
                     "evaluationType", "AUTO",
-                    "tenantId", tenantId,
+                SharedConstants.TENANT_ID, tenantId,
                     "anonymized", anonymized,
-                    "occurredAt", Instant.now().toString()
+                SharedConstants.OCCURRED_AT, Instant.now().toString()
             );
-            eventPublisher.publish(AUDIT_TOPIC, sessionId.toString(), event);
+            eventPublisher.publish(AUDIT_EVENTS_TOPIC, sessionId.toString(), event);
         } catch (Exception e) {
             log.error("Unexpected error publishing EVALUATION_CREATED audit event: {}", e.getMessage());
         }
@@ -172,9 +168,9 @@ public class AutoEvaluationService {
      */
     boolean evaluateAnswer(AnswerKey answerKey, CandidateResponse response) {
         return switch (answerKey.getQuestionType()) {
-            case "SINGLE_MCQ" -> evaluateSingleMcq(answerKey.getCorrectAnswer(), response.getSelectedOptionIds());
-            case "MULTI_MCQ" -> evaluateMultiMcq(answerKey.getCorrectAnswer(), response.getSelectedOptionIds());
-            case "NUMERICAL" -> evaluateNumerical(answerKey.getCorrectAnswer(), response.getEnteredValue());
+            case QuestionTypeConstants.SINGLE_MCQ -> evaluateSingleMcq(answerKey.getCorrectAnswer(), response.getSelectedOptionIds());
+            case QuestionTypeConstants.MULTI_MCQ -> evaluateMultiMcq(answerKey.getCorrectAnswer(), response.getSelectedOptionIds());
+            case QuestionTypeConstants.NUMERICAL -> evaluateNumerical(answerKey.getCorrectAnswer(), response.getEnteredValue());
             default -> false; // Descriptive, Coding, etc. require manual evaluation
         };
     }
@@ -206,7 +202,7 @@ public class AutoEvaluationService {
             double expected = Double.parseDouble(correctAnswer.trim());
             double actual = Double.parseDouble(enteredValue.trim());
             return Math.abs(expected - actual) < 1e-6;
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException _) {
             log.debug("Failed to parse numerical answer: expected='{}', actual='{}'", correctAnswer, enteredValue);
             return false;
         }
@@ -264,9 +260,10 @@ public class AutoEvaluationService {
     private Set<String> parseOptionSet(String json) {
         if (json == null || json.isBlank()) return Collections.emptySet();
         try {
-            List<String> list = objectMapper.readValue(json, new TypeReference<List<String>>() {});
+            List<String> list = objectMapper.readValue(json, new TypeReference<>() {
+            });
             return new TreeSet<>(list);
-        } catch (Exception e) {
+        } catch (Exception _) {
             log.debug("Could not parse JSON array for options: '{}'", json);
             return Collections.emptySet();
         }
@@ -276,7 +273,7 @@ public class AutoEvaluationService {
         Set<String> set = parseOptionSet(json);
         try {
             return objectMapper.writeValueAsString(set);
-        } catch (Exception e) {
+        } catch (Exception _) {
             return json.trim();
         }
     }

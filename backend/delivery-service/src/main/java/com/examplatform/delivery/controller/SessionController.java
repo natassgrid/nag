@@ -24,25 +24,21 @@ import com.examplatform.delivery.dto.SessionStartRequest;
 import com.examplatform.delivery.dto.SessionStartResponse;
 import com.examplatform.delivery.service.ExamQuestionDeliveryService;
 import com.examplatform.delivery.service.SessionStartService;
+import com.examplatform.shared.constants.SharedConstants;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -76,7 +72,7 @@ public class SessionController {
 
         Instant startTime = Instant.now();
 
-        UUID candidateId = UUID.fromString(jwt.getSubject());
+        UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         String tenantId = jwt.getClaimAsString("tenant_id");
         String preferredLanguage = jwt.getClaimAsString("preferred_language");
         if ((request.getLanguageCode() == null || "en".equals(request.getLanguageCode()))
@@ -105,7 +101,7 @@ public class SessionController {
     public ResponseEntity<List<QuestionDeliveryDto>> getPaperQuestions(
             @PathVariable UUID paperId,
             @AuthenticationPrincipal Jwt jwt) {
-        String tenantId = jwt != null ? jwt.getClaimAsString("tenant_id") : "default";
+        String tenantId = jwt != null ? jwt.getClaimAsString("tenant_id") : SharedConstants.DEFAULT_TENANT;
         String preferredLanguage = jwt != null ? jwt.getClaimAsString("preferred_language") : null;
         List<QuestionDeliveryDto> questions = (preferredLanguage != null && !preferredLanguage.isBlank())
                 ? examQuestionDeliveryService.getQuestionsForPaper(paperId, tenantId, preferredLanguage)
@@ -121,13 +117,13 @@ public class SessionController {
     @PreAuthorize("hasRole('CANDIDATE')")
     public ResponseEntity<Map<String, Object>> terminateActiveSessions(
             @AuthenticationPrincipal Jwt jwt) {
-        UUID candidateId = UUID.fromString(jwt.getSubject());
+        UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         String tenantId = jwt.getClaimAsString("tenant_id");
         int count = sessionStartService.terminateActiveSessionsForCandidate(candidateId, tenantId);
         return ResponseEntity.ok(Map.of(
-                "status", "success",
+            SharedConstants.STATUS, "success",
                 "terminatedCount", count,
-                "message", "Active exam session(s) terminated successfully."
+            SharedConstants.MESSAGE, "Active exam session(s) terminated successfully."
         ));
     }
 
@@ -137,7 +133,7 @@ public class SessionController {
             @PathVariable UUID sessionId,
             @AuthenticationPrincipal Jwt jwt) {
 
-        UUID candidateId = UUID.fromString(jwt.getSubject());
+        UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         String tenantId = jwt.getClaimAsString("tenant_id");
 
         SessionStartResponse response = sessionStartService.resumeSessionById(sessionId, candidateId, tenantId);

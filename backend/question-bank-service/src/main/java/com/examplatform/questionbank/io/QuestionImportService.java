@@ -19,12 +19,13 @@
 
 package com.examplatform.questionbank.io;
 
-import com.examplatform.questionbank.dto.CreateQuestionRequest;
-import com.examplatform.questionbank.dto.QuestionOption;
 import com.examplatform.questionbank.domain.enums.CognitiveLevel;
 import com.examplatform.questionbank.domain.enums.DifficultyLevel;
 import com.examplatform.questionbank.domain.enums.QuestionType;
+import com.examplatform.questionbank.dto.CreateQuestionRequest;
+import com.examplatform.questionbank.dto.QuestionOption;
 import com.examplatform.questionbank.service.QuestionService;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -34,7 +35,6 @@ import org.springframework.stereotype.Service;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -112,7 +112,8 @@ public class QuestionImportService {
                                 String tenantId, ImportResult result) {
         List<Map<String, Object>> records;
         try {
-            records = objectMapper.readValue(content, new TypeReference<List<Map<String, Object>>>() {});
+            records = objectMapper.readValue(content, new TypeReference<>() {
+            });
         } catch (Exception e) {
             // whole-file parse failure — record one failure for the file
             recordFailure(result, file, -1, "Failed to parse JSON: " + e.getMessage());
@@ -136,7 +137,7 @@ public class QuestionImportService {
         if (rows.isEmpty()) {
             return;
         }
-        List<String> header = rows.get(0);
+        List<String> header = rows.getFirst();
         for (int r = 1; r < rows.size(); r++) {
             result.setTotalRecords(result.getTotalRecords() + 1);
             try {
@@ -157,20 +158,21 @@ public class QuestionImportService {
         List<QuestionOption> options = null;
         Object rawOptions = rec.get("options");
         if (rawOptions != null) {
-            options = objectMapper.convertValue(rawOptions, new TypeReference<List<QuestionOption>>() {});
+            options = objectMapper.convertValue(rawOptions, new TypeReference<>() {
+            });
         }
         return CreateQuestionRequest.builder()
                 .subjectId(asLong(rec.get("subjectId")))
                 .topicId(asLong(rec.get("topicId")))
                 .subtopicId(asLong(rec.get("subtopicId")))
-                .subject(asString(rec.get("subject")))
+                .subject(asString(rec.get(SharedConstants.SUBJECT)))
                 .topic(asString(rec.get("topic")))
                 .subtopic(asString(rec.get("subtopic")))
                 .chapter(asString(rec.get("chapter")))
-                .difficulty(parseDifficulty(asString(rec.get("difficulty"))))
+                .difficulty(parseDifficulty(asString(rec.get(SharedConstants.DIFFICULTY))))
                 .cognitiveLevel(parseCognitive(asString(rec.get("cognitiveLevel"))))
                 .questionType(parseType(asString(rec.get("questionType"))))
-                .content(asString(rec.get("content")))
+                .content(asString(rec.get(SharedConstants.CONTENT)))
                 .answerKey(asString(rec.get("answerKey")))
                 .explanation(asString(rec.get("explanation")))
                 .references(asString(rec.get("references")))
@@ -182,20 +184,21 @@ public class QuestionImportService {
         String optionsJson = value(header, row, "optionsJson");
         List<QuestionOption> options = null;
         if (optionsJson != null && !optionsJson.isBlank()) {
-            options = objectMapper.readValue(optionsJson, new TypeReference<List<QuestionOption>>() {});
+            options = objectMapper.readValue(optionsJson, new TypeReference<>() {
+            });
         }
         return CreateQuestionRequest.builder()
                 .subjectId(asLong(value(header, row, "subjectId")))
                 .topicId(asLong(value(header, row, "topicId")))
                 .subtopicId(asLong(value(header, row, "subtopicId")))
-                .subject(value(header, row, "subject"))
+                .subject(value(header, row, SharedConstants.SUBJECT))
                 .topic(value(header, row, "topic"))
                 .subtopic(value(header, row, "subtopic"))
                 .chapter(value(header, row, "chapter"))
-                .difficulty(parseDifficulty(value(header, row, "difficulty")))
+                .difficulty(parseDifficulty(value(header, row, SharedConstants.DIFFICULTY)))
                 .cognitiveLevel(parseCognitive(value(header, row, "cognitiveLevel")))
                 .questionType(parseType(value(header, row, "questionType")))
-                .content(value(header, row, "content"))
+                .content(value(header, row, SharedConstants.CONTENT))
                 .answerKey(value(header, row, "answerKey"))
                 .explanation(value(header, row, "explanation"))
                 .references(value(header, row, "references"))

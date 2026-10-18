@@ -26,6 +26,7 @@ import com.examplatform.examination.exception.ScheduleWorkflowException;
 import com.examplatform.examination.exception.ShiftTimingViolationException;
 import com.examplatform.examination.service.ExaminationScheduleService;
 import com.examplatform.examination.support.AbstractIntegrationTest;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -44,7 +45,8 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @DisplayName("ExaminationScheduleController REST Endpoints E2E Tests (MockMvc)")
 class ExaminationScheduleControllerIntegrationTest extends AbstractIntegrationTest {
@@ -75,7 +77,7 @@ class ExaminationScheduleControllerIntegrationTest extends AbstractIntegrationTe
                 .scheduleName("Phase 1 Regular Schedule")
                 .scheduleVersion(1)
                 .examDate(LocalDate.of(2026, 6, 15))
-                .status("DRAFT")
+                .status(QuestionStateConstants.DRAFT)
                 .build();
     }
 
@@ -270,12 +272,13 @@ class ExaminationScheduleControllerIntegrationTest extends AbstractIntegrationTe
         @DisplayName("-ve: Invalid transition throws ScheduleWorkflowException - returns 422 Unprocessable Entity")
         void invalidTransitionReturnsUnprocessableEntity() throws Exception {
             ScheduleTransitionRequest request = ScheduleTransitionRequest.builder()
-                    .targetStatus("PUBLISHED") // Cannot jump directly from DRAFT to PUBLISHED
+                    .targetStatus(QuestionStateConstants.PUBLISHED) // Cannot jump directly from DRAFT to PUBLISHED
                     .build();
 
             when(scheduleService.transitionSchedule(eq(SCHEDULE_ID), any(ScheduleTransitionRequest.class),
                     eq(ACTOR_ID), any(), eq(TENANT_ID)))
-                    .thenThrow(new ScheduleWorkflowException("DRAFT", "PUBLISHED"));
+                    .thenThrow(new ScheduleWorkflowException(QuestionStateConstants.DRAFT,
+                        QuestionStateConstants.PUBLISHED));
 
             mockMvc.perform(put("/api/v1/examinations/{examId}/schedules/{scheduleId}/transition", EXAM_ID, SCHEDULE_ID)
                             .header("X-Tenant-Id", TENANT_ID)
@@ -285,8 +288,8 @@ class ExaminationScheduleControllerIntegrationTest extends AbstractIntegrationTe
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isUnprocessableEntity())
                     .andExpect(jsonPath("$.status").value(422))
-                    .andExpect(jsonPath("$.currentStatus").value("DRAFT"))
-                    .andExpect(jsonPath("$.targetStatus").value("PUBLISHED"));
+                    .andExpect(jsonPath("$.currentStatus").value(QuestionStateConstants.DRAFT))
+                    .andExpect(jsonPath("$.targetStatus").value(QuestionStateConstants.PUBLISHED));
         }
 
         @Test

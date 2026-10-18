@@ -22,14 +22,11 @@ package com.examplatform.papergenerator.client;
 import com.examplatform.papergenerator.dto.BatchTranslationJobResponseDto;
 import com.examplatform.papergenerator.dto.PaperTranslateRequest;
 import com.examplatform.papergenerator.dto.QuestionSummary;
-import com.examplatform.questionbank.grpc.BatchFindQuestionsGrpcRequest;
-import com.examplatform.questionbank.grpc.BatchFindQuestionsGrpcResponse;
-import com.examplatform.questionbank.grpc.BlueprintMatchGrpcRequest;
-import com.examplatform.questionbank.grpc.BlueprintMatchGrpcResponse;
-import com.examplatform.questionbank.grpc.QuestionBankGrpcServiceGrpc;
-import com.examplatform.questionbank.grpc.QuestionSummaryGrpc;
+import com.examplatform.questionbank.grpc.*;
 import com.examplatform.shared.auth.ClientAuthTokenResolver;
 import com.examplatform.shared.auth.ServiceAccountTokenProvider;
+import com.examplatform.shared.constants.QuestionStateConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.grpc.GrpcChannelFactory;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.grpc.ManagedChannel;
@@ -40,32 +37,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
-import org.springframework.web.context.request.RequestAttributes;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
-import java.nio.charset.StandardCharsets;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -130,7 +111,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
     @Override
     public List<QuestionSummary> findAvailableQuestions(String subject, String topic,
                                                         String difficulty, String cognitiveLevel, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         String cleanSubject = (subject != null) ? subject.trim() : "";
         String cleanTopic = (topic != null) ? topic.trim() : "";
         String cleanDifficulty = (difficulty != null && !difficulty.isBlank()) ? difficulty.trim() : null;
@@ -170,11 +151,11 @@ public class QuestionBankClientImpl implements QuestionBankClient {
 
         // 2. Try REST call to question-bank-service
         try {
-            String url = questionBankServiceUrl + "/api/v1/questions/blueprint-match";
+            String url = questionBankServiceUrl + "/api/v1/questions/match-blueprint";
             Map<String, String> requestBody = new HashMap<>();
-            requestBody.put("subject", cleanSubject);
+            requestBody.put(SharedConstants.SUBJECT, cleanSubject);
             requestBody.put("topic", cleanTopic);
-            if (cleanDifficulty != null) requestBody.put("difficulty", cleanDifficulty);
+            if (cleanDifficulty != null) requestBody.put(SharedConstants.DIFFICULTY, cleanDifficulty);
             if (cleanCognitiveLevel != null) requestBody.put("cognitiveLevel", cleanCognitiveLevel);
 
             List<QuestionSummary> questions = fetchQuestionsViaRest(url, effectiveTenant, requestBody);
@@ -229,10 +210,8 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                     ORDER BY RANDOM()
                     """;
 
-                List<QuestionSummary> fallbackQuestions = jdbcTemplate.query(fallbackSql, QuestionBankClientImpl::mapQuestionSummary,
+                return jdbcTemplate.query(fallbackSql, QuestionBankClientImpl::mapQuestionSummary,
                         effectiveTenant, cleanSubject, cleanTopic, cleanDifficulty, cleanDifficulty);
-
-                return fallbackQuestions;
             }
 
             return questions;
@@ -248,7 +227,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
         if (questionIds == null || questionIds.isEmpty()) {
             return Collections.emptyList();
         }
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
 
         // 1. Try gRPC first if enabled
         if (grpcEnabled) {
@@ -293,13 +272,13 @@ public class QuestionBankClientImpl implements QuestionBankClient {
 
         // 2. Try REST call to question-bank-service
         try {
-            String url = questionBankServiceUrl + "/api/v1/questions/batch-find";
+            String url = questionBankServiceUrl + "/api/v1/questions/by-ids";
             List<QuestionSummary> questions = fetchQuestionsViaRest(url, effectiveTenant, questionIds);
             if (questions != null) {
                 return questions;
             }
         } catch (Exception e) {
-            log.warn("REST call for batch-find failed ({}), falling back to direct DB query: {}",
+            log.warn("REST call for by-ids failed ({}), falling back to direct DB query: {}",
                     questionBankServiceUrl, e.getMessage());
         }
 
@@ -355,7 +334,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
             UUID initiatedBy,
             String tenantId) {
 
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         String url = questionBankServiceUrl + "/api/v1/translations/batch/auto-translate";
 
         Map<String, Object> body = new HashMap<>();
@@ -363,7 +342,8 @@ public class QuestionBankClientImpl implements QuestionBankClient {
         body.put("questionIds", questionIds);
         body.put("sourceLanguage", request != null && request.getSourceLanguage() != null ? request.getSourceLanguage() : "en");
         body.put("targetLanguage", request != null && request.getTargetLanguage() != null ? request.getTargetLanguage() : "hi");
-        body.put("targetStatus", request != null && request.getTargetStatus() != null ? request.getTargetStatus() : "PUBLISHED");
+        body.put("targetStatus", request != null && request.getTargetStatus() != null ? request.getTargetStatus() :
+            QuestionStateConstants.PUBLISHED);
         body.put("overwriteExisting", request == null || request.getOverwriteExisting() == null || request.getOverwriteExisting());
         body.put("batchSize", request != null && request.getBatchSize() != null ? request.getBatchSize() : 50);
         body.put("throttleDelayMs", request != null && request.getThrottleDelayMs() != null ? request.getThrottleDelayMs() : 50);
@@ -375,7 +355,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
         try {
             RestClient.RequestBodySpec spec = restClient.post()
                     .uri(url)
-                    .header("X-Tenant-Id", effectiveTenant)
+                    .header(SharedConstants.HEADER_TENANT_ID, effectiveTenant)
                     .contentType(MediaType.APPLICATION_JSON);
             attachAuthHeader(spec);
 
@@ -392,13 +372,13 @@ public class QuestionBankClientImpl implements QuestionBankClient {
 
     @Override
     public BatchTranslationJobResponseDto getBatchTranslationStatus(UUID jobId, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         String url = questionBankServiceUrl + "/api/v1/translations/batch/" + jobId;
 
         try {
             RestClient.RequestHeadersSpec<?> spec = restClient.get()
                     .uri(url)
-                    .header("X-Tenant-Id", effectiveTenant);
+                    .header(SharedConstants.HEADER_TENANT_ID, effectiveTenant);
             attachAuthHeader(spec);
 
             return spec
@@ -412,18 +392,19 @@ public class QuestionBankClientImpl implements QuestionBankClient {
 
     @Override
     public List<BatchTranslationJobResponseDto> listBatchJobsByPaper(UUID paperId, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         String url = questionBankServiceUrl + "/api/v1/translations/batch/paper/" + paperId;
 
         try {
             RestClient.RequestHeadersSpec<?> spec = restClient.get()
                     .uri(url)
-                    .header("X-Tenant-Id", effectiveTenant);
+                    .header(SharedConstants.HEADER_TENANT_ID, effectiveTenant);
             attachAuthHeader(spec);
 
             List<BatchTranslationJobResponseDto> res = spec
                     .retrieve()
-                    .body(new ParameterizedTypeReference<List<BatchTranslationJobResponseDto>>() {});
+                    .body(new ParameterizedTypeReference<>() {
+                    });
             return res != null ? res : Collections.emptyList();
         } catch (Exception e) {
             log.warn("Failed to get batch translation jobs for paperId={} from {}: {}", paperId, url, e.getMessage());
@@ -441,14 +422,14 @@ public class QuestionBankClientImpl implements QuestionBankClient {
         Integer passageOrderIndex = (Integer) rs.getObject("passage_order_index");
         return QuestionSummary.builder()
                 .questionId(rs.getObject("id", UUID.class))
-                .subject(rs.getString("subject"))
+                .subject(rs.getString(SharedConstants.SUBJECT))
                 .topic(rs.getString("topic"))
-                .difficulty(rs.getString("difficulty"))
+                .difficulty(rs.getString(SharedConstants.DIFFICULTY))
                 .cognitiveLevel(rs.getString("cognitive_level"))
                 .usageCount(rs.getInt("usage_count"))
                 .lastUsedAt(lastUsedAt)
                 .reusePolicy("1_YEAR")
-                .content(rs.getString("content"))
+                .content(rs.getString(SharedConstants.CONTENT))
                 .passageId(passageId)
                 .passageOrderIndex(passageOrderIndex)
                 .build();
@@ -457,14 +438,15 @@ public class QuestionBankClientImpl implements QuestionBankClient {
     private List<QuestionSummary> fetchQuestionsViaRest(String url, String effectiveTenant, Object requestBody) {
         RestClient.RequestBodySpec spec = restClient.post()
                 .uri(url)
-                .header("X-Tenant-Id", effectiveTenant)
+                .header(SharedConstants.HEADER_TENANT_ID, effectiveTenant)
                 .contentType(MediaType.APPLICATION_JSON);
         attachAuthHeader(spec);
 
         ApiResponseDto<List<QuestionResponseDto>> apiResponse = spec
                 .body(requestBody)
                 .retrieve()
-                .body(new ParameterizedTypeReference<ApiResponseDto<List<QuestionResponseDto>>>() {});
+                .body(new ParameterizedTypeReference<>() {
+                });
 
         if (apiResponse != null && apiResponse.getData() != null) {
             log.info("Retrieved {} questions from question-bank-service via REST", apiResponse.getData().size());
@@ -500,7 +482,8 @@ public class QuestionBankClientImpl implements QuestionBankClient {
 
     private QuestionSummary toSummaryFromGrpc(QuestionSummaryGrpc grpc) {
         UUID passageId = null;
-        if (grpc.getPassageId() != null && !grpc.getPassageId().isBlank()) {
+        grpc.getPassageId();
+        if (!grpc.getPassageId().isBlank()) {
             try {
                 passageId = UUID.fromString(grpc.getPassageId());
             } catch (IllegalArgumentException ignored) {

@@ -19,32 +19,10 @@
 
 package com.examplatform.identity.controller;
 
-import com.examplatform.identity.dto.ActiveSessionResponse;
-import com.examplatform.identity.dto.AdminUpdateUserRequest;
-import com.examplatform.identity.dto.AuthTokenRequest;
-import com.examplatform.identity.dto.AuthTokenResponse;
-import com.examplatform.identity.dto.ChangePasswordRequest;
-import com.examplatform.identity.dto.EmailVerifyRequest;
-import com.examplatform.identity.dto.MobileVerifyRequest;
-import com.examplatform.identity.dto.OtpResendRequest;
-import com.examplatform.identity.dto.OtpVerifyRequest;
-import com.examplatform.identity.dto.RefreshTokenRequest;
-import com.examplatform.identity.dto.RegistrationRequest;
-import com.examplatform.identity.dto.RegistrationResponse;
-import com.examplatform.identity.dto.ReviewerResponse;
-import com.examplatform.identity.dto.TotpSetupResponse;
-import com.examplatform.identity.dto.TotpVerifySetupRequest;
-import com.examplatform.identity.dto.UserAccountResponse;
-import com.examplatform.identity.dto.VerificationStatusResponse;
-import com.examplatform.identity.dto.WebAuthnAssertionRequest;
+import com.examplatform.identity.dto.*;
 import com.examplatform.identity.exception.AccountNotFoundException;
-import com.examplatform.identity.service.AdminInvitationService;
-import com.examplatform.identity.service.AuthenticationService;
-import com.examplatform.identity.service.CandidateVerificationService;
-import com.examplatform.identity.service.OtpVerificationService;
-import com.examplatform.identity.service.RegistrationService;
-import com.examplatform.identity.service.RoleManagementService;
-import com.examplatform.identity.service.WebAuthnService;
+import com.examplatform.identity.service.*;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.response.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -54,16 +32,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
@@ -92,7 +61,7 @@ public class IdentityController {
     @GetMapping("/users")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SECURITY_ADMIN')")
     public ResponseEntity<ApiResponse<List<UserAccountResponse>>> listUsers(
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
         log.debug("List users request received for tenant [{}]", tenantId);
         List<UserAccountResponse> users = roleManagementService.listAllUsers(tenantId);
         return ResponseEntity.ok(ApiResponse.success(users, "Users retrieved successfully."));
@@ -105,7 +74,7 @@ public class IdentityController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<UserAccountResponse>> getCurrentUserProfile(
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
         String userIdStr = jwt != null ? jwt.getSubject() : "user-unknown";
         log.debug("Get current user profile request for userId [{}], tenant [{}]", userIdStr, tenantId);
         UserAccountResponse profile = roleManagementService.getUserProfile(userIdStr, tenantId);
@@ -120,7 +89,7 @@ public class IdentityController {
     public ResponseEntity<ApiResponse<UserAccountResponse>> updateCurrentUserProfile(
             @Valid @RequestBody AdminUpdateUserRequest request,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
         String userIdStr = jwt != null ? jwt.getSubject() : "user-unknown";
         log.debug("Update current user profile request for userId [{}], tenant [{}]", userIdStr, tenantId);
         UserAccountResponse updated = roleManagementService.updateUserProfile(userIdStr, request, tenantId);
@@ -134,7 +103,7 @@ public class IdentityController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<ActiveSessionResponse>>> getActiveSessions(
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
         String userIdStr = jwt != null ? jwt.getSubject() : "user-unknown";
         log.debug("Get active sessions request for userId [{}], tenant [{}]", userIdStr, tenantId);
         List<ActiveSessionResponse> sessions = roleManagementService.getActiveSessions(userIdStr, tenantId);
@@ -148,7 +117,7 @@ public class IdentityController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<Void>> revokeOtherSessions(
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
         String userIdStr = jwt != null ? jwt.getSubject() : "user-unknown";
         log.debug("Revoke other sessions request for userId [{}], tenant [{}]", userIdStr, tenantId);
         roleManagementService.revokeOtherSessions(userIdStr, tenantId);
@@ -161,7 +130,7 @@ public class IdentityController {
     @GetMapping("/reviewers")
     public ResponseEntity<ApiResponse<List<ReviewerResponse>>> getReviewers(
             @RequestParam(required = false) String subject,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
         log.debug("Get reviewers request received for subject [{}], tenant [{}]", subject, tenantId);
         List<ReviewerResponse> reviewers = roleManagementService.findReviewers(subject, tenantId);
         return ResponseEntity.ok(ApiResponse.success(reviewers, "Reviewers retrieved successfully."));
@@ -173,7 +142,7 @@ public class IdentityController {
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<RegistrationResponse>> register(
             @Valid @RequestBody RegistrationRequest request,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
         log.debug("Registration request received for identity doc type [{}], tenant [{}]",
                 request.getIdentityDocType(), tenantId);
         long start = System.currentTimeMillis();
@@ -186,10 +155,10 @@ public class IdentityController {
     /**
      * Verify Email OTP for candidate.
      */
-    @PostMapping({"/verify/email", "/auth/verify/email"})
+    @PostMapping("/verify/email")
     public ResponseEntity<ApiResponse<VerificationStatusResponse>> verifyEmail(
             @Valid @RequestBody EmailVerifyRequest request,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
         log.debug("Candidate email OTP verification request for userId [{}], tenant [{}]", request.getUserId(), tenantId);
         VerificationStatusResponse response = candidateVerificationService.verifyEmailOtp(request, tenantId);
         return ResponseEntity.ok(ApiResponse.success(response, "Email verified successfully."));
@@ -198,10 +167,10 @@ public class IdentityController {
     /**
      * Verify Mobile OTP for candidate.
      */
-    @PostMapping({"/verify/mobile", "/auth/verify/mobile"})
+    @PostMapping("/verify/mobile")
     public ResponseEntity<ApiResponse<VerificationStatusResponse>> verifyMobile(
             @Valid @RequestBody MobileVerifyRequest request,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
         log.debug("Candidate mobile OTP verification request for userId [{}], tenant [{}]", request.getUserId(), tenantId);
         VerificationStatusResponse response = candidateVerificationService.verifyMobileOtp(request, tenantId);
         return ResponseEntity.ok(ApiResponse.success(response, "Mobile number verified successfully."));
@@ -213,7 +182,7 @@ public class IdentityController {
     @GetMapping("/verification-status")
     public ResponseEntity<ApiResponse<VerificationStatusResponse>> getVerificationStatus(
             @RequestParam String userId,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
         UUID uid;
         try {
             uid = UUID.fromString(userId.trim());
@@ -227,10 +196,10 @@ public class IdentityController {
     /**
      * Resend candidate Email OTP (supports userId and/or email).
      */
-    @PostMapping({"/resend/email-otp", "/otp/resend/email"})
+    @PostMapping("/resend/email-otp")
     public ResponseEntity<ApiResponse<Void>> resendEmailOtp(
             @RequestBody OtpResendRequest request,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
         UUID userId = null;
         if (request.getUserId() != null && !request.getUserId().isBlank()) {
             try {
@@ -255,7 +224,7 @@ public class IdentityController {
     @PostMapping("/resend/sms-otp")
     public ResponseEntity<ApiResponse<Void>> resendSmsOtp(
             @Valid @RequestBody OtpResendRequest request,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
         UUID userId;
         try {
             userId = UUID.fromString(request.getUserId().trim());
@@ -269,10 +238,10 @@ public class IdentityController {
     /**
      * Verify OTP and activate the pending account (backward-compatible).
      */
-    @PostMapping({"/otp/verify", "/verify-otp"})
+    @PostMapping("/otp/verify")
     public ResponseEntity<ApiResponse<AuthTokenResponse>> verifyOtp(
             @Valid @RequestBody OtpVerifyRequest request,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
         log.debug("OTP verification request received, tenant [{}]", tenantId);
         AuthTokenResponse tokens = otpVerificationService.verifyOtpAndActivate(request, tenantId);
         return ResponseEntity.ok(ApiResponse.success(tokens, "Account activated successfully."));
@@ -284,7 +253,7 @@ public class IdentityController {
     @PostMapping("/otp/resend")
     public ResponseEntity<ApiResponse<Void>> resendOtp(
             @Valid @RequestBody OtpResendRequest request,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
         log.info("OTP resend request for userId [{}], tenant [{}]", request.getUserId(), tenantId);
         UUID userId;
         try {
@@ -303,10 +272,10 @@ public class IdentityController {
         return ResponseEntity.ok(ApiResponse.success(response, message));
     }
 
-    @PostMapping({"/auth/token", "/auth/login"})
+    @PostMapping("/auth/token")
     public ResponseEntity<ApiResponse<AuthTokenResponse>> token(
             @Valid @RequestBody AuthTokenRequest request,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId,
             HttpServletRequest servletRequest) {
         log.debug("Token request received for username [{}], tenant [{}]", request.getUsername(), tenantId);
         return authOk(authenticationService.authenticate(request, tenantId, servletRequest.getRemoteAddr()), "Authentication successful.");
@@ -315,10 +284,10 @@ public class IdentityController {
     /**
      * Refresh JWT access token using a valid refresh token.
      */
-    @PostMapping({"/auth/token/refresh", "/auth/refresh"})
+    @PostMapping("/auth/token/refresh")
     public ResponseEntity<ApiResponse<AuthTokenResponse>> refreshToken(
             @Valid @RequestBody RefreshTokenRequest request,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId,
             HttpServletRequest servletRequest) {
         log.debug("Token refresh request received, tenant [{}]", tenantId);
         return authOk(authenticationService.refreshToken(request, tenantId, servletRequest.getRemoteAddr()), "Token refreshed successfully.");
@@ -330,7 +299,7 @@ public class IdentityController {
     @PostMapping("/auth/webauthn")
     public ResponseEntity<ApiResponse<AuthTokenResponse>> webAuthn(
             @Valid @RequestBody WebAuthnAssertionRequest request,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId,
             HttpServletRequest servletRequest) {
         log.debug("WebAuthn authentication request received for credential [{}], tenant [{}]",
                 request.getCredentialId(), tenantId);
@@ -340,7 +309,7 @@ public class IdentityController {
     /**
      * Initiate TOTP 2FA setup (returns secret, otpauth URI, backup codes).
      */
-    @PostMapping({"/auth/2fa/setup", "/auth/mfa/totp/setup"})
+    @PostMapping("/auth/2fa/setup")
     public ResponseEntity<ApiResponse<TotpSetupResponse>> setup2fa(
             @RequestParam(required = false) String username,
             @AuthenticationPrincipal Jwt jwt) {
@@ -355,7 +324,7 @@ public class IdentityController {
     /**
      * Check TOTP 2FA configuration status for a user.
      */
-    @GetMapping({"/auth/2fa/status", "/auth/mfa/totp/status"})
+    @GetMapping("/auth/2fa/status")
     public ResponseEntity<ApiResponse<Map<String, Object>>> get2faStatus(
             @RequestParam(required = false) String userId,
             @AuthenticationPrincipal Jwt jwt) {
@@ -371,11 +340,11 @@ public class IdentityController {
     /**
      * Verify and activate TOTP 2FA setup for user.
      */
-    @PostMapping({"/auth/2fa/verify-setup", "/auth/mfa/totp/verify-setup"})
+    @PostMapping("/auth/2fa/verify-setup")
     public ResponseEntity<ApiResponse<Void>> verify2faSetup(
             @Valid @RequestBody TotpVerifySetupRequest request,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
         String userIdStr = (jwt != null) ? jwt.getSubject() : request.getUserId();
         if (userIdStr == null || userIdStr.isBlank()) {
             throw new AccountNotFoundException("User ID is required to enable 2FA.");
@@ -388,11 +357,11 @@ public class IdentityController {
     /**
      * Disable TOTP 2FA for authenticated user.
      */
-    @PostMapping({"/auth/2fa/disable", "/auth/mfa/totp/disable"})
+    @PostMapping("/auth/2fa/disable")
     public ResponseEntity<ApiResponse<Void>> disable2fa(
             @RequestParam(required = false) String userId,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
         String targetUserId = (jwt != null && jwt.getSubject() != null) ? jwt.getSubject() : userId;
         if (targetUserId == null || targetUserId.isBlank()) {
             throw new AccountNotFoundException("User ID is required to disable 2FA.");
@@ -413,12 +382,12 @@ public class IdentityController {
     public ResponseEntity<ApiResponse<Void>> changePassword(
             @Valid @RequestBody ChangePasswordRequest request,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
 
         String userId = jwt.getSubject();
         log.info("Change password request for user [{}], tenant [{}]", userId, tenantId);
 
-        authenticationService.changePassword(userId, request.getCurrentPassword(), request.getNewPassword(), tenantId);
+        authenticationService.changePassword(userId, request.getNewPassword(), tenantId);
 
         return ResponseEntity.ok(ApiResponse.success(null, "Password changed successfully."));
     }
@@ -430,7 +399,7 @@ public class IdentityController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<Void>> logout(
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
 
         String userId = jwt.getSubject();
         log.info("Logout request for user [{}], tenant [{}]", userId, tenantId);

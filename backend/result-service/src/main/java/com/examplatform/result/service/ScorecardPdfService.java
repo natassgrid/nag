@@ -22,9 +22,11 @@ package com.examplatform.result.service;
 import com.examplatform.result.domain.Result;
 import com.examplatform.result.repository.ResultRepository;
 import com.examplatform.result.storage.ScorecardStorageProvider;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityNotFoundException;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
@@ -61,6 +63,11 @@ import java.util.UUID;
 @Service
 public class ScorecardPdfService {
 
+    /**
+     * -- GETTER --
+     *  Returns the active storage provider.
+     */
+    @Getter
     private final ScorecardStorageProvider storageProvider;
     private final ObjectMapper objectMapper;
     private final ResultRepository resultRepository;
@@ -195,13 +202,6 @@ public class ScorecardPdfService {
     }
 
     /**
-     * Returns the active storage provider.
-     */
-    public ScorecardStorageProvider getStorageProvider() {
-        return storageProvider;
-    }
-
-    /**
      * Writes the scorecard content to the PDF document.
      */
     private void writeScorecardContent(PDDocument document, PDPage page, Result result, String candidateId) throws IOException {
@@ -273,8 +273,8 @@ public class ScorecardPdfService {
             contentStream.endText();
             yPosition -= 25;
 
-            yPosition = writeSectionScores(contentStream, fontRegular, leftMargin, yPosition,
-                    result.getSectionScoresJson());
+            writeSectionScores(contentStream, fontRegular, leftMargin, yPosition,
+                result.getSectionScoresJson());
         }
     }
 
@@ -297,7 +297,7 @@ public class ScorecardPdfService {
                     sectionScoresJson, new TypeReference<>() {});
 
             for (Map<String, Object> section : sections) {
-                String sectionName = String.valueOf(section.getOrDefault("sectionName", "Unknown"));
+                String sectionName = String.valueOf(section.getOrDefault("sectionName", SharedConstants.UNKNOWN));
                 Object score = section.getOrDefault("score", "N/A");
                 Object maxScore = section.getOrDefault("maxScore", "N/A");
 
@@ -313,7 +313,7 @@ public class ScorecardPdfService {
                     @SuppressWarnings("unchecked")
                     List<Map<String, Object>> topics = (List<Map<String, Object>>) section.get("topics");
                     for (Map<String, Object> topic : topics) {
-                        String topicName = String.valueOf(topic.getOrDefault("topicName", "Unknown"));
+                        String topicName = String.valueOf(topic.getOrDefault("topicName", SharedConstants.UNKNOWN));
                         Object topicScore = topic.getOrDefault("score", "N/A");
 
                         contentStream.beginText();

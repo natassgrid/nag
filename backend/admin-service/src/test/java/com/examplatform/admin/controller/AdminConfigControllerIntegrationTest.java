@@ -25,6 +25,7 @@ import com.examplatform.admin.dto.SingleConfigUpdateRequest;
 import com.examplatform.admin.dto.SystemConfigResponse;
 import com.examplatform.admin.service.ConfigChangeService;
 import com.examplatform.admin.support.AbstractIntegrationTest;
+import com.examplatform.shared.constants.SharedConstants;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -38,14 +39,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -76,7 +73,7 @@ class AdminConfigControllerIntegrationTest extends AbstractIntegrationTest {
             when(configChangeService.toResponse(config)).thenReturn(response);
 
             mockMvc.perform(get("/api/v1/admin/config")
-                            .param("tenantId", TENANT_ID)
+                            .param(SharedConstants.TENANT_ID, TENANT_ID)
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))
                                     .jwt(j -> j.subject(ACTOR_ID.toString()).claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isOk())
@@ -86,12 +83,12 @@ class AdminConfigControllerIntegrationTest extends AbstractIntegrationTest {
         }
 
         @Test
-        @DisplayName("+ve: ADMIN retrieves configs - returns 200 OK")
+        @DisplayName("+ve: SECURITY_ADMIN retrieves configs - returns 200 OK")
         void adminCanGetConfigs() throws Exception {
             when(configChangeService.getConfigs(anyString())).thenReturn(Collections.emptyList());
 
             mockMvc.perform(get("/api/v1/admin/config")
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SECURITY_ADMIN"))
                                     .jwt(j -> j.subject(ACTOR_ID.toString()).claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.length()").value(0));
@@ -125,7 +122,7 @@ class AdminConfigControllerIntegrationTest extends AbstractIntegrationTest {
                     .thenReturn(Map.of("auth.mfa.enforced", "true"));
 
             mockMvc.perform(get("/api/v1/admin/config/map")
-                            .param("tenantId", TENANT_ID)
+                            .param(SharedConstants.TENANT_ID, TENANT_ID)
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SECURITY_ADMIN"))
                                     .jwt(j -> j.subject(ACTOR_ID.toString()).claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isOk())
@@ -154,7 +151,7 @@ class AdminConfigControllerIntegrationTest extends AbstractIntegrationTest {
     class UpdateConfigEndpoint {
 
         @Test
-        @DisplayName("+ve: ADMIN updates single config - returns 200 OK")
+        @DisplayName("+ve: SECURITY_ADMIN updates single config - returns 200 OK")
         void adminCanUpdateConfig() throws Exception {
             SingleConfigUpdateRequest request = new SingleConfigUpdateRequest("auth.mfa.enforced", "false");
             SystemConfig config = SystemConfig.builder()
@@ -169,8 +166,8 @@ class AdminConfigControllerIntegrationTest extends AbstractIntegrationTest {
             when(configChangeService.toResponse(config)).thenReturn(response);
 
             mockMvc.perform(put("/api/v1/admin/config")
-                            .param("tenantId", TENANT_ID)
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
+                            .param(SharedConstants.TENANT_ID, TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SECURITY_ADMIN"))
                                     .jwt(j -> j.subject(ACTOR_ID.toString()).claim("tenant_id", TENANT_ID)))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
@@ -185,7 +182,7 @@ class AdminConfigControllerIntegrationTest extends AbstractIntegrationTest {
             SingleConfigUpdateRequest request = new SingleConfigUpdateRequest("", "false");
 
             mockMvc.perform(put("/api/v1/admin/config")
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SECURITY_ADMIN"))
                                     .jwt(j -> j.subject(ACTOR_ID.toString()).claim("tenant_id", TENANT_ID)))
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
@@ -232,7 +229,7 @@ class AdminConfigControllerIntegrationTest extends AbstractIntegrationTest {
                     .thenReturn(Map.of("auth.mfa.enforced", "true", "auth.session.timeout.minutes", "45"));
 
             mockMvc.perform(put("/api/v1/admin/config/bulk")
-                            .param("tenantId", TENANT_ID)
+                            .param(SharedConstants.TENANT_ID, TENANT_ID)
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))
                                     .jwt(j -> j.subject(ACTOR_ID.toString()).claim("tenant_id", TENANT_ID)))
                             .contentType(MediaType.APPLICATION_JSON)
@@ -291,7 +288,7 @@ class AdminConfigControllerIntegrationTest extends AbstractIntegrationTest {
                     .thenReturn(Map.of("auth.mfa.enforced", "false"));
 
             mockMvc.perform(post("/api/v1/admin/config/reset")
-                            .param("tenantId", TENANT_ID)
+                            .param(SharedConstants.TENANT_ID, TENANT_ID)
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))
                                     .jwt(j -> j.subject(ACTOR_ID.toString()).claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isOk())

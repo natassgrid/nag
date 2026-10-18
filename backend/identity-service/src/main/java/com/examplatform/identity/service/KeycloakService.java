@@ -21,6 +21,7 @@ package com.examplatform.identity.service;
 import com.examplatform.identity.config.KeycloakProperties;
 import com.examplatform.identity.dto.AuthTokenResponse;
 import com.examplatform.identity.exception.AuthenticationException;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -83,7 +84,7 @@ public class KeycloakService {
                 ? Long.parseLong(response.get("expires_in").toString()) : 900L;
 
             return AuthTokenResponse.builder()
-                .accessToken((String) response.get("access_token"))
+                .accessToken((String) response.get(SharedConstants.ACCESS_TOKEN))
                 .refreshToken((String) response.get("refresh_token"))
                 .expiresIn(expiresIn)
                 .tokenType("Bearer")
@@ -138,7 +139,7 @@ public class KeycloakService {
             long expiresIn = response.containsKey("expires_in")
                 ? Long.parseLong(response.get("expires_in").toString()) : 900L;
 
-            String accessToken = (String) response.get("access_token");
+            String accessToken = (String) response.get(SharedConstants.ACCESS_TOKEN);
             String newRefreshToken = (String) response.get("refresh_token");
             String userId = extractSubjectFromJwt(accessToken);
 
@@ -173,7 +174,7 @@ public class KeycloakService {
         try {
             restClient.put()
                 .uri(userUrl)
-                .header("Authorization", "Bearer " + adminToken)
+                .header("Authorization", SharedConstants.BEARER_PREFIX + adminToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(Map.of("enabled", true))
                 .retrieve()
@@ -208,7 +209,7 @@ public class KeycloakService {
 
             restClient.put()
                 .uri(resetPasswordUrl)
-                .header("Authorization", "Bearer " + adminToken)
+                .header("Authorization", SharedConstants.BEARER_PREFIX + adminToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(body)
                 .retrieve()
@@ -247,7 +248,7 @@ public class KeycloakService {
         try {
             restClient.put()
                 .uri(resetPasswordUrl)
-                .header("Authorization", "Bearer " + adminToken)
+                .header("Authorization", SharedConstants.BEARER_PREFIX + adminToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(body)
                 .retrieve()
@@ -277,7 +278,7 @@ public class KeycloakService {
         try {
             restClient.post()
                 .uri(logoutUrl)
-                .header("Authorization", "Bearer " + adminToken)
+                .header("Authorization", SharedConstants.BEARER_PREFIX + adminToken)
                 .retrieve()
                 .toBodilessEntity();
             log.info("Keycloak user {} sessions revoked", keycloakUserId);
@@ -307,10 +308,10 @@ public class KeycloakService {
             .retrieve()
             .body(Map.class);
 
-        if (response == null || !response.containsKey("access_token")) {
+        if (response == null || !response.containsKey(SharedConstants.ACCESS_TOKEN)) {
             throw new IllegalStateException("Could not obtain Keycloak admin token");
         }
-        return (String) response.get("access_token");
+        return (String) response.get(SharedConstants.ACCESS_TOKEN);
     }
 
     private String extractSubjectFromJwt(String token) {

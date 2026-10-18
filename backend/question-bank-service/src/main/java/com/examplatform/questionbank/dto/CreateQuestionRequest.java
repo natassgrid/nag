@@ -22,6 +22,8 @@ package com.examplatform.questionbank.dto;
 import com.examplatform.questionbank.domain.enums.CognitiveLevel;
 import com.examplatform.questionbank.domain.enums.DifficultyLevel;
 import com.examplatform.questionbank.domain.enums.QuestionType;
+import com.examplatform.shared.constants.QuestionStateConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
@@ -74,6 +76,11 @@ public class CreateQuestionRequest {
     @NotNull(message = "Difficulty level is required")
     private DifficultyLevel difficulty;
 
+    /** Expected completion time in seconds for pacing telemetry and performance analysis. */
+    @JsonProperty("benchmarkTimeSeconds")
+    @JsonAlias({"benchmark_time_seconds", "benchmarkTime"})
+    private Integer benchmarkTimeSeconds;
+
     @NotNull(message = "Cognitive level is required")
     private CognitiveLevel cognitiveLevel;
 
@@ -107,7 +114,7 @@ public class CreateQuestionRequest {
 
     /** Question lifecycle state: e.g. DRAFT or APPROVED */
     @JsonProperty("state")
-    @JsonAlias({"status"})
+    @JsonAlias({SharedConstants.STATUS})
     @Builder.Default
-    private String state = "DRAFT";
+    private String state = QuestionStateConstants.DRAFT;
 }

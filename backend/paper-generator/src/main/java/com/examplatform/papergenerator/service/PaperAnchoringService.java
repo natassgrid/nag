@@ -26,6 +26,7 @@ import com.examplatform.papergenerator.ledger.LedgerAdapter;
 import com.examplatform.papergenerator.ledger.LedgerAttestationPayload;
 import com.examplatform.papergenerator.ledger.LedgerAttestationReceipt;
 import com.examplatform.papergenerator.repository.PaperRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -38,13 +39,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
+
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
 
 /**
  * Service orchestrating Merkle Tree generation, canonical manifest computation,
@@ -57,7 +54,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PaperAnchoringService {
 
-    private static final String AUDIT_TOPIC = "exam.audit.events";
 
     private final LedgerAdapter ledgerAdapter;
     private final PaperRepository paperRepository;
@@ -188,7 +184,7 @@ public class PaperAnchoringService {
             return Map.of(
                     "verified", false,
                     "paperRootHash", paperRootHash != null ? paperRootHash : "",
-                    "message", "Paper root hash not found in repository or public ledger attestation index"
+                SharedConstants.MESSAGE, "Paper root hash not found in repository or public ledger attestation index"
             );
         }
 
@@ -241,7 +237,8 @@ public class PaperAnchoringService {
         try {
             Map<String, MerkleTree.MerkleProof> proofMap = objectMapper.readValue(
                     paper.getMerkleProofJson(),
-                    new TypeReference<Map<String, MerkleTree.MerkleProof>>() {});
+                new TypeReference<>() {
+                });
             return Optional.ofNullable(proofMap.get(questionId.toString()));
         } catch (Exception e) {
             log.warn("Failed to parse MerkleProofJson for paper {}: {}", paperId, e.getMessage());
@@ -252,7 +249,7 @@ public class PaperAnchoringService {
     private void publishPaperAnchoredAuditEvent(Paper paper, LedgerAttestationReceipt receipt, String tenantId) {
         try {
             Map<String, Object> event = Map.of(
-                    "eventType", "PAPER_LEDGER_ANCHORED",
+                SharedConstants.EVENT_TYPE, "PAPER_LEDGER_ANCHORED",
                     "paperId", paper.getId().toString(),
                     "examId", paper.getExamId().toString(),
                     "paperRootHash", paper.getPaperRootHash() != null ? paper.getPaperRootHash() : "",
@@ -260,10 +257,10 @@ public class PaperAnchoringService {
                     "txHash", receipt.getTxHash(),
                     "consensusTimestamp", receipt.getConsensusTimestamp(),
                     "ledgerNetwork", receipt.getNetwork(),
-                    "tenantId", tenantId != null ? tenantId : "default",
-                    "occurredAt", Instant.now().toString()
+                SharedConstants.TENANT_ID, tenantId != null ? tenantId : SharedConstants.DEFAULT_TENANT,
+                SharedConstants.OCCURRED_AT, Instant.now().toString()
             );
-            eventPublisher.publish(AUDIT_TOPIC, paper.getId().toString(), event);
+            eventPublisher.publish(AUDIT_EVENTS_TOPIC, paper.getId().toString(), event);
         } catch (Exception e) {
             log.error("Failed to publish PAPER_LEDGER_ANCHORED audit event: {}", e.getMessage());
         }
@@ -296,7 +293,8 @@ public class PaperAnchoringService {
             return Collections.emptyMap();
         }
         try {
-            return objectMapper.readValue(topicDistributionJson, new TypeReference<Map<String, Integer>>() {});
+            return objectMapper.readValue(topicDistributionJson, new TypeReference<>() {
+            });
         } catch (Exception e) {
             return Collections.emptyMap();
         }

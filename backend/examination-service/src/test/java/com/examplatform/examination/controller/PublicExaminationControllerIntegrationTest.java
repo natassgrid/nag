@@ -9,15 +9,12 @@ package com.examplatform.examination.controller;
 
 import com.examplatform.examination.domain.enums.CalculatorPolicy;
 import com.examplatform.examination.domain.enums.NavigationPolicy;
-import com.examplatform.examination.dto.AdmitCardResponse;
-import com.examplatform.examination.dto.ExamApplicationRequest;
-import com.examplatform.examination.dto.ExamApplicationResponse;
-import com.examplatform.examination.dto.ExaminationResponse;
-import com.examplatform.examination.dto.PublicCentreResponse;
+import com.examplatform.examination.dto.*;
 import com.examplatform.examination.exception.ExaminationNotFoundException;
 import com.examplatform.examination.service.ExamApplicationService;
 import com.examplatform.examination.service.ExaminationService;
 import com.examplatform.examination.support.AbstractIntegrationTest;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -33,9 +30,7 @@ import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -76,7 +71,7 @@ class PublicExaminationControllerIntegrationTest extends AbstractIntegrationTest
                 .reviewFlagEnabled(true)
                 .isPractice(false)
                 .sections(List.of())
-                .status("PUBLISHED")
+                .status(QuestionStateConstants.PUBLISHED)
                 .build();
     }
 
@@ -143,7 +138,7 @@ class PublicExaminationControllerIntegrationTest extends AbstractIntegrationTest
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("success"))
                     .andExpect(jsonPath("$.data.content[0].id").value(EXAM_ID.toString()))
-                    .andExpect(jsonPath("$.data.content[0].status").value("PUBLISHED"));
+                    .andExpect(jsonPath("$.data.content[0].status").value(QuestionStateConstants.PUBLISHED));
         }
 
         @Test

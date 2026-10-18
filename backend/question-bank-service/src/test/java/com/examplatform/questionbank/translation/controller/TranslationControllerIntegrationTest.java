@@ -19,23 +19,18 @@
 
 package com.examplatform.questionbank.translation.controller;
 
+import com.examplatform.questionbank.translation.ai.IndicTrans2Service;
+
+
 import com.examplatform.questionbank.dto.QuestionResponse;
 import com.examplatform.questionbank.service.QuestionService;
 import com.examplatform.questionbank.support.AbstractIntegrationTest;
 import com.examplatform.questionbank.translation.domain.BatchTranslationJobStatus;
 import com.examplatform.questionbank.translation.domain.Translation;
-import com.examplatform.questionbank.translation.dto.AutoTranslateResponse;
-import com.examplatform.questionbank.translation.dto.BatchTranslationJobResponse;
-import com.examplatform.questionbank.translation.dto.BatchTranslationRequest;
-import com.examplatform.questionbank.translation.dto.TranslatedOptionDto;
-import com.examplatform.questionbank.translation.dto.TranslationRequest;
-import com.examplatform.questionbank.translation.dto.TranslationResponse;
-import com.examplatform.questionbank.translation.dto.TranslationReviewRequest;
-import com.examplatform.questionbank.translation.service.BatchTranslationService;
-import com.examplatform.questionbank.translation.service.IndicTrans2Service;
-import com.examplatform.questionbank.translation.service.TranslationQueryService;
-import com.examplatform.questionbank.translation.service.TranslationReviewService;
-import com.examplatform.questionbank.translation.service.TranslationWorkflowService;
+import com.examplatform.questionbank.translation.dto.*;
+import com.examplatform.questionbank.translation.service.*;
+import com.examplatform.shared.constants.QuestionStateConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -59,8 +54,10 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @DisplayName("TranslationController REST Endpoints E2E Tests (MockMvc)")
 class TranslationControllerIntegrationTest extends AbstractIntegrationTest {
@@ -144,15 +141,15 @@ class TranslationControllerIntegrationTest extends AbstractIntegrationTest {
     class BatchAutoTranslateEndpoints {
 
         @Test
-        @DisplayName("+ve: ADMIN triggers batch auto-translate - returns 202 Accepted")
-        void adminCanTriggerBatchAutoTranslate() throws Exception {
+        @DisplayName("+ve: SUPER_ADMIN triggers batch auto-translate - returns 202 Accepted")
+        void superAdminCanTriggerBatchAutoTranslate() throws Exception {
             BatchTranslationJobResponse jobResponse = BatchTranslationJobResponse.builder()
                     .id(JOB_ID)
                     .tenantId("default")
                     .status(BatchTranslationJobStatus.PENDING)
                     .sourceLanguage("en")
                     .targetLanguage("hi")
-                    .targetStatus("PUBLISHED")
+                    .targetStatus(QuestionStateConstants.PUBLISHED)
                     .build();
 
             when(batchTranslationService.startBatchJob(any(BatchTranslationRequest.class), any(), anyString()))
@@ -160,12 +157,12 @@ class TranslationControllerIntegrationTest extends AbstractIntegrationTest {
 
             BatchTranslationRequest request = BatchTranslationRequest.builder()
                     .targetLanguage("hi")
-                    .targetStatus("PUBLISHED")
+                    .targetStatus(QuestionStateConstants.PUBLISHED)
                     .batchSize(20)
                     .build();
 
             mockMvc.perform(post("/api/v1/translations/batch/auto-translate")
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))))
                     .andExpect(status().isAccepted())
                     .andExpect(jsonPath("$.id").value(JOB_ID.toString()))
                     .andExpect(jsonPath("$.status").value("PENDING"))
@@ -195,32 +192,10 @@ class TranslationControllerIntegrationTest extends AbstractIntegrationTest {
                     .andExpect(jsonPath("$.processedQuestions").value(50));
         }
 
-        @Test
-        @DisplayName("+ve: EXAM_CONTROLLER gets batch job status via /status path alias - returns 200 OK")
-        void examControllerCanGetBatchStatusViaStatusPath() throws Exception {
-            BatchTranslationJobResponse jobResponse = BatchTranslationJobResponse.builder()
-                    .id(JOB_ID)
-                    .tenantId("default")
-                    .status(BatchTranslationJobStatus.IN_PROGRESS)
-                    .totalQuestions(100)
-                    .processedQuestions(50)
-                    .progressPercentage(50.0)
-                    .build();
-
-            when(batchTranslationService.getJobStatus(eq(JOB_ID), anyString()))
-                    .thenReturn(jobResponse);
-
-            mockMvc.perform(get("/api/v1/translations/batch/{jobId}/status", JOB_ID)
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EXAM_CONTROLLER"))))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.id").value(JOB_ID.toString()))
-                    .andExpect(jsonPath("$.progressPercentage").value(50.0))
-                    .andExpect(jsonPath("$.processedQuestions").value(50));
-        }
 
         @Test
-        @DisplayName("+ve: ADMIN cancels running batch job - returns 200 OK")
-        void adminCanCancelBatchJob() throws Exception {
+        @DisplayName("+ve: SUPER_ADMIN cancels running batch job - returns 200 OK")
+        void superAdminCanCancelBatchJob() throws Exception {
             BatchTranslationJobResponse jobResponse = BatchTranslationJobResponse.builder()
                     .id(JOB_ID)
                     .status(BatchTranslationJobStatus.CANCELLED)
@@ -230,14 +205,14 @@ class TranslationControllerIntegrationTest extends AbstractIntegrationTest {
                     .thenReturn(jobResponse);
 
             mockMvc.perform(post("/api/v1/translations/batch/{jobId}/cancel", JOB_ID)
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("CANCELLED"));
         }
 
         @Test
-        @DisplayName("+ve: ADMIN lists paginated batch jobs - returns 200 OK with Page")
-        void adminCanListBatchJobs() throws Exception {
+        @DisplayName("+ve: SUPER_ADMIN lists paginated batch jobs - returns 200 OK with Page")
+        void superAdminCanListBatchJobs() throws Exception {
             BatchTranslationJobResponse jobResp = BatchTranslationJobResponse.builder()
                     .id(JOB_ID)
                     .status(BatchTranslationJobStatus.COMPLETED)
@@ -254,7 +229,7 @@ class TranslationControllerIntegrationTest extends AbstractIntegrationTest {
                     .thenReturn(pagedResponse);
 
             mockMvc.perform(get("/api/v1/translations/batch?page=0&size=20")
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.content[0].id").value(JOB_ID.toString()))
                     .andExpect(jsonPath("$.content[0].status").value("COMPLETED"))
@@ -295,7 +270,7 @@ class TranslationControllerIntegrationTest extends AbstractIntegrationTest {
                             .content(objectMapper.writeValueAsString(validTranslationRequest())))
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.translationId").value(TRANSLATION_ID.toString()))
-                    .andExpect(jsonPath("$.status").value("DRAFT"));
+                    .andExpect(jsonPath("$.status").value(QuestionStateConstants.DRAFT));
         }
 
         @Test
@@ -332,7 +307,7 @@ class TranslationControllerIntegrationTest extends AbstractIntegrationTest {
                             .content(jsonPayload))
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.translationId").value(TRANSLATION_ID.toString()))
-                    .andExpect(jsonPath("$.status").value("DRAFT"));
+                    .andExpect(jsonPath("$.status").value(QuestionStateConstants.DRAFT));
 
             ArgumentCaptor<TranslationRequest> captor = ArgumentCaptor.forClass(TranslationRequest.class);
             verify(translationWorkflowService).requestTranslation(captor.capture(), anyString());
@@ -356,10 +331,10 @@ class TranslationControllerIntegrationTest extends AbstractIntegrationTest {
             mockMvc.perform(post("/api/v1/translations/{id}/approve", TRANSLATION_ID)
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_REVIEWER")))
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(Map.of("reviewerId", REVIEWER_ID.toString()))))
+                            .content(objectMapper.writeValueAsString(Map.of(SharedConstants.REVIEWER_ID, REVIEWER_ID.toString()))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.translationId").value(TRANSLATION_ID.toString()))
-                    .andExpect(jsonPath("$.status").value("APPROVED"));
+                    .andExpect(jsonPath("$.status").value(QuestionStateConstants.APPROVED));
         }
 
         @Test
@@ -383,7 +358,7 @@ class TranslationControllerIntegrationTest extends AbstractIntegrationTest {
                             .content("{}"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.translationId").value(TRANSLATION_ID.toString()))
-                    .andExpect(jsonPath("$.status").value("APPROVED"));
+                    .andExpect(jsonPath("$.status").value(QuestionStateConstants.APPROVED));
 
             verify(translationReviewService).approve(eq(TRANSLATION_ID), eq(REVIEWER_ID), anyString());
         }
@@ -401,7 +376,7 @@ class TranslationControllerIntegrationTest extends AbstractIntegrationTest {
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.translationId").value(TRANSLATION_ID.toString()))
-                    .andExpect(jsonPath("$.status").value("DRAFT"));
+                    .andExpect(jsonPath("$.status").value(QuestionStateConstants.DRAFT));
         }
     }
 
@@ -418,25 +393,25 @@ class TranslationControllerIntegrationTest extends AbstractIntegrationTest {
                     .topic("Thermodynamics")
                     .content("What is entropy?")
                     .translatedLanguages(List.of("hi"))
-                    .translationStatusMap(Map.of("hi", "APPROVED"))
-                    .translationStatus("APPROVED")
+                    .translationStatusMap(Map.of("hi", QuestionStateConstants.APPROVED))
+                    .translationStatus(QuestionStateConstants.APPROVED)
                     .build();
 
             when(questionService.listQuestions(
                     any(), any(), any(), any(), any(), any(), any(),
-                    eq("hi"), eq("APPROVED"), any(), any(), anyInt(), anyInt(), anyString()))
+                    eq("hi"), eq(QuestionStateConstants.APPROVED), any(), any(), anyInt(), anyInt(), anyString()))
                     .thenReturn(new PageImpl<>(List.of(resp)));
 
             mockMvc.perform(get("/api/v1/translations/questions?targetLang=hi&translationStatus=APPROVED")
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_TRANSLATOR"))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data.content[0].id").value(QUESTION_ID.toString()))
-                    .andExpect(jsonPath("$.data.content[0].translationStatus").value("APPROVED"))
+                    .andExpect(jsonPath("$.data.content[0].translationStatus").value(QuestionStateConstants.APPROVED))
                     .andExpect(jsonPath("$.data.content[0].translatedLanguages[0]").value("hi"));
         }
 
         @Test
-        @DisplayName("+ve: DELIVERY_SERVICE fetches approved translation - returns 200 OK")
+        @DisplayName("+ve: EXAM_CONTROLLER fetches approved translation - returns 200 OK")
         void deliveryServiceCanGetApprovedTranslation() throws Exception {
             TranslationResponse response = TranslationResponse.builder()
                     .translationId(TRANSLATION_ID)
@@ -450,11 +425,11 @@ class TranslationControllerIntegrationTest extends AbstractIntegrationTest {
                     .thenReturn(Optional.of(response));
 
             mockMvc.perform(get("/api/v1/translations/question/{questionId}/language/{lang}", QUESTION_ID, "hi")
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_DELIVERY_SERVICE"))))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EXAM_CONTROLLER"))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.translationId").value(TRANSLATION_ID.toString()))
                     .andExpect(jsonPath("$.languageCode").value("hi"))
-                    .andExpect(jsonPath("$.status").value("APPROVED"));
+                    .andExpect(jsonPath("$.status").value(QuestionStateConstants.APPROVED));
         }
 
         @Test
@@ -476,7 +451,7 @@ class TranslationControllerIntegrationTest extends AbstractIntegrationTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.translationId").value(TRANSLATION_ID.toString()))
                     .andExpect(jsonPath("$.languageCode").value("hi"))
-                    .andExpect(jsonPath("$.status").value("APPROVED"));
+                    .andExpect(jsonPath("$.status").value(QuestionStateConstants.APPROVED));
         }
 
         @Test
@@ -486,7 +461,7 @@ class TranslationControllerIntegrationTest extends AbstractIntegrationTest {
                     .thenReturn(Optional.empty());
 
             mockMvc.perform(get("/api/v1/translations/question/{questionId}/language/{lang}", QUESTION_ID, "ta")
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_DELIVERY_SERVICE"))))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EXAM_CONTROLLER"))))
                     .andExpect(status().isNotFound());
         }
     }

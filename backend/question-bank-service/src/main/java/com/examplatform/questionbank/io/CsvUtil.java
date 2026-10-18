@@ -71,70 +71,102 @@ public final class CsvUtil {
      * values. Handles quoted fields containing commas, quotes, and newlines.
      */
     public static List<List<String>> parse(String content) {
-        List<List<String>> rows = new ArrayList<>();
-        List<String> current = new ArrayList<>();
-        StringBuilder field = new StringBuilder();
-        boolean inQuotes = false;
-        boolean fieldStarted = false;
-        int i = 0;
-        int n = content.length();
+        if (content == null || content.isEmpty()) {
+            return List.of();
+        }
+        return new CsvParser(content).parse();
+    }
 
-        while (i < n) {
-            char c = content.charAt(i);
-            if (inQuotes) {
-                if (c == '"') {
-                    if (i + 1 < n && content.charAt(i + 1) == '"') {
-                        field.append('"');
-                        i += 2;
-                        continue;
-                    }
-                    inQuotes = false;
-                    i++;
+    private static final class CsvParser {
+        private final String content;
+        private final int length;
+        private final List<List<String>> rows = new ArrayList<>();
+        private List<String> current = new ArrayList<>();
+        private final StringBuilder field = new StringBuilder();
+        private boolean inQuotes = false;
+        private boolean fieldStarted = false;
+        private int index = 0;
+
+        private CsvParser(String content) {
+            this.content = content;
+            this.length = content.length();
+        }
+
+        private List<List<String>> parse() {
+            while (index < length) {
+                if (inQuotes) {
+                    processQuotedChar();
                 } else {
-                    field.append(c);
-                    i++;
+                    processUnquotedChar();
                 }
+            }
+            flushTrailing();
+            return rows;
+        }
+
+        private void processQuotedChar() {
+            char c = content.charAt(index);
+            if (c == '"') {
+                if (index + 1 < length && content.charAt(index + 1) == '"') {
+                    field.append('"');
+                    index += 2;
+                    return;
+                }
+                inQuotes = false;
             } else {
-                if (c == '"') {
+                field.append(c);
+            }
+            index++;
+        }
+
+        private void processUnquotedChar() {
+            char c = content.charAt(index);
+            switch (c) {
+                case '"' -> {
                     inQuotes = true;
                     fieldStarted = true;
-                    i++;
-                } else if (c == ',') {
-                    current.add(field.toString());
-                    field.setLength(0);
-                    fieldStarted = false;
-                    i++;
-                } else if (c == '\r') {
-                    // consume optional following \n as part of the record separator
-                    if (i + 1 < n && content.charAt(i + 1) == '\n') {
-                        i++;
+                    index++;
+                }
+                case ',' -> {
+                    commitField();
+                    index++;
+                }
+                case '\r' -> {
+                    if (index + 1 < length && content.charAt(index + 1) == '\n') {
+                        index++;
                     }
-                    current.add(field.toString());
-                    field.setLength(0);
-                    rows.add(current);
-                    current = new ArrayList<>();
-                    fieldStarted = false;
-                    i++;
-                } else if (c == '\n') {
-                    current.add(field.toString());
-                    field.setLength(0);
-                    rows.add(current);
-                    current = new ArrayList<>();
-                    fieldStarted = false;
-                    i++;
-                } else {
+                    commitRow();
+                    index++;
+                }
+                case '\n' -> {
+                    commitRow();
+                    index++;
+                }
+                default -> {
                     field.append(c);
                     fieldStarted = true;
-                    i++;
+                    index++;
                 }
             }
         }
 
-        // flush trailing field/record (file not ending in newline)
-        if (field.length() > 0 || fieldStarted || !current.isEmpty()) {
+        private void commitField() {
             current.add(field.toString());
-            rows.add(current);
+            field.setLength(0);
+            fieldStarted = false;
         }
-        return rows;
+
+        private void commitRow() {
+            commitField();
+            rows.add(current);
+            current = new ArrayList<>();
+        }
+
+        private void flushTrailing() {
+            if (!field.isEmpty() || fieldStarted || !current.isEmpty()) {
+                current.add(field.toString());
+                rows.add(current);
+            }
+        }
     }
 }

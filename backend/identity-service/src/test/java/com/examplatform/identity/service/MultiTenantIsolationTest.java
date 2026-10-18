@@ -19,23 +19,19 @@
 
 package com.examplatform.identity.service;
 
-import com.examplatform.shared.crypto.HashingService;
-
 import com.examplatform.identity.domain.UserAccount;
 import com.examplatform.identity.domain.UserRoleAssignment;
 import com.examplatform.identity.domain.enums.AccountStatus;
 import com.examplatform.identity.domain.enums.UserRole;
 import com.examplatform.identity.dto.AuthTokenRequest;
-import com.examplatform.identity.dto.RefreshTokenRequest;
 import com.examplatform.identity.dto.ReviewerResponse;
 import com.examplatform.identity.dto.UserAccountResponse;
-import com.examplatform.identity.exception.AccountNotFoundException;
 import com.examplatform.identity.exception.AuthenticationException;
 import com.examplatform.identity.repository.ActiveSessionRepository;
-import com.examplatform.identity.repository.OtpVerificationRepository;
 import com.examplatform.identity.repository.UserAccountRepository;
 import com.examplatform.identity.repository.UserRoleAssignmentRepository;
 import com.examplatform.shared.config.DynamicConfigService;
+import com.examplatform.shared.crypto.HashingService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -50,8 +46,6 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)

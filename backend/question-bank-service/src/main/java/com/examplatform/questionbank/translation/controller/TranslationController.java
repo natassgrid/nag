@@ -19,21 +19,16 @@
 
 package com.examplatform.questionbank.translation.controller;
 
+import com.examplatform.questionbank.translation.ai.IndicTrans2Service;
+
 import com.examplatform.questionbank.dto.QuestionResponse;
 import com.examplatform.questionbank.service.QuestionService;
 import com.examplatform.questionbank.translation.domain.Translation;
-import com.examplatform.questionbank.translation.dto.AutoTranslateResponse;
-import com.examplatform.questionbank.translation.dto.BatchTranslationJobResponse;
-import com.examplatform.questionbank.translation.dto.BatchTranslationRequest;
-import com.examplatform.questionbank.translation.dto.TranslationRequest;
-import com.examplatform.questionbank.translation.dto.TranslationResponse;
-import com.examplatform.questionbank.translation.dto.TranslationReviewRequest;
-import com.examplatform.questionbank.translation.service.BatchTranslationService;
-import com.examplatform.questionbank.translation.service.IndicTrans2Service;
-import com.examplatform.questionbank.translation.service.TranslationQueryService;
-import com.examplatform.questionbank.translation.service.TranslationReviewService;
-import com.examplatform.questionbank.translation.service.TranslationWorkflowService;
+import com.examplatform.questionbank.translation.dto.*;
+import com.examplatform.questionbank.translation.service.*;
 import com.examplatform.shared.api.ApiResponse;
+import com.examplatform.shared.constants.QuestionStateConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.tenant.TenantContext;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -47,14 +42,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
@@ -108,7 +96,7 @@ public class TranslationController {
      * POST /api/v1/translations/question/{questionId}/auto-translate/{lang}
      */
     @PostMapping("/question/{questionId}/auto-translate/{lang}")
-    @PreAuthorize("hasAnyRole('TRANSLATOR', 'REVIEWER', 'EXAM_CONTROLLER', 'ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('TRANSLATOR', 'REVIEWER', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
     public ResponseEntity<AutoTranslateResponse> autoTranslate(
             @PathVariable UUID questionId,
             @PathVariable String lang) {
@@ -127,7 +115,7 @@ public class TranslationController {
      * POST /api/v1/translations/batch/auto-translate
      */
     @PostMapping("/batch/auto-translate")
-    @PreAuthorize("hasAnyRole('ADMIN', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER', 'SUPER_ADMIN')")
     public ResponseEntity<BatchTranslationJobResponse> startBatchAutoTranslate(
             @Valid @RequestBody(required = false) BatchTranslationRequest request,
             @AuthenticationPrincipal Jwt jwt) {
@@ -145,8 +133,8 @@ public class TranslationController {
      * GET /api/v1/translations/batch/{jobId}
      * GET /api/v1/translations/batch/{jobId}/status
      */
-    @GetMapping({"/batch/{jobId}", "/batch/{jobId}/status"})
-    @PreAuthorize("hasAnyRole('ADMIN', 'EXAM_CONTROLLER', 'TRANSLATOR', 'REVIEWER', 'SUPER_ADMIN')")
+    @GetMapping("/batch/{jobId}")
+    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER', 'TRANSLATOR', 'REVIEWER', 'SUPER_ADMIN')")
     public ResponseEntity<BatchTranslationJobResponse> getBatchJobStatus(
             @PathVariable UUID jobId) {
 
@@ -159,9 +147,9 @@ public class TranslationController {
      * GET /api/v1/translations/batch
      */
     @GetMapping("/batch")
-    @PreAuthorize("hasAnyRole('ADMIN', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER', 'SUPER_ADMIN')")
     public ResponseEntity<Page<BatchTranslationJobResponse>> listBatchJobs(
-            @PageableDefault(size = 20, sort = {"updatedAt", "createdAt"}, direction = Sort.Direction.DESC) Pageable pageable) {
+            @PageableDefault(size = 20, sort = {"updatedAt", SharedConstants.CREATED_AT}, direction = Sort.Direction.DESC) Pageable pageable) {
         Page<BatchTranslationJobResponse> jobs = batchTranslationService.listJobs(tenantId(), pageable);
         return ResponseEntity.ok(jobs);
     }
@@ -171,7 +159,7 @@ public class TranslationController {
      * GET /api/v1/translations/batch/paper/{paperId}
      */
     @GetMapping("/batch/paper/{paperId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'EXAM_CONTROLLER', 'TRANSLATOR', 'REVIEWER', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER', 'TRANSLATOR', 'REVIEWER', 'SUPER_ADMIN')")
     public ResponseEntity<List<BatchTranslationJobResponse>> listBatchJobsByPaper(
             @PathVariable UUID paperId) {
         List<BatchTranslationJobResponse> jobs = batchTranslationService.listJobsByPaper(paperId, tenantId());
@@ -183,7 +171,7 @@ public class TranslationController {
      * POST /api/v1/translations/batch/{jobId}/cancel
      */
     @PostMapping("/batch/{jobId}/cancel")
-    @PreAuthorize("hasAnyRole('ADMIN', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER', 'SUPER_ADMIN')")
     public ResponseEntity<BatchTranslationJobResponse> cancelBatchJob(
             @PathVariable UUID jobId) {
 
@@ -196,7 +184,7 @@ public class TranslationController {
      * POST /api/v1/translations/batch/{jobId}/resume
      */
     @PostMapping("/batch/{jobId}/resume")
-    @PreAuthorize("hasAnyRole('ADMIN', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER', 'SUPER_ADMIN')")
     public ResponseEntity<BatchTranslationJobResponse> resumeBatchJob(
             @PathVariable UUID jobId) {
 
@@ -213,7 +201,7 @@ public class TranslationController {
      * POST /api/v1/translations
      */
     @PostMapping
-    @PreAuthorize("hasAnyRole('TRANSLATOR', 'EXAM_CONTROLLER', 'ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('TRANSLATOR', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
     public ResponseEntity<Map<String, Object>> requestTranslation(
             @Valid @RequestBody TranslationRequest request,
             @AuthenticationPrincipal Jwt jwt) {
@@ -226,8 +214,8 @@ public class TranslationController {
 
         return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
                 "translationId", translation.getId(),
-                "status", translation.getStatus().name(),
-                "message", "Translation request created successfully"
+            SharedConstants.STATUS, translation.getStatus().name(),
+            SharedConstants.MESSAGE, "Translation request created successfully"
         ));
     }
 
@@ -236,7 +224,7 @@ public class TranslationController {
      * PUT /api/v1/translations/{id}
      */
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('TRANSLATOR', 'EXAM_CONTROLLER', 'ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('TRANSLATOR', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
     public ResponseEntity<Map<String, Object>> resubmitTranslation(
             @PathVariable UUID id,
             @Valid @RequestBody TranslationRequest request,
@@ -250,8 +238,8 @@ public class TranslationController {
 
         return ResponseEntity.ok(Map.of(
                 "translationId", translation.getId(),
-                "status", translation.getStatus().name(),
-                "message", "Translation resubmitted successfully"
+            SharedConstants.STATUS, translation.getStatus().name(),
+            SharedConstants.MESSAGE, "Translation resubmitted successfully"
         ));
     }
 
@@ -260,16 +248,17 @@ public class TranslationController {
      * POST /api/v1/translations/{id}/approve
      */
     @PostMapping("/{id}/approve")
-    @PreAuthorize("hasAnyRole('REVIEWER', 'EXAM_CONTROLLER', 'ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('REVIEWER', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
     public ResponseEntity<Map<String, Object>> approveTranslation(
             @PathVariable UUID id,
             @RequestBody(required = false) Map<String, String> body,
             @AuthenticationPrincipal Jwt jwt) {
 
         UUID reviewerId = null;
-        if (body != null && body.containsKey("reviewerId") && body.get("reviewerId") != null && !body.get("reviewerId").isBlank()) {
+        if (body != null && body.containsKey(SharedConstants.REVIEWER_ID) && body.get(SharedConstants.REVIEWER_ID) != null && !body.get(
+            SharedConstants.REVIEWER_ID).isBlank()) {
             try {
-                reviewerId = UUID.fromString(body.get("reviewerId"));
+                reviewerId = UUID.fromString(body.get(SharedConstants.REVIEWER_ID));
             } catch (IllegalArgumentException ignored) {
             }
         }
@@ -280,8 +269,8 @@ public class TranslationController {
 
         return ResponseEntity.ok(Map.of(
                 "translationId", translation.getId(),
-                "status", translation.getStatus().name(),
-                "message", "Translation approved successfully"
+            SharedConstants.STATUS, translation.getStatus().name(),
+            SharedConstants.MESSAGE, "Translation approved successfully"
         ));
     }
 
@@ -290,7 +279,7 @@ public class TranslationController {
      * POST /api/v1/translations/{id}/reject
      */
     @PostMapping("/{id}/reject")
-    @PreAuthorize("hasAnyRole('REVIEWER', 'EXAM_CONTROLLER', 'ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('REVIEWER', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
     public ResponseEntity<Map<String, Object>> rejectTranslation(
             @PathVariable UUID id,
             @Valid @RequestBody TranslationReviewRequest request,
@@ -301,8 +290,8 @@ public class TranslationController {
 
         return ResponseEntity.ok(Map.of(
                 "translationId", id,
-                "status", "DRAFT",
-                "message", "Translation rejected; translator notified"
+            SharedConstants.STATUS, QuestionStateConstants.DRAFT,
+            SharedConstants.MESSAGE, "Translation rejected; translator notified"
         ));
     }
 
@@ -315,7 +304,7 @@ public class TranslationController {
      * GET /api/v1/translations/questions
      */
     @GetMapping("/questions")
-    @PreAuthorize("hasAnyRole('TRANSLATOR', 'REVIEWER', 'EXAM_CONTROLLER', 'ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('TRANSLATOR', 'REVIEWER', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<Page<QuestionResponse>>> listQuestionsForTranslation(
             @RequestParam(required = false) String subject,
             @RequestParam(required = false) Long subjectId,
@@ -342,7 +331,7 @@ public class TranslationController {
      * GET /api/v1/translations/question/{questionId}
      */
     @GetMapping("/question/{questionId}")
-    @PreAuthorize("hasAnyRole('TRANSLATOR', 'REVIEWER', 'EXAM_CONTROLLER', 'ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('TRANSLATOR', 'REVIEWER', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
     public ResponseEntity<List<TranslationResponse>> listTranslations(
             @PathVariable UUID questionId) {
 
@@ -358,7 +347,7 @@ public class TranslationController {
      * GET /api/v1/translations/question/{questionId}/language/{lang}
      */
     @GetMapping("/question/{questionId}/language/{lang}")
-    @PreAuthorize("hasAnyRole('TRANSLATOR', 'REVIEWER', 'EXAM_CONTROLLER', 'ADMIN', 'SUPER_ADMIN', 'DELIVERY_SERVICE', 'CANDIDATE')")
+    @PreAuthorize("hasAnyRole('TRANSLATOR', 'REVIEWER', 'EXAM_CONTROLLER', 'SUPER_ADMIN', 'CANDIDATE')")
     public ResponseEntity<TranslationResponse> getApprovedTranslation(
             @PathVariable UUID questionId,
             @PathVariable String lang) {
@@ -378,7 +367,7 @@ public class TranslationController {
 
     private String tenantId() {
         String t = TenantContext.get();
-        return t != null ? t : "default";
+        return t != null ? t : SharedConstants.DEFAULT_TENANT;
     }
 
     private UUID extractUserId(Jwt jwt) {

@@ -79,4 +79,13 @@ public class GlobalExceptionHandler extends BaseApiResponseExceptionHandler {
         log.warn("Four-eyes principle violation: {}", ex.getMessage());
         return errorResponse(HttpStatus.FORBIDDEN, ex.getMessage());
     }
+
+    /**
+     * Handles AI security guardrail violations (OWASP Top 10 for AI / LLMs) (400 Bad Request).
+     */
+    @ExceptionHandler(AiSecurityException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAiSecurityException(AiSecurityException ex) {
+        log.warn("AI security guardrail violation: {}", ex.getMessage());
+        return errorResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
 }

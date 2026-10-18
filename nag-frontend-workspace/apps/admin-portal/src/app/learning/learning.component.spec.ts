@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { of } from 'rxjs';
+import { provideRouter } from '@angular/router';
 import { LearningComponent } from './learning.component';
 import { PracticeSetService } from './services';
 import { PracticeSet } from './models';
@@ -56,6 +57,7 @@ describe('LearningComponent', () => {
     await TestBed.configureTestingModule({
       imports: [LearningComponent, NoopAnimationsModule],
       providers: [
+        provideRouter([]),
         { provide: PracticeSetService, useValue: practiceSetServiceMock },
         { provide: MatDialog, useValue: dialogMock },
       ],

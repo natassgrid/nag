@@ -20,7 +20,6 @@
 package com.examplatform.asset.service;
 
 import com.examplatform.asset.domain.entity.AssetReference;
-import com.examplatform.asset.domain.entity.MediaAsset;
 import com.examplatform.asset.domain.enums.ReferenceType;
 import com.examplatform.asset.dto.AssetReferenceRequest;
 import com.examplatform.asset.dto.AssetReferenceResponse;

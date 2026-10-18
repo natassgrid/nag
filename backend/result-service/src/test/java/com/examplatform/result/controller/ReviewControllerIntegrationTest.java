@@ -19,6 +19,7 @@ import com.examplatform.result.dto.QuestionDetailDto;
 import com.examplatform.result.dto.ReviewOptionDto;
 import com.examplatform.result.repository.ResultRepository;
 import com.examplatform.result.support.AbstractIntegrationTest;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -30,7 +31,6 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
@@ -92,8 +92,8 @@ class ReviewControllerIntegrationTest extends AbstractIntegrationTest {
                     .id(QUESTION_ID_1)
                     .subject("Physics")
                     .topic("Thermodynamics")
-                    .difficulty("MEDIUM")
-                    .cognitiveLevel("APPLY")
+                    .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
+                    .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.APPLY)
                     .content("Sample question content with $$\\frac{a}{b}$$ formula.")
                     .explanation("The correct answer is A because $$\\frac{a}{b}$$ represents the ratio.")
                     .options(List.of(
@@ -108,8 +108,8 @@ class ReviewControllerIntegrationTest extends AbstractIntegrationTest {
                     .id(QUESTION_ID_2)
                     .subject("Mathematics")
                     .topic("Calculus")
-                    .difficulty("EASY")
-                    .cognitiveLevel("UNDERSTAND")
+                    .difficulty(QuestionTaxonomyConstants.Difficulty.EASY)
+                    .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.UNDERSTAND)
                     .content("What is the derivative of sin(x)?")
                     .explanation("The derivative of sin(x) is cos(x).")
                     .options(List.of(
@@ -243,8 +243,8 @@ class ReviewControllerIntegrationTest extends AbstractIntegrationTest {
                     .id(qMulti)
                     .subject("Mathematics")
                     .topic("Calculus")
-                    .difficulty("HARD")
-                    .cognitiveLevel("ANALYZE")
+                    .difficulty(QuestionTaxonomyConstants.Difficulty.HARD)
+                    .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.ANALYZE)
                     .content("Evaluate the integral $$\\int_0^1 x^2 dx$$ and select equivalent forms:")
                     .explanation("The integral evaluates to $$\\frac{1}{3}$$. Both options A and C represent this value.")
                     .options(List.of(
@@ -258,8 +258,8 @@ class ReviewControllerIntegrationTest extends AbstractIntegrationTest {
                     .id(qSkipped)
                     .subject("Physics")
                     .topic("Quantum Mechanics")
-                    .difficulty("HARD")
-                    .cognitiveLevel("EVALUATE")
+                    .difficulty(QuestionTaxonomyConstants.Difficulty.HARD)
+                    .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.EVALUATE)
                     .content("What is the Planck relation $$E = h\\nu$$?")
                     .explanation("Photon energy is directly proportional to frequency via $$E = h\\nu$$.")
                     .options(List.of(

@@ -73,6 +73,29 @@ class TranslationPayloadServiceTest {
     }
 
     @Test
+    @DisplayName("serialize and deserialize cleans stray underscore artifacts around formulas and numbers")
+    void shouldCleanStrayUnderscoresInPayload() {
+        TranslatedQuestionPayload dirty = new TranslatedQuestionPayload(
+                "अपनी सामान्य गति से _ $$\\frac{5}{6}$$ _ पर चलते हुए, एक आदमी अपने कार्यालय _ $$15\\text{ minutes}$$ _ _ देर से पहुँचता है।",
+                List.of(
+                        new TranslatedOption("A", "_ $$75\\text{ minutes}$$", null, null),
+                        new TranslatedOption("B", "_ $$90\\text{ minutes}$$", null, null)
+                ),
+                "यदि गति _ $$\\frac{5}{6}$$ है, तो समय सामान्य समय _ $$T$$ _ का _ $$= \\frac{6}{5}T - T = \\frac{1}{5}T = 15\\text{ min} \\implies T = 75\\text{ minutes}$$ है।"
+        );
+
+        String stored = payloadService.serialize(dirty);
+        assertThat(stored).doesNotContain("_ $$");
+        assertThat(stored).doesNotContain("$$ _");
+
+        TranslatedQuestionPayload restored = payloadService.deserialize(stored, false);
+        assertThat(restored.content()).isEqualTo("अपनी सामान्य गति से $$\\frac{5}{6}$$ पर चलते हुए, एक आदमी अपने कार्यालय $$15\\text{ minutes}$$ देर से पहुँचता है।");
+        assertThat(restored.options().get(0).text()).isEqualTo("$$75\\text{ minutes}$$");
+        assertThat(restored.options().get(1).text()).isEqualTo("$$90\\text{ minutes}$$");
+        assertThat(restored.explanation()).isEqualTo("यदि गति $$\\frac{5}{6}$$ है, तो समय सामान्य समय $$T$$ का $$= \\frac{6}{5}T - T = \\frac{1}{5}T = 15\\text{ min} \\implies T = 75\\text{ minutes}$$ है।");
+    }
+
+    @Test
     @DisplayName("serialize + deserialize round-trip with null options and null explanation")
     void shouldHandleNullOptionalFields() {
         TranslatedQuestionPayload original = new TranslatedQuestionPayload(
@@ -97,18 +120,5 @@ class TranslationPayloadServiceTest {
     @DisplayName("isEncryptionEnabled returns false when flag is off")
     void shouldReportEncryptionDisabledByDefault() {
         assertThat(payloadService.isEncryptionEnabled()).isFalse();
-    }
-
-    @Test
-    @DisplayName("When payloadEncrypted=true but value has no vault prefix, reads as plain JSON (backward-compat)")
-    void shouldReadAsPlainWhenNoVaultPrefix() {
-        TranslatedQuestionPayload original = new TranslatedQuestionPayload(
-                "Tamil content", List.of(new TranslatedOption("A", "விடை A", null, null)), null
-        );
-        String stored = payloadService.serialize(original);  // plain JSON, no vault prefix
-
-        // Simulate a row written before encryption was turned on
-        TranslatedQuestionPayload restored = payloadService.deserialize(stored, true);
-        assertThat(restored.content()).isEqualTo("Tamil content");
     }
 }

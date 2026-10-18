@@ -22,7 +22,6 @@ package com.examplatform.admin.controller;
 import com.examplatform.admin.dto.MfaPolicySettingsRequest;
 import com.examplatform.admin.dto.MfaPolicySettingsResponse;
 import com.examplatform.admin.service.ConfigChangeService;
-import com.examplatform.shared.tenant.TenantContext;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,18 +29,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * Controller for security and MFA policy management in Admin Portal.
@@ -50,7 +40,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/admin/settings/security/mfa")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SECURITY_ADMIN', 'ADMIN')")
+@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SECURITY_ADMIN')")
 public class AdminSecuritySettingsController {
 
     private final ConfigChangeService configChangeService;

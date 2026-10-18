@@ -28,6 +28,7 @@ import com.examplatform.candidate.exception.ProfileNotFoundException;
 import com.examplatform.candidate.repository.CandidateEducationRepository;
 import com.examplatform.candidate.repository.CandidateProfileRepository;
 import com.examplatform.shared.audit.AuditEventType;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.crypto.HashingService;
 import com.examplatform.shared.crypto.VaultCryptoService;
 import com.examplatform.shared.event.UserAuditEvent;
@@ -39,13 +40,15 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
-import java.util.HashMap;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
+
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
 
 /**
  * Service handling candidate profile CRUD operations with per-candidate DEK,
@@ -60,7 +63,8 @@ public class CandidateProfileService {
 
     private static final String HMAC_KEY_PREFIX = "candidate-doc-hmac-";
     private static final String DEK_PREFIX = "candidate-dek-";
-    private static final String AUDIT_TOPIC = "exam.audit.events";
+    private static final String PENDING_PREFIX = "PENDING-";
+    private static final String ERASED_VALUE = "[ERASED]";
 
     private final CandidateProfileRepository candidateProfileRepository;
     private final CandidateEducationRepository candidateEducationRepository;
@@ -149,30 +153,33 @@ public class CandidateProfileService {
                     return candidateProfileRepository.save(initDefaultProfile(userId, tenantId));
                 });
 
-        // Backfill email / username from identity_service.user_account if email is missing
-        JdbcTemplate jdbcTemplate = jdbcTemplateProvider != null ? jdbcTemplateProvider.getIfAvailable() : null;
-        if (jdbcTemplate != null && (profile.getEmail() == null || profile.getEmail().isBlank())) {
-            try {
-                String username = jdbcTemplate.queryForObject(
-                        "SELECT username FROM identity_service.user_account WHERE id = ?",
-                        String.class,
-                        userId
-                );
-                if (username != null && !username.isBlank()) {
-                    profile.setEmail(username);
-                    if (profile.getFullName() == null || profile.getFullName().isBlank()) {
-                        if (!username.contains("@")) {
-                            profile.setFullName(username);
-                        }
-                    }
-                    candidateProfileRepository.save(profile);
-                }
-            } catch (Exception e) {
-                log.debug("Could not lookup user_account for candidate profile backfill: {}", e.getMessage());
-            }
-        }
+        backfillProfileFromUserAccount(profile, userId);
 
         return toResponse(profile);
+    }
+
+    private void backfillProfileFromUserAccount(CandidateProfile profile, UUID userId) {
+        JdbcTemplate jdbcTemplate = jdbcTemplateProvider != null ? jdbcTemplateProvider.getIfAvailable() : null;
+        if (jdbcTemplate == null || (profile.getEmail() != null && !profile.getEmail().isBlank())) {
+            return;
+        }
+
+        try {
+            String username = jdbcTemplate.queryForObject(
+                    "SELECT username FROM identity_service.user_account WHERE id = ?",
+                    String.class,
+                    userId
+            );
+            if (username != null && !username.isBlank()) {
+                profile.setEmail(username);
+                if ((profile.getFullName() == null || profile.getFullName().isBlank()) && !username.contains("@")) {
+                    profile.setFullName(username);
+                }
+                candidateProfileRepository.save(profile);
+            }
+        } catch (Exception e) {
+            log.debug("Could not lookup user_account for candidate profile backfill: {}", e.getMessage());
+        }
     }
 
     /**
@@ -201,7 +208,7 @@ public class CandidateProfileService {
             profile.setMobile(request.getMobile().trim());
             profile.setMobileHash(mobileHash);
         } else if (profile.getMobileHash() == null) {
-            profile.setMobileHash("PENDING-" + userId);
+            profile.setMobileHash(PENDING_PREFIX + userId);
         }
 
         if (request.getIdentityDocNumber() != null && !request.getIdentityDocNumber().isBlank()) {
@@ -213,8 +220,8 @@ public class CandidateProfileService {
             profile.setIdentityDocHash(docHash);
             profile.setIdentityDocHmac(docHmac);
         } else if (profile.getIdentityDocHash() == null) {
-            profile.setIdentityDocHash("PENDING-" + userId);
-            profile.setIdentityDocHmac("PENDING-" + userId);
+            profile.setIdentityDocHash(PENDING_PREFIX + userId);
+            profile.setIdentityDocHmac(PENDING_PREFIX + userId);
         }
 
         Optional.ofNullable(request.getPhotoAssetId()).ifPresent(profile::setPhotoAssetId);
@@ -258,9 +265,9 @@ public class CandidateProfileService {
         profile.setEncryptionKeyId(null);
 
         // 3. Set hash fields to "[ERASED]"
-        profile.setMobileHash("[ERASED]");
-        profile.setIdentityDocHash("[ERASED]");
-        profile.setIdentityDocHmac("[ERASED]");
+        profile.setMobileHash(ERASED_VALUE);
+        profile.setIdentityDocHash(ERASED_VALUE);
+        profile.setIdentityDocHmac(ERASED_VALUE);
 
         // 4. Save
         candidateProfileRepository.save(profile);
@@ -287,7 +294,7 @@ public class CandidateProfileService {
                 .orElseThrow(() -> new ProfileNotFoundException("Profile not found"));
 
         profile.setConsentRecorded(true);
-        profile.setConsentTimestamp(java.time.LocalDateTime.now());
+        profile.setConsentTimestamp(LocalDateTime.now(ZoneId.systemDefault()));
         candidateProfileRepository.save(profile);
         log.info("Consent recorded for userId={} at {}", userId, profile.getConsentTimestamp());
     }
@@ -298,7 +305,7 @@ public class CandidateProfileService {
     @Transactional(readOnly = true)
     public Map<String, Object> getCandidateMetrics(String tenantId) {
         long total;
-        if (tenantId == null || "default".equalsIgnoreCase(tenantId) || tenantId.isBlank()) {
+        if (tenantId == null || SharedConstants.DEFAULT_TENANT.equalsIgnoreCase(tenantId) || tenantId.isBlank()) {
             total = candidateProfileRepository.count();
         } else {
             total = candidateProfileRepository.countByTenantId(tenantId);
@@ -309,7 +316,7 @@ public class CandidateProfileService {
         );
     }
 
-    // ── Private helpers ────────────────────────────────────────────────────────
+    // ── Private helpers ──────────────────────────────────────────────────────────
 
     private void applyTextUpdates(CandidateProfile profile, UpdateCandidateProfileRequest request) {
         setTrimmedIfPresent(profile::setFullName, request.getFullName());
@@ -336,7 +343,7 @@ public class CandidateProfileService {
     private void publishAuditEvent(AuditEventType type, String actorId, String tenantId) {
         try {
             UserAuditEvent event = UserAuditEvent.of(type.name(), actorId, tenantId);
-            eventPublisher.publish(AUDIT_TOPIC, actorId, event);
+            eventPublisher.publish(AUDIT_EVENTS_TOPIC, actorId, event);
             log.debug("Audit event published [type={}, actor={}]", type, actorId);
         } catch (Exception e) {
             log.error("Unexpected error publishing audit event [type={}]: {}", type, e.getMessage(), e);
@@ -352,9 +359,9 @@ public class CandidateProfileService {
         CandidateProfile newProfile = CandidateProfile.builder()
                 .userId(userId)
                 .encryptionKeyId(dekKeyName)
-                .mobileHash("PENDING-" + userId)
-                .identityDocHash("PENDING-" + userId)
-                .identityDocHmac("PENDING-" + userId)
+                .mobileHash(PENDING_PREFIX + userId)
+                .identityDocHash(PENDING_PREFIX + userId)
+                .identityDocHmac(PENDING_PREFIX + userId)
                 .consentRecorded(false)
                 .build();
         newProfile.setTenantId(tenantId);

@@ -5,7 +5,7 @@
  * Copyright (C) 2026 NAG Contributors
  *
  * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU标识 Affero General Public License as published
+ * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, version 3 of the License.
  *
  * This program is distributed in the hope that it will be useful,
@@ -23,7 +23,7 @@ import com.examplatform.examination.dto.CreateExaminationRequest;
 import com.examplatform.examination.dto.ExaminationResponse;
 import com.examplatform.examination.service.ExaminationService;
 import com.examplatform.shared.api.ApiResponse;
-import com.examplatform.shared.tenant.TenantContext;
+import com.examplatform.shared.constants.SharedConstants;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,17 +32,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 /**
@@ -59,12 +50,12 @@ public class ExaminationController {
     private final ExaminationService examinationService;
 
     /**
-     * List all examinations for the current tenant (paginated). Requires EXAM_CONTROLLER role.
+     * List all examinations for the current tenant (paginated). Requires appropriate staff/admin roles.
      */
     @GetMapping
-    @PreAuthorize("hasRole('EXAM_CONTROLLER')")
+    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER', 'SUPER_ADMIN', 'QUESTION_AUTHOR', 'REVIEWER')")
     public ResponseEntity<ApiResponse<org.springframework.data.domain.Page<ExaminationResponse>>> list(
-            @RequestHeader("X-Tenant-Id") String tenantId,
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String search,
@@ -82,7 +73,7 @@ public class ExaminationController {
     @PostMapping
     @PreAuthorize("hasRole('EXAM_CONTROLLER')")
     public ResponseEntity<ApiResponse<ExaminationResponse>> create(
-            @RequestHeader("X-Tenant-Id") String tenantId,
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
             @Valid @RequestBody CreateExaminationRequest request,
             @AuthenticationPrincipal Jwt jwt) {
         ExaminationResponse response = examinationService.create(request, tenantId);
@@ -97,7 +88,7 @@ public class ExaminationController {
     @PreAuthorize("hasRole('EXAM_CONTROLLER')")
     public ResponseEntity<ApiResponse<ExaminationResponse>> update(
             @PathVariable UUID examId,
-            @RequestHeader("X-Tenant-Id") String tenantId,
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
             @Valid @RequestBody CreateExaminationRequest request,
             @AuthenticationPrincipal Jwt jwt) {
         ExaminationResponse response = examinationService.update(examId, request, tenantId);
@@ -106,22 +97,23 @@ public class ExaminationController {
 
     /**
      * Publish an examination (transition from DRAFT to PUBLISHED). Requires EXAM_CONTROLLER role.
+     * Supports both PUT and POST for client flexibility.
      */
-    @PutMapping("/{examId}/publish")
+    @RequestMapping(value = "/{examId}/publish", method = {RequestMethod.PUT, RequestMethod.POST})
     @PreAuthorize("hasRole('EXAM_CONTROLLER')")
     public ResponseEntity<ApiResponse<ExaminationResponse>> publish(
             @PathVariable UUID examId,
-            @RequestHeader("X-Tenant-Id") String tenantId,
+            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
             @AuthenticationPrincipal Jwt jwt) {
         ExaminationResponse response = examinationService.publish(examId, tenantId);
         return ResponseEntity.ok(ApiResponse.success(response, "Examination published successfully"));
     }
 
     /**
-     * Retrieve an examination by ID. Requires EXAM_CONTROLLER or SUPER_ADMIN role.
+     * Retrieve an examination by ID. Requires staff or admin role.
      */
     @GetMapping("/{examId}")
-    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER', 'SUPER_ADMIN', 'QUESTION_AUTHOR', 'REVIEWER')")
     public ResponseEntity<ApiResponse<ExaminationResponse>> getById(
             @PathVariable UUID examId,
             @AuthenticationPrincipal Jwt jwt) {

@@ -19,6 +19,9 @@ import com.examplatform.papergenerator.exception.InsufficientQuestionsException;
 import com.examplatform.papergenerator.repository.BlueprintTemplateRepository;
 import com.examplatform.papergenerator.repository.PaperRepository;
 import com.examplatform.papergenerator.service.PaperAssemblyService;
+import com.examplatform.shared.constants.QuestionStateConstants;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import com.examplatform.shared.messaging.GenericDomainEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -42,9 +45,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 /**
  * Unit test suite for {@link PaperGenerationConsumer}.
@@ -102,7 +103,7 @@ class PaperGenerationConsumerTest {
                 .name("General Science Paper")
                 .examId(examId)
                 .shiftId(shiftId)
-                .status("DRAFT")
+                .status(QuestionStateConstants.DRAFT)
                 .variant("SET-A")
                 .paperRootHash("a1b2c3d4e5f6")
                 .manifestDigest("f6e5d4c3b2a1")
@@ -125,10 +126,11 @@ class PaperGenerationConsumerTest {
                     "eventType", "PAPER_GENERATION_REQUEST",
                     "examId", EXAM_ID.toString(),
                     "shiftId", SHIFT_ID,
-                    "tenantId", TENANT_ID,
+                SharedConstants.TENANT_ID, TENANT_ID,
                     "requestedBy", USER_ID.toString(),
                     "blueprintRules", List.of(
-                            Map.of("subject", "Physics", "topic", "Mechanics", "difficulty", "EASY", "questionCount", 5)
+                            Map.of(SharedConstants.SUBJECT, "Physics", "topic", "Mechanics", "difficulty",
+                                QuestionTaxonomyConstants.Difficulty.EASY, "questionCount", 5)
                     )
             );
             String json = objectMapper.writeValueAsString(payload);
@@ -170,9 +172,10 @@ class PaperGenerationConsumerTest {
                     "eventType", "PAPER_GENERATION_REQUEST",
                     "examId", EXAM_ID.toString(),
                     "shiftId", SHIFT_ID,
-                    "tenantId", TENANT_ID,
+                SharedConstants.TENANT_ID, TENANT_ID,
                     "blueprintRules", List.of(
-                            Map.of("subject", "Chemistry", "topic", "Organic", "difficulty", "HARD", "questionCount", 3)
+                            Map.of(SharedConstants.SUBJECT, "Chemistry", "topic", "Organic", "difficulty",
+                                QuestionTaxonomyConstants.Difficulty.HARD, "questionCount", 3)
                     )
             );
             String json = objectMapper.writeValueAsString(payload);
@@ -195,9 +198,10 @@ class PaperGenerationConsumerTest {
                     "eventType", "PAPER_GENERATION_REQUEST",
                     "examId", EXAM_ID.toString(),
                     "shiftId", SHIFT_ID,
-                    "tenantId", TENANT_ID,
+                SharedConstants.TENANT_ID, TENANT_ID,
                     "blueprintRules", List.of(
-                            Map.of("subject", "Mathematics", "topic", "Algebra", "difficulty", "MEDIUM", "questionCount", 4)
+                            Map.of(SharedConstants.SUBJECT, "Mathematics", "topic", "Algebra", "difficulty",
+                                QuestionTaxonomyConstants.Difficulty.MEDIUM, "questionCount", 4)
                     )
             );
             String json = objectMapper.writeValueAsString(payload);
@@ -225,7 +229,8 @@ class PaperGenerationConsumerTest {
         void resolvesRulesFromTemplateId() throws Exception {
             UUID templateId = UUID.randomUUID();
             List<BlueprintRule> templateRules = List.of(
-                    BlueprintRule.builder().subject("Biology").topic("Genetics").difficulty("MEDIUM").questionCount(10).build()
+                    BlueprintRule.builder().subject("Biology").topic("Genetics").difficulty(
+                        QuestionTaxonomyConstants.Difficulty.MEDIUM).questionCount(10).build()
             );
             BlueprintTemplate template = BlueprintTemplate.builder()
                     .name("Biology Standard Blueprint")
@@ -242,7 +247,7 @@ class PaperGenerationConsumerTest {
                     "eventType", "PAPER_GENERATION_REQUEST",
                     "examId", EXAM_ID.toString(),
                     "shiftId", SHIFT_ID,
-                    "tenantId", TENANT_ID,
+                SharedConstants.TENANT_ID, TENANT_ID,
                     "blueprintTemplateId", templateId.toString()
             );
 
@@ -270,9 +275,10 @@ class PaperGenerationConsumerTest {
                     "eventType", "PAPER_GENERATION_REQUEST",
                     "examId", EXAM_ID.toString(),
                     "shiftId", SHIFT_ID,
-                    "tenantId", TENANT_ID,
+                SharedConstants.TENANT_ID, TENANT_ID,
                     "blueprintRules", List.of(
-                            Map.of("subject", "Math", "topic", "Calculus", "difficulty", "EASY", "questionCount", 2)
+                            Map.of(SharedConstants.SUBJECT, "Math", "topic", "Calculus", "difficulty",
+                                QuestionTaxonomyConstants.Difficulty.EASY, "questionCount", 2)
                     )
             );
 
@@ -307,9 +313,10 @@ class PaperGenerationConsumerTest {
                     "eventType", "PAPER_GENERATION_REQUEST",
                     "examId", EXAM_ID.toString(),
                     "shiftId", SHIFT_ID,
-                    "tenantId", TENANT_ID,
+                SharedConstants.TENANT_ID, TENANT_ID,
                     "blueprintRules", List.of(
-                            Map.of("subject", "Physics", "topic", "Optics", "difficulty", "HARD", "questionCount", 50)
+                            Map.of(SharedConstants.SUBJECT, "Physics", "topic", "Optics", "difficulty",
+                                QuestionTaxonomyConstants.Difficulty.HARD, "questionCount", 50)
                     )
             );
 
@@ -342,7 +349,7 @@ class PaperGenerationConsumerTest {
                     "eventType", "PAPER_GENERATION_REQUEST",
                     "examId", EXAM_ID.toString(),
                     "shiftId", SHIFT_ID,
-                    "tenantId", TENANT_ID,
+                SharedConstants.TENANT_ID, TENANT_ID,
                     "blueprintTemplateId", unknownTemplateId.toString()
             );
 

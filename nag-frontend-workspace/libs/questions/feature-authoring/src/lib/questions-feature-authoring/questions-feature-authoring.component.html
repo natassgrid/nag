@@ -45,6 +45,16 @@
         </div>
       }
 
+      <button
+        mat-stroked-button
+        type="button"
+        (click)="openAiPromptImportDialog()"
+        class="!border-indigo-300 !text-indigo-700 hover:!bg-indigo-50 font-bold"
+      >
+        <mat-icon class="!text-indigo-600">auto_awesome</mat-icon>
+        AI Prompt &amp; Import
+      </button>
+
       <button mat-stroked-button (click)="resetForm()">
         Reset
       </button>

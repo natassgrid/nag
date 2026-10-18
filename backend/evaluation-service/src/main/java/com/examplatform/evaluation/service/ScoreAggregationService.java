@@ -22,6 +22,8 @@ package com.examplatform.evaluation.service;
 import com.examplatform.evaluation.domain.Evaluation;
 import com.examplatform.evaluation.dto.AggregatedScoreResult;
 import com.examplatform.evaluation.repository.EvaluationRepository;
+import com.examplatform.shared.constants.MessagingConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -49,7 +51,7 @@ import java.util.stream.Collectors;
 public class ScoreAggregationService {
 
     private static final String EVALUATION_EVENTS_TOPIC = "exam.evaluation.events";
-    private static final String EVALUATION_COMPLETED_TOPIC = "exam.evaluation.completed";
+    private static final String EVALUATION_COMPLETED_TOPIC = MessagingConstants.EVALUATION_COMPLETED_TOPIC;
 
     private final EvaluationRepository evaluationRepository;
     private final EventPublisher eventPublisher;
@@ -131,15 +133,15 @@ public class ScoreAggregationService {
     private void publishAggregationEvent(AggregatedScoreResult aggregation) {
         try {
             Map<String, Object> event = new HashMap<>();
-            event.put("eventType", "SCORES_AGGREGATED");
+            event.put(SharedConstants.EVENT_TYPE, "SCORES_AGGREGATED");
             event.put("sessionId", aggregation.sessionId());
             event.put("candidateId", aggregation.candidateId());
             event.put("totalRawScore", aggregation.totalRawScore());
             event.put("totalMaxMarks", aggregation.totalMaxMarks());
             event.put("sectionScores", aggregation.sectionScores());
             event.put("evaluationCount", aggregation.evaluationCount());
-            event.put("tenantId", aggregation.tenantId());
-            event.put("occurredAt", Instant.now().toString());
+            event.put(SharedConstants.TENANT_ID, aggregation.tenantId());
+            event.put(SharedConstants.OCCURRED_AT, Instant.now().toString());
 
             String key = aggregation.sessionId() + ":" + aggregation.candidateId();
             eventPublisher.publish(EVALUATION_EVENTS_TOPIC, key, event);
@@ -161,21 +163,21 @@ public class ScoreAggregationService {
             // Build question-level score entries
             List<Map<String, Object>> questionLevelScores = evaluations.stream()
                     .map(e -> Map.<String, Object>of(
-                            "questionId", e.getQuestionId().toString(),
+                        SharedConstants.QUESTION_ID, e.getQuestionId().toString(),
                             "score", e.getScore(),
                             "maxMarks", e.getMaxMarks()
                     ))
                     .toList();
 
             Map<String, Object> event = new java.util.HashMap<>();
-            event.put("eventType", "EVALUATION_COMPLETED");
+            event.put(SharedConstants.EVENT_TYPE, "EVALUATION_COMPLETED");
             event.put("sessionId", sessionId.toString());
             event.put("candidateId", candidateId.toString());
             event.put("examId", examId != null ? examId.toString() : "");
             event.put("totalRawScore", aggregation.totalRawScore());
             event.put("sectionScores", aggregation.sectionScores() != null ? aggregation.sectionScores() : java.util.Map.of());
             event.put("questionLevelScores", questionLevelScores);
-            event.put("tenantId", tenantId);
+            event.put(SharedConstants.TENANT_ID, tenantId);
             event.put("evaluatedAt", java.time.Instant.now().toString());
 
             eventPublisher.publish(EVALUATION_COMPLETED_TOPIC, sessionId.toString(), event);

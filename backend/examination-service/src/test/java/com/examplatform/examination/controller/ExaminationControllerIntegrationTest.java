@@ -28,9 +28,11 @@ import com.examplatform.examination.exception.ExaminationNotFoundException;
 import com.examplatform.examination.exception.SectionMarksValidationException;
 import com.examplatform.examination.service.ExaminationService;
 import com.examplatform.examination.support.AbstractIntegrationTest;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -40,13 +42,13 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @DisplayName("ExaminationController REST Endpoints E2E Tests (MockMvc)")
 class ExaminationControllerIntegrationTest extends AbstractIntegrationTest {
@@ -83,7 +85,7 @@ class ExaminationControllerIntegrationTest extends AbstractIntegrationTest {
                 .code("NET-2026")
                 .durationMinutes(180)
                 .totalMarks(300)
-                .status("DRAFT")
+                .status(QuestionStateConstants.DRAFT)
                 .build();
     }
 
@@ -107,6 +109,34 @@ class ExaminationControllerIntegrationTest extends AbstractIntegrationTest {
                     .andExpect(jsonPath("$.status").value("success"))
                     .andExpect(jsonPath("$.data.content[0].id").value(EXAM_ID.toString()))
                     .andExpect(jsonPath("$.data.content[0].name").value("National Eligibility Test 2026"));
+        }
+
+        @Test
+        @DisplayName("+ve: SUPER_ADMIN retrieves paginated list of examinations - returns 200 OK")
+        void superAdminCanListExaminations() throws Exception {
+            when(examinationService.listByTenantPaged(eq(TENANT_ID), any(), any(), any(), anyInt(), anyInt()))
+                    .thenReturn(new PageImpl<>(List.of(sampleExaminationResponse())));
+
+            mockMvc.perform(get("/api/v1/examinations")
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("success"))
+                    .andExpect(jsonPath("$.data.content[0].id").value(EXAM_ID.toString()));
+        }
+
+        @Test
+        @DisplayName("+ve: QUESTION_AUTHOR retrieves paginated list of examinations - returns 200 OK")
+        void questionAuthorCanListExaminations() throws Exception {
+            when(examinationService.listByTenantPaged(eq(TENANT_ID), any(), any(), any(), anyInt(), anyInt()))
+                    .thenReturn(new PageImpl<>(List.of(sampleExaminationResponse())));
+
+            mockMvc.perform(get("/api/v1/examinations")
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_QUESTION_AUTHOR"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("success"))
+                    .andExpect(jsonPath("$.data.content[0].id").value(EXAM_ID.toString()));
         }
 
         @Test
@@ -160,6 +190,47 @@ class ExaminationControllerIntegrationTest extends AbstractIntegrationTest {
                     .andExpect(jsonPath("$.status").value("success"))
                     .andExpect(jsonPath("$.data.id").value(EXAM_ID.toString()))
                     .andExpect(jsonPath("$.message").value("Examination created successfully"));
+        }
+
+        @Test
+        @DisplayName("+ve: Deserializes FREE_NAVIGATION and VIRTUAL_SCIENTIFIC policy aliases successfully")
+        void examControllerCanCreateExaminationWithPolicyAliases() throws Exception {
+            ArgumentCaptor<CreateExaminationRequest> captor = ArgumentCaptor.forClass(CreateExaminationRequest.class);
+            ExaminationResponse response = sampleExaminationResponse();
+
+            when(examinationService.create(captor.capture(), eq(TENANT_ID)))
+                    .thenReturn(response);
+
+            String rawJson = """
+                    {
+                        "name": "National Eligibility Test 2026",
+                        "code": "NET-2026",
+                        "durationMinutes": 180,
+                        "totalMarks": 300,
+                        "navigationPolicy": "FREE_NAVIGATION",
+                        "calculatorPolicy": "VIRTUAL_SCIENTIFIC",
+                        "sections": [
+                            {
+                                "name": "Paper 1",
+                                "subject": "Teaching & Research Aptitude",
+                                "questionCount": 50,
+                                "marksPerQuestion": 2.0
+                            }
+                        ]
+                    }
+                    """;
+
+            mockMvc.perform(post("/api/v1/examinations")
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EXAM_CONTROLLER")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(rawJson))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.status").value("success"))
+                    .andExpect(jsonPath("$.data.id").value(EXAM_ID.toString()));
+
+            assertThat(captor.getValue().getNavigationPolicy()).isEqualTo(NavigationPolicy.FLEXIBLE);
+            assertThat(captor.getValue().getCalculatorPolicy()).isEqualTo(CalculatorPolicy.SCIENTIFIC);
         }
 
         @Test
@@ -247,6 +318,129 @@ class ExaminationControllerIntegrationTest extends AbstractIntegrationTest {
         }
 
         @Test
+        @DisplayName("+ve: EXAM_CONTROLLER updates examination with policy aliases (FREE_NAVIGATION, VIRTUAL_SCIENTIFIC) - maps to FLEXIBLE and SCIENTIFIC")
+        void examControllerCanUpdateExaminationWithPolicyAliases() throws Exception {
+            ArgumentCaptor<CreateExaminationRequest> captor = ArgumentCaptor.forClass(CreateExaminationRequest.class);
+            ExaminationResponse response = sampleExaminationResponse();
+
+            when(examinationService.update(eq(EXAM_ID), captor.capture(), eq(TENANT_ID)))
+                    .thenReturn(response);
+
+            String rawJson = """
+                    {
+                        "name": "Updated National Eligibility Test 2026",
+                        "code": "NET-2026",
+                        "durationMinutes": 180,
+                        "totalMarks": 300,
+                        "navigationPolicy": "FREE_NAVIGATION",
+                        "calculatorPolicy": "VIRTUAL_SCIENTIFIC",
+                        "sections": [
+                            {
+                                "name": "Paper 1",
+                                "subject": "Teaching & Research Aptitude",
+                                "questionCount": 50,
+                                "marksPerQuestion": 2.0
+                            }
+                        ]
+                    }
+                    """;
+
+            mockMvc.perform(put("/api/v1/examinations/{examId}", EXAM_ID)
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EXAM_CONTROLLER")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(rawJson))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("success"))
+                    .andExpect(jsonPath("$.data.id").value(EXAM_ID.toString()));
+
+            assertThat(captor.getValue().getNavigationPolicy()).isEqualTo(NavigationPolicy.FLEXIBLE);
+            assertThat(captor.getValue().getCalculatorPolicy()).isEqualTo(CalculatorPolicy.SCIENTIFIC);
+        }
+
+        @Test
+        @DisplayName("+ve: EXAM_CONTROLLER updates examination to SECTION_LOCKED and VIRTUAL_BASIC - maps to RESTRICTED and BASIC")
+        void examControllerCanUpdateExaminationToSectionLocked() throws Exception {
+            ArgumentCaptor<CreateExaminationRequest> captor = ArgumentCaptor.forClass(CreateExaminationRequest.class);
+            ExaminationResponse response = sampleExaminationResponse();
+
+            when(examinationService.update(eq(EXAM_ID), captor.capture(), eq(TENANT_ID)))
+                    .thenReturn(response);
+
+            String rawJson = """
+                    {
+                        "name": "Updated National Eligibility Test 2026",
+                        "code": "NET-2026",
+                        "durationMinutes": 180,
+                        "totalMarks": 300,
+                        "navigationPolicy": "SECTION_LOCKED",
+                        "calculatorPolicy": "VIRTUAL_BASIC",
+                        "sections": [
+                            {
+                                "name": "Paper 1",
+                                "subject": "Teaching & Research Aptitude",
+                                "questionCount": 50,
+                                "marksPerQuestion": 2.0
+                            }
+                        ]
+                    }
+                    """;
+
+            mockMvc.perform(put("/api/v1/examinations/{examId}", EXAM_ID)
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EXAM_CONTROLLER")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(rawJson))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("success"))
+                    .andExpect(jsonPath("$.data.id").value(EXAM_ID.toString()));
+
+            assertThat(captor.getValue().getNavigationPolicy()).isEqualTo(NavigationPolicy.RESTRICTED);
+            assertThat(captor.getValue().getCalculatorPolicy()).isEqualTo(CalculatorPolicy.BASIC);
+        }
+
+        @Test
+        @DisplayName("+ve: EXAM_CONTROLLER updates examination to STRICT_SEQUENTIAL - maps to SEQUENTIAL")
+        void examControllerCanUpdateExaminationToStrictSequential() throws Exception {
+            ArgumentCaptor<CreateExaminationRequest> captor = ArgumentCaptor.forClass(CreateExaminationRequest.class);
+            ExaminationResponse response = sampleExaminationResponse();
+
+            when(examinationService.update(eq(EXAM_ID), captor.capture(), eq(TENANT_ID)))
+                    .thenReturn(response);
+
+            String rawJson = """
+                    {
+                        "name": "Updated National Eligibility Test 2026",
+                        "code": "NET-2026",
+                        "durationMinutes": 180,
+                        "totalMarks": 300,
+                        "navigationPolicy": "STRICT_SEQUENTIAL",
+                        "calculatorPolicy": "NONE",
+                        "sections": [
+                            {
+                                "name": "Paper 1",
+                                "subject": "Teaching & Research Aptitude",
+                                "questionCount": 50,
+                                "marksPerQuestion": 2.0
+                            }
+                        ]
+                    }
+                    """;
+
+            mockMvc.perform(put("/api/v1/examinations/{examId}", EXAM_ID)
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EXAM_CONTROLLER")))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(rawJson))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("success"))
+                    .andExpect(jsonPath("$.data.id").value(EXAM_ID.toString()));
+
+            assertThat(captor.getValue().getNavigationPolicy()).isEqualTo(NavigationPolicy.SEQUENTIAL);
+            assertThat(captor.getValue().getCalculatorPolicy()).isEqualTo(CalculatorPolicy.NONE);
+        }
+
+        @Test
         @DisplayName("-ve: Non-existent examination returns 404 Not Found")
         void nonExistentExaminationReturnsNotFound() throws Exception {
             CreateExaminationRequest request = validCreateRequest();
@@ -278,18 +472,18 @@ class ExaminationControllerIntegrationTest extends AbstractIntegrationTest {
     }
 
     // =========================================================================
-    // 4. PUT /api/v1/examinations/{examId}/publish (Publish Examination)
+    // 4. PUT / POST /api/v1/examinations/{examId}/publish (Publish Examination)
     // =========================================================================
     @Nested
-    @DisplayName("PUT /api/v1/examinations/{examId}/publish")
+    @DisplayName("PUT/POST /api/v1/examinations/{examId}/publish")
     class PublishExaminationEndpoint {
 
         @Test
-        @DisplayName("+ve: EXAM_CONTROLLER publishes examination - returns 200 OK")
+        @DisplayName("+ve: EXAM_CONTROLLER publishes examination via PUT - returns 200 OK")
         void examControllerCanPublishExamination() throws Exception {
             ExaminationResponse publishedResponse = ExaminationResponse.builder()
                     .id(EXAM_ID)
-                    .status("PUBLISHED")
+                    .status(QuestionStateConstants.PUBLISHED)
                     .build();
 
             when(examinationService.publish(eq(EXAM_ID), eq(TENANT_ID))).thenReturn(publishedResponse);
@@ -299,7 +493,25 @@ class ExaminationControllerIntegrationTest extends AbstractIntegrationTest {
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EXAM_CONTROLLER"))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("success"))
-                    .andExpect(jsonPath("$.data.status").value("PUBLISHED"));
+                    .andExpect(jsonPath("$.data.status").value(QuestionStateConstants.PUBLISHED));
+        }
+
+        @Test
+        @DisplayName("+ve: EXAM_CONTROLLER publishes examination via POST - returns 200 OK")
+        void examControllerCanPublishExaminationViaPost() throws Exception {
+            ExaminationResponse publishedResponse = ExaminationResponse.builder()
+                    .id(EXAM_ID)
+                    .status(QuestionStateConstants.PUBLISHED)
+                    .build();
+
+            when(examinationService.publish(eq(EXAM_ID), eq(TENANT_ID))).thenReturn(publishedResponse);
+
+            mockMvc.perform(post("/api/v1/examinations/{examId}/publish", EXAM_ID)
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EXAM_CONTROLLER"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("success"))
+                    .andExpect(jsonPath("$.data.status").value(QuestionStateConstants.PUBLISHED));
         }
 
         @Test

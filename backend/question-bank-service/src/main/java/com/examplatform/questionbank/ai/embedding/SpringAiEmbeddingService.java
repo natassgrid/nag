@@ -15,10 +15,6 @@
  */
 package com.examplatform.questionbank.ai.embedding;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-
 import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.repository.QuestionRepository;
 import com.examplatform.questionbank.util.EmbeddingUtils;
@@ -29,6 +25,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Spring AI implementation of {@link EmbeddingService} that delegates to an

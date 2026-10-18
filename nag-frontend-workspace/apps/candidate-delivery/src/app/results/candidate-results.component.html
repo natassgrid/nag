@@ -7,6 +7,14 @@
   >
     <div actions class="flex items-center gap-3">
       <a
+        mat-flat-button
+        routerLink="/learn/roadmap"
+        class="!rounded-xl !text-xs font-semibold !bg-indigo-600 !text-white shadow-xs"
+      >
+        <mat-icon class="!text-sm">auto_awesome</mat-icon>
+        AI Study Coach &amp; Remediation Roadmap
+      </a>
+      <a
         mat-stroked-button
         routerLink="/dashboard"
         class="!rounded-xl !text-xs font-semibold"
@@ -68,6 +76,26 @@
   @if (!resultsService.loading() && resultsService.selectedScorecard(); as sc) {
     <!-- Certificate Banner & Top KPIs -->
     <nag-results-performance-summary [scorecard]="sc" />
+
+    <!-- AI Remediation Roadmap Callout Banner -->
+    <div class="bg-gradient-to-r from-indigo-900 to-indigo-950 text-white rounded-2xl p-5 border border-indigo-800 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-300 flex items-center justify-center shrink-0">
+          <mat-icon class="!text-xl">auto_awesome</mat-icon>
+        </div>
+        <div>
+          <h3 class="text-sm font-bold text-white">Targeted Remediation Available</h3>
+          <p class="text-xs text-indigo-200">Convert weak topic attempts into a personalized 3-phase study path with bite-sized micro-lessons and adaptive quizzes.</p>
+        </div>
+      </div>
+      <a
+        mat-flat-button
+        routerLink="/learn/roadmap"
+        class="!bg-indigo-500 hover:!bg-indigo-600 !text-white !font-bold !text-xs !py-2.5 !px-5 !rounded-xl shadow-md shrink-0 cursor-pointer"
+      >
+        AI Study Coach &amp; Remediation Roadmap &rarr;
+      </a>
+    </div>
 
     <!-- Section-wise Performance Breakdown -->
     <nag-results-section-table [subjectScores]="sc.subjectScores" />

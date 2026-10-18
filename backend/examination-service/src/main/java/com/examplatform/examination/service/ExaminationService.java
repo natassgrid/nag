@@ -28,6 +28,8 @@ import com.examplatform.examination.dto.ExaminationResponse;
 import com.examplatform.examination.exception.ExaminationNotFoundException;
 import com.examplatform.examination.exception.SectionMarksValidationException;
 import com.examplatform.examination.repository.ExaminationRepository;
+import com.examplatform.shared.constants.QuestionStateConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -50,6 +52,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
+
 /**
  * Service layer for examination CRUD operations with section marks validation.
  *
@@ -60,8 +64,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Transactional
 public class ExaminationService {
-
-    private static final String AUDIT_TOPIC = "exam.audit.events";
 
     private final ExaminationRepository examinationRepository;
     private final ObjectMapper objectMapper;
@@ -122,7 +124,7 @@ public class ExaminationService {
      */
     public Page<ExaminationResponse> listPublishedPaged(
             String tenantId, String search, String category, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, SharedConstants.CREATED_AT));
 
         boolean hasCategory = category != null && !category.isBlank() && !"ALL".equalsIgnoreCase(category);
         boolean hasSearch = search != null && !search.isBlank();
@@ -130,15 +132,15 @@ public class ExaminationService {
         Page<Examination> examPage;
         if (hasCategory && hasSearch) {
             examPage = examinationRepository.findByStatusAndTenantIdAndCategoryIgnoreCaseAndNameContainingIgnoreCase(
-                    "PUBLISHED", tenantId, category.trim(), search.trim(), pageable);
+                QuestionStateConstants.PUBLISHED, tenantId, category.trim(), search.trim(), pageable);
         } else if (hasCategory) {
             examPage = examinationRepository.findByStatusAndTenantIdAndCategoryIgnoreCase(
-                    "PUBLISHED", tenantId, category.trim(), pageable);
+                QuestionStateConstants.PUBLISHED, tenantId, category.trim(), pageable);
         } else if (hasSearch) {
             examPage = examinationRepository.findByStatusAndTenantIdAndNameContainingIgnoreCase(
-                    "PUBLISHED", tenantId, search.trim(), pageable);
+                QuestionStateConstants.PUBLISHED, tenantId, search.trim(), pageable);
         } else {
-            examPage = examinationRepository.findByStatusAndTenantId("PUBLISHED", tenantId, pageable);
+            examPage = examinationRepository.findByStatusAndTenantId(QuestionStateConstants.PUBLISHED, tenantId, pageable);
         }
 
         return examPage.map(exam -> {
@@ -182,7 +184,7 @@ public class ExaminationService {
                 .calculatorPolicy(request.getCalculatorPolicy() != null ? request.getCalculatorPolicy().name() : CalculatorPolicy.NONE.name())
                 .reviewFlagEnabled(Boolean.TRUE.equals(request.getReviewFlagEnabled()))
                 .isPractice(Boolean.TRUE.equals(request.getIsPractice()))
-                .status("DRAFT")
+                .status(QuestionStateConstants.DRAFT)
                 .sectionsJson(sectionsJson)
                 .build();
 
@@ -192,7 +194,7 @@ public class ExaminationService {
 
         publishAuditEvent("EXAM_CREATED", saved.getId().toString(), tenantId, Map.of(
                 "examId", saved.getId().toString(),
-                "name", saved.getName(),
+            SharedConstants.NAME, saved.getName(),
                 "totalMarks", saved.getTotalMarks()
         ));
 
@@ -212,7 +214,7 @@ public class ExaminationService {
             throw new AccessDeniedException("Cannot update examination belonging to another tenant");
         }
 
-        if (!"DRAFT".equals(examination.getStatus())) {
+        if (!QuestionStateConstants.DRAFT.equals(examination.getStatus())) {
             throw new IllegalStateException(
                     "Examination cannot be modified once published (current status: " + examination.getStatus() + ")");
         }
@@ -254,12 +256,12 @@ public class ExaminationService {
             throw new AccessDeniedException("Cannot publish examination belonging to another tenant");
         }
 
-        if (!"DRAFT".equals(examination.getStatus())) {
+        if (!QuestionStateConstants.DRAFT.equals(examination.getStatus())) {
             throw new IllegalStateException(
                     "Only DRAFT examinations can be published (current status: " + examination.getStatus() + ")");
         }
 
-        examination.setStatus("PUBLISHED");
+        examination.setStatus(QuestionStateConstants.PUBLISHED);
         return persistAndBuildResponse(examination, "Published", "EXAM_PUBLISHED", tenantId);
     }
 
@@ -286,7 +288,7 @@ public class ExaminationService {
         if (auditEventType != null) {
             publishAuditEvent(auditEventType, saved.getId().toString(), tenantId, Map.of(
                     "examId", saved.getId().toString(),
-                    "name", saved.getName()
+                SharedConstants.NAME, saved.getName()
             ));
         }
 
@@ -299,10 +301,10 @@ public class ExaminationService {
      */
     @Transactional(readOnly = true)
     public Map<String, Object> getExaminationStatusBreakdown(String tenantId) {
-        long scheduled = examinationRepository.countByStatusAndTenantId("PUBLISHED", tenantId);
+        long scheduled = examinationRepository.countByStatusAndTenantId(QuestionStateConstants.PUBLISHED, tenantId);
         long live = examinationRepository.countByStatusAndTenantId("IN_PROGRESS", tenantId);
         long completed = examinationRepository.countByStatusAndTenantId("CLOSED", tenantId)
-                + examinationRepository.countByStatusAndTenantId("ARCHIVED", tenantId);
+                + examinationRepository.countByStatusAndTenantId(QuestionStateConstants.ARCHIVED, tenantId);
         long cancelled = examinationRepository.countByStatusAndTenantId("CANCELLED", tenantId);
 
         return Map.of(
@@ -349,7 +351,8 @@ public class ExaminationService {
             return List.of();
         }
         try {
-            return objectMapper.readValue(sectionsJson, new TypeReference<List<Section>>() {});
+            return objectMapper.readValue(sectionsJson, new TypeReference<>() {
+            });
         } catch (JsonProcessingException e) {
             log.warn("Failed to deserialize sectionsJson: {}", e.getMessage());
             return List.of();
@@ -358,16 +361,16 @@ public class ExaminationService {
 
     private String resolveExamSortProperty(String sort) {
         if (sort == null || sort.isBlank()) {
-            return "createdAt";
+            return SharedConstants.CREATED_AT;
         }
         return switch (sort.toLowerCase()) {
-            case "name" -> "name";
-            case "code" -> "code";
+            case SharedConstants.NAME -> SharedConstants.NAME;
+            case SharedConstants.CODE -> SharedConstants.CODE;
             case "duration", "durationminutes" -> "durationMinutes";
             case "marks", "totalmarks" -> "totalMarks";
-            case "status" -> "status";
+            case SharedConstants.STATUS -> SharedConstants.STATUS;
             case "category" -> "category";
-            default -> "createdAt";
+            default -> SharedConstants.CREATED_AT;
         };
     }
 
@@ -378,11 +381,11 @@ public class ExaminationService {
     private void publishAuditEvent(String eventType, String entityId, String tenantId, Map<String, Object> details) {
         try {
             Map<String, Object> payload = new HashMap<>(details);
-            payload.put("eventType", eventType);
+            payload.put(SharedConstants.EVENT_TYPE, eventType);
             payload.put("entityId", entityId);
-            payload.put("tenantId", tenantId);
+            payload.put(SharedConstants.TENANT_ID, tenantId);
             payload.put("timestamp", LocalDateTime.ofInstant(Instant.now(), ZoneOffset.UTC).toString());
-            eventPublisher.publish(AUDIT_TOPIC, entityId, payload);
+            eventPublisher.publish(AUDIT_EVENTS_TOPIC, entityId, payload);
         } catch (Exception e) {
             log.warn("Failed to publish audit event {}: {}", eventType, e.getMessage());
         }

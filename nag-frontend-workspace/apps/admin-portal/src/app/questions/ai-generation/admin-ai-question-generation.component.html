@@ -11,8 +11,18 @@
       </p>
     </div>
 
-    <!-- Mode Selector -->
-    <div class="flex items-center gap-2 bg-slate-100 p-1 rounded-2xl border border-slate-200">
+    <!-- Action Controls -->
+    <div class="flex items-center gap-3">
+      <a
+        routerLink="/questions/authoring"
+        [queryParams]="{ action: 'prompt-import' }"
+        class="px-3.5 py-2 rounded-xl text-xs font-bold border border-indigo-200 bg-indigo-50/70 text-indigo-700 hover:bg-indigo-100 transition flex items-center gap-1.5 shadow-2xs"
+      >
+        <mat-icon class="!text-sm text-indigo-600">auto_awesome</mat-icon>
+        <span>External Prompt &amp; Import</span>
+      </a>
+      <!-- Mode Selector -->
+      <div class="flex items-center gap-2 bg-slate-100 p-1 rounded-2xl border border-slate-200">
       <button
         type="button"
         (click)="activeTab.set('realtime')"

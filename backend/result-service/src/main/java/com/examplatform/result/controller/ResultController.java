@@ -32,13 +32,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
@@ -63,7 +57,7 @@ public class ResultController {
      * Accessible by CANDIDATE, SUPER_ADMIN, or ADMIN.
      */
     @GetMapping("/my-results")
-    @PreAuthorize("hasAnyRole('CANDIDATE', 'SUPER_ADMIN', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('CANDIDATE', 'SUPER_ADMIN')")
     public ResponseEntity<List<Result>> getMyResults(Authentication auth) {
         String tenantId = ResultAccessSecurityHelper.extractTenantId(auth);
         UUID candidateId = extractCandidateId(auth);
@@ -77,7 +71,7 @@ public class ResultController {
      * Accessible by CANDIDATE, SUPER_ADMIN, or ADMIN.
      */
     @GetMapping("/candidate/{candidateId}")
-    @PreAuthorize("hasAnyRole('CANDIDATE', 'SUPER_ADMIN', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('CANDIDATE', 'SUPER_ADMIN')")
     public ResponseEntity<List<Result>> getCandidateResults(@PathVariable UUID candidateId,
                                                            Authentication auth) {
         String tenantId = ResultAccessSecurityHelper.extractTenantId(auth);
@@ -158,7 +152,7 @@ public class ResultController {
      * Accessible by CANDIDATE, SUPER_ADMIN, ADMIN, or EXAM_CONTROLLER.
      */
     @PostMapping("/{id}/digilocker/push")
-    @PreAuthorize("hasAnyRole('CANDIDATE', 'ADMIN', 'SUPER_ADMIN', 'EXAM_CONTROLLER')")
+    @PreAuthorize("hasAnyRole('CANDIDATE', 'SUPER_ADMIN', 'EXAM_CONTROLLER')")
     public ResponseEntity<DigiLockerPushResponse> pushToDigiLocker(@PathVariable UUID id,
                                                                   Authentication auth) {
         String tenantId = ResultAccessSecurityHelper.extractTenantId(auth);

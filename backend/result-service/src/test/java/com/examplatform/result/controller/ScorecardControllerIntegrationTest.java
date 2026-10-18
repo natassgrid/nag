@@ -43,10 +43,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @DisplayName("ScorecardController REST Endpoints E2E Tests (MockMvc)")
 class ScorecardControllerIntegrationTest extends AbstractIntegrationTest {
@@ -123,8 +120,8 @@ class ScorecardControllerIntegrationTest extends AbstractIntegrationTest {
         }
 
         @Test
-        @DisplayName("+ve: ADMIN downloads scorecard binary PDF directly")
-        void adminCanDownloadScorecard() throws Exception {
+        @DisplayName("+ve: SUPER_ADMIN downloads scorecard binary PDF directly")
+        void superAdminCanDownloadScorecard() throws Exception {
             String storageKey = "scorecards/scorecard-" + RESULT_ID + ".pdf";
             byte[] pdfBytes = "%PDF-1.4 admin download".getBytes(StandardCharsets.UTF_8);
 
@@ -141,7 +138,7 @@ class ScorecardControllerIntegrationTest extends AbstractIntegrationTest {
 
             mockMvc.perform(get("/api/v1/results/{candidateId}/scorecard", CANDIDATE_ID)
                             .param("download", "true")
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))
                                     .jwt(j -> j.subject(UUID.randomUUID().toString()).claim("tenant_id", TENANT_ID)))
                             .header("X-Tenant-Id", TENANT_ID))
                     .andExpect(status().isOk())

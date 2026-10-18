@@ -19,8 +19,13 @@
 
 package com.examplatform.delivery.service;
 
+import com.examplatform.delivery.dto.PaperOptionPayload;
+import com.examplatform.delivery.dto.PaperPayload;
+import com.examplatform.delivery.dto.PaperQuestionPayload;
 import com.examplatform.delivery.dto.QuestionDeliveryDto;
 import com.examplatform.delivery.dto.QuestionOptionDeliveryDto;
+import com.examplatform.shared.constants.QuestionTypeConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -35,12 +40,22 @@ import java.util.UUID;
 
 /**
  * Component responsible for parsing and normalizing question payloads from JSON, JsonNodes,
- * and decrypted examination paper structures.
+ * and decrypted examination paper structures using strongly-typed POJOs.
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class QuestionDeliveryParser {
+
+    private static final String FIELD_QUESTIONS = "questions";
+
+    private static final String[] CONTAINER_FIELDS = {
+            "questionIds", FIELD_QUESTIONS, "questionGroups", "sections"
+    };
+
+    private static final String[] ID_FIELDS = {
+            "id", SharedConstants.QUESTION_ID, "question_id"
+    };
 
     private final ObjectMapper objectMapper;
 
@@ -54,136 +69,162 @@ public class QuestionDeliveryParser {
     ) {}
 
     public List<QuestionDeliveryDto> parseFromPaperJson(String decryptedPaper) {
-        List<QuestionDeliveryDto> questions = new ArrayList<>();
+        if (decryptedPaper == null || decryptedPaper.isBlank()) {
+            return Collections.emptyList();
+        }
         try {
-            JsonNode root = objectMapper.readTree(decryptedPaper);
-            JsonNode questionsNode = root.path("questions");
-            if (questionsNode.isArray()) {
-                int index = 1;
-                for (JsonNode qNode : questionsNode) {
-                    QuestionDeliveryDto q = parseSingleQuestionNode(qNode, index++);
-                    if (q != null) {
-                        questions.add(q);
-                    }
+            PaperPayload paper = objectMapper.readValue(decryptedPaper, PaperPayload.class);
+            if (paper.getQuestions() == null || paper.getQuestions().isEmpty()) {
+                return Collections.emptyList();
+            }
+            List<QuestionDeliveryDto> questions = new ArrayList<>(paper.getQuestions().size());
+            int index = 1;
+            for (PaperQuestionPayload payload : paper.getQuestions()) {
+                QuestionDeliveryDto q = convertToDeliveryDto(payload, index++);
+                if (q != null) {
+                    questions.add(q);
                 }
             }
+            return questions;
         } catch (JsonProcessingException e) {
             log.error("Failed to parse examination paper questions JSON: {}", e.getMessage());
+            return Collections.emptyList();
         }
-        return questions;
     }
 
     public QuestionDeliveryDto parseSingleQuestionNode(JsonNode qNode, int sequenceNumber) {
+        if (qNode == null || qNode.isNull()) {
+            return null;
+        }
         try {
-            String id = qNode.has("id") ? qNode.get("id").asText() :
-                    (qNode.has("questionId") ? qNode.get("questionId").asText() : UUID.randomUUID().toString());
-            String content = qNode.has("content") ? qNode.get("content").asText() :
-                    (qNode.has("text") ? qNode.get("text").asText() : "");
-            String subject = qNode.has("subject") ? qNode.get("subject").asText() : null;
-            String topic = qNode.has("topic") ? qNode.get("topic").asText() : "General";
-            String explanation = qNode.has("explanation") ? qNode.get("explanation").asText() : null;
-            String answerKey = qNode.has("answerKey") ? qNode.get("answerKey").asText() :
-                    (qNode.has("answer_key") ? qNode.get("answer_key").asText() : null);
-            String imageUrl = qNode.has("imageUrl") && !qNode.get("imageUrl").isNull() ? qNode.get("imageUrl").asText(null) : null;
-            String imageAltText = qNode.has("imageAltText") && !qNode.get("imageAltText").isNull() ? qNode.get("imageAltText").asText(null) : null;
-            boolean hasImages = qNode.has("hasImages") && qNode.get("hasImages").asBoolean();
-
-            String questionType = qNode.has("questionType") ? qNode.get("questionType").asText() :
-                    (qNode.has("question_type") ? qNode.get("question_type").asText() : "SINGLE_MCQ");
-            String passageId = qNode.has("passageId") ? qNode.get("passageId").asText() :
-                    (qNode.has("passage_id") ? qNode.get("passage_id").asText() : null);
-            String passageContent = qNode.has("passageContent") ? qNode.get("passageContent").asText() :
-                    (qNode.has("passage_content") ? qNode.get("passage_content").asText() : null);
-            Integer passageOrderIndex = qNode.has("passageOrderIndex") ? qNode.get("passageOrderIndex").asInt() :
-                    (qNode.has("passage_order_index") ? qNode.get("passage_order_index").asInt() : null);
-
-            ParsedOptions parsedOptions = parseOptions(qNode.get("options"), answerKey);
-            List<QuestionOptionDeliveryDto> options = parsedOptions.options();
-            Integer correctOptionIndex = parsedOptions.correctOptionIndex();
-            if (parsedOptions.hasImages()) {
-                hasImages = true;
-            }
-
-            if (correctOptionIndex == null && qNode.has("correctOptionIndex")) {
-                correctOptionIndex = qNode.get("correctOptionIndex").asInt();
-            }
-
-            String secId = resolveSectionId(subject, sequenceNumber);
-            String secName = resolveSectionName(subject, sequenceNumber);
-
-            return QuestionDeliveryDto.builder()
-                    .id(id)
-                    .text(content)
-                    .imageUrl(imageUrl)
-                    .imageAltText(imageAltText)
-                    .hasImages(hasImages)
-                    .options(options)
-                    .marks(qNode.has("marks") ? qNode.get("marks").asDouble() : 2.0)
-                    .negativeMarks(qNode.has("negativeMarks") ? qNode.get("negativeMarks").asDouble() : 0.5)
-                    .sectionId(secId)
-                    .sectionName(secName)
-                    .topic(topic)
-                    .correctOptionIndex(correctOptionIndex)
-                    .explanation(explanation)
-                    .questionType(questionType)
-                    .passageId(passageId)
-                    .passageContent(passageContent)
-                    .passageOrderIndex(passageOrderIndex)
-                    .build();
+            PaperQuestionPayload payload = objectMapper.treeToValue(qNode, PaperQuestionPayload.class);
+            return convertToDeliveryDto(payload, sequenceNumber);
         } catch (Exception e) {
             log.warn("Error parsing individual question node: {}", e.getMessage());
             return null;
         }
     }
 
+    public QuestionDeliveryDto convertToDeliveryDto(PaperQuestionPayload payload, int sequenceNumber) {
+        if (payload == null) {
+            return null;
+        }
+
+        String id = (payload.getId() != null && !payload.getId().isBlank())
+                ? payload.getId()
+                : UUID.randomUUID().toString();
+        String content = payload.getContent() != null ? payload.getContent() : "";
+        String subject = payload.getSubject();
+        String topic = (payload.getTopic() != null && !payload.getTopic().isBlank())
+                ? payload.getTopic()
+                : "General";
+        String explanation = payload.getExplanation();
+        String questionType = (payload.getQuestionType() != null && !payload.getQuestionType().isBlank())
+                ? payload.getQuestionType()
+                : QuestionTypeConstants.SINGLE_MCQ;
+        boolean hasImages = Boolean.TRUE.equals(payload.getHasImages());
+
+        ParsedOptions parsedOptions = processParsedOptions(payload.getOptions(), payload.getAnswerKey());
+        List<QuestionOptionDeliveryDto> options = parsedOptions.options();
+        Integer correctOptionIndex = parsedOptions.correctOptionIndex();
+        if (parsedOptions.hasImages()) {
+            hasImages = true;
+        }
+
+        if (correctOptionIndex == null && payload.getCorrectOptionIndex() != null) {
+            correctOptionIndex = payload.getCorrectOptionIndex();
+        }
+
+        String secId = resolveSectionId(subject, sequenceNumber);
+        String secName = resolveSectionName(subject, sequenceNumber);
+        double marks = payload.getMarks() != null ? payload.getMarks() : 2.0;
+        double negativeMarks = payload.getNegativeMarks() != null ? payload.getNegativeMarks() : 0.5;
+
+        return QuestionDeliveryDto.builder()
+                .id(id)
+                .text(content)
+                .imageUrl(payload.getImageUrl())
+                .imageAltText(payload.getImageAltText())
+                .hasImages(hasImages)
+                .options(options)
+                .marks(marks)
+                .negativeMarks(negativeMarks)
+                .sectionId(secId)
+                .sectionName(secName)
+                .topic(topic)
+                .correctOptionIndex(correctOptionIndex)
+                .explanation(explanation)
+                .questionType(questionType)
+                .passageId(payload.getPassageId())
+                .passageContent(payload.getPassageContent())
+                .passageOrderIndex(payload.getPassageOrderIndex())
+                .build();
+    }
+
     /**
      * Parses an options JsonNode array into a list of QuestionOptionDeliveryDto items and resolves correct option index.
      */
     public ParsedOptions parseOptions(JsonNode optionsNode, String answerKey) {
-        List<QuestionOptionDeliveryDto> options = new ArrayList<>();
+        if (optionsNode == null || !optionsNode.isArray()) {
+            return new ParsedOptions(Collections.emptyList(), null, false);
+        }
+        try {
+            List<PaperOptionPayload> options = objectMapper.readerForListOf(PaperOptionPayload.class).readValue(optionsNode);
+            return processParsedOptions(options, answerKey);
+        } catch (Exception e) {
+            log.warn("Failed to parse options node: {}", e.getMessage());
+            return new ParsedOptions(Collections.emptyList(), null, false);
+        }
+    }
+
+    public ParsedOptions processParsedOptions(List<PaperOptionPayload> optionPayloads, String answerKey) {
+        if (optionPayloads == null || optionPayloads.isEmpty()) {
+            return new ParsedOptions(Collections.emptyList(), null, false);
+        }
+
+        List<QuestionOptionDeliveryDto> dtos = new ArrayList<>(optionPayloads.size());
         Integer correctOptionIndex = null;
         boolean hasImages = false;
 
-        if (optionsNode != null && optionsNode.isArray()) {
-            for (int i = 0; i < optionsNode.size(); i++) {
-                JsonNode optNode = optionsNode.get(i);
-                String optText;
-                String optId = "";
-                String optImageUrl = null;
-                String optImageAltText = null;
-                boolean isCorrect = false;
+        for (int i = 0; i < optionPayloads.size(); i++) {
+            PaperOptionPayload opt = optionPayloads.get(i);
+            String optId = (opt.getId() != null && !opt.getId().isBlank()) ? opt.getId() : defaultOptionId(i);
+            String optText = opt.getText() != null ? opt.getText() : "";
+            boolean isCorrect = Boolean.TRUE.equals(opt.getIsCorrect());
 
-                if (optNode.isObject()) {
-                    optText = optNode.has("text") ? optNode.get("text").asText() : optNode.asText();
-                    optId = optNode.has("id") ? optNode.get("id").asText() : String.valueOf((char) ('A' + i));
-                    isCorrect = optNode.has("isCorrect") && optNode.get("isCorrect").asBoolean();
-                    optImageUrl = optNode.has("imageUrl") && !optNode.get("imageUrl").isNull() ? optNode.get("imageUrl").asText(null) : null;
-                    optImageAltText = optNode.has("imageAltText") && !optNode.get("imageAltText").isNull() ? optNode.get("imageAltText").asText(null) : null;
-                } else {
-                    optText = optNode.asText();
-                    optId = String.valueOf((char) ('A' + i));
-                }
-
-                if (optImageUrl != null && !optImageUrl.isBlank()) {
-                    hasImages = true;
-                }
-
-                if (isCorrect || (answerKey != null && (answerKey.equalsIgnoreCase(optId) || answerKey.equalsIgnoreCase(optText)))) {
-                    correctOptionIndex = i;
-                }
-
-                options.add(QuestionOptionDeliveryDto.builder()
-                        .id(optId)
-                        .index(i)
-                        .originalIndex(i)
-                        .text(optText)
-                        .imageUrl(optImageUrl)
-                        .imageAltText(optImageAltText)
-                        .build());
+            if (opt.getImageUrl() != null && !opt.getImageUrl().isBlank()) {
+                hasImages = true;
             }
+
+            if (isOptionCorrect(isCorrect, answerKey, optId, optText)) {
+                correctOptionIndex = i;
+            }
+
+            dtos.add(QuestionOptionDeliveryDto.builder()
+                    .id(optId)
+                    .index(i)
+                    .originalIndex(i)
+                    .text(optText)
+                    .imageUrl(opt.getImageUrl())
+                    .imageAltText(opt.getImageAltText())
+                    .build());
         }
 
-        return new ParsedOptions(options, correctOptionIndex, hasImages);
+        return new ParsedOptions(dtos, correctOptionIndex, hasImages);
+    }
+
+    private String defaultOptionId(int index) {
+        return String.valueOf((char) ('A' + index));
+    }
+
+    private boolean isOptionCorrect(boolean isCorrect, String answerKey, String optId, String optText) {
+        if (isCorrect) {
+            return true;
+        }
+        if (answerKey == null) {
+            return false;
+        }
+        return answerKey.equalsIgnoreCase(optId) || answerKey.equalsIgnoreCase(optText);
     }
 
     enum StandardSection {
@@ -253,11 +294,7 @@ public class QuestionDeliveryParser {
         List<UUID> list = new ArrayList<>();
         for (String part : raw.split(",")) {
             String trimmed = part.trim().replace("\"", "").replace("'", "");
-            try {
-                if (!trimmed.isBlank()) {
-                    list.add(UUID.fromString(trimmed));
-                }
-            } catch (IllegalArgumentException ignored) {}
+            tryParseUuid(trimmed, list);
         }
         return list;
     }
@@ -267,9 +304,7 @@ public class QuestionDeliveryParser {
             return;
         }
         if (node.isTextual()) {
-            try {
-                accumulator.add(UUID.fromString(node.asText()));
-            } catch (IllegalArgumentException ignored) {}
+            tryParseUuid(node.asText(), accumulator);
             return;
         }
         if (node.isArray()) {
@@ -279,30 +314,31 @@ public class QuestionDeliveryParser {
             return;
         }
         if (node.isObject()) {
-            if (node.has("questionIds")) {
-                extractUuidsFromNode(node.get("questionIds"), accumulator);
+            extractUuidsFromObjectNode(node, accumulator);
+        }
+    }
+
+    private void extractUuidsFromObjectNode(JsonNode node, List<UUID> accumulator) {
+        for (String field : CONTAINER_FIELDS) {
+            if (node.has(field)) {
+                extractUuidsFromNode(node.get(field), accumulator);
             }
-            if (node.has("questions")) {
-                extractUuidsFromNode(node.get("questions"), accumulator);
+        }
+
+        for (String field : ID_FIELDS) {
+            if (node.has(field)) {
+                tryParseUuid(node.get(field).asText(), accumulator);
+                break;
             }
-            if (node.has("questionGroups")) {
-                extractUuidsFromNode(node.get("questionGroups"), accumulator);
-            }
-            if (node.has("sections")) {
-                extractUuidsFromNode(node.get("sections"), accumulator);
-            }
-            if (node.has("id")) {
-                try {
-                    accumulator.add(UUID.fromString(node.get("id").asText()));
-                } catch (IllegalArgumentException ignored) {}
-            } else if (node.has("questionId")) {
-                try {
-                    accumulator.add(UUID.fromString(node.get("questionId").asText()));
-                } catch (IllegalArgumentException ignored) {}
-            } else if (node.has("question_id")) {
-                try {
-                    accumulator.add(UUID.fromString(node.get("question_id").asText()));
-                } catch (IllegalArgumentException ignored) {}
+        }
+    }
+
+    private void tryParseUuid(String text, List<UUID> accumulator) {
+        if (text != null && !text.isBlank()) {
+            try {
+                accumulator.add(UUID.fromString(text));
+            } catch (IllegalArgumentException _) {
+                // Ignore non-UUID strings
             }
         }
     }

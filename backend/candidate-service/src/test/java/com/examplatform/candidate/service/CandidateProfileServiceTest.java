@@ -27,6 +27,7 @@ import com.examplatform.candidate.exception.DuplicateProfileException;
 import com.examplatform.candidate.exception.ProfileNotFoundException;
 import com.examplatform.candidate.repository.CandidateEducationRepository;
 import com.examplatform.candidate.repository.CandidateProfileRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.crypto.HashingService;
 import com.examplatform.shared.crypto.VaultCryptoService;
 import com.examplatform.shared.event.UserAuditEvent;
@@ -42,17 +43,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.JdbcTemplate;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -215,7 +210,7 @@ class CandidateProfileServiceTest {
             } else if (eventObj instanceof Map<?, ?> event) {
                 assertThat(event.get("eventType")).isEqualTo("CANDIDATE_PROFILE_CREATED");
                 assertThat(event.get("actorId")).isEqualTo(USER_ID.toString());
-                assertThat(event.get("tenantId")).isEqualTo(TENANT_ID);
+                assertThat(event.get(SharedConstants.TENANT_ID)).isEqualTo(TENANT_ID);
                 assertThat(event.get("occurredAt")).isNotNull();
             }
         }

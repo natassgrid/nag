@@ -10,6 +10,9 @@ import com.examplatform.practice.repository.PracticeResponseRepository;
 import com.examplatform.practice.repository.PracticeSessionRepository;
 import com.examplatform.practice.repository.PracticeSetRepository;
 import com.examplatform.practice.util.PracticeQuestionUtils;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.examplatform.shared.constants.QuestionTypeConstants;
+import com.examplatform.shared.dto.SubtopicPerformanceDto;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -108,7 +111,8 @@ public class PracticeEvaluationService {
                             .merge("correct", 1, Integer::sum);
                     topicBreakdown.computeIfAbsent(topic, k -> new HashMap<>())
                             .merge("total", 1, Integer::sum);
-                    String diff = ak.difficulty() != null ? ak.difficulty() : "MEDIUM";
+                    String diff = ak.difficulty() != null ? ak.difficulty() :
+                        QuestionTaxonomyConstants.Difficulty.MEDIUM;
                     diffBreakdown.computeIfAbsent(diff, k -> new Integer[]{0, 0});
                     diffBreakdown.get(diff)[0]++;
                     diffBreakdown.get(diff)[1]++;
@@ -119,7 +123,8 @@ public class PracticeEvaluationService {
                     String topic = ak.topicName() != null ? ak.topicName() : "General";
                     topicBreakdown.computeIfAbsent(topic, k -> new HashMap<>())
                             .merge("total", 1, Integer::sum);
-                    String diff = ak.difficulty() != null ? ak.difficulty() : "MEDIUM";
+                    String diff = ak.difficulty() != null ? ak.difficulty() :
+                        QuestionTaxonomyConstants.Difficulty.MEDIUM;
                     diffBreakdown.computeIfAbsent(diff, k -> new Integer[]{0, 0});
                     diffBreakdown.get(diff)[1]++;
                 }
@@ -130,9 +135,112 @@ public class PracticeEvaluationService {
         int noResponseCount = totalQuestions - latestResponses.size();
         skipped += Math.max(0, noResponseCount);
 
+        // Granular subtopic performance telemetry
+        List<UUID> targetQuestions = !allQuestionIds.isEmpty() ? allQuestionIds : new ArrayList<>(latestResponses.keySet());
+        Map<String, SubtopicAccumulator> subtopicMap = new LinkedHashMap<>();
+
+        for (UUID qId : targetQuestions) {
+            AnswerKeyDto ak = answerKeys.get(qId);
+            String subKey = (ak != null && ak.subtopicName() != null && !ak.subtopicName().isBlank())
+                    ? ak.subtopicName()
+                    : (ak != null && ak.topicName() != null ? ak.topicName() : "General");
+
+            SubtopicAccumulator acc = subtopicMap.computeIfAbsent(subKey, k -> {
+                SubtopicAccumulator a = new SubtopicAccumulator();
+                if (ak != null) {
+                    a.subjectId = ak.subjectId();
+                    a.subjectName = ak.subject() != null ? ak.subject() : "General";
+                    try {
+                        a.topicId = ak.topicId() != null ? Long.parseLong(ak.topicId()) : null;
+                    } catch (NumberFormatException ignored) {}
+                    a.topicName = ak.topicName() != null ? ak.topicName() : "General";
+                    Long subId = ak.subtopicId();
+                    if ((subId == null || subId <= 0) && subKey != null && !subKey.isBlank()) {
+                        long hash = Math.abs((long) subKey.toLowerCase(Locale.ROOT).trim().hashCode());
+                        subId = hash > 0 ? hash : 1L;
+                    }
+                    a.subtopicId = subId;
+                } else {
+                    a.subjectName = "General";
+                    a.topicName = "General";
+                    if (subKey != null && !subKey.isBlank()) {
+                        long hash = Math.abs((long) subKey.toLowerCase(Locale.ROOT).trim().hashCode());
+                        a.subtopicId = hash > 0 ? hash : 1L;
+                    }
+                }
+                a.subtopicName = subKey;
+                return a;
+            });
+
+            acc.totalQuestions++;
+            int benchSec = (ak != null && ak.benchmarkTimeSeconds() > 0) ? ak.benchmarkTimeSeconds() : 90;
+            acc.totalBenchmarkTimeMs += benchSec * 1000L;
+
+            PracticeResponse resp = latestResponses.get(qId);
+            boolean hasAnswer = resp != null && (
+                    (resp.getSelectedOptionIds() != null && !resp.getSelectedOptionIds().isBlank() && !resp.getSelectedOptionIds().equals("[]"))
+                    || (resp.getEnteredValue() != null && !resp.getEnteredValue().isBlank())
+            );
+
+            if (!hasAnswer) {
+                acc.skippedCount++;
+            } else {
+                acc.attemptedCount++;
+                acc.totalTimeSpentMs += resp.getTimeSpentMs();
+                if (resp.isCorrect()) {
+                    acc.correctCount++;
+                } else {
+                    acc.incorrectCount++;
+                }
+            }
+        }
+
+        List<SubtopicPerformanceDto> subtopicList = new ArrayList<>();
+        for (SubtopicAccumulator acc : subtopicMap.values()) {
+            double accuracy = acc.attemptedCount > 0
+                    ? Math.round((acc.correctCount * 100.0 / acc.attemptedCount) * 100.0) / 100.0
+                    : 0.0;
+            double skipRate = acc.totalQuestions > 0
+                    ? Math.round((acc.skippedCount * 100.0 / acc.totalQuestions) * 100.0) / 100.0
+                    : 0.0;
+            long avgTimeSpent = acc.attemptedCount > 0 ? (acc.totalTimeSpentMs / acc.attemptedCount) : 0;
+            long avgBenchmark = acc.totalQuestions > 0 ? (acc.totalBenchmarkTimeMs / acc.totalQuestions) : 90000L;
+            double paceRatio = (avgBenchmark > 0 && acc.attemptedCount > 0)
+                    ? Math.round(((double) avgTimeSpent / avgBenchmark) * 100.0) / 100.0
+                    : 1.0;
+
+            Long effectiveSubtopicId = acc.subtopicId;
+            if (effectiveSubtopicId == null || effectiveSubtopicId <= 0) {
+                String subName = (acc.subtopicName != null && !acc.subtopicName.isBlank()) ? acc.subtopicName : "general";
+                long hash = Math.abs((long) subName.toLowerCase(Locale.ROOT).trim().hashCode());
+                effectiveSubtopicId = hash > 0 ? hash : 1L;
+            }
+
+            subtopicList.add(new SubtopicPerformanceDto(
+                    acc.subjectId,
+                    acc.subjectName,
+                    acc.topicId,
+                    acc.topicName,
+                    effectiveSubtopicId,
+                    acc.subtopicName,
+                    acc.totalQuestions,
+                    acc.attemptedCount,
+                    acc.correctCount,
+                    acc.incorrectCount,
+                    acc.skippedCount,
+                    acc.totalTimeSpentMs,
+                    avgTimeSpent,
+                    avgBenchmark,
+                    accuracy,
+                    skipRate,
+                    paceRatio
+            ));
+        }
+
         String topicJson = serialize(topicBreakdown);
         String diffJson = serialize(diffBreakdown);
         String timingJson = serialize(timingBreakdown);
+        String subtopicJson = serialize(subtopicList);
 
         session.setCorrectCount(correct);
         session.setIncorrectCount(incorrect);
@@ -140,12 +248,13 @@ public class PracticeEvaluationService {
         session.setTotalMarks(totalMarks);
         session.setObtainedMarks(Math.max(0, obtained));
         session.setTopicWiseBreakdown(topicJson);
+        session.setSubtopicWiseBreakdown(subtopicJson);
         session.setDifficultyBreakdown(diffJson);
         session.setTimingBreakdown(timingJson);
         practiceSessionRepository.save(session);
 
-        log.info("Practice session {} evaluated: correct={}, incorrect={}, skipped={}, obtained={}/{}",
-                sessionId, correct, incorrect, skipped, obtained, totalMarks);
+        log.info("Practice session {} evaluated: correct={}, incorrect={}, skipped={}, obtained={}/{}, subtopics={}",
+                sessionId, correct, incorrect, skipped, obtained, totalMarks, subtopicList.size());
     }
 
     boolean evaluateAnswer(PracticeResponse resp, AnswerKeyDto ak) {
@@ -154,7 +263,7 @@ public class PracticeEvaluationService {
         String qType = ak.questionType() != null ? ak.questionType().toUpperCase().trim() : "";
 
         // 1. Numerical evaluation
-        if ("NUMERICAL".equals(qType) || "NUMERIC".equals(qType)) {
+        if (QuestionTypeConstants.NUMERICAL.equals(qType) || "NUMERIC".equals(qType)) {
             String entered = resp.getEnteredValue();
             if (entered == null || entered.isBlank()) return false;
             return evaluateNumerical(answerKey, entered);
@@ -178,16 +287,15 @@ public class PracticeEvaluationService {
                 return false;
             }
 
-            if ("MULTI_MCQ".equals(qType) || correctSet.size() > 1) {
+            if (QuestionTypeConstants.MULTI_MCQ.equals(qType) || correctSet.size() > 1) {
                 // Multi-select MCQ: candidate's selected set must exactly match correct set
-                return selectedSet.equals(correctSet);
             } else {
                 // Single-select MCQ: candidate must have chosen exactly 1 option and it must match
                 if (selectedSet.size() != 1) {
                     return false;
                 }
-                return selectedSet.equals(correctSet);
             }
+            return selectedSet.equals(correctSet);
         }
 
         return false;
@@ -232,8 +340,6 @@ public class PracticeEvaluationService {
         return result;
     }
 
-
-
     private String serialize(Object obj) {
         try {
             return objectMapper.writeValueAsString(obj);
@@ -241,5 +347,21 @@ public class PracticeEvaluationService {
             log.warn("Failed to serialize breakdown", e);
             return "{}";
         }
+    }
+
+    private static class SubtopicAccumulator {
+        Long subjectId;
+        String subjectName;
+        Long topicId;
+        String topicName;
+        Long subtopicId;
+        String subtopicName;
+        int totalQuestions = 0;
+        int attemptedCount = 0;
+        int correctCount = 0;
+        int incorrectCount = 0;
+        int skippedCount = 0;
+        long totalTimeSpentMs = 0;
+        long totalBenchmarkTimeMs = 0;
     }
 }

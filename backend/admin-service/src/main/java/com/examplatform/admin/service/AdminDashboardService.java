@@ -19,29 +19,9 @@
 
 package com.examplatform.admin.service;
 
-import com.examplatform.admin.dto.DashboardKpiResponse;
-import com.examplatform.admin.dto.DashboardSummaryResponse;
-import com.examplatform.admin.dto.EvaluationQueueBreakdownResponse;
-import com.examplatform.admin.dto.ExamStatusBreakdownResponse;
-import com.examplatform.admin.dto.QuestionBankBreakdownResponse;
-import com.examplatform.admin.dto.SecurityAuditEventResponse;
-import com.examplatform.admin.dto.SystemServiceHealthResponse;
-import com.examplatform.shared.grpc.AuditLedgerGrpcRequest;
-import com.examplatform.shared.grpc.AuditLedgerGrpcResponse;
-import com.examplatform.shared.grpc.AuditLedgerGrpcServiceGrpc;
-import com.examplatform.shared.grpc.CandidateMetricsGrpcRequest;
-import com.examplatform.shared.grpc.CandidateMetricsGrpcResponse;
-import com.examplatform.shared.grpc.CandidateMetricsGrpcServiceGrpc;
-import com.examplatform.shared.grpc.EvaluationMetricsGrpcRequest;
-import com.examplatform.shared.grpc.EvaluationMetricsGrpcResponse;
-import com.examplatform.shared.grpc.EvaluationMetricsGrpcServiceGrpc;
-import com.examplatform.shared.grpc.ExamBreakdownGrpcRequest;
-import com.examplatform.shared.grpc.ExamBreakdownGrpcResponse;
-import com.examplatform.shared.grpc.ExaminationMetricsGrpcServiceGrpc;
-import com.examplatform.shared.grpc.GrpcChannelFactory;
-import com.examplatform.shared.grpc.QuestionBankMetricsGrpcRequest;
-import com.examplatform.shared.grpc.QuestionBankMetricsGrpcResponse;
-import com.examplatform.shared.grpc.QuestionBankMetricsGrpcServiceGrpc;
+import com.examplatform.admin.dto.*;
+import com.examplatform.shared.constants.SharedConstants;
+import com.examplatform.shared.grpc.*;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.grpc.ManagedChannel;
@@ -59,12 +39,10 @@ import java.net.Socket;
 import java.sql.Connection;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * Service for aggregating operational dashboard metrics across microservices.
@@ -74,6 +52,11 @@ import java.util.function.Function;
 @Slf4j
 @Service
 public class AdminDashboardService {
+
+    private static final String SERVICE_POSTGRESQL = "PostgreSQL Database";
+    private static final String SERVICE_REDIS = "Redis Cache & Sessions";
+    private static final String SERVICE_OFFLINE = "Service offline";
+    private static final String GRPC_SERVICE_OPERATIONAL = "gRPC microservice operational";
 
     private final ObjectMapper objectMapper;
     private final RestClient restClient;
@@ -147,7 +130,7 @@ public class AdminDashboardService {
      * Executes gRPC queries first with fallback to REST calls.
      */
     public DashboardSummaryResponse getDashboardSummary(String tenantId) {
-        String effectiveTenant = tenantId != null && !tenantId.isBlank() ? tenantId : "default";
+        String effectiveTenant = tenantId != null && !tenantId.isBlank() ? tenantId : SharedConstants.DEFAULT_TENANT;
 
         long activeSessions = countActiveSessionsFromRedis();
 
@@ -333,7 +316,7 @@ public class AdminDashboardService {
                                     item.path("id").asText(null),
                                     item.path("timestamp").asText(null),
                                     item.path("performedBy").asText(null),
-                                    item.path("action").asText(null),
+                                    item.path(SharedConstants.ACTION).asText(null),
                                     item.path("entityType").asText(null)));
                         }
                         return list;
@@ -355,20 +338,15 @@ public class AdminDashboardService {
                 .build();
     }
 
-    @FunctionalInterface
-    private interface GrpcAction<T> {
-        T call() throws Exception;
-    }
-
     private <T> T fetchWithGrpcFallback(
             String serviceName,
-            GrpcAction<T> grpcAction,
+            Supplier<T> grpcAction,
             String restUrl,
             Function<JsonNode, T> restMapper,
             T defaultFallback) {
 
         try {
-            T result = grpcAction.call();
+            T result = grpcAction.get();
             if (result != null) {
                 return result;
             }
@@ -379,12 +357,12 @@ public class AdminDashboardService {
         return fetchRestBackup(restUrl, serviceName, restMapper, defaultFallback);
     }
 
-    private <S extends AbstractBlockingStub<S>, Res> Res executeGrpc(
+    private <S extends AbstractBlockingStub<S>, R> R executeGrpc(
             String host,
             int port,
             long timeoutMs,
             Function<ManagedChannel, S> stubFactory,
-            Function<S, Res> call) {
+            Function<S, R> call) {
         ManagedChannel channel = GrpcChannelFactory.getChannel(host, port);
         S stub = stubFactory.apply(channel).withDeadlineAfter(timeoutMs, TimeUnit.MILLISECONDS);
         return call.apply(stub);
@@ -422,23 +400,23 @@ public class AdminDashboardService {
 
         // Question Bank
         healthList.add(probeService("Question Bank Service", questionBankGrpcHost, questionBankGrpcPort,
-                "gRPC microservice operational", "Service offline"));
+                GRPC_SERVICE_OPERATIONAL, SERVICE_OFFLINE));
 
         // Examination Service
         healthList.add(probeService("Examination Service", examinationGrpcHost, examinationGrpcPort,
-                "gRPC microservice operational", "Service offline"));
+                GRPC_SERVICE_OPERATIONAL, SERVICE_OFFLINE));
 
         // Evaluation Service
         healthList.add(probeService("Evaluation Service", evaluationGrpcHost, evaluationGrpcPort,
-                "gRPC microservice operational", "Service offline"));
+                GRPC_SERVICE_OPERATIONAL, SERVICE_OFFLINE));
 
         // Candidate Service
         healthList.add(probeService("Candidate Service", candidateGrpcHost, candidateGrpcPort,
-                "gRPC microservice operational", "Service offline"));
+                GRPC_SERVICE_OPERATIONAL, SERVICE_OFFLINE));
 
         // Audit Service
         healthList.add(probeService("Audit Service", auditGrpcHost, auditGrpcPort,
-                "gRPC microservice operational", "Service offline"));
+                GRPC_SERVICE_OPERATIONAL, SERVICE_OFFLINE));
 
         return healthList;
     }
@@ -455,34 +433,34 @@ public class AdminDashboardService {
 
     private SystemServiceHealthResponse checkDatabaseHealth() {
         if (dataSource == null) {
-            return buildHealthResponse("PostgreSQL Database", false, 0, "Data source not configured");
+            return buildHealthResponse(SERVICE_POSTGRESQL, false, 0, "Data source not configured");
         }
         long start = System.currentTimeMillis();
         try (Connection conn = dataSource.getConnection()) {
             boolean valid = conn.isValid(1);
             long latency = Math.max(1, System.currentTimeMillis() - start);
-            return buildHealthResponse("PostgreSQL Database", valid, latency,
+            return buildHealthResponse(SERVICE_POSTGRESQL, valid, latency,
                     valid ? "PostgreSQL primary pool connected" : "Connection invalid");
         } catch (Exception e) {
             long latency = Math.max(1, System.currentTimeMillis() - start);
-            return buildHealthResponse("PostgreSQL Database", false, latency, "Database error: " + e.getMessage());
+            return buildHealthResponse(SERVICE_POSTGRESQL, false, latency, "Database error: " + e.getMessage());
         }
     }
 
     private SystemServiceHealthResponse checkRedisHealth() {
         if (redisTemplate == null) {
-            return buildHealthResponse("Redis Cache & Sessions", false, 0, "Redis template not configured");
+            return buildHealthResponse(SERVICE_REDIS, false, 0, "Redis template not configured");
         }
         long start = System.currentTimeMillis();
         try {
-            String pingResult = redisTemplate.getConnectionFactory().getConnection().ping();
+            String pingResult = Objects.requireNonNull(redisTemplate.getConnectionFactory()).getConnection().ping();
             long latency = Math.max(1, System.currentTimeMillis() - start);
             boolean up = "PONG".equalsIgnoreCase(pingResult);
-            return buildHealthResponse("Redis Cache & Sessions", up, latency,
+            return buildHealthResponse(SERVICE_REDIS, up, latency,
                     up ? "Redis cluster responding" : "Unexpected ping response: " + pingResult);
         } catch (Exception e) {
             long latency = Math.max(1, System.currentTimeMillis() - start);
-            return buildHealthResponse("Redis Cache & Sessions", false, latency, "Redis connection failed: " + e.getMessage());
+            return buildHealthResponse(SERVICE_REDIS, false, latency, "Redis connection failed: " + e.getMessage());
         }
     }
 

@@ -19,6 +19,7 @@
 
 package com.examplatform.gateway.filter;
 
+import org.jspecify.annotations.NonNull;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
@@ -66,7 +67,7 @@ public class RequestSanitizationFilter implements GlobalFilter, Ordered {
     );
 
     @Override
-    public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+    public Mono<Void> filter(ServerWebExchange exchange, @NonNull GatewayFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
 
         // Strip dangerous headers

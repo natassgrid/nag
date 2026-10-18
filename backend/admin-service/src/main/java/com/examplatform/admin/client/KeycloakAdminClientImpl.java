@@ -20,6 +20,7 @@
 package com.examplatform.admin.client;
 
 import com.examplatform.admin.config.KeycloakProperties;
+import com.examplatform.shared.constants.SharedConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
@@ -55,7 +56,7 @@ public class KeycloakAdminClientImpl implements KeycloakAdminClient {
             throw new RuntimeException("Keycloak admin service unavailable: " + e.getMessage(), e);
         }
 
-        String realm = (tenantId != null && !tenantId.isBlank() && !tenantId.equals("default"))
+        String realm = (tenantId != null && !tenantId.isBlank() && !tenantId.equals(SharedConstants.DEFAULT_TENANT))
                 ? tenantId
                 : keycloakProperties.getRealm();
 
@@ -66,7 +67,7 @@ public class KeycloakAdminClientImpl implements KeycloakAdminClient {
             // 1. Disable user account
             restClient.put()
                     .uri(userUrl)
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                    .header(HttpHeaders.AUTHORIZATION, SharedConstants.BEARER_PREFIX + adminToken)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(Map.of("enabled", false))
                     .retrieve()
@@ -77,7 +78,7 @@ public class KeycloakAdminClientImpl implements KeycloakAdminClient {
             // 2. Revoke active Keycloak sessions
             restClient.post()
                     .uri(logoutUrl)
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                    .header(HttpHeaders.AUTHORIZATION, SharedConstants.BEARER_PREFIX + adminToken)
                     .retrieve()
                     .toBodilessEntity();
 
@@ -112,8 +113,8 @@ public class KeycloakAdminClientImpl implements KeycloakAdminClient {
                     .retrieve()
                     .body(Map.class);
 
-            if (response != null && response.containsKey("access_token")) {
-                return (String) response.get("access_token");
+            if (response != null && response.containsKey(SharedConstants.ACCESS_TOKEN)) {
+                return (String) response.get(SharedConstants.ACCESS_TOKEN);
             }
             throw new IllegalStateException("Missing access_token in Keycloak admin token response");
         } catch (Exception e) {

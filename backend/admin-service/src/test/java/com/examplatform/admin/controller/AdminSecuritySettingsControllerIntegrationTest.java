@@ -14,6 +14,7 @@ package com.examplatform.admin.controller;
 import com.examplatform.admin.dto.MfaPolicySettingsRequest;
 import com.examplatform.admin.service.ConfigChangeService;
 import com.examplatform.admin.support.AbstractIntegrationTest;
+import com.examplatform.shared.constants.SharedConstants;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -58,7 +59,7 @@ class AdminSecuritySettingsControllerIntegrationTest extends AbstractIntegration
             ));
 
             mockMvc.perform(get("/api/v1/admin/settings/security/mfa")
-                            .param("tenantId", TENANT_ID)
+                            .param(SharedConstants.TENANT_ID, TENANT_ID)
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))
                                     .jwt(j -> j.subject(ACTOR_ID.toString()).claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isOk())
@@ -76,7 +77,7 @@ class AdminSecuritySettingsControllerIntegrationTest extends AbstractIntegration
             when(configChangeService.getConfigMap(eq(TENANT_ID))).thenReturn(Map.of());
 
             mockMvc.perform(get("/api/v1/admin/settings/security/mfa")
-                            .param("tenantId", TENANT_ID)
+                            .param(SharedConstants.TENANT_ID, TENANT_ID)
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SECURITY_ADMIN"))
                                     .jwt(j -> j.subject(ACTOR_ID.toString()).claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isOk())
@@ -126,7 +127,7 @@ class AdminSecuritySettingsControllerIntegrationTest extends AbstractIntegration
             ));
 
             mockMvc.perform(put("/api/v1/admin/settings/security/mfa")
-                            .param("tenantId", TENANT_ID)
+                            .param(SharedConstants.TENANT_ID, TENANT_ID)
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))
                                     .jwt(j -> j.subject(ACTOR_ID.toString()).claim("tenant_id", TENANT_ID)))
                             .contentType(MediaType.APPLICATION_JSON)

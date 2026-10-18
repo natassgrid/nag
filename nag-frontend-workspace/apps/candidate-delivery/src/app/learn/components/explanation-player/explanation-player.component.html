@@ -1,0 +1,118 @@
+<div class="flex flex-col gap-5 max-w-5xl mx-auto p-4 md:p-6 bg-slate-50/50 dark:bg-slate-950/40 rounded-2xl border border-slate-200/80 dark:border-slate-800">
+  <!-- Header: Title, concepts and metadata -->
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
+    <div class="flex flex-col gap-1">
+      <div class="flex items-center gap-2 flex-wrap">
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-xs font-bold text-indigo-700 dark:text-indigo-300">
+          <mat-icon class="!w-3.5 !h-3.5 !text-sm text-indigo-600">psychology</mat-icon>
+          Anvaya-Prajna Symbolic Engine
+        </span>
+        <span class="text-xs font-mono text-slate-500 dark:text-slate-400">
+          Question #{{ explanation().questionId }}
+        </span>
+      </div>
+
+      <h2 class="text-lg md:text-xl font-bold text-slate-900 dark:text-white tracking-tight">
+        Step-by-Step AI Explanation
+      </h2>
+    </div>
+
+    <!-- Concepts and Status -->
+    <div class="flex items-center gap-2 flex-wrap">
+      @if (explanation().concepts && explanation().concepts!.length > 0) {
+        @for (concept of explanation().concepts!; track concept) {
+          <span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+            {{ concept }}
+          </span>
+        }
+      }
+
+      <span
+        [class.bg-emerald-100]="explanation().status === 'APPROVED' || explanation().status === 'PUBLISHED'"
+        [class.text-emerald-800]="explanation().status === 'APPROVED' || explanation().status === 'PUBLISHED'"
+        [class.dark:bg-emerald-950/60]="explanation().status === 'APPROVED' || explanation().status === 'PUBLISHED'"
+        [class.dark:text-emerald-300]="explanation().status === 'APPROVED' || explanation().status === 'PUBLISHED'"
+        [class.bg-amber-100]="explanation().status === 'DRAFT'"
+        [class.text-amber-800]="explanation().status === 'DRAFT'"
+        class="px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider"
+      >
+        {{ explanation().status }}
+      </span>
+    </div>
+  </div>
+
+  <!-- Problem Statement Card -->
+  @if (explanation().problem?.statement) {
+    <div class="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs flex flex-col gap-2">
+      <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+        <mat-icon class="!w-4 !h-4 !text-base text-indigo-500">assignment</mat-icon>
+        Problem Statement
+      </span>
+      <div class="text-sm md:text-base text-slate-900 dark:text-slate-100 leading-relaxed font-serif">
+        <nag-explanation-math-renderer [content]="explanation().problem!.statement"></nag-explanation-math-renderer>
+      </div>
+
+      @if (explanation().problem?.authoritativeAnswer) {
+        <div class="mt-1 flex items-center gap-2 text-xs font-mono text-emerald-700 dark:text-emerald-400">
+          <span class="font-bold">Authoritative Answer:</span>
+          <span class="px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800">
+            {{ explanation().problem!.authoritativeAnswer }}
+          </span>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Progress bar -->
+  <div class="flex flex-col gap-1">
+    <div class="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+      <span>Progress</span>
+      <span>{{ progressPercent() }}%</span>
+    </div>
+    <mat-progress-bar mode="determinate" [value]="progressPercent()"></mat-progress-bar>
+  </div>
+
+  <!-- Step Navigator & Stepper Controls -->
+  @if (steps().length > 0) {
+    <nag-step-navigator
+      [steps]="steps()"
+      [activeStepIndex]="activeStepIndex()"
+      [isPlaying]="isPlaying()"
+      [playbackSpeed]="playbackSpeed()"
+      (stepChange)="onSelectStep($event)"
+      (playToggle)="onTogglePlay($event)"
+      (speedChange)="onSelectSpeed($event)"
+    ></nag-step-navigator>
+  }
+
+  <!-- Active Step Display -->
+  @if (currentStep()) {
+    <nag-step-renderer [step]="currentStep()!"></nag-step-renderer>
+  }
+
+  <!-- Pedagogical Deep-Dive Panels (Why, Hints, Misconceptions, Verification) -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <!-- Why / Justification Panel -->
+    @if (currentStep()?.justification) {
+      <nag-why-panel [justification]="currentStep()!.justification"></nag-why-panel>
+    }
+
+    <!-- Step Misconception or Global Misconceptions Panel -->
+    @if (currentStep()?.misconception || (explanation().misconceptions && explanation().misconceptions!.length > 0)) {
+      <nag-misconception-panel
+        [misconception]="currentStep()?.misconception"
+        [misconceptionsList]="explanation().misconceptions"
+      ></nag-misconception-panel>
+    }
+  </div>
+
+  <!-- Progressive Hints Drawer / Accordion -->
+  @if (explanation().hints && explanation().hints!.length > 0) {
+    <nag-hint-panel [hints]="explanation().hints"></nag-hint-panel>
+  }
+
+  <!-- Solution Verification Proof -->
+  @if (explanation().verification) {
+    <nag-verification-panel [verification]="explanation().verification"></nag-verification-panel>
+  }
+</div>

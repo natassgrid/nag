@@ -19,13 +19,10 @@
 
 package com.examplatform.questionbank.controller;
 
-import com.examplatform.questionbank.ai.batch.BatchGenerationJob;
-import com.examplatform.questionbank.ai.batch.BatchGenerationJobRepository;
-import com.examplatform.questionbank.ai.batch.BatchGenerationRequest;
-import com.examplatform.questionbank.ai.batch.BatchJobResponse;
-import com.examplatform.questionbank.ai.batch.BatchJobStatus;
-import com.examplatform.questionbank.ai.batch.BedrockBatchService;
+import com.examplatform.questionbank.ai.batch.*;
 import com.examplatform.questionbank.support.AbstractIntegrationTest;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.examplatform.shared.constants.QuestionTypeConstants;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -39,11 +36,14 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @DisplayName("BatchGenerationController REST Endpoints E2E Tests (MockMvc)")
 class BatchGenerationControllerIntegrationTest extends AbstractIntegrationTest {
@@ -62,9 +62,9 @@ class BatchGenerationControllerIntegrationTest extends AbstractIntegrationTest {
         BatchGenerationRequest.BatchItem item = BatchGenerationRequest.BatchItem.builder()
                 .subject("History")
                 .topic("Ancient India")
-                .difficulty("MEDIUM")
-                .cognitiveLevel("REMEMBER")
-                .questionType("SINGLE_MCQ")
+                .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
+                .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.REMEMBER)
+                .questionType(QuestionTypeConstants.SINGLE_MCQ)
                 .count(5)
                 .build();
 

@@ -19,19 +19,14 @@
 
 package com.examplatform.delivery.service;
 
-import com.examplatform.shared.crypto.VaultCryptoService;
-
 import com.examplatform.delivery.client.ShiftAssignmentClient;
 import com.examplatform.delivery.domain.ExamSession;
 import com.examplatform.delivery.domain.ExamSession.ExamSessionStatus;
-import com.examplatform.delivery.dto.QuestionDeliveryDto;
-import com.examplatform.delivery.dto.QuestionOptionDeliveryDto;
-import com.examplatform.delivery.dto.SessionStartRequest;
-import com.examplatform.delivery.dto.SessionStartResponse;
-import com.examplatform.delivery.dto.ShiftAssignment;
+import com.examplatform.delivery.dto.*;
 import com.examplatform.delivery.exception.ConcurrentSessionException;
 import com.examplatform.delivery.repository.ExamSessionRepository;
 import com.examplatform.shared.config.DynamicConfigService;
+import com.examplatform.shared.crypto.VaultCryptoService;
 import com.examplatform.shared.messaging.EventPublisher;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -53,14 +48,8 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("SessionStartService")
@@ -207,6 +196,40 @@ class SessionStartServiceTest {
 
         // Verify cached in Redis
         verify(valueOperations).set(eq("session:" + saved.getSessionId()), eq(saved), eq(Duration.ofHours(6)));
+    }
+
+    @Test
+    @DisplayName("startSession uses navigationPolicy from shift assignment")
+    void startSession_usesNavigationPolicyFromAssignment() {
+        SessionStartRequest request = SessionStartRequest.builder()
+                .examId(EXAM_ID)
+                .shiftId(SHIFT_ID)
+                .build();
+
+        ShiftAssignment assignment = ShiftAssignment.builder()
+                .paperId(PAPER_ID)
+                .encryptedPackageRef(ENCRYPTED_PACKAGE)
+                .durationMinutes(180)
+                .extraTimeMinutes(0)
+                .navigationPolicy("SEQUENTIAL")
+                .build();
+
+        when(examSessionRepository.findByCandidateIdAndTenantId(CANDIDATE_ID, TENANT_ID))
+                .thenReturn(List.of());
+        when(shiftAssignmentClient.getShiftAssignment(CANDIDATE_ID, EXAM_ID, SHIFT_ID, TENANT_ID))
+                .thenReturn(assignment);
+        when(vaultCryptoService.decrypt("shift-key-" + SHIFT_ID, ENCRYPTED_PACKAGE))
+                .thenReturn(DECRYPTED_PAPER);
+        when(examQuestionDeliveryService.getDeliveryQuestions(eq(EXAM_ID), eq(PAPER_ID), eq(DECRYPTED_PAPER), eq(TENANT_ID)))
+                .thenReturn(List.of());
+        when(disabilityExtensionService.getExtraTimeMinutes(CANDIDATE_ID, TENANT_ID))
+                .thenReturn(0);
+        when(examSessionRepository.save(any(ExamSession.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+
+        SessionStartResponse response = sessionStartService.startSession(request, CANDIDATE_ID, TENANT_ID);
+
+        assertThat(response.getNavigationMode()).isEqualTo("SEQUENTIAL");
     }
 
     @Test

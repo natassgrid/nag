@@ -19,8 +19,6 @@
 
 package com.examplatform.identity.service;
 
-import com.examplatform.shared.crypto.HashingService;
-
 import com.examplatform.identity.config.AppSecurityProperties;
 import com.examplatform.identity.domain.UserAccount;
 import com.examplatform.identity.domain.enums.AccountStatus;
@@ -31,6 +29,8 @@ import com.examplatform.identity.exception.DuplicateIdentityException;
 import com.examplatform.identity.exception.InvalidOtpException;
 import com.examplatform.identity.repository.UserAccountRepository;
 import com.examplatform.shared.audit.AuditEventType;
+import com.examplatform.shared.constants.SharedConstants;
+import com.examplatform.shared.crypto.HashingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -195,7 +195,7 @@ public class RegistrationService {
     @Async
     public void publishRegistrationAuditEvent(String userId, String tenantId, String fullName, String email, String mobile, String docType, String docNumber) {
         Map<String, Object> extra = new HashMap<>();
-        extra.put("tenantId", tenantId);
+        extra.put(SharedConstants.TENANT_ID, tenantId);
         if (fullName != null) extra.put("fullName", fullName);
         if (email != null) extra.put("email", email);
         if (mobile != null) extra.put("mobile", mobile);

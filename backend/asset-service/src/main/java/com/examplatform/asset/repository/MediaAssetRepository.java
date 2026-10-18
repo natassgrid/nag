@@ -22,6 +22,7 @@ package com.examplatform.asset.repository;
 import com.examplatform.asset.domain.entity.MediaAsset;
 import com.examplatform.asset.domain.enums.AssetStatus;
 import com.examplatform.asset.domain.enums.AssetType;
+import com.examplatform.shared.constants.SharedConstants;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -64,12 +65,12 @@ public interface MediaAssetRepository extends JpaRepository<MediaAsset, UUID> {
               AND a.status <> 'DELETED'
             """)
     Page<MediaAsset> searchAssets(
-            @Param("tenantId") String tenantId,
+            @Param(SharedConstants.TENANT_ID) String tenantId,
             @Param("filename") String filename,
             @Param("assetType") AssetType assetType,
             @Param("contentType") String contentType,
             @Param("tags") String tags,
-            @Param("status") AssetStatus status,
+            @Param(SharedConstants.STATUS) AssetStatus status,
             @Param("storageProvider") String storageProvider,
             Pageable pageable);
 }

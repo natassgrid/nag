@@ -30,6 +30,8 @@ import com.examplatform.identity.exception.DuplicateIdentityException;
 import com.examplatform.identity.repository.PermissionRepository;
 import com.examplatform.identity.repository.RoleDefinitionRepository;
 import com.examplatform.shared.audit.AuditEventType;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,12 +41,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.time.ZoneId;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-import java.util.stream.Collectors;
+import java.util.*;
 
 /**
  * Service for managing role definitions (CRUD) and their permission assignments.
@@ -66,7 +63,7 @@ public class RoleDefinitionService {
      */
     public Page<RoleDefinitionResponse> listRoles(String tenantId, int page, int size, String search) {
         tenantBootstrapService.ensureTenantBootstrapped(tenantId);
-        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "name"));
+        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, SharedConstants.NAME));
         Page<RoleDefinition> roles = roleDefinitionRepository.findByTenantIdAndSearch(tenantId, search, pageRequest);
         return roles.map(this::toResponse);
     }
@@ -101,7 +98,7 @@ public class RoleDefinitionService {
         role.setTenantId(tenantId);
 
         applyRolePermissions(role, request.getPermissionIds(), tenantId);
-        return saveAuditAndConvert(role, "CREATE", actorId, tenantId);
+        return saveAuditAndConvert(role, QuestionTaxonomyConstants.CognitiveLevel.CREATE, actorId, tenantId);
     }
 
     /**
@@ -145,9 +142,9 @@ public class RoleDefinitionService {
                 actorId,
                 "identity:role-definitions/" + roleId,
                 null, null,
-                Map.of("action", "DELETE",
+                Map.of(SharedConstants.ACTION, "DELETE",
                         "roleCode", role.getCode(),
-                        "tenantId", tenantId)
+                    SharedConstants.TENANT_ID, tenantId)
         );
     }
 
@@ -156,7 +153,7 @@ public class RoleDefinitionService {
      */
     public Page<PermissionResponse> listPermissions(String tenantId, int page, int size, String search) {
         tenantBootstrapService.ensureTenantBootstrapped(tenantId);
-        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "module", "name"));
+        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "module", SharedConstants.NAME));
         Page<Permission> permissions = permissionRepository.findByTenantIdAndSearch(tenantId, search, pageRequest);
         return permissions.map(this::toPermissionResponse);
     }
@@ -209,9 +206,9 @@ public class RoleDefinitionService {
                 actorId,
                 "identity:role-definitions/" + saved.getId(),
                 null, null,
-                Map.of("action", action,
+                Map.of(SharedConstants.ACTION, action,
                         "roleCode", saved.getCode(),
-                        "tenantId", tenantId)
+                    SharedConstants.TENANT_ID, tenantId)
         );
 
         return toResponse(saved);

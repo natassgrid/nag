@@ -22,24 +22,9 @@ package com.examplatform.papergenerator.controller;
 import com.examplatform.papergenerator.client.QuestionBankClient;
 import com.examplatform.papergenerator.crypto.MerkleTree;
 import com.examplatform.papergenerator.domain.Paper;
-import com.examplatform.papergenerator.dto.BlueprintFeasibilityRequest;
-import com.examplatform.papergenerator.dto.BlueprintFeasibilityResponse;
-import com.examplatform.papergenerator.dto.MerkleLeafVerifyRequest;
-import com.examplatform.papergenerator.dto.PaperAcceptedResponse;
-import com.examplatform.papergenerator.dto.PaperApprovalResponse;
-import com.examplatform.papergenerator.dto.PaperGenerationRequest;
-import com.examplatform.papergenerator.dto.PaperResponse;
-import com.examplatform.papergenerator.dto.PaperSummaryResponse;
-import com.examplatform.papergenerator.dto.PaperTranslateRequest;
-import com.examplatform.papergenerator.dto.PaperTranslateResponse;
-import com.examplatform.papergenerator.dto.PaperValidationResponse;
-import com.examplatform.papergenerator.dto.QuestionSummary;
-import com.examplatform.papergenerator.service.ExaminationLookupService;
-import com.examplatform.papergenerator.service.PaperAnchoringService;
-import com.examplatform.papergenerator.service.PaperApprovalService;
-import com.examplatform.papergenerator.service.PaperAssemblyService;
-import com.examplatform.papergenerator.service.PaperSerializer;
-import com.examplatform.papergenerator.service.PaperTranslationService;
+import com.examplatform.papergenerator.dto.*;
+import com.examplatform.papergenerator.service.*;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.tenant.TenantContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -54,24 +39,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -269,7 +239,7 @@ public class PaperController {
             @Valid @RequestBody PaperGenerationRequest request,
             @AuthenticationPrincipal Jwt jwt) {
 
-        UUID generatedBy = UUID.fromString(jwt.getSubject());
+        UUID generatedBy = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         String tenantId = getEffectiveTenantId();
 
         log.info("Paper generation requested by user={}, examId={}, shiftId={}, isPractice={}",
@@ -385,7 +355,7 @@ public class PaperController {
 
         return ResponseEntity.badRequest().body(Map.of(
                 "verified", false,
-                "message", "Either 'paperId' or 'hash' parameter must be provided for verification"
+            SharedConstants.MESSAGE, "Either 'paperId' or 'hash' parameter must be provided for verification"
         ));
     }
 
@@ -402,7 +372,7 @@ public class PaperController {
                 "valid", valid,
                 "leafHash", request.getLeafHash(),
                 "rootHash", request.getRootHash(),
-                "message", valid ? "Question leaf cryptographically confirmed in Paper Merkle Tree"
+            SharedConstants.MESSAGE, valid ? "Question leaf cryptographically confirmed in Paper Merkle Tree"
                         : "Proof failed: Leaf does not match expected Merkle root"
         ));
     }
@@ -431,7 +401,7 @@ public class PaperController {
      * @return 202 Accepted with batch translation job details
      */
     @PostMapping("/{paperId}/translate")
-    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN','ADMIN')")
+    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN')")
     public ResponseEntity<PaperTranslateResponse> translatePaper(
             @PathVariable UUID paperId,
             @Valid @RequestBody(required = false) PaperTranslateRequest request,
@@ -454,8 +424,8 @@ public class PaperController {
      * @param jobId   the batch translation job UUID
      * @return 200 OK with current progress statistics
      */
-    @GetMapping({"/{paperId}/translate/{jobId}", "/{paperId}/translation-status/{jobId}"})
-    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN','ADMIN')")
+    @GetMapping("/{paperId}/translate/{jobId}")
+    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN')")
     public ResponseEntity<PaperTranslateResponse> getPaperTranslationStatus(
             @PathVariable UUID paperId,
             @PathVariable UUID jobId) {
@@ -468,8 +438,8 @@ public class PaperController {
     /**
      * Retrieves the latest translation status of a paper.
      */
-    @GetMapping({"/{paperId}/translation-status", "/{paperId}/translate/status"})
-    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN','ADMIN')")
+    @GetMapping("/{paperId}/translation-status")
+    @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN')")
     public ResponseEntity<PaperTranslateResponse> getLatestPaperTranslationStatus(
             @PathVariable UUID paperId) {
 
@@ -500,7 +470,7 @@ public class PaperController {
                 resolvedName = (examName != null ? examName : "Practice Paper");
             }
             return buildPaperSummary(p, resolvedName, examName, null);
-        }).collect(Collectors.toList());
+        }).toList();
 
         return ResponseEntity.ok(response);
     }
@@ -525,14 +495,15 @@ public class PaperController {
 
     private String getEffectiveTenantId() {
         String tenantId = TenantContext.get();
-        return (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        return (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
     }
 
     private UUID extractUserId(Jwt jwt) {
         if (jwt != null && jwt.getSubject() != null) {
             try {
                 return UUID.fromString(jwt.getSubject());
-            } catch (IllegalArgumentException ignored) {
+            } catch (IllegalArgumentException _) {
+                // ignored
             }
         }
         return UUID.fromString("00000000-0000-0000-0000-000000000001");

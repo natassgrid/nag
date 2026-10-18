@@ -1,0 +1,29 @@
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+  <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
+    <div>
+      <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Micro-Lessons</p>
+      <p class="text-2xl font-black text-slate-900 mt-1">{{ total() }}</p>
+    </div>
+    <div class="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-600">
+      <mat-icon>menu_book</mat-icon>
+    </div>
+  </div>
+  <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
+    <div>
+      <p class="text-xs font-semibold text-purple-600 uppercase tracking-wider">AI Generated (Pending Review)</p>
+      <p class="text-2xl font-black text-purple-700 mt-1">{{ aiGenerated() }}</p>
+    </div>
+    <div class="w-10 h-10 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600">
+      <mat-icon>psychology</mat-icon>
+    </div>
+  </div>
+  <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
+    <div>
+      <p class="text-xs font-semibold text-emerald-600 uppercase tracking-wider">Approved / Published</p>
+      <p class="text-2xl font-black text-emerald-700 mt-1">{{ approved() }}</p>
+    </div>
+    <div class="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">
+      <mat-icon>verified</mat-icon>
+    </div>
+  </div>
+</div>

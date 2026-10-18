@@ -12,6 +12,7 @@
 package com.examplatform.candidate.controller;
 
 import com.examplatform.candidate.service.CandidateProfileService;
+import com.examplatform.shared.constants.SharedConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -35,7 +36,7 @@ public class CandidateAnalyticsController {
 
     @GetMapping("/summary")
     public ResponseEntity<Map<String, Object>> getSummary(
-            @RequestParam(value = "tenantId", defaultValue = "default") String tenantId) {
+            @RequestParam(value = SharedConstants.TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
         return ResponseEntity.ok(candidateProfileService.getCandidateMetrics(tenantId));
     }
 }

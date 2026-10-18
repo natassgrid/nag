@@ -19,18 +19,11 @@
 
 package com.examplatform.identity.service;
 
-import com.examplatform.identity.domain.ActiveSession;
 import com.examplatform.identity.domain.UserAccount;
 import com.examplatform.identity.domain.UserRoleAssignment;
 import com.examplatform.identity.domain.enums.AccountStatus;
 import com.examplatform.identity.domain.enums.UserRole;
-import com.examplatform.identity.dto.ActiveSessionResponse;
-import com.examplatform.identity.dto.AdminUpdateUserRequest;
-import com.examplatform.identity.dto.ReviewerResponse;
-import com.examplatform.identity.dto.RoleAction;
-import com.examplatform.identity.dto.RoleAssignmentRequest;
-import com.examplatform.identity.dto.RoleAssignmentResponse;
-import com.examplatform.identity.dto.UserAccountResponse;
+import com.examplatform.identity.dto.*;
 import com.examplatform.identity.exception.AccountNotFoundException;
 import com.examplatform.identity.repository.ActiveSessionRepository;
 import com.examplatform.identity.repository.UserAccountRepository;
@@ -52,12 +45,8 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 /**
  * Unit tests for {@link RoleManagementService}.

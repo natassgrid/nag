@@ -18,6 +18,7 @@
 
 package com.examplatform.questionbank.translation.dto;
 
+import com.examplatform.shared.constants.QuestionStateConstants;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.AllArgsConstructor;
@@ -41,7 +42,7 @@ public class BatchTranslationRequest {
     private String targetLanguage = "hi";
 
     @Builder.Default
-    private String targetStatus = "PUBLISHED";
+    private String targetStatus = QuestionStateConstants.PUBLISHED;
 
     private String subject;
 

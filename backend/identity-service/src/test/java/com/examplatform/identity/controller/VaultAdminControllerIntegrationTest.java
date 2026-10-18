@@ -21,8 +21,8 @@ package com.examplatform.identity.controller;
 
 import com.examplatform.identity.service.AuditEventPublisher;
 import com.examplatform.identity.service.KeyRevocationScheduler;
-import com.examplatform.shared.crypto.VaultCryptoService;
 import com.examplatform.identity.support.AbstractIntegrationTest;
+import com.examplatform.shared.crypto.VaultCryptoService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;

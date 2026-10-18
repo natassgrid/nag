@@ -1,0 +1,214 @@
+<div class="p-6 md:p-8 space-y-6 max-w-7xl mx-auto">
+  <!-- Shared Module Sub-Navigation -->
+  <div class="flex items-center gap-2 border-b border-slate-200 pb-3">
+    <a
+      routerLink="/learning"
+      routerLinkActive="!border-indigo-600 !text-indigo-600 !bg-indigo-50/70 shadow-2xs"
+      [routerLinkActiveOptions]="{ exact: true }"
+      class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 border border-transparent hover:bg-slate-100 flex items-center gap-2 transition-all cursor-pointer"
+    >
+      <mat-icon class="!text-base text-indigo-600">auto_stories</mat-icon>
+      <span>Practice Sets</span>
+    </a>
+    <a
+      routerLink="/learning/micro-lessons"
+      routerLinkActive="!border-purple-600 !text-purple-600 !bg-purple-50/70 shadow-2xs"
+      [routerLinkActiveOptions]="{ exact: true }"
+      class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 border border-transparent hover:bg-slate-100 flex items-center gap-2 transition-all cursor-pointer"
+    >
+      <mat-icon class="!text-base text-purple-600">psychology</mat-icon>
+      <span>Micro-Lesson Moderation Desk</span>
+    </a>
+    <a
+      routerLink="/learning/micro-lessons/authoring"
+      routerLinkActive="!border-emerald-600 !text-emerald-700 !bg-emerald-50/70 shadow-2xs"
+      class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 border border-transparent hover:bg-slate-100 flex items-center gap-2 transition-all cursor-pointer"
+    >
+      <mat-icon class="!text-base text-emerald-600">edit_note</mat-icon>
+      <span>Manual Authoring Studio</span>
+    </a>
+  </div>
+
+  <!-- Top Banner -->
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
+    <div class="flex items-center gap-4">
+      <div class="w-12 h-12 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600 shadow-xs shrink-0">
+        <mat-icon class="!text-2xl leading-none">psychology</mat-icon>
+      </div>
+      <div>
+        <h1 class="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+          <span>Micro-Lesson Moderation Desk</span>
+          <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
+            AI Remedial Engine
+          </span>
+        </h1>
+        <p class="text-xs text-slate-500 font-medium mt-0.5">
+          Review, curate, and verify AI-generated 4-part remedial micro-lessons with live KaTeX formula validation.
+        </p>
+      </div>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-3">
+      <button
+        mat-stroked-button
+        (click)="loadLessons(); loadStats()"
+        [disabled]="isLoading()"
+        class="!text-slate-700 !border-slate-300 !rounded-xl text-xs font-semibold cursor-pointer"
+      >
+        <mat-icon class="!text-sm">refresh</mat-icon>
+        Refresh
+      </button>
+      <button
+        mat-stroked-button
+        (click)="openAuthoringStudio()"
+        class="!text-emerald-700 !border-emerald-200 hover:!bg-emerald-50 !rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+      >
+        <mat-icon class="!text-sm text-emerald-600">edit_note</mat-icon>
+        <span>Author Micro-Lesson Manually</span>
+      </button>
+      <a
+        routerLink="/learning/micro-lessons/authoring"
+        [queryParams]="{ action: 'prompt-import' }"
+        mat-stroked-button
+        class="!text-indigo-700 !border-indigo-200 hover:!bg-indigo-50 !rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+      >
+        <mat-icon class="!text-sm text-indigo-600">auto_awesome</mat-icon>
+        <span>External AI &amp; Import</span>
+      </a>
+      <button
+        mat-stroked-button
+        (click)="openGenerateDialog()"
+        class="!text-purple-700 !border-purple-200 hover:!bg-purple-50 !rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+      >
+        <mat-icon class="!text-sm text-purple-600">add</mat-icon>
+        <span>Generate Micro-Lesson</span>
+      </button>
+      <button
+        mat-stroked-button
+        (click)="openBatchTranslateDialog()"
+        class="!text-indigo-700 !border-indigo-200 hover:!bg-indigo-50 !rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+      >
+        <mat-icon class="!text-sm text-indigo-600">translate</mat-icon>
+        <span>Batch Translate</span>
+      </button>
+      <button
+        mat-flat-button
+        color="primary"
+        (click)="openBatchGenerateDialog()"
+        [disabled]="isBatchGenerating()"
+        class="!rounded-xl !bg-purple-600 hover:!bg-purple-700 !text-white text-xs font-bold flex items-center gap-1.5 !px-4 !py-2.5 shadow-md shadow-purple-500/20 cursor-pointer"
+      >
+        @if (activeBatchJob()?.status === 'IN_PROGRESS' || activeBatchJob()?.status === 'QUEUED') {
+          <mat-progress-spinner diameter="16" mode="indeterminate" class="!inline-block"></mat-progress-spinner>
+          <span>Batch Progress ({{ activeBatchJob()?.percentComplete ?? 0 }}%)</span>
+        } @else {
+          <mat-icon class="!text-sm">auto_awesome</mat-icon>
+          <span>Batch Generate</span>
+        }
+      </button>
+    </div>
+  </div>
+
+  <!-- Active AI Batch Generation Progress Banner -->
+  <app-micro-lesson-batch-banner
+    [batchJob]="activeBatchJob()"
+    [isCancelling]="isCancellingBatch()"
+    (viewProgress)="openBatchGenerateDialog()"
+    (cancel)="cancelActiveBatch()"
+    (dismiss)="loadLessons(); loadStats(); dismissBatchBanner()"
+  ></app-micro-lesson-batch-banner>
+
+  <!-- KPI Metrics Ribbon (Dynamic Server Aggregates) -->
+  <app-micro-lesson-stats
+    [total]="totalCount()"
+    [aiGenerated]="aiGeneratedCount()"
+    [approved]="approvedCount()"
+  ></app-micro-lesson-stats>
+
+  <!-- Search and Cascading Filter Bar (Database Dynamic) -->
+  <app-micro-lesson-filters
+    [searchQuery]="searchQuery()"
+    [selectedSubject]="selectedSubject()"
+    [selectedTopic]="selectedTopic()"
+    [statusFilter]="statusFilter()"
+    [distinctSubjects]="distinctSubjects()"
+    [distinctTopics]="distinctTopics()"
+    [statusOptions]="statusOptions"
+    (searchChange)="onSearchInput($event)"
+    (subjectChange)="onSubjectChange($event)"
+    (topicChange)="onTopicChange($event)"
+    (statusChange)="onStatusChange($event)"
+  ></app-micro-lesson-filters>
+
+  <!-- Bulk Moderation & Bulk Delete Toolbar -->
+  <app-micro-lesson-bulk-toolbar
+    [selectedCount]="selectedIds().size"
+    [isBulkSubmitting]="isBulkSubmitting()"
+    [isBulkDeleting]="isBulkDeleting()"
+    (bulkSubmit)="bulkSubmit($event)"
+    (bulkDelete)="bulkDeleteSelected()"
+    (clearSelection)="clearSelection()"
+  ></app-micro-lesson-bulk-toolbar>
+
+  <!-- Main Content Layout (Table & Live KaTeX Preview Drawer) -->
+  @if (isLoading()) {
+    <div class="py-20 flex flex-col items-center justify-center space-y-3 text-slate-500">
+      <mat-progress-spinner diameter="36" mode="indeterminate"></mat-progress-spinner>
+      <p class="text-xs font-medium">Loading micro-lesson review queue...</p>
+    </div>
+  } @else {
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <!-- Left Column: Micro-Lesson List Table -->
+      <app-micro-lesson-table
+        [class]="selectedLesson() ? 'lg:col-span-5' : 'lg:col-span-12'"
+        [lessons]="filteredLessons()"
+        [selectedLessonId]="selectedLesson()?.id ?? null"
+        [selectedIds]="selectedIds()"
+        [isAllSelected]="isAllSelected()"
+        [displayStart]="displayStart()"
+        [displayEnd]="displayEnd()"
+        [totalElements]="totalElements()"
+        [totalPages]="totalPages()"
+        [pageIndex]="pageIndex()"
+        [pageSize]="pageSize()"
+        [pageSizeOptions]="pageSizeOptions"
+        [isLoading]="isLoading()"
+        (lessonSelect)="selectLesson($event)"
+        (editLesson)="openAuthoringStudio($event.lesson, $event.event)"
+        (toggleSelect)="toggleSelect($event.id, $event.event)"
+        (toggleSelectAll)="toggleSelectAll($event)"
+        (deleteLesson)="deleteLesson($event.lesson, $event.event)"
+        (pageSizeChange)="onPageSizeChange($event)"
+        (firstPage)="firstPage()"
+        (prevPage)="prevPage()"
+        (nextPage)="nextPage()"
+        (lastPage)="lastPage()"
+      ></app-micro-lesson-table>
+
+      <!-- Right Column: Live KaTeX Preview & Review Desk -->
+      @if (selectedLesson(); as lesson) {
+        <app-micro-lesson-detail-drawer
+          class="lg:col-span-7"
+          [lesson]="lesson"
+          [isEditingContent]="isEditingContent()"
+          [isSubmitting]="isSubmitting()"
+          [reviewerNotes]="reviewerNotes()"
+          [editedCoreConcept]="editedCoreConcept()"
+          [editedTrapAlert]="editedTrapAlert()"
+          [editedFormulaCheatSheet]="editedFormulaCheatSheet()"
+          (close)="closePreview()"
+          (startEdit)="startEditing($event)"
+          (openStudioEdit)="openAuthoringStudio($event)"
+          (cancelEdit)="cancelEditing()"
+          (saveEdit)="saveEditedContent()"
+          (delete)="deleteLesson($event)"
+          (submitReview)="submitReview($event)"
+          (reviewerNotesChange)="reviewerNotes.set($event)"
+          (coreConceptChange)="editedCoreConcept.set($event)"
+          (trapAlertChange)="editedTrapAlert.set($event)"
+          (formulaCheatSheetChange)="editedFormulaCheatSheet.set($event)"
+        ></app-micro-lesson-detail-drawer>
+      }
+    </div>
+  }
+</div>

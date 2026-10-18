@@ -51,6 +51,7 @@ public class QuestionResponse {
     private String subtopic;
     private String chapter;
     private String difficulty;
+    private Integer benchmarkTimeSeconds;
     private String cognitiveLevel;
     private String questionType;
     private String content;
@@ -127,6 +128,7 @@ public class QuestionResponse {
                 .subtopic(question.getSubtopic())
                 .chapter(question.getChapter())
                 .difficulty(question.getDifficulty())
+                .benchmarkTimeSeconds(question.getBenchmarkTimeSeconds())
                 .cognitiveLevel(question.getCognitiveLevel())
                 .questionType(question.getQuestionType())
                 .content(question.getContent())

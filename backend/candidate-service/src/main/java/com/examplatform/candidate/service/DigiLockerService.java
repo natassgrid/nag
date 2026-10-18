@@ -25,6 +25,7 @@ import com.examplatform.candidate.dto.DigiLockerCallbackResult;
 import com.examplatform.candidate.dto.DigiLockerResponse;
 import com.examplatform.candidate.exception.ProfileNotFoundException;
 import com.examplatform.candidate.repository.CandidateProfileRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -33,13 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -99,7 +94,7 @@ public class DigiLockerService {
         log.info("Handling DigiLocker OAuth2 callback for state={}", state);
 
         UUID userId = null;
-        String tenantId = "default";
+        String tenantId = SharedConstants.DEFAULT_TENANT;
 
         if (state != null && !state.isBlank()) {
             Map<String, String> stateData = parseStateToken(state);
@@ -109,8 +104,8 @@ public class DigiLockerService {
                 } catch (IllegalArgumentException ignored) {
                 }
             }
-            if (stateData.containsKey("tenantId")) {
-                tenantId = stateData.get("tenantId");
+            if (stateData.containsKey(SharedConstants.TENANT_ID)) {
+                tenantId = stateData.get(SharedConstants.TENANT_ID);
             }
         }
 
@@ -129,8 +124,8 @@ public class DigiLockerService {
         try {
             // 1. Exchange code for access token
             Map<String, Object> tokenResponse = digiLockerClient.exchangeCodeForToken(code, redirectUri);
-            String accessToken = tokenResponse != null && tokenResponse.get("access_token") != null
-                    ? tokenResponse.get("access_token").toString() : null;
+            String accessToken = tokenResponse != null && tokenResponse.get(SharedConstants.ACCESS_TOKEN) != null
+                    ? tokenResponse.get(SharedConstants.ACCESS_TOKEN).toString() : null;
 
             if (accessToken == null || accessToken.isBlank()) {
                 log.warn("Empty access token received from DigiLocker for userId={}", effectiveUserId);
@@ -233,8 +228,8 @@ public class DigiLockerService {
         String dlDob = null;
 
         if (userInfo != null) {
-            if (userInfo.get("name") != null) {
-                dlName = String.valueOf(userInfo.get("name"));
+            if (userInfo.get(SharedConstants.NAME) != null) {
+                dlName = String.valueOf(userInfo.get(SharedConstants.NAME));
             } else if (userInfo.get("fullName") != null) {
                 dlName = String.valueOf(userInfo.get("fullName"));
             }
@@ -347,7 +342,7 @@ public class DigiLockerService {
 
     private String generateStateToken(UUID userId, String tenantId) {
         String raw = (userId != null ? userId.toString() : "") + ":"
-                + (tenantId != null ? tenantId : "default") + ":"
+                + (tenantId != null ? tenantId : SharedConstants.DEFAULT_TENANT) + ":"
                 + UUID.randomUUID();
         return Base64.getUrlEncoder().withoutPadding().encodeToString(raw.getBytes(StandardCharsets.UTF_8));
     }
@@ -362,7 +357,7 @@ public class DigiLockerService {
                 map.put("userId", parts[0]);
             }
             if (parts.length >= 2 && !parts[1].isBlank()) {
-                map.put("tenantId", parts[1]);
+                map.put(SharedConstants.TENANT_ID, parts[1]);
             }
         } catch (Exception e) {
             log.warn("Could not decode state token '{}': {}", state, e.getMessage());

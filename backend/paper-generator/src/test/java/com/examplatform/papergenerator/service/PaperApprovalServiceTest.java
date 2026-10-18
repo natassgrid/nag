@@ -21,6 +21,7 @@ package com.examplatform.papergenerator.service;
 
 import com.examplatform.papergenerator.domain.Paper;
 import com.examplatform.papergenerator.repository.PaperRepository;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import com.examplatform.shared.crypto.VaultCryptoService;
 import com.examplatform.shared.messaging.EventPublisher;
 import jakarta.persistence.EntityNotFoundException;
@@ -37,9 +38,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -70,7 +69,7 @@ class PaperApprovalServiceTest {
         draftPaper = Paper.builder()
                 .examId(UUID.randomUUID())
                 .shiftId("shift-A")
-                .status("DRAFT")
+                .status(QuestionStateConstants.DRAFT)
                 .paperDefinitionJson("{\"questions\": []}")
                 .difficultyScore(0.65)
                 .build();
@@ -104,12 +103,12 @@ class PaperApprovalServiceTest {
     @Test
     @DisplayName("Should reject approval of non-DRAFT paper")
     void approvePaper_approvedPaper_throwsException() {
-        draftPaper.setStatus("APPROVED");
+        draftPaper.setStatus(QuestionStateConstants.APPROVED);
         when(paperRepository.findByIdAndTenantId(paperId, "tenant-1")).thenReturn(Optional.of(draftPaper));
 
         assertThatThrownBy(() -> paperApprovalService.approvePaper(paperId, "tenant-1"))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("DRAFT");
+                .hasMessageContaining(QuestionStateConstants.DRAFT);
     }
 
     @Test

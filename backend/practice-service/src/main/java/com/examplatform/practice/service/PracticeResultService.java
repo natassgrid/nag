@@ -13,7 +13,6 @@ import com.examplatform.practice.repository.PracticeResponseRepository;
 import com.examplatform.practice.repository.PracticeSessionRepository;
 import com.examplatform.practice.repository.PracticeSetRepository;
 import com.examplatform.practice.util.PracticeQuestionUtils;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -97,17 +96,13 @@ public class PracticeResultService {
             String questionType = ak != null ? ak.questionType() : null;
 
             Map<String, Map<String, Object>> translations = ak != null ? ak.translations() : null;
-            Map<String, Object> primaryTranslation = null;
+            Map<String, Object> primaryTranslation = new HashMap<>();
             boolean fallbackToEnglish = false;
 
             if ("en".equalsIgnoreCase(targetLang)) {
-                primaryTranslation = null;
-                fallbackToEnglish = false;
             } else if (translations != null && translations.containsKey(targetLang)) {
                 primaryTranslation = translations.get(targetLang);
-                fallbackToEnglish = false;
             } else {
-                primaryTranslation = null;
                 fallbackToEnglish = true;
             }
 
@@ -150,7 +145,8 @@ public class PracticeResultService {
                 qResults,
                 practiceSetName,
                 session.getMode(),
-                flaggedCount
+                flaggedCount,
+                session.getSubtopicWiseBreakdown()
         );
     }
 

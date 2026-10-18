@@ -20,6 +20,7 @@
 package com.examplatform.papergenerator.repository;
 
 import com.examplatform.papergenerator.domain.Paper;
+import com.examplatform.shared.constants.SharedConstants;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -56,7 +57,7 @@ public interface PaperRepository extends JpaRepository<Paper, UUID> {
           AND (p.tenantId = :tenantId OR p.tenantId = 'default')
         ORDER BY p.createdAt DESC
     """)
-    List<Paper> findPracticePapersByExamId(@Param("examId") UUID examId, @Param("tenantId") String tenantId);
+    List<Paper> findPracticePapersByExamId(@Param("examId") UUID examId, @Param(SharedConstants.TENANT_ID) String tenantId);
 
     @Query("""
         SELECT p FROM Paper p
@@ -65,8 +66,8 @@ public interface PaperRepository extends JpaRepository<Paper, UUID> {
           AND (:status IS NULL OR p.status = :status)
     """)
     Page<Paper> findPapers(
-            @Param("tenantId") String tenantId,
+            @Param(SharedConstants.TENANT_ID) String tenantId,
             @Param("examId") UUID examId,
-            @Param("status") String status,
+            @Param(SharedConstants.STATUS) String status,
             Pageable pageable);
 }

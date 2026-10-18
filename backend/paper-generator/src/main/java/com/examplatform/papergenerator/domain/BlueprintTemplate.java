@@ -19,15 +19,12 @@
 
 package com.examplatform.papergenerator.domain;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -53,7 +50,7 @@ import java.util.UUID;
 public class BlueprintTemplate extends BaseEntity {
 
     /** Human-readable name, unique per tenant. */
-    @Column(name = "name", nullable = false, length = 255)
+    @Column(name = SharedConstants.NAME, nullable = false)
     private String name;
 
     /** Optional longer description of what this template is for. */

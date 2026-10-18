@@ -20,6 +20,7 @@
 package com.examplatform.papergenerator.repository;
 
 import com.examplatform.papergenerator.domain.BlueprintTemplate;
+import com.examplatform.shared.constants.SharedConstants;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -43,7 +44,7 @@ public interface BlueprintTemplateRepository extends JpaRepository<BlueprintTemp
      * with mapped rules listed first followed by universal rules.
      */
     @Query("SELECT b FROM BlueprintTemplate b WHERE b.tenantId = :tenantId AND (b.examId = :examId OR b.examId IS NULL) ORDER BY CASE WHEN b.examId = :examId THEN 0 ELSE 1 END, b.createdAt DESC")
-    List<BlueprintTemplate> findByExamIdOrUniversal(@Param("examId") UUID examId, @Param("tenantId") String tenantId);
+    List<BlueprintTemplate> findByExamIdOrUniversal(@Param("examId") UUID examId, @Param(SharedConstants.TENANT_ID) String tenantId);
 
     /** Lookup by name within a tenant (name is unique per tenant). */
     Optional<BlueprintTemplate> findByNameAndTenantId(String name, String tenantId);

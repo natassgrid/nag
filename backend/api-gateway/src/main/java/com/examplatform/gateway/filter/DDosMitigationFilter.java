@@ -22,6 +22,7 @@ package com.examplatform.gateway.filter;
 import com.examplatform.gateway.config.DDoSProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
@@ -50,9 +51,8 @@ import java.util.Map;
 @Component
 @RequiredArgsConstructor
 public class DDosMitigationFilter implements GlobalFilter, Ordered {
-
+    private static final String AUDIT_EVENTS_TOPIC = "exam.audit.events";
     private static final String REDIS_KEY_PREFIX = "ddos:ip:";
-    private static final String AUDIT_TOPIC = "exam.audit.events";
     private static final String NOTIFICATION_TOPIC = "exam.notifications.outbound";
 
     private final ReactiveRedisTemplate<String, String> reactiveRedisTemplate;
@@ -60,7 +60,7 @@ public class DDosMitigationFilter implements GlobalFilter, Ordered {
     private final DDoSProperties ddosProperties;
 
     @Override
-    public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+    public Mono<Void> filter(@NonNull ServerWebExchange exchange, @NonNull GatewayFilterChain chain) {
         String ipAddress = extractIpAddress(exchange);
         if (ipAddress == null) {
             return chain.filter(exchange);
@@ -114,7 +114,7 @@ public class DDosMitigationFilter implements GlobalFilter, Ordered {
 
         try {
             kafkaTemplateProvider.ifAvailable(template -> {
-                template.send(AUDIT_TOPIC, ipAddress, alert);
+                template.send(AUDIT_EVENTS_TOPIC, ipAddress, alert);
                 template.send(NOTIFICATION_TOPIC, ipAddress, alert);
             });
         } catch (Exception e) {

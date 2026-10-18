@@ -15,27 +15,23 @@
  */
 package com.examplatform.questionbank.ai.generation;
 
-import com.examplatform.questionbank.exception.QuestionGenerationException;
-
 import com.examplatform.questionbank.ai.embedding.EmbeddingService;
-import com.examplatform.questionbank.ai.generation.multiagent.ComplexityEvaluationResult;
-import com.examplatform.questionbank.ai.generation.multiagent.ComplexityEvaluator;
-import com.examplatform.questionbank.ai.generation.multiagent.CriticReviewResult;
-import com.examplatform.questionbank.ai.generation.multiagent.PsychometricCriticAgent;
-import com.examplatform.questionbank.ai.generation.multiagent.QuestionAuthorAgent;
-import com.examplatform.questionbank.ai.generation.multiagent.RefinementAgent;
-import com.examplatform.questionbank.ai.generation.multiagent.RequirementAnalystAgent;
-import com.examplatform.questionbank.ai.generation.multiagent.SimilarityAuditorAgent;
+import com.examplatform.questionbank.ai.generation.multiagent.*;
 import com.examplatform.questionbank.ai.parser.NormalizedSampleQuestion;
 import com.examplatform.questionbank.ai.parser.SampleDocumentParserService;
+import com.examplatform.questionbank.ai.prompt.PromptTemplateService;
 import com.examplatform.questionbank.ai.similarity.SimilarityCheckResult;
 import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.dto.QuestionOption;
+import com.examplatform.questionbank.exception.QuestionGenerationException;
 import com.examplatform.questionbank.repository.QuestionRepository;
 import com.examplatform.questionbank.repository.SimilarityResult;
 import com.examplatform.questionbank.service.SimilarityDetectionService;
 import com.examplatform.questionbank.service.SubjectTopicService;
 import com.examplatform.questionbank.util.EmbeddingUtils;
+import com.examplatform.shared.constants.QuestionStateConstants;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.examplatform.shared.constants.QuestionTypeConstants;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -46,12 +42,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -81,13 +72,29 @@ public class SpringAiGenerationService implements QuestionGenerationService {
     private static final int RAG_TOP_K = 5;
     private static final double GENERATION_TEMPERATURE = 0.7;
 
-    private static final Set<String> MCQ_TYPES = Set.of("SINGLE_MCQ", "MULTI_MCQ");
-    private static final Set<String> VALID_DIFFICULTIES = Set.of("EASY", "MEDIUM", "HARD");
+    public static final String SINGLE_MCQ = QuestionTypeConstants.SINGLE_MCQ;
+    public static final String MULTI_MCQ = QuestionTypeConstants.MULTI_MCQ;
+
+    private static final Set<String> MCQ_TYPES = Set.of(SINGLE_MCQ, MULTI_MCQ);
+    private static final Set<String> VALID_DIFFICULTIES = Set.of(
+            QuestionTaxonomyConstants.Difficulty.EASY,
+            QuestionTaxonomyConstants.Difficulty.MEDIUM,
+            QuestionTaxonomyConstants.Difficulty.HARD);
     private static final Set<String> VALID_COGNITIVE_LEVELS = Set.of(
-            "REMEMBER", "UNDERSTAND", "APPLY", "ANALYZE", "EVALUATE", "CREATE");
+            QuestionTaxonomyConstants.CognitiveLevel.REMEMBER,
+            QuestionTaxonomyConstants.CognitiveLevel.UNDERSTAND,
+            QuestionTaxonomyConstants.CognitiveLevel.APPLY,
+            QuestionTaxonomyConstants.CognitiveLevel.ANALYZE,
+            QuestionTaxonomyConstants.CognitiveLevel.EVALUATE,
+            QuestionTaxonomyConstants.CognitiveLevel.CREATE);
     private static final Set<String> VALID_QUESTION_TYPES = Set.of(
-            "SINGLE_MCQ", "MULTI_MCQ", "NUMERICAL", "DESCRIPTIVE",
-            "ASSERTION_REASON", "PARAGRAPH_SET", "MATRIX_MATCH");
+            QuestionTypeConstants.SINGLE_MCQ,
+            QuestionTypeConstants.MULTI_MCQ,
+            QuestionTypeConstants.NUMERICAL,
+            QuestionTypeConstants.DESCRIPTIVE,
+            QuestionTypeConstants.ASSERTION_REASON,
+            QuestionTypeConstants.PARAGRAPH_SET,
+            QuestionTypeConstants.MATRIX_MATCH);
 
     private static final Pattern PAREN_DELIMITER_PATTERN =
             Pattern.compile(Pattern.quote("\\(") + "(.*?)" + Pattern.quote("\\)"), Pattern.DOTALL);
@@ -110,6 +117,12 @@ public class SpringAiGenerationService implements QuestionGenerationService {
     private final SimilarityAuditorAgent similarityAuditorAgent;
     private final RefinementAgent refinementAgent;
     private final SampleDocumentParserService sampleDocumentParserService;
+    private PromptTemplateService promptTemplateService;
+
+    @Autowired(required = false)
+    public void setPromptTemplateService(PromptTemplateService promptTemplateService) {
+        this.promptTemplateService = promptTemplateService;
+    }
 
     public SpringAiGenerationService(
             ChatClient chatClient,
@@ -171,12 +184,20 @@ public class SpringAiGenerationService implements QuestionGenerationService {
                 sampleQuestions.add(sampleDocumentParserService.normalizeTextQuestion(sampleText, "TIER_0_LOCAL_TEXT", null));
             }
         }
-        return generateWithSamples(request, sampleQuestions, tenantId, authorId);
+        return processQuestionGeneration(request, sampleQuestions, tenantId, authorId);
     }
 
     @Override
     @Transactional
     public QuestionGenerationResponse generateWithSamples(
+            QuestionGenerationRequest request,
+            List<NormalizedSampleQuestion> sampleQuestions,
+            String tenantId,
+            UUID authorId) {
+        return processQuestionGeneration(request, sampleQuestions, tenantId, authorId);
+    }
+
+    private QuestionGenerationResponse processQuestionGeneration(
             QuestionGenerationRequest request,
             List<NormalizedSampleQuestion> sampleQuestions,
             String tenantId,
@@ -412,6 +433,14 @@ public class SpringAiGenerationService implements QuestionGenerationService {
     }
 
     private String buildSystemPrompt(QuestionGenerationRequest request) {
+        if (promptTemplateService != null) {
+            try {
+                return promptTemplateService.render("question/system-prompt",
+                        Map.of("questionType", String.valueOf(request.getQuestionType())));
+            } catch (Exception e) {
+                log.warn("Failed to render question system prompt from template: {}. Falling back to default.", e.getMessage());
+            }
+        }
         return """
                 You are an expert examination question generator for Indian competitive examinations.
                 You generate high-quality questions in structured JSON format.
@@ -451,27 +480,50 @@ public class SpringAiGenerationService implements QuestionGenerationService {
             List<SimilarityResult> ragContext,
             List<NormalizedSampleQuestion> sampleQuestions) {
 
-        StringBuilder prompt = new StringBuilder();
-        prompt.append("Generate ").append(request.getCount()).append(" question(s) with these parameters:\n");
+        StringBuilder parameters = new StringBuilder();
         QuestionPromptFormatter.appendGenerationParameters(
-                prompt, request, "- ", "Description/Requirements", "Target Exam");
+                parameters, request, "- ", "Description/Requirements", "Target Exam");
 
+        StringBuilder samplesSection = new StringBuilder();
         if (sampleQuestions != null && !sampleQuestions.isEmpty()) {
-            prompt.append("\nReference Sample Demonstrations (Model question style and depth):\n");
+            samplesSection.append("\nReference Sample Demonstrations (Model question style and depth):\n");
             for (int i = 0; i < sampleQuestions.size(); i++) {
                 NormalizedSampleQuestion sq = sampleQuestions.get(i);
-                prompt.append("Sample ").append(i + 1).append(": ").append(sq.getStem()).append("\n");
+                samplesSection.append("Sample ").append(i + 1).append(": ").append(sq.getStem()).append("\n");
             }
         }
 
+        StringBuilder ragSection = new StringBuilder();
         if (!ragContext.isEmpty()) {
-            prompt.append("\nHere are existing questions on this topic for reference (do NOT duplicate them):\n");
+            ragSection.append("\nHere are existing questions on this topic for reference (do NOT duplicate them):\n");
             for (int i = 0; i < ragContext.size(); i++) {
                 SimilarityResult ctx = ragContext.get(i);
-                prompt.append(i + 1).append(". ").append(ctx.getContent()).append("\n");
+                ragSection.append(i + 1).append(". ").append(ctx.getContent()).append("\n");
             }
         }
 
+        if (promptTemplateService != null) {
+            try {
+                Map<String, Object> vars = new HashMap<>();
+                vars.put("count", request.getCount());
+                vars.put("parameters", parameters.toString());
+                vars.put("samplesSection", samplesSection.toString());
+                vars.put("ragSection", ragSection.toString());
+                return promptTemplateService.render("question/user-prompt", vars);
+            } catch (Exception e) {
+                log.warn("Failed to render question user prompt from template: {}. Falling back to default.", e.getMessage());
+            }
+        }
+
+        StringBuilder prompt = new StringBuilder();
+        prompt.append("Generate ").append(request.getCount()).append(" question(s) with these parameters:\n");
+        prompt.append(parameters);
+        if (!samplesSection.isEmpty()) {
+            prompt.append(samplesSection);
+        }
+        if (!ragSection.isEmpty()) {
+            prompt.append(ragSection);
+        }
         prompt.append("\nGenerate the questions now as a JSON array:");
         return prompt.toString();
     }
@@ -515,7 +567,8 @@ public class SpringAiGenerationService implements QuestionGenerationService {
 
         try {
             List<RawGeneratedQuestion> parsed =
-                    objectMapper.readValue(json, new TypeReference<List<RawGeneratedQuestion>>() {});
+                    objectMapper.readValue(json, new TypeReference<>() {
+                    });
             return parsed.stream().map(this::normalizeLatexDelimiters).toList();
         } catch (JsonProcessingException e) {
             log.error("Failed to parse LLM response as JSON: {}", e.getMessage());
@@ -560,13 +613,29 @@ public class SpringAiGenerationService implements QuestionGenerationService {
             RawGeneratedQuestion question, String expectedType) {
         List<String> errors = new ArrayList<>();
 
+        validateRequiredFields(question, errors);
+        validateMetadata(question, expectedType, errors);
+
+        if (expectedType != null && MCQ_TYPES.contains(expectedType.toUpperCase())) {
+            validateMcq(question, expectedType, errors);
+        }
+
+        return QuestionGenerationResponse.ValidationResult.builder()
+                .valid(errors.isEmpty())
+                .errors(errors)
+                .build();
+    }
+
+    private void validateRequiredFields(RawGeneratedQuestion question, List<String> errors) {
         if (question.content == null || question.content.isBlank()) {
             errors.add("Content is required");
         }
         if (question.answerKey == null || question.answerKey.isBlank()) {
             errors.add("Answer key is required");
         }
+    }
 
+    private void validateMetadata(RawGeneratedQuestion question, String expectedType, List<String> errors) {
         String questionType = question.questionType != null ? question.questionType : expectedType;
         if (questionType != null && !VALID_QUESTION_TYPES.contains(questionType.toUpperCase())) {
             errors.add("Invalid question type: " + questionType);
@@ -580,53 +649,64 @@ public class SpringAiGenerationService implements QuestionGenerationService {
                 && !VALID_COGNITIVE_LEVELS.contains(question.cognitiveLevel.toUpperCase())) {
             errors.add("Invalid cognitive level: " + question.cognitiveLevel);
         }
+    }
 
-        if (MCQ_TYPES.contains(expectedType.toUpperCase())) {
-            if (question.options == null || question.options.isEmpty()) {
-                errors.add("Options are required for " + expectedType);
-            } else {
-                if (question.options.size() != 4) {
-                    errors.add("MCQ must have exactly 4 options, got " + question.options.size());
-                }
-
-                long correctCount = question.options.stream()
-                        .filter(QuestionOption::isCorrect)
-                        .count();
-
-                if (correctCount == 0 && question.answerKey != null && !question.answerKey.isBlank()) {
-                    String key = question.answerKey.trim();
-                    for (QuestionOption opt : question.options) {
-                        if (opt.getId() != null && opt.getId().equalsIgnoreCase(key)) {
-                            opt.setCorrect(true);
-                            correctCount = 1;
-                            break;
-                        }
-                    }
-                    if (correctCount == 0 && key.matches("\\d+")) {
-                        int idx = Integer.parseInt(key) - 1;
-                        if (idx >= 0 && idx < question.options.size()) {
-                            question.options.get(idx).setCorrect(true);
-                            correctCount = 1;
-                        }
-                    }
-                }
-
-                if ("SINGLE_MCQ".equalsIgnoreCase(expectedType)) {
-                    if (correctCount != 1) {
-                        errors.add("SINGLE_MCQ must have exactly 1 correct option, got " + correctCount);
-                    }
-                } else if ("MULTI_MCQ".equalsIgnoreCase(expectedType)) {
-                    if (correctCount < 2) {
-                        errors.add("MULTI_MCQ must have at least 2 correct options, got " + correctCount);
-                    }
-                }
-            }
+    private void validateMcq(RawGeneratedQuestion question, String expectedType, List<String> errors) {
+        if (question.options == null || question.options.isEmpty()) {
+            errors.add("Options are required for " + expectedType);
+            return;
         }
 
-        return QuestionGenerationResponse.ValidationResult.builder()
-                .valid(errors.isEmpty())
-                .errors(errors)
-                .build();
+        if (question.options.size() != 4) {
+            errors.add("MCQ must have exactly 4 options, got " + question.options.size());
+        }
+
+        long correctCount = countOrInferCorrectOptions(question);
+        validateMcqCorrectCount(expectedType, correctCount, errors);
+    }
+
+    private long countOrInferCorrectOptions(RawGeneratedQuestion question) {
+        long correctCount = question.options.stream()
+                .filter(QuestionOption::isCorrect)
+                .count();
+
+        if (correctCount == 0 && question.answerKey != null && !question.answerKey.isBlank()) {
+            String key = question.answerKey.trim();
+            if (markOptionById(question.options, key) || markOptionByIndex(question.options, key)) {
+                correctCount = 1;
+            }
+        }
+        return correctCount;
+    }
+
+    private boolean markOptionById(List<QuestionOption> options, String key) {
+        for (QuestionOption opt : options) {
+            if (opt.getId() != null && opt.getId().equalsIgnoreCase(key)) {
+                opt.setCorrect(true);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean markOptionByIndex(List<QuestionOption> options, String key) {
+        if (!key.matches("\\d+")) {
+            return false;
+        }
+        int idx = Integer.parseInt(key) - 1;
+        if (idx >= 0 && idx < options.size()) {
+            options.get(idx).setCorrect(true);
+            return true;
+        }
+        return false;
+    }
+
+    private void validateMcqCorrectCount(String expectedType, long correctCount, List<String> errors) {
+        if (SINGLE_MCQ.equalsIgnoreCase(expectedType) && correctCount != 1) {
+            errors.add(SINGLE_MCQ + " must have exactly 1 correct option, got " + correctCount);
+        } else if (MULTI_MCQ.equalsIgnoreCase(expectedType) && correctCount < 2) {
+            errors.add(MULTI_MCQ + " must have at least 2 correct options, got " + correctCount);
+        }
     }
 
     private QuestionGenerationResponse.DuplicateResult checkDuplicate(
@@ -676,29 +756,32 @@ public class SpringAiGenerationService implements QuestionGenerationService {
                     .explanation(raw.explanation)
                     .options(raw.options)
                     .sourceReferences("AI-generated via " + modelRouter.selectModel(request.getDifficulty()))
-                    .state("DRAFT")
+                    .state(QuestionStateConstants.DRAFT)
                     .authorId(authorId)
                     .build();
             question.setTenantId(tenantId);
 
             Question saved = questionRepository.save(question);
-
-            try {
-                float[] embedding = embeddingService.embed(raw.content);
-                if (embedding != null && embedding.length > 0) {
-                    questionRepository.updateEmbedding(saved.getId(), EmbeddingUtils.embeddingToString(embedding));
-                    log.debug("Embedding generated for auto-saved question: id={}", saved.getId());
-                }
-            } catch (Exception e) {
-                log.warn("Failed to generate embedding for auto-saved question id={}. Reason: {}",
-                        saved.getId(), e.getMessage());
-            }
+            generateAndPersistEmbedding(saved.getId(), raw.content);
 
             log.debug("Auto-saved generated question as DRAFT: id={}", saved.getId());
             return saved.getId();
         } catch (Exception e) {
             log.error("Failed to auto-save generated question: {}", e.getMessage());
             return null;
+        }
+    }
+
+    private void generateAndPersistEmbedding(UUID questionId, String content) {
+        try {
+            float[] embedding = embeddingService.embed(content);
+            if (embedding != null && embedding.length > 0) {
+                questionRepository.updateEmbedding(questionId, EmbeddingUtils.embeddingToString(embedding));
+                log.debug("Embedding generated for auto-saved question: id={}", questionId);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to generate embedding for auto-saved question id={}. Reason: {}",
+                    questionId, e.getMessage());
         }
     }
 

@@ -19,16 +19,13 @@
 
 package com.examplatform.questionbank.domain;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.entity.NumericBaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 /**
  * Represents an examination subject (e.g. General Studies, Mathematics).
@@ -44,14 +41,14 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @EqualsAndHashCode(callSuper = true)
 @Entity
-@Table(name = "subject", schema = "question_service",
-       uniqueConstraints = @UniqueConstraint(columnNames = {"name", "tenant_id"}))
+@Table(name = SharedConstants.SUBJECT, schema = "question_service",
+       uniqueConstraints = @UniqueConstraint(columnNames = {SharedConstants.NAME, "tenant_id"}))
 public class Subject extends NumericBaseEntity {
 
-    @Column(name = "name", nullable = false, length = 200)
+    @Column(name = SharedConstants.NAME, nullable = false, length = 200)
     private String name;
 
-    @Column(name = "code", length = 50)
+    @Column(name = SharedConstants.CODE, length = 50)
     private String code;
 
     @Column(name = "description")

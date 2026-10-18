@@ -22,6 +22,7 @@ package com.examplatform.evaluation.client;
 import com.examplatform.evaluation.dto.CandidateResponse;
 import com.examplatform.evaluation.exception.UpstreamServiceUnavailableException;
 import com.examplatform.shared.auth.ServiceAccountTokenProvider;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
@@ -71,21 +72,21 @@ public class ResponseServiceRestClient implements CandidateResponseClient {
     @Override
     @CircuitBreaker(name = "responseService", fallbackMethod = "fetchResponsesFallback")
     public List<CandidateResponse> getCandidateResponses(UUID sessionId, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         log.info("Fetching candidate responses via REST for sessionId={}, tenantId={} from {}",
                 sessionId, effectiveTenant, responseServiceUrl);
 
         try {
             var request = restClient.get()
                     .uri("/api/v1/responses/{sessionId}/responses", sessionId)
-                    .header("X-Tenant-Id", effectiveTenant)
+                    .header(SharedConstants.HEADER_TENANT_ID, effectiveTenant)
                     .accept(MediaType.APPLICATION_JSON);
 
             if (tokenProvider != null) {
                 try {
                     String token = tokenProvider.getServiceToken("evaluation-service");
                     if (token != null && !token.isBlank()) {
-                        request.header(HttpHeaders.AUTHORIZATION, "Bearer " + token);
+                        request.header(HttpHeaders.AUTHORIZATION, SharedConstants.BEARER_PREFIX + token);
                     }
                 } catch (Exception e) {
                     log.debug("Could not obtain service account token for evaluation-service: {}", e.getMessage());
@@ -125,8 +126,8 @@ public class ResponseServiceRestClient implements CandidateResponseClient {
 
             if (dataNode.isArray()) {
                 for (JsonNode item : dataNode) {
-                    if (item.has("questionId")) {
-                        UUID qId = UUID.fromString(item.get("questionId").asText());
+                    if (item.has(SharedConstants.QUESTION_ID)) {
+                        UUID qId = UUID.fromString(item.get(SharedConstants.QUESTION_ID).asText());
                         String selectedOptions = item.has("selectedOptionIds") && !item.get("selectedOptionIds").isNull()
                                 ? item.get("selectedOptionIds").asText() : null;
                         String enteredValue = item.has("enteredValue") && !item.get("enteredValue").isNull()

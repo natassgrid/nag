@@ -22,25 +22,14 @@ package com.examplatform.result.service;
 import com.examplatform.result.client.EvaluationClient;
 import com.examplatform.result.client.QuestionBankClient;
 import com.examplatform.result.domain.Result;
-import com.examplatform.result.dto.CandidateEvaluationItemDto;
-import com.examplatform.result.dto.ExamReviewResponse;
-import com.examplatform.result.dto.QuestionAnalyticsResult;
-import com.examplatform.result.dto.QuestionDetailDto;
-import com.examplatform.result.dto.ReviewOptionDto;
-import com.examplatform.result.dto.ReviewQuestionDto;
+import com.examplatform.result.dto.*;
 import com.examplatform.result.repository.ResultRepository;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * Service responsible for assembling real cross-service exam review data.
@@ -141,8 +130,10 @@ public class ExamReviewService {
             String content = qDetail != null && qDetail.getContent() != null ? qDetail.getContent() : "Question content";
             String subject = qDetail != null && qDetail.getSubject() != null ? qDetail.getSubject() : "General";
             String topic = qDetail != null && qDetail.getTopic() != null ? qDetail.getTopic() : "General";
-            String difficulty = qDetail != null && qDetail.getDifficulty() != null ? qDetail.getDifficulty() : "MEDIUM";
-            String bloomsLevel = qDetail != null && qDetail.getCognitiveLevel() != null ? qDetail.getCognitiveLevel() : "APPLY";
+            String difficulty = qDetail != null && qDetail.getDifficulty() != null ? qDetail.getDifficulty() :
+                QuestionTaxonomyConstants.Difficulty.MEDIUM;
+            String bloomsLevel = qDetail != null && qDetail.getCognitiveLevel() != null ? qDetail.getCognitiveLevel() :
+                QuestionTaxonomyConstants.CognitiveLevel.APPLY;
             List<ReviewOptionDto> options = qDetail != null && qDetail.getOptions() != null
                     ? qDetail.getOptions()
                     : Collections.emptyList();
@@ -162,7 +153,7 @@ public class ExamReviewService {
                         .filter(ReviewOptionDto::isCorrect)
                         .map(ReviewOptionDto::getId)
                         .toList();
-                if (!correctOptionIds.isEmpty() && correctOptionIds.containsAll(selectedOptions) && selectedOptions.containsAll(correctOptionIds)) {
+                if (!correctOptionIds.isEmpty() && new HashSet<>(correctOptionIds).containsAll(selectedOptions) && new HashSet<>(selectedOptions).containsAll(correctOptionIds)) {
                     isCorrect = true;
                 }
             }

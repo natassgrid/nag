@@ -20,6 +20,7 @@
 package com.examplatform.papergenerator.exception;
 
 import com.examplatform.papergenerator.dto.GapDetail;
+import lombok.Getter;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
@@ -32,6 +33,7 @@ import java.util.List;
  *
  * Validates: Requirements 8.5
  */
+@Getter
 @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
 public class InsufficientQuestionsException extends RuntimeException {
 
@@ -42,7 +44,4 @@ public class InsufficientQuestionsException extends RuntimeException {
         this.gapDetails = gapDetails;
     }
 
-    public List<GapDetail> getGapDetails() {
-        return gapDetails;
-    }
 }

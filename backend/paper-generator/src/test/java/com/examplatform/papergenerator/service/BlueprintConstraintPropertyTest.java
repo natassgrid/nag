@@ -25,26 +25,19 @@ import com.examplatform.papergenerator.dto.BlueprintRule;
 import com.examplatform.papergenerator.dto.PaperGenerationRequest;
 import com.examplatform.papergenerator.dto.QuestionSummary;
 import com.examplatform.papergenerator.repository.PaperRepository;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import net.jqwik.api.Arbitraries;
-import net.jqwik.api.Arbitrary;
-import net.jqwik.api.Combinators;
-import net.jqwik.api.ForAll;
-import net.jqwik.api.Label;
-import net.jqwik.api.Property;
-import net.jqwik.api.Provide;
+import net.jqwik.api.*;
 import org.mockito.Mockito;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 /**
@@ -67,7 +60,8 @@ class BlueprintConstraintPropertyTest {
     private static final UUID GENERATED_BY = UUID.randomUUID();
 
     // Difficulty levels available in the platform
-    private static final List<String> DIFFICULTIES = List.of("EASY", "MEDIUM", "HARD");
+    private static final List<String> DIFFICULTIES = List.of(QuestionTaxonomyConstants.Difficulty.EASY,
+        QuestionTaxonomyConstants.Difficulty.MEDIUM, QuestionTaxonomyConstants.Difficulty.HARD);
 
     // -----------------------------------------------------------------------
     // Generators
@@ -80,7 +74,8 @@ class BlueprintConstraintPropertyTest {
     Arbitrary<BlueprintRule> validBlueprintRule() {
         Arbitrary<String> subject = Arbitraries.of("Mathematics", "Physics", "Chemistry", "Biology", "English");
         Arbitrary<String> topic = Arbitraries.strings().alpha().ofMinLength(3).ofMaxLength(20);
-        Arbitrary<String> difficulty = Arbitraries.of("EASY", "MEDIUM", "HARD");
+        Arbitrary<String> difficulty = Arbitraries.of(QuestionTaxonomyConstants.Difficulty.EASY,
+            QuestionTaxonomyConstants.Difficulty.MEDIUM, QuestionTaxonomyConstants.Difficulty.HARD);
         Arbitrary<Integer> count = Arbitraries.integers().between(1, 5);
 
         return Combinators.combine(subject, topic, difficulty, count)

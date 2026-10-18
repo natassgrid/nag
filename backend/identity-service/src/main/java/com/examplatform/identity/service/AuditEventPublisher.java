@@ -20,14 +20,18 @@
 package com.examplatform.identity.service;
 
 import com.examplatform.shared.audit.AuditEventType;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
+
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
 
 /**
  * Publishes structured audit events to the {@code exam.audit.events} destination.
@@ -38,8 +42,6 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class AuditEventPublisher {
-
-    private static final String AUDIT_TOPIC = "exam.audit.events";
 
     private final EventPublisher eventPublisher;
 
@@ -63,20 +65,41 @@ public class AuditEventPublisher {
 
         try {
             Map<String, Object> event = new HashMap<>();
-            event.put("eventType", type.name());
+            event.put(SharedConstants.EVENT_TYPE, type.name());
             event.put("actorId", actorId);
             event.put("resource", resource);
             event.put("ip", ip);
             event.put("deviceFingerprint", deviceFingerprint);
-            event.put("occurredAt", Instant.now().toString());
+            event.put(SharedConstants.OCCURRED_AT, Instant.now().toString());
             if (extra != null) {
                 event.putAll(extra);
             }
 
-            eventPublisher.publish(AUDIT_TOPIC, actorId, event);
+            eventPublisher.publish(AUDIT_EVENTS_TOPIC, actorId, event);
             log.debug("Audit event published [type={}, actor={}]", type, actorId);
         } catch (Exception e) {
             log.error("Unexpected error publishing audit event [type={}]: {}", type, e.getMessage(), e);
         }
+    }
+
+    /**
+     * Build and publish an audit event asynchronously on a background thread.
+     *
+     * @param type              the type of audit event
+     * @param actorId           identifier of the user performing the action
+     * @param resource          URI or name of the affected resource
+     * @param ip                originating IP address
+     * @param deviceFingerprint device fingerprint from the request, may be {@code null}
+     * @param extra             additional context properties to include in the event
+     */
+    @Async
+    public void publishAsync(
+            AuditEventType type,
+            String actorId,
+            String resource,
+            String ip,
+            String deviceFingerprint,
+            Map<String, Object> extra) {
+        publish(type, actorId, resource, ip, deviceFingerprint, extra);
     }
 }

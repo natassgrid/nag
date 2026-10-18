@@ -409,17 +409,48 @@ services:
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
       AWS_REGION_NAME: ${AWS_REGION_NAME:-us-east-1}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      VERTEX_PROJECT: ${VERTEX_PROJECT:-}
+      VERTEX_LOCATION: ${VERTEX_LOCATION:-us-central1}
     volumes:
       - ./litellm-config.yaml:/app/config.yaml:ro
     command: ["--config", "/app/config.yaml", "--port", "4000"]
     depends_on:
       ollama:
         condition: service_healthy
+      ollama-pull:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:4000/health || exit 1"]
       interval: 15s
       timeout: 10s
       retries: 10
+      start_period: 30s
+    networks:
+      - exam-network
+
+  # ===========================================================================
+  # Anvaya-Prajna — Step-by-Step Socratic Reasoning & Explanation Engine
+  # Port 8096 (maps to 8080)
+  # ===========================================================================
+  anvaya-prajna:
+    image: localhost:5000/exam/anvaya-prajna:latest
+    container_name: exam-anvaya-prajna
+    restart: unless-stopped
+    profiles:
+      - ai
+      - monolith
+      - full
+    ports:
+      - "${ANVAYA_PRAJNA_PORT:-8096}:8080"
+    environment:
+      SERVER_PORT: 8080
+      LITELLM_BASE_URL: ${LITELLM_BASE_URL:-http://litellm:4000}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
       start_period: 30s
     networks:
       - exam-network

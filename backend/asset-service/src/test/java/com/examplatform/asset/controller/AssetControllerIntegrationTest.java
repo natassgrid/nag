@@ -1,18 +1,15 @@
 package com.examplatform.asset.controller;
 
+import com.examplatform.asset.config.TestSecurityConfig;
 import com.examplatform.asset.domain.entity.MediaAsset;
 import com.examplatform.asset.domain.enums.AssetStatus;
 import com.examplatform.asset.domain.enums.AssetType;
 import com.examplatform.asset.repository.MediaAssetRepository;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
-import com.examplatform.asset.config.TestSecurityConfig;
+import com.examplatform.shared.constants.QuestionStateConstants;
+import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
@@ -32,10 +29,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -205,7 +199,7 @@ class AssetControllerIntegrationTest {
     class UpdateMetadata {
 
         @Test
-        @WithMockUser(roles = "CONTENT_MANAGER")
+        @WithMockUser(roles = "QUESTION_AUTHOR")
         @DisplayName("updates metadata fields")
         void updatesMetadata() throws Exception {
             MediaAsset asset = createTestAsset("tenant-integration");
@@ -238,7 +232,7 @@ class AssetControllerIntegrationTest {
     class DeleteAsset {
 
         @Test
-        @WithMockUser(roles = "ADMIN")
+        @WithMockUser(roles = "SUPER_ADMIN")
         @DisplayName("soft-deletes unreferenced asset")
         void softDeletesAsset() throws Exception {
             MediaAsset asset = createTestAsset("tenant-integration");
@@ -259,7 +253,7 @@ class AssetControllerIntegrationTest {
     class ArchiveAsset {
 
         @Test
-        @WithMockUser(roles = "CONTENT_MANAGER")
+        @WithMockUser(roles = "SUPER_ADMIN")
         @DisplayName("archives active asset")
         void archivesActiveAsset() throws Exception {
             MediaAsset asset = createTestAsset("tenant-integration");
@@ -267,7 +261,7 @@ class AssetControllerIntegrationTest {
             mockMvc.perform(put("/api/v1/assets/{id}/archive", asset.getId())
                             .header("X-Tenant-Id", "tenant-integration"))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.data.status", is("ARCHIVED")));
+                    .andExpect(jsonPath("$.data.status", is(QuestionStateConstants.ARCHIVED)));
         }
     }
 

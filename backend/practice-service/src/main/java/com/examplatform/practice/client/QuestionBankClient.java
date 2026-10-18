@@ -10,4 +10,6 @@ public interface QuestionBankClient {
     Map<UUID, AnswerKeyDto> getAnswerKeys(List<UUID> questionIds);
 
     List<UUID> findQuestionIdsBySubject(String subjectPattern, int limit);
+
+    List<UUID> findQuestionsForAdaptiveQuiz(List<String> subtopics, String difficulty, int limit);
 }

@@ -77,6 +77,14 @@ spring:
               filters:
                 - StripPrefix=0
 
+            # Micro Lessons (served by Question Bank)
+            - id: micro-lessons-service
+              uri: ${QUESTION_BANK_SERVICE_URI:http://localhost:8083}
+              predicates:
+                - Path=/api/micro-lessons/**,/api/v1/micro-lessons/**,/api/admin/micro-lessons/**,/api/v1/microlessons/**
+              filters:
+                - StripPrefix=0
+
             # Examination Service
             - id: examination-service
               uri: ${EXAMINATION_SERVICE_URI:http://localhost:8085}
@@ -185,7 +193,7 @@ spring:
             - id: recommendation-service
               uri: ${RECOMMENDATION_SERVICE_URI:http://localhost:8098}
               predicates:
-                - Path=/api/recommendations/**
+                - Path=/api/recommendations/**,/api/learning-path/**
               filters:
                 - StripPrefix=0
 

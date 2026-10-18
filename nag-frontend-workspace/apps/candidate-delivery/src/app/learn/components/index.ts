@@ -4,3 +4,7 @@ export * from './learner-profile-insights/learner-profile-insights.component';
 export * from './recommendation-card/recommendation-card.component';
 export * from './recommendations-dashboard/recommendations-dashboard.component';
 export * from './recommendation-toast/recommendation-toast.component';
+export * from './dlp-roadmap/dlp-roadmap.component';
+export * from './micro-lesson-viewer/micro-lesson-viewer.component';
+export * from './gatekeeper-dialog/gatekeeper-dialog.component';
+export * from './explanation-player/explanation-player.component';

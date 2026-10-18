@@ -19,9 +19,11 @@
 
 package com.examplatform.shared.lifecycle;
 
+import com.examplatform.shared.constants.QuestionStateConstants;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class LifecycleStateTest {
 
@@ -31,11 +33,11 @@ class LifecycleStateTest {
 
     @Test
     void questionState_hasAllRequiredValues() {
-        assertDoesNotThrow(() -> QuestionState.valueOf("DRAFT"));
-        assertDoesNotThrow(() -> QuestionState.valueOf("REVIEW"));
-        assertDoesNotThrow(() -> QuestionState.valueOf("APPROVED"));
-        assertDoesNotThrow(() -> QuestionState.valueOf("PUBLISHED"));
-        assertDoesNotThrow(() -> QuestionState.valueOf("ARCHIVED"));
+        assertDoesNotThrow(() -> QuestionState.valueOf(QuestionStateConstants.DRAFT));
+        assertDoesNotThrow(() -> QuestionState.valueOf(QuestionStateConstants.REVIEW));
+        assertDoesNotThrow(() -> QuestionState.valueOf(QuestionStateConstants.APPROVED));
+        assertDoesNotThrow(() -> QuestionState.valueOf(QuestionStateConstants.PUBLISHED));
+        assertDoesNotThrow(() -> QuestionState.valueOf(QuestionStateConstants.ARCHIVED));
         assertEquals(5, QuestionState.values().length);
     }
 
@@ -45,9 +47,9 @@ class LifecycleStateTest {
 
     @Test
     void translationState_hasAllRequiredValues() {
-        assertDoesNotThrow(() -> TranslationState.valueOf("DRAFT"));
-        assertDoesNotThrow(() -> TranslationState.valueOf("APPROVED"));
-        assertDoesNotThrow(() -> TranslationState.valueOf("PUBLISHED"));
+        assertDoesNotThrow(() -> TranslationState.valueOf(QuestionStateConstants.DRAFT));
+        assertDoesNotThrow(() -> TranslationState.valueOf(QuestionStateConstants.APPROVED));
+        assertDoesNotThrow(() -> TranslationState.valueOf(QuestionStateConstants.PUBLISHED));
         assertDoesNotThrow(() -> TranslationState.valueOf("STALE"));
         assertEquals(4, TranslationState.values().length);
     }
@@ -58,8 +60,8 @@ class LifecycleStateTest {
 
     @Test
     void paperState_hasAllRequiredValues() {
-        assertDoesNotThrow(() -> PaperState.valueOf("DRAFT"));
-        assertDoesNotThrow(() -> PaperState.valueOf("APPROVED"));
+        assertDoesNotThrow(() -> PaperState.valueOf(QuestionStateConstants.DRAFT));
+        assertDoesNotThrow(() -> PaperState.valueOf(QuestionStateConstants.APPROVED));
         assertDoesNotThrow(() -> PaperState.valueOf("ENCRYPTED"));
         assertEquals(3, PaperState.values().length);
     }

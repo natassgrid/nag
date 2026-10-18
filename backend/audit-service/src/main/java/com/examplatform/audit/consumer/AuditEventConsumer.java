@@ -20,13 +20,14 @@
 package com.examplatform.audit.consumer;
 
 import com.examplatform.audit.service.AuditIngestionService;
+import com.examplatform.shared.constants.MessagingConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.GenericDomainEvent;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.ExchangeTypes;
-import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.Exchange;
 import org.springframework.amqp.rabbit.annotation.Queue;
 import org.springframework.amqp.rabbit.annotation.QueueBinding;
@@ -35,7 +36,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
-import java.nio.charset.StandardCharsets;
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
 
 /**
  * Consumes audit event messages from Kafka, RabbitMQ, and in-memory Spring events.
@@ -49,8 +50,6 @@ import java.nio.charset.StandardCharsets;
 @RequiredArgsConstructor
 public class AuditEventConsumer {
 
-    public static final String AUDIT_TOPIC = "exam.audit.events";
-
     private final AuditIngestionService auditIngestionService;
     private final ObjectMapper objectMapper;
 
@@ -59,7 +58,7 @@ public class AuditEventConsumer {
      *
      * @param message the raw JSON string payload from Kafka
      */
-    @KafkaListener(topics = AUDIT_TOPIC, groupId = "audit-service")
+    @KafkaListener(topics = AUDIT_EVENTS_TOPIC, groupId = "audit-service")
     public void onKafkaAuditEvent(String message) {
         log.debug("Received Kafka audit event: {}", message);
         processAuditEvent(message);
@@ -73,8 +72,8 @@ public class AuditEventConsumer {
     @RabbitListener(
             bindings = @QueueBinding(
                     value = @Queue(value = "audit.events.queue", durable = "true"),
-                    exchange = @Exchange(value = "exam.events", type = ExchangeTypes.TOPIC),
-                    key = AUDIT_TOPIC
+                    exchange = @Exchange(value = MessagingConstants.EXAM_EVENTS_TOPIC, type = ExchangeTypes.TOPIC),
+                    key = AUDIT_EVENTS_TOPIC
             )
     )
     public void onRabbitAuditEvent(Object message) {
@@ -93,7 +92,7 @@ public class AuditEventConsumer {
      */
     @EventListener
     public void onSpringAuditEvent(GenericDomainEvent event) {
-        if (!AUDIT_TOPIC.equals(event.topic())) {
+        if (!AUDIT_EVENTS_TOPIC.equals(event.topic())) {
             return;
         }
         log.debug("Received Spring in-memory audit event: key={}", event.key());
@@ -108,12 +107,12 @@ public class AuditEventConsumer {
         try {
             JsonNode root = objectMapper.readTree(message);
 
-            String eventType = getTextOrDefault(root, "eventType", "UNKNOWN");
+            String eventType = getTextOrDefault(root, SharedConstants.EVENT_TYPE, "UNKNOWN");
             String actorId = getTextOrDefault(root, "actorId", "00000000-0000-0000-0000-000000000000");
             String resource = getTextOrDefault(root, "resource", "unknown");
             String ipAddress = getTextOrNull(root, "ipAddress");
             String deviceFingerprint = getTextOrNull(root, "deviceFingerprint");
-            String tenantId = getTextOrDefault(root, "tenantId", "default");
+            String tenantId = getTextOrDefault(root, SharedConstants.TENANT_ID, SharedConstants.DEFAULT_TENANT);
 
             auditIngestionService.ingest(message, eventType, actorId, resource,
                     ipAddress, deviceFingerprint, tenantId);

@@ -21,6 +21,7 @@ package com.examplatform.admin.service;
 
 import com.examplatform.admin.client.KeycloakAdminClient;
 import com.examplatform.shared.audit.AuditEventType;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +32,8 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
 
 /**
  * Service responsible for deactivating user accounts.
@@ -43,7 +46,6 @@ import java.util.UUID;
 public class UserDeactivationService {
 
     private static final String SESSION_KEY_PATTERN = "session:*:user:%s";
-    private static final String AUDIT_TOPIC = "exam.audit.events";
 
     private final StringRedisTemplate redisTemplate;
     private final KeycloakAdminClient keycloakAdminClient;
@@ -85,15 +87,15 @@ public class UserDeactivationService {
 
     private void publishAuditEvent(UUID userId, UUID actorId, String tenantId) {
         Map<String, Object> auditEvent = Map.of(
-                "eventType", AuditEventType.ROLE_CHANGE.name(),
+            SharedConstants.EVENT_TYPE, AuditEventType.ROLE_CHANGE.name(),
                 "userId", userId.toString(),
                 "actorId", actorId.toString(),
-                "tenantId", tenantId,
-                "action", "USER_DEACTIVATED",
+            SharedConstants.TENANT_ID, tenantId,
+            SharedConstants.ACTION, "USER_DEACTIVATED",
                 "timestamp", Instant.now().toString()
         );
         try {
-            eventPublisher.publish(AUDIT_TOPIC, tenantId, auditEvent);
+            eventPublisher.publish(AUDIT_EVENTS_TOPIC, tenantId, auditEvent);
         } catch (Exception ex) {
             log.warn("Failed to publish audit event for user deactivation: {}", ex.getMessage());
         }

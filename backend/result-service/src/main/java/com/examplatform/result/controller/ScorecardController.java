@@ -24,6 +24,7 @@ import com.examplatform.result.dto.ScorecardUrlResponse;
 import com.examplatform.result.service.ScorecardPdfService;
 import com.examplatform.result.storage.ScorecardStorageProperties;
 import com.examplatform.result.storage.ScorecardStorageProvider;
+import com.examplatform.shared.constants.SharedConstants;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,16 +33,9 @@ import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.io.InputStream;
 import java.time.Duration;
@@ -80,12 +74,12 @@ public class ScorecardController {
      * @return presigned URL JSON or direct PDF binary
      */
     @GetMapping("/{id}/scorecard")
-    @PreAuthorize("hasAnyRole('CANDIDATE', 'ADMIN', 'SUPER_ADMIN', 'EXAM_CONTROLLER')")
+    @PreAuthorize("hasAnyRole('CANDIDATE', 'SUPER_ADMIN', 'EXAM_CONTROLLER')")
     public ResponseEntity<?> getScorecard(
             @PathVariable UUID id,
             @RequestParam(value = "download", defaultValue = "false") boolean download,
             @RequestHeader(value = HttpHeaders.ACCEPT, required = false) String acceptHeader,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId,
             Authentication auth) {
 
         Result result = scorecardPdfService.findResult(id, tenantId);
@@ -114,10 +108,10 @@ public class ScorecardController {
      * @return ScorecardUrlResponse containing the presigned URL
      */
     @GetMapping("/{id}/scorecard/presigned")
-    @PreAuthorize("hasAnyRole('CANDIDATE', 'ADMIN', 'SUPER_ADMIN', 'EXAM_CONTROLLER')")
+    @PreAuthorize("hasAnyRole('CANDIDATE', 'SUPER_ADMIN', 'EXAM_CONTROLLER')")
     public ResponseEntity<ScorecardUrlResponse> getPresignedUrl(
             @PathVariable UUID id,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId,
             Authentication auth) {
 
         Result result = scorecardPdfService.findResult(id, tenantId);
@@ -139,10 +133,10 @@ public class ScorecardController {
      * @return PDF binary resource
      */
     @GetMapping("/{id}/scorecard/download")
-    @PreAuthorize("hasAnyRole('CANDIDATE', 'ADMIN', 'SUPER_ADMIN', 'EXAM_CONTROLLER')")
+    @PreAuthorize("hasAnyRole('CANDIDATE', 'SUPER_ADMIN', 'EXAM_CONTROLLER')")
     public ResponseEntity<Resource> downloadDirect(
             @PathVariable UUID id,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId,
             Authentication auth) {
 
         Result result = scorecardPdfService.findResult(id, tenantId);

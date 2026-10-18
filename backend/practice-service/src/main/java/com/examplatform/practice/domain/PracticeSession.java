@@ -2,10 +2,13 @@
 package com.examplatform.practice.domain;
 
 import com.examplatform.shared.entity.BaseEntity;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+
 import java.time.Instant;
 import java.util.UUID;
 
@@ -57,6 +60,10 @@ public class PracticeSession extends BaseEntity {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "topic_wise_breakdown", columnDefinition = "jsonb")
     private String topicWiseBreakdown;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "subtopic_wise_breakdown", columnDefinition = "jsonb")
+    private String subtopicWiseBreakdown;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "difficulty_breakdown", columnDefinition = "jsonb")

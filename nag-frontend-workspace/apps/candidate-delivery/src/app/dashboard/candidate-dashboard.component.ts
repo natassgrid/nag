@@ -10,6 +10,7 @@ import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatDialog } from '@angular/material/dialog';
 import { AuthService } from '@nag-frontend-workspace/shared-data-access-auth';
 import { EnrolledExam, DigitalAdmitCard, PracticePaperSummary } from './models';
 import { CandidateDashboardService } from './services';
@@ -20,6 +21,9 @@ import {
   CandidateAdmitCardDialogComponent,
   PracticePaperPickerDialogComponent,
 } from './components';
+import { LearningPathService } from '../learn/services/learning-path.service';
+import { GatekeeperDialogComponent } from '../learn/components/gatekeeper-dialog/gatekeeper-dialog.component';
+import { GatekeeperStatusResponse } from '../learn/models/learning-path.model';
 
 export * from './models';
 export * from './services';
@@ -46,12 +50,13 @@ export * from './components';
 export class CandidateDashboardComponent implements OnInit {
   readonly authService = inject(AuthService);
   readonly dashboardService = inject(CandidateDashboardService);
+  private readonly learningPathService = inject(LearningPathService, { optional: true });
+  private readonly dialog = inject(MatDialog);
 
   readonly activeFilter = signal<'ALL' | 'LIVE' | 'UPCOMING' | 'PRACTICE' | 'COMPLETED'>('ALL');
   readonly selectedAdmitCard = signal<DigitalAdmitCard | null>(null);
   readonly router = inject(Router);
   readonly selectedPracticePapers = signal<{ exam: EnrolledExam; papers: PracticePaperSummary[] } | null>(null);
-
 
   readonly candidateName = computed(() => {
     return this.authService.currentUser()?.username || 'Aryan Sharma';
@@ -88,8 +93,36 @@ export class CandidateDashboardComponent implements OnInit {
     window.print();
   }
 
-
   onLaunchPractice(exam: EnrolledExam): void {
+    // Intercept with Gatekeeper prerequisite check (Issue #375)
+    if (this.learningPathService) {
+      this.learningPathService.checkGatekeeperStatus().subscribe({
+        next: (status: GatekeeperStatusResponse) => {
+          const isBlocked = (status?.gatekeeperRequired && !status?.clearedForFullMock) || status?.allowed === false;
+          if (status && isBlocked) {
+            this.dialog.open(GatekeeperDialogComponent, {
+              data: {
+                statusResponse: status,
+                mockExamTitle: exam.title,
+              },
+              width: '520px',
+              panelClass: 'nag-dialog-clean',
+            });
+            return;
+          }
+          this.executeLaunchPractice(exam);
+        },
+        error: () => {
+          this.executeLaunchPractice(exam);
+        },
+      });
+      return;
+    }
+
+    this.executeLaunchPractice(exam);
+  }
+
+  private executeLaunchPractice(exam: EnrolledExam): void {
     this.dashboardService.getPracticePapers(exam.id).subscribe((papers) => {
       if (papers && papers.length > 1) {
         this.selectedPracticePapers.set({ exam, papers });
@@ -129,6 +162,7 @@ export class CandidateDashboardComponent implements OnInit {
   closePracticePaperDialog(): void {
     this.selectedPracticePapers.set(null);
   }
+
   retryLoad(): void {
     this.dashboardService.loadEnrolledExams().subscribe();
   }

@@ -21,6 +21,7 @@ package com.examplatform.candidate.consumer;
 
 import com.examplatform.candidate.domain.CandidateProfile;
 import com.examplatform.candidate.repository.CandidateProfileRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.crypto.HashingService;
 import com.examplatform.shared.messaging.GenericDomainEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -38,9 +39,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -76,7 +75,7 @@ class CandidateRegistrationConsumerTest {
         Map<String, Object> payload = new HashMap<>();
         payload.put("eventType", "CANDIDATE_PROFILE_CREATED");
         payload.put("actorId", USER_ID.toString());
-        payload.put("tenantId", TENANT_ID);
+        payload.put(SharedConstants.TENANT_ID, TENANT_ID);
         payload.put("fullName", "Sheel Prabhakar");
         payload.put("email", "sheel.prabhakar@gmail.com");
         payload.put("mobile", "9876543210");
@@ -110,7 +109,7 @@ class CandidateRegistrationConsumerTest {
         when(hashingService.hmac(eq("ABCDE1234F"), anyString())).thenReturn("mock-doc-hmac");
 
         Map<String, Object> details = new HashMap<>();
-        details.put("tenantId", TENANT_ID);
+        details.put(SharedConstants.TENANT_ID, TENANT_ID);
         details.put("fullName", "Sheel Prabhakar");
         details.put("email", "sheel.prabhakar@gmail.com");
         details.put("mobile", "9876543210");
@@ -154,7 +153,7 @@ class CandidateRegistrationConsumerTest {
         Map<String, Object> payload = new HashMap<>();
         payload.put("action", "identity:registration");
         payload.put("actorId", USER_ID.toString());
-        payload.put("tenantId", TENANT_ID);
+        payload.put(SharedConstants.TENANT_ID, TENANT_ID);
         payload.put("fullName", "Sheel Prabhakar");
         payload.put("email", "sheel.prabhakar@gmail.com");
         payload.put("mobile", "9876543210");

@@ -1,0 +1,77 @@
+<div class="p-6 max-w-lg bg-white rounded-2xl shadow-xl">
+  <!-- Header with Shield Icon -->
+  <div class="flex items-center gap-4 mb-4">
+    <div class="w-12 h-12 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+      <mat-icon class="!w-7 !h-7 !text-[28px]">shield</mat-icon>
+    </div>
+    <div>
+      <h2 class="text-xl font-bold text-slate-900 leading-tight">
+        Gatekeeper Quiz Required
+      </h2>
+      <p class="text-xs text-amber-700 font-semibold tracking-wide uppercase mt-0.5">
+        Phase 3 Prerequisite Test Pending
+      </p>
+    </div>
+  </div>
+
+  <!-- Body Explanation -->
+  <div class="space-y-3 text-sm text-slate-600 mb-5">
+    <p>
+      Full-length mock exam attempts are locked while you have active conceptual or application gaps in your Dynamic Learning Path (DLP).
+    </p>
+    <p class="text-xs text-slate-500 bg-slate-50 p-3 rounded-xl border border-slate-200">
+      <span class="font-semibold text-slate-700">Requirement:</span> Complete Phase 1 Remediation, achieve &ge; 70% in Phase 2 Adaptive Quiz, and score &ge; 75% on the Phase 3 Gatekeeper Test to unlock mock exams.
+    </p>
+  </div>
+
+  <!-- Identified Gaps Badges -->
+  @if (conceptualGaps.length > 0 || applicationGaps.length > 0 || remedialSubtopics.length > 0) {
+    <div class="mb-5 space-y-2">
+      <div class="text-xs font-semibold text-slate-700 uppercase tracking-wider">
+        Identified Focus Areas:
+      </div>
+      <div class="flex flex-wrap gap-1.5">
+        @for (gap of conceptualGaps; track gap.subtopicName) {
+          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200">
+            <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+            {{ gap.subtopicName }}
+          </span>
+        }
+        @for (gap of applicationGaps; track gap.subtopicName) {
+          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200">
+            <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+            {{ gap.subtopicName }}
+          </span>
+        }
+        @for (subtopic of remedialSubtopics; track subtopic) {
+          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200">
+            <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+            {{ subtopic }}
+          </span>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- Action Buttons -->
+  <div class="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
+    <button
+      mat-button
+      type="button"
+      class="text-slate-600 font-medium"
+      (click)="onClose()"
+    >
+      Cancel
+    </button>
+    <button
+      mat-flat-button
+      color="primary"
+      type="button"
+      class="!bg-indigo-600 !text-white !font-semibold !px-5 !py-2 !rounded-xl shadow-md hover:!bg-indigo-700"
+      (click)="onGoToRoadmap()"
+    >
+      <mat-icon class="!w-4 !h-4 !text-[16px] mr-1">trending_up</mat-icon>
+      Go to Learning Roadmap
+    </button>
+  </div>
+</div>

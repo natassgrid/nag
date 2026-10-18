@@ -44,7 +44,18 @@ public class SecurityConfig {
     @Order(5)
     public SecurityFilterChain questionBankSecurityFilterChain(HttpSecurity http,
                                                    JwtAuthenticationConverter jwtAuthenticationConverter) throws Exception {
-        http.securityMatcher("/api/v1/questions/**", "/api/v1/topics/**", "/api/v1/subjects/**", "/api/v1/batch-generate/**", "/api/v1/ai/questions/**", "/api/v1/translations/**");
+        http.securityMatcher(
+                "/api/v1/questions/**",
+                "/api/v1/topics/**",
+                "/api/v1/subjects/**",
+                "/api/v1/batch-generate/**",
+                "/api/v1/ai/questions/**",
+                "/api/v1/translations/**",
+                "/api/admin/micro-lessons/**",
+                "/api/micro-lessons/**",
+                "/api/v1/micro-lessons/**",
+                "/api/v1/microlessons/**"
+        );
         http.csrf(AbstractHttpConfigurer::disable);
         http.sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
         http.authorizeHttpRequests(auth -> {

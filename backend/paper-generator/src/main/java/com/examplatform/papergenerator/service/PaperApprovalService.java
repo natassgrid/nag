@@ -21,6 +21,8 @@ package com.examplatform.papergenerator.service;
 
 import com.examplatform.papergenerator.domain.Paper;
 import com.examplatform.papergenerator.repository.PaperRepository;
+import com.examplatform.shared.constants.QuestionStateConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.crypto.VaultCryptoService;
 import com.examplatform.shared.messaging.EventPublisher;
 import jakarta.persistence.EntityNotFoundException;
@@ -32,6 +34,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
+
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
 
 /**
  * Manages paper approval workflow: DRAFT → APPROVED → ENCRYPTED.
@@ -47,9 +51,8 @@ import java.util.UUID;
 @Transactional
 public class PaperApprovalService {
 
-    private static final String AUDIT_TOPIC = "exam.audit.events";
-    private static final String STATUS_DRAFT = "DRAFT";
-    private static final String STATUS_APPROVED = "APPROVED";
+    private static final String STATUS_DRAFT = QuestionStateConstants.DRAFT;
+    private static final String STATUS_APPROVED = QuestionStateConstants.APPROVED;
     private static final String STATUS_ENCRYPTED = "ENCRYPTED";
 
     private final PaperRepository paperRepository;
@@ -66,7 +69,7 @@ public class PaperApprovalService {
      * @return the updated Paper entity in ENCRYPTED status with public ledger proofs
      */
     public Paper approvePaper(UUID paperId, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
 
         Paper paper = paperRepository.findByIdAndTenantId(paperId, effectiveTenant)
                 .or(() -> paperRepository.findById(paperId))
@@ -110,17 +113,17 @@ public class PaperApprovalService {
     private void publishPaperApprovedEvent(Paper paper, String tenantId) {
         try {
             Map<String, Object> event = Map.of(
-                    "eventType", "PAPER_APPROVED",
+                SharedConstants.EVENT_TYPE, "PAPER_APPROVED",
                     "paperId", paper.getId().toString(),
                     "examId", paper.getExamId().toString(),
                     "shiftId", paper.getShiftId(),
                     "paperRootHash", paper.getPaperRootHash() != null ? paper.getPaperRootHash() : "",
                     "ledgerTxHash", paper.getLedgerTxHash() != null ? paper.getLedgerTxHash() : "",
                     "encryptionKeyId", paper.getEncryptionKeyId() != null ? paper.getEncryptionKeyId() : "",
-                    "tenantId", tenantId,
-                    "occurredAt", Instant.now().toString()
+                SharedConstants.TENANT_ID, tenantId,
+                SharedConstants.OCCURRED_AT, Instant.now().toString()
             );
-            eventPublisher.publish(AUDIT_TOPIC, paper.getId().toString(), event);
+            eventPublisher.publish(AUDIT_EVENTS_TOPIC, paper.getId().toString(), event);
         } catch (Exception e) {
             log.error("Unexpected error publishing PAPER_APPROVED audit event: {}", e.getMessage());
         }

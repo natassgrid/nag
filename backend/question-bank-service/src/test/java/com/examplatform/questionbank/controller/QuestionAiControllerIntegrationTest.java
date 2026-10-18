@@ -20,17 +20,14 @@
 package com.examplatform.questionbank.controller;
 
 import com.examplatform.questionbank.ai.embedding.EmbeddingService;
-import com.examplatform.questionbank.ai.generation.ClarifyRequirementsRequest;
-import com.examplatform.questionbank.ai.generation.ClarifyRequirementsResponse;
-import com.examplatform.questionbank.ai.generation.ExecutionMode;
-import com.examplatform.questionbank.ai.generation.QuestionGenerationRequest;
-import com.examplatform.questionbank.ai.generation.QuestionGenerationResponse;
-import com.examplatform.questionbank.ai.generation.QuestionGenerationService;
+import com.examplatform.questionbank.ai.generation.*;
 import com.examplatform.questionbank.ai.parser.NormalizedSampleQuestion;
 import com.examplatform.questionbank.ai.parser.SampleDocumentParserService;
 import com.examplatform.questionbank.repository.QuestionRepository;
 import com.examplatform.questionbank.service.SubjectTopicService;
 import com.examplatform.questionbank.support.AbstractIntegrationTest;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.examplatform.shared.constants.QuestionTypeConstants;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -49,7 +46,8 @@ import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @DisplayName("QuestionAiController REST Endpoints E2E Tests (MockMvc)")
 class QuestionAiControllerIntegrationTest extends AbstractIntegrationTest {
@@ -76,9 +74,9 @@ class QuestionAiControllerIntegrationTest extends AbstractIntegrationTest {
         return QuestionGenerationRequest.builder()
                 .subject("Mathematics")
                 .topic("Algebra")
-                .difficulty("MEDIUM")
-                .cognitiveLevel("APPLY")
-                .questionType("SINGLE_MCQ")
+                .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
+                .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.APPLY)
+                .questionType(QuestionTypeConstants.SINGLE_MCQ)
                 .count(3)
                 .avoidDuplicate(true)
                 .autoSave(false)
@@ -92,9 +90,9 @@ class QuestionAiControllerIntegrationTest extends AbstractIntegrationTest {
                 .topicId(topicId)
                 .subject("Mathematics")
                 .topic("Algebra")
-                .difficulty("MEDIUM")
-                .cognitiveLevel("APPLY")
-                .questionType("SINGLE_MCQ")
+                .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
+                .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.APPLY)
+                .questionType(QuestionTypeConstants.SINGLE_MCQ)
                 .count(3)
                 .avoidDuplicate(true)
                 .autoSave(false)
@@ -173,9 +171,9 @@ class QuestionAiControllerIntegrationTest extends AbstractIntegrationTest {
                     .subject("Physics")
                     .topic("Electromagnetism")
                     .subtopic("Gauss Law")
-                    .difficulty("HARD")
-                    .cognitiveLevel("ANALYZE")
-                    .questionType("SINGLE_MCQ")
+                    .difficulty(QuestionTaxonomyConstants.Difficulty.HARD)
+                    .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.ANALYZE)
+                    .questionType(QuestionTypeConstants.SINGLE_MCQ)
                     .count(2)
                     .avoidDuplicate(true)
                     .autoSave(false)
@@ -227,9 +225,9 @@ class QuestionAiControllerIntegrationTest extends AbstractIntegrationTest {
             QuestionGenerationRequest invalid = QuestionGenerationRequest.builder()
                     .subject("")
                     .topic("Algebra")
-                    .difficulty("MEDIUM")
-                    .cognitiveLevel("APPLY")
-                    .questionType("SINGLE_MCQ")
+                    .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
+                    .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.APPLY)
+                    .questionType(QuestionTypeConstants.SINGLE_MCQ)
                     .count(3)
                     .build();
 
@@ -249,9 +247,9 @@ class QuestionAiControllerIntegrationTest extends AbstractIntegrationTest {
             QuestionGenerationRequest invalid = QuestionGenerationRequest.builder()
                     .subject("Mathematics")
                     .topic("Algebra")
-                    .difficulty("MEDIUM")
-                    .cognitiveLevel("APPLY")
-                    .questionType("SINGLE_MCQ")
+                    .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
+                    .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.APPLY)
+                    .questionType(QuestionTypeConstants.SINGLE_MCQ)
                     .count(10)
                     .build();
 
@@ -273,9 +271,9 @@ class QuestionAiControllerIntegrationTest extends AbstractIntegrationTest {
                     .topicId(8888L)
                     .subject("Unknown Subject")
                     .topic("Unknown Topic")
-                    .difficulty("EASY")
-                    .cognitiveLevel("REMEMBER")
-                    .questionType("SINGLE_MCQ")
+                    .difficulty(QuestionTaxonomyConstants.Difficulty.EASY)
+                    .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.REMEMBER)
+                    .questionType(QuestionTypeConstants.SINGLE_MCQ)
                     .count(1)
                     .autoSave(true)
                     .build();
@@ -302,9 +300,9 @@ class QuestionAiControllerIntegrationTest extends AbstractIntegrationTest {
                     .topicId(9999L)
                     .subject("Mathematics")
                     .topic("Unknown Topic")
-                    .difficulty("MEDIUM")
-                    .cognitiveLevel("APPLY")
-                    .questionType("SINGLE_MCQ")
+                    .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
+                    .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.APPLY)
+                    .questionType(QuestionTypeConstants.SINGLE_MCQ)
                     .count(1)
                     .autoSave(true)
                     .build();
@@ -382,10 +380,11 @@ class QuestionAiControllerIntegrationTest extends AbstractIntegrationTest {
         @Test
         @DisplayName("+ve: ASSERTION_REASON and PARAGRAPH_SET question types are accepted")
         void assertionReasonAndParagraphSetTypesAccepted() throws Exception {
-            for (String type : List.of("ASSERTION_REASON", "PARAGRAPH_SET")) {
+            for (String type : List.of(QuestionTypeConstants.ASSERTION_REASON, QuestionTypeConstants.PARAGRAPH_SET)) {
                 QuestionGenerationRequest request = QuestionGenerationRequest.builder()
                         .subject("Chemistry").topic("Organic Chemistry")
-                        .difficulty("HARD").cognitiveLevel("ANALYZE")
+                        .difficulty(QuestionTaxonomyConstants.Difficulty.HARD).cognitiveLevel(
+                        QuestionTaxonomyConstants.CognitiveLevel.ANALYZE)
                         .questionType(type).count(1).build();
 
                 when(questionGenerationService.generate(any(QuestionGenerationRequest.class), eq(TENANT_ID), eq(AUTHOR_ID)))
@@ -515,7 +514,7 @@ class QuestionAiControllerIntegrationTest extends AbstractIntegrationTest {
                     .clarificationNeeded(true)
                     .clarificationQuestions(List.of("What specific standard should this align with?"))
                     .suggestedSubtopics(List.of("Nernst Equation"))
-                    .suggestedFormats(List.of("SINGLE_MCQ", "MULTI_MCQ"))
+                    .suggestedFormats(List.of(QuestionTypeConstants.SINGLE_MCQ, QuestionTypeConstants.MULTI_MCQ))
                     .recommendedBlueprint("Blueprint for JEE_ADV")
                     .resolvedTargetExam("JEE_ADV")
                     .build();

@@ -10,9 +10,18 @@ import {
   combineMerkleNodes,
   verifyMerkleProof,
   MerkleProofStep,
+  generateUuid,
 } from './shared-util-crypto';
 
 describe('shared-util-crypto', () => {
+  it('should generate a valid RFC 4122 version 4 UUID', () => {
+    const uuid = generateUuid();
+    expect(uuid).toBeDefined();
+    expect(uuid.length).toBe(36);
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    expect(uuid).toMatch(uuidRegex);
+  });
+
   it('should compute valid sha256 hash', async () => {
     const hash = await hashSha256('test-string');
     expect(hash).toBeDefined();

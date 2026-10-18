@@ -47,3 +47,11 @@ export interface SubjectHierarchy {
   questionCount?: number;
   topics: TopicNode[];
 }
+
+export interface TargetExaminationOption {
+  id: string;
+  name: string;
+  code: string;
+  category?: string;
+  examinationType?: string;
+}

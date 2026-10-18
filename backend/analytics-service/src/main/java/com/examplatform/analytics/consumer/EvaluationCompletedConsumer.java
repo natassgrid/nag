@@ -20,6 +20,8 @@
 package com.examplatform.analytics.consumer;
 
 import com.examplatform.analytics.service.AnalyticsService;
+import com.examplatform.shared.constants.MessagingConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.AbstractEvaluationCompletedConsumer;
 import com.examplatform.shared.util.DataConversionUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -67,7 +69,7 @@ public class EvaluationCompletedConsumer extends AbstractEvaluationCompletedCons
     @Override
     @RabbitListener(bindings = @QueueBinding(
             value = @Queue(value = "analytics.evaluation.events.queue", durable = "true"),
-            exchange = @Exchange(value = "exam.events", type = ExchangeTypes.TOPIC),
+            exchange = @Exchange(value = MessagingConstants.EXAM_EVENTS_TOPIC, type = ExchangeTypes.TOPIC),
             key = EVALUATION_COMPLETED_TOPIC))
     public void onRabbitEvaluationCompleted(Object message) {
         if (message != null) {
@@ -92,7 +94,7 @@ public class EvaluationCompletedConsumer extends AbstractEvaluationCompletedCons
         }
 
         double totalRawScore = DataConversionUtils.toDouble(event.get("totalRawScore"));
-        String tenantId = (String) event.getOrDefault("tenantId", "default");
+        String tenantId = (String) event.getOrDefault(SharedConstants.TENANT_ID, SharedConstants.DEFAULT_TENANT);
 
         @SuppressWarnings("unchecked")
         Map<String, Object> sectionScores = (Map<String, Object>) event.getOrDefault("sectionScores", Map.of());

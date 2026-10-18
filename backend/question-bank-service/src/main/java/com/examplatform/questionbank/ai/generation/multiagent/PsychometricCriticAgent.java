@@ -16,6 +16,7 @@
 package com.examplatform.questionbank.ai.generation.multiagent;
 
 import com.examplatform.questionbank.dto.QuestionOption;
+import com.examplatform.shared.constants.QuestionTypeConstants;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -50,14 +51,14 @@ public class PsychometricCriticAgent {
         // Rubric 1: Sole unambiguously correct answer & option validity
         if (options != null && !options.isEmpty()) {
             long correctCount = options.stream().filter(QuestionOption::isCorrect).count();
-            if ("SINGLE_MCQ".equalsIgnoreCase(questionType)) {
+            if (QuestionTypeConstants.SINGLE_MCQ.equalsIgnoreCase(questionType)) {
                 if (correctCount == 1) {
                     verifiedRubrics.add("Unambiguous sole correct answer verified");
                 } else {
                     issues.add("SINGLE_MCQ must have exactly 1 correct option (found: " + correctCount + ")");
                     score -= 0.3;
                 }
-            } else if ("MULTI_MCQ".equalsIgnoreCase(questionType)) {
+            } else if (QuestionTypeConstants.MULTI_MCQ.equalsIgnoreCase(questionType)) {
                 if (correctCount >= 2) {
                     verifiedRubrics.add("Multiple correct options verified for MSQ");
                 } else {
@@ -107,7 +108,7 @@ public class PsychometricCriticAgent {
             score -= 0.1;
         }
 
-        score = Math.max(0.0, Math.min(1.0, score));
+        score = Math.clamp(score, 0.0, 1.0);
         boolean approved = issues.isEmpty() || score >= 0.85;
 
         log.debug("Critic review completed: approved={}, score={}, issuesCount={}",

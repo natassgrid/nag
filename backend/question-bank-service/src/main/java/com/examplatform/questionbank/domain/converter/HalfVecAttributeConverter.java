@@ -23,8 +23,6 @@ import com.pgvector.PGhalfvec;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 
-import java.sql.SQLException;
-
 /**
  * JPA AttributeConverter that converts between float[] (Java) and PostgreSQL
  * pgvector halfvec type via PGhalfvec (a PGobject subclass).
@@ -45,6 +43,7 @@ public class HalfVecAttributeConverter implements AttributeConverter<float[], PG
     }
 
     @Override
+    @SuppressWarnings("java:S1168")
     public float[] convertToEntityAttribute(PGhalfvec dbData) {
         if (dbData == null) {
             return null;

@@ -52,8 +52,8 @@ export class ExamFormDrawerComponent implements OnChanges {
   formTotalMarks = 300;
   formNegMarking = true;
   formNegMarkingValue = 1.0;
-  formNavPolicy = 'FREE_NAVIGATION';
-  formCalcPolicy = 'VIRTUAL_SCIENTIFIC';
+  formNavPolicy = 'FLEXIBLE';
+  formCalcPolicy = 'NONE';
   formReviewFlag = true;
   formIsPractice = false;
   formSections: ExamSection[] = [
@@ -77,8 +77,8 @@ export class ExamFormDrawerComponent implements OnChanges {
         this.formTotalMarks = exam.totalMarks || 300;
         this.formNegMarking = !!exam.negativeMarkingEnabled;
         this.formNegMarkingValue = exam.negativeMarkingValue || 0;
-        this.formNavPolicy = exam.navigationPolicy || 'FREE_NAVIGATION';
-        this.formCalcPolicy = exam.calculatorPolicy || 'NONE';
+        this.formNavPolicy = this.normalizeNavPolicy(exam.navigationPolicy);
+        this.formCalcPolicy = this.normalizeCalcPolicy(exam.calculatorPolicy);
         this.formReviewFlag = !!exam.reviewFlagEnabled;
         this.formIsPractice = !!exam.isPractice;
         this.formSections = exam.sections?.length
@@ -148,8 +148,8 @@ export class ExamFormDrawerComponent implements OnChanges {
     this.formTotalMarks = 300;
     this.formNegMarking = true;
     this.formNegMarkingValue = 1.0;
-    this.formNavPolicy = 'FREE_NAVIGATION';
-    this.formCalcPolicy = 'VIRTUAL_SCIENTIFIC';
+    this.formNavPolicy = 'FLEXIBLE';
+    this.formCalcPolicy = 'NONE';
     this.formReviewFlag = true;
     this.formIsPractice = false;
     this.formSections = [
@@ -157,5 +157,23 @@ export class ExamFormDrawerComponent implements OnChanges {
       { name: 'Chemistry', questionCount: 25, marksPerQuestion: 4 },
       { name: 'Mathematics', questionCount: 25, marksPerQuestion: 4 },
     ];
+  }
+
+  private normalizeNavPolicy(policy?: string): string {
+    if (!policy) return 'FLEXIBLE';
+    const p = policy.toUpperCase();
+    if (p === 'FREE_NAVIGATION' || p === 'FREE_FORWARD_BACKWARD' || p === 'FLEXIBLE') return 'FLEXIBLE';
+    if (p === 'SECTION_LOCKED' || p === 'RESTRICTED' || p === 'LINEAR_SECTION_TIMED') return 'RESTRICTED';
+    if (p === 'STRICT_SEQUENTIAL' || p === 'LINEAR_ONLY' || p === 'SEQUENTIAL') return 'SEQUENTIAL';
+    return 'FLEXIBLE';
+  }
+
+  private normalizeCalcPolicy(policy?: string): string {
+    if (!policy) return 'NONE';
+    const p = policy.toUpperCase();
+    if (p === 'NONE' || p === 'DISALLOWED' || p === 'NOT_PERMITTED') return 'NONE';
+    if (p === 'BASIC' || p === 'VIRTUAL_BASIC' || p === 'STANDARD_VIRTUAL') return 'BASIC';
+    if (p === 'SCIENTIFIC' || p === 'VIRTUAL_SCIENTIFIC' || p === 'SCIENTIFIC_VIRTUAL') return 'SCIENTIFIC';
+    return 'NONE';
   }
 }

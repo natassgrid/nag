@@ -28,8 +28,9 @@ import com.examplatform.examination.dto.ExaminationResponse;
 import com.examplatform.examination.exception.ExaminationNotFoundException;
 import com.examplatform.examination.exception.SectionMarksValidationException;
 import com.examplatform.examination.repository.ExaminationRepository;
+import com.examplatform.shared.constants.QuestionStateConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -125,7 +126,7 @@ class ExaminationServiceTest {
             // Then
             assertThat(response).isNotNull();
             assertThat(response.getId()).isNotNull();
-            assertThat(response.getStatus()).isEqualTo("DRAFT");
+            assertThat(response.getStatus()).isEqualTo(QuestionStateConstants.DRAFT);
             assertThat(response.getName()).isEqualTo("JEE Main 2025");
             assertThat(response.getDurationMinutes()).isEqualTo(180);
             assertThat(response.getTotalMarks()).isEqualTo(100);
@@ -141,7 +142,7 @@ class ExaminationServiceTest {
             verify(examinationRepository).save(captor.capture());
             Examination saved = captor.getValue();
             assertThat(saved.getTenantId()).isEqualTo(TENANT_ID);
-            assertThat(saved.getStatus()).isEqualTo("DRAFT");
+            assertThat(saved.getStatus()).isEqualTo(QuestionStateConstants.DRAFT);
         }
 
         @Test
@@ -306,14 +307,14 @@ class ExaminationServiceTest {
                     .calculatorPolicy("NONE")
                     .reviewFlagEnabled(false)
                     .sectionsJson("[]")
-                    .status("DRAFT")
+                    .status(QuestionStateConstants.DRAFT)
                     .build();
             // Set base entity fields via reflection
             try {
                 var idField = existing.getClass().getSuperclass().getDeclaredField("id");
                 idField.setAccessible(true);
                 idField.set(existing, examId);
-                var tenantField = existing.getClass().getSuperclass().getDeclaredField("tenantId");
+                var tenantField = existing.getClass().getSuperclass().getDeclaredField(SharedConstants.TENANT_ID);
                 tenantField.setAccessible(true);
                 tenantField.set(existing, TENANT_ID);
                 var createdAtField = existing.getClass().getSuperclass().getDeclaredField("createdAt");
@@ -422,7 +423,7 @@ class ExaminationServiceTest {
                     .calculatorPolicy("SCIENTIFIC")
                     .reviewFlagEnabled(true)
                     .sectionsJson(sectionsJson)
-                    .status("DRAFT")
+                    .status(QuestionStateConstants.DRAFT)
                     .build();
 
             try {
@@ -432,7 +433,7 @@ class ExaminationServiceTest {
                 var createdAtField = examination.getClass().getSuperclass().getDeclaredField("createdAt");
                 createdAtField.setAccessible(true);
                 createdAtField.set(examination, Instant.now());
-                var tenantField = examination.getClass().getSuperclass().getDeclaredField("tenantId");
+                var tenantField = examination.getClass().getSuperclass().getDeclaredField(SharedConstants.TENANT_ID);
                 tenantField.setAccessible(true);
                 tenantField.set(examination, TENANT_ID);
             } catch (Exception e) {

@@ -9,6 +9,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import {
   PageHeaderComponent,
 } from '@nag-frontend-workspace/shared-ui-components';
@@ -33,7 +34,9 @@ import {
   TaxonomySelectorComponent,
   StandaloneQuestionFormComponent,
   PassageAuthoringPanelComponent,
+  QuestionPromptImportDialogComponent,
 } from '../components';
+import { ImportedQuestion } from '../services/external-prompt.service';
 
 @Component({
   selector: 'nag-questions-feature-authoring',
@@ -44,6 +47,7 @@ import {
     RouterModule,
     MatButtonModule,
     MatIconModule,
+    MatDialogModule,
     PageHeaderComponent,
     TaxonomySelectorComponent,
     StandaloneQuestionFormComponent,
@@ -58,6 +62,7 @@ export class QuestionsFeatureAuthoring implements OnInit {
   private readonly subjectTopicService = inject(SubjectTopicService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly dialog = inject(MatDialog);
 
   /** When non-null the form is in edit mode for this question ID. */
   editingQuestionId = signal<string | null>(null);
@@ -164,6 +169,18 @@ export class QuestionsFeatureAuthoring implements OnInit {
       this.editingQuestionId.set(editId);
       this.loadQuestionForEdit(editId);
     }
+
+    // Detect history.state prefill (e.g. from AI generator or import)
+    const prefill = history.state?.prefill;
+    if (prefill) {
+      this.applyPrefillState(prefill);
+    }
+
+    // Detect action query param (?action=prompt-import or ?action=import)
+    const action = this.route.snapshot.queryParamMap.get('action');
+    if (action === 'prompt-import' || action === 'import') {
+      setTimeout(() => this.openAiPromptImportDialog(action === 'import' ? 'import' : 'prompt'), 100);
+    }
   }
 
   /**
@@ -218,8 +235,6 @@ export class QuestionsFeatureAuthoring implements OnInit {
         }
 
         // Load taxonomy IDs so the dropdowns pre-select the right values.
-        // We set the IDs directly; the cascading loads are handled in
-        // loadTaxonomyForEdit() after the subjects/topics lists are ready.
         if (q.subjectId) {
           this.selectedSubjectId = Number(q.subjectId);
         }
@@ -409,6 +424,104 @@ export class QuestionsFeatureAuthoring implements OnInit {
       this.activeSubQuestionIndex = 0;
     }
     this.feedback.set(null);
+  }
+
+  /**
+   * Opens the External AI Prompt & JSON Import Dialog.
+   */
+  openAiPromptImportDialog(defaultTab: 'prompt' | 'import' = 'prompt'): void {
+    const selectedSub = this.subjects().find((s) => s.id === this.selectedSubjectId);
+    const selectedTop = this.topics().find((t) => t.id === this.selectedTopicId);
+    const selectedSubtop = this.subtopics().find((st) => st.id === this.selectedSubtopicId);
+
+    const dialogRef = this.dialog.open(QuestionPromptImportDialogComponent, {
+      data: {
+        subject: selectedSub?.name,
+        topic: selectedTop?.name,
+        subtopic: selectedSubtop?.name,
+        questionType: this.type,
+        difficulty: this.difficulty,
+        cognitiveLevel: this.cognitiveLevel,
+        marks: this.marks,
+        negativeMarks: this.negativeMarks,
+        activeTab: defaultTab,
+      },
+      width: '900px',
+      maxWidth: '95vw',
+      panelClass: 'dialog-panel-no-padding',
+    });
+
+    dialogRef.afterClosed().subscribe((imported: ImportedQuestion | null) => {
+      if (imported) {
+        this.applyImportedQuestion(imported);
+      }
+    });
+  }
+
+  /**
+   * Applies validated question data from external JSON import to UI form ONLY (in-memory).
+   * Does NOT save to database yet — allows author to review and click Save Question as usual.
+   */
+  applyImportedQuestion(data: ImportedQuestion): void {
+    this.mode.set('STANDALONE');
+    this.content = data.content;
+    this.explanation = data.explanation || '';
+    this.type = data.type;
+    this.difficulty = data.difficulty;
+    this.cognitiveLevel = data.cognitiveLevel;
+    this.marks = data.marks;
+    this.negativeMarks = data.negativeMarks;
+    this.options = data.options;
+
+    // Match taxonomy if available
+    if (data.subjectId) {
+      this.selectedSubjectId = data.subjectId;
+      this.onSubjectChange(data.subjectId);
+    } else if (data.subject) {
+      const foundSub = this.subjects().find(
+        (s) => s.name.toLowerCase() === data.subject?.toLowerCase()
+      );
+      if (foundSub) {
+        this.selectedSubjectId = foundSub.id;
+        this.onSubjectChange(foundSub.id);
+      }
+    }
+
+    this.feedback.set({
+      type: 'success',
+      message: 'Question loaded into authoring form from external JSON! Review the fields and formulas below, then click "Save Question" to commit to the Question Bank.',
+    });
+  }
+
+  applyPrefillState(prefill: any): void {
+    this.mode.set('STANDALONE');
+    if (prefill.content) this.content = prefill.content;
+    if (prefill.explanation) this.explanation = prefill.explanation;
+    if (prefill.difficulty) this.difficulty = prefill.difficulty;
+    if (prefill.cognitiveLevel) this.cognitiveLevel = prefill.cognitiveLevel;
+    if (prefill.marks) this.marks = prefill.marks;
+    if (prefill.negativeMarks !== undefined) this.negativeMarks = prefill.negativeMarks;
+
+    if (prefill.questionType) {
+      const q = prefill.questionType;
+      this.type =
+        q === 'SINGLE_MCQ' ? 'MULTIPLE_CHOICE' :
+        q === 'MULTI_MCQ' ? 'MULTIPLE_SELECT' :
+        q;
+    }
+
+    if (Array.isArray(prefill.options) && prefill.options.length > 0) {
+      this.options = prefill.options.map((opt: any, idx: number) => ({
+        id: opt.id || String.fromCharCode(65 + idx),
+        text: opt.text || '',
+        isCorrect: Boolean(opt.isCorrect),
+      }));
+    }
+
+    if (prefill.subjectId) {
+      this.selectedSubjectId = Number(prefill.subjectId);
+      this.onSubjectChange(this.selectedSubjectId);
+    }
   }
 
   saveItem(): void {
@@ -687,5 +800,3 @@ export class QuestionsFeatureAuthoring implements OnInit {
     this.router.navigate(['/questions/bank']);
   }
 }
-
-

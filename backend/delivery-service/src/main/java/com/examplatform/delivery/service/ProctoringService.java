@@ -33,6 +33,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.UUID;
 
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
+
 /**
  * Handles proctoring operations: webcam snapshot capture and full-screen exit tracking.
  * Publishes alerts for AI analysis and audit trail.
@@ -45,7 +47,6 @@ import java.util.UUID;
 public class ProctoringService {
 
     private static final String PROCTORING_TOPIC = "exam.proctoring.alerts";
-    private static final String AUDIT_TOPIC = "exam.audit.events";
 
     private final ExamSessionRepository examSessionRepository;
     private final EventPublisher eventPublisher;
@@ -125,7 +126,7 @@ public class ProctoringService {
             );
 
             try {
-                eventPublisher.publish(AUDIT_TOPIC, sessionId.toString(), alertEvent);
+                eventPublisher.publish(AUDIT_EVENTS_TOPIC, sessionId.toString(), alertEvent);
             } catch (Exception e) {
                 log.error("Failed to publish fullscreen exit alert for session={}: {}",
                         sessionId, e.getMessage());

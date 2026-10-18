@@ -1,5 +1,5 @@
 <nav
-  class="bg-slate-900 text-white px-4 sm:px-6 py-3 flex items-center justify-between border-b border-slate-800 shrink-0 sticky top-0 z-40"
+  class="bg-slate-900 text-white px-4 sm:px-6 py-2.5 flex items-center justify-between border-b border-slate-800 shrink-0 sticky top-0 z-40"
   role="navigation"
   aria-label="Main Application Header"
 >
@@ -29,43 +29,125 @@
       </div>
     </a>
 
-    <!-- Desktop Navigation Links -->
-    <div class="hidden md:flex items-center gap-1 text-xs font-semibold ml-2">
+    <!-- Desktop Navigation Links & Submenus -->
+    <div class="hidden md:flex items-center gap-1.5 text-xs font-semibold ml-3">
       @for (item of navItems(); track item.id) {
-        <a
-          [routerLink]="item.route"
-          routerLinkActive="bg-slate-800 text-white"
-          [routerLinkActiveOptions]="{ exact: !!item.exact }"
-          class="px-3 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/60 transition-colors cursor-pointer"
-        >
-          {{ item.label }}
-        </a>
+        @if (!item.children || item.children.length === 0) {
+          <!-- Direct Route Link -->
+          <a
+            [routerLink]="item.route"
+            routerLinkActive="bg-slate-800 text-white font-bold shadow-xs"
+            [routerLinkActiveOptions]="{ exact: !!item.exact }"
+            class="px-3 py-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800/60 transition-all flex items-center gap-2 cursor-pointer"
+          >
+            <mat-icon class="!text-base text-slate-400">{{ item.icon }}</mat-icon>
+            <span>{{ item.label }}</span>
+          </a>
+        } @else {
+          <!-- Submenu Dropdown Trigger Button -->
+          <button
+            type="button"
+            [matMenuTriggerFor]="subnavMenu"
+            [class.bg-slate-800]="isGroupActive(item)"
+            [class.text-white]="isGroupActive(item)"
+            [class.font-bold]="isGroupActive(item)"
+            class="px-3 py-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800/60 transition-all flex items-center gap-1.5 cursor-pointer focus:outline-none"
+          >
+            <mat-icon class="!text-base text-slate-400">{{ item.icon }}</mat-icon>
+            <span>{{ item.label }}</span>
+            @if (item.badge) {
+              <span class="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-indigo-500/30 text-indigo-300 border border-indigo-400/30">
+                {{ item.badge }}
+              </span>
+            }
+            <mat-icon class="!text-sm text-slate-400 !w-4 !h-4 leading-none">expand_more</mat-icon>
+          </button>
+
+          <!-- Angular Material Submenu -->
+          <mat-menu #subnavMenu="matMenu" class="custom-nav-menu" xPosition="after">
+            <div class="px-4 py-2 border-b border-slate-100 flex items-center justify-between">
+              <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ item.label }}</span>
+              @if (item.badge) {
+                <span class="px-1.5 py-0.2 text-[9px] font-bold rounded bg-indigo-50 text-indigo-600 border border-indigo-200">
+                  {{ item.badge }}
+                </span>
+              }
+            </div>
+            @for (sub of item.children; track sub.id) {
+              <a mat-menu-item [routerLink]="sub.route">
+                <mat-icon class="text-indigo-600">{{ sub.icon }}</mat-icon>
+                <div class="inline-flex flex-col text-left">
+                  <span class="font-bold text-xs text-slate-900">{{ sub.label }}</span>
+                  @if (sub.description) {
+                    <span class="text-[10px] text-slate-500">{{ sub.description }}</span>
+                  }
+                </div>
+              </a>
+            }
+          </mat-menu>
+        }
       }
     </div>
   </div>
 
-  <!-- Right Side Actions -->
-  <div class="flex items-center gap-2 sm:gap-4">
+  <!-- Right Side Actions: Candidate Profile Dropdown & Live Exam -->
+  <div class="flex items-center gap-2 sm:gap-3">
     @if (isAuthenticated()) {
-      <a
-        routerLink="/profile"
-        class="hidden sm:flex items-center gap-2 text-xs hover:text-indigo-300 transition-colors"
-      >
-        <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-        <span class="text-slate-300 font-medium">{{ userName() }}</span>
-      </a>
+      <!-- Unified Candidate Account Dropdown Button -->
       <button
-        mat-stroked-button
-        (click)="logout.emit()"
-        class="hidden sm:inline-flex !text-slate-300 !border-slate-700 !text-xs hover:!text-white cursor-pointer"
+        type="button"
+        [matMenuTriggerFor]="profileMenu"
+        class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 transition-all focus:outline-none cursor-pointer"
       >
-        Sign Out
+        <div class="w-7 h-7 rounded-lg bg-indigo-600 text-white font-bold text-xs flex items-center justify-center shadow-xs">
+          {{ getUserInitials() }}
+        </div>
+        <div class="hidden sm:flex flex-col text-left">
+          <span class="text-xs font-semibold text-slate-200 leading-tight max-w-[140px] truncate">
+            {{ userName() }}
+          </span>
+          <span class="text-[10px] text-emerald-400 font-medium flex items-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            Verified Candidate
+          </span>
+        </div>
+        <mat-icon class="!text-base text-slate-400">arrow_drop_down</mat-icon>
       </button>
+
+      <!-- Account Profile Dropdown Menu -->
+      <mat-menu #profileMenu="matMenu" class="custom-nav-menu" xPosition="before">
+        <!-- Profile Card Header -->
+        <div class="px-4 py-2.5 border-b border-slate-100 flex flex-col">
+          <span class="text-xs font-bold text-slate-900 truncate">{{ userName() }}</span>
+          <span class="text-[11px] text-emerald-600 font-medium flex items-center gap-1 mt-0.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+            Verified Candidate
+          </span>
+        </div>
+
+        <!-- Account Navigation Options -->
+        <a mat-menu-item routerLink="/profile">
+          <mat-icon class="text-indigo-600">badge</mat-icon>
+          <div class="inline-flex flex-col text-left">
+            <span class="font-bold text-xs text-slate-900">Profile &amp; KYC</span>
+            <span class="text-[10px] text-slate-500">Aadhaar KYC, DigiLocker &amp; Details</span>
+          </div>
+        </a>
+
+        <!-- Divider -->
+        <mat-divider></mat-divider>
+
+        <!-- Sign Out Action -->
+        <button mat-menu-item (click)="logout.emit()" class="!text-rose-600">
+          <mat-icon class="text-rose-600">logout</mat-icon>
+          <span class="text-xs font-bold">Sign Out</span>
+        </button>
+      </mat-menu>
     } @else {
       <a
         mat-stroked-button
         routerLink="/login"
-        class="!text-slate-300 !border-slate-700 !text-xs hover:!text-white cursor-pointer"
+        class="!text-slate-300 !border-slate-700 !text-xs hover:!text-white !rounded-xl cursor-pointer"
       >
         Sign In
       </a>
@@ -74,7 +156,7 @@
     <a
       mat-flat-button
       routerLink="/delivery"
-      class="!bg-rose-600 hover:!bg-rose-700 !text-white !text-xs font-bold !rounded-lg !px-3 sm:!px-4 cursor-pointer"
+      class="!bg-rose-600 hover:!bg-rose-700 !text-white !text-xs font-bold !rounded-xl !px-3.5 sm:!px-4 cursor-pointer shadow-sm"
     >
       <mat-icon class="!text-sm leading-none">play_arrow</mat-icon>
       <span class="hidden xs:inline">Live Exam Runtime</span>

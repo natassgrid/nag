@@ -68,7 +68,7 @@ public class AutoSaveService {
                 if (hasPending) {
                     savedCount++;
                 }
-            } catch (IllegalArgumentException e) {
+            } catch (IllegalArgumentException _) {
                 log.warn("Invalid session ID in active-sessions set: {}", sessionIdStr);
             } catch (Exception e) {
                 log.error("Error during auto-save for session: {}", sessionIdStr, e);

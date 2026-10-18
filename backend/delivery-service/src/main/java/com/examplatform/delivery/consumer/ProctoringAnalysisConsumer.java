@@ -19,6 +19,8 @@
 
 package com.examplatform.delivery.consumer;
 
+import com.examplatform.shared.constants.MessagingConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.event.ProctoringEvents;
 import com.examplatform.shared.messaging.EventPublisher;
 import com.examplatform.shared.messaging.GenericDomainEvent;
@@ -38,6 +40,8 @@ import org.springframework.stereotype.Component;
 import java.util.Map;
 import java.util.Random;
 
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
+
 /**
  * Consumer that processes proctoring frames/snapshots for AI analysis.
  * Supports Kafka (microservices mode), RabbitMQ (macro mode), and in-memory Spring events (monolith mode).
@@ -55,7 +59,6 @@ import java.util.Random;
 public class ProctoringAnalysisConsumer {
 
     public static final String PROCTORING_TOPIC = "exam.proctoring.alerts";
-    private static final String AUDIT_TOPIC = "exam.audit.events";
     private static final String[] DETECTION_TYPES = {
             "no-face-detected",
             "multiple-faces-detected",
@@ -98,7 +101,7 @@ public class ProctoringAnalysisConsumer {
     @RabbitListener(
             bindings = @QueueBinding(
                     value = @Queue(value = "proctoring.alerts.queue", durable = "true"),
-                    exchange = @Exchange(value = "exam.events", type = ExchangeTypes.TOPIC),
+                    exchange = @Exchange(value = MessagingConstants.EXAM_EVENTS_TOPIC, type = ExchangeTypes.TOPIC),
                     key = PROCTORING_TOPIC
             )
     )
@@ -144,11 +147,11 @@ public class ProctoringAnalysisConsumer {
         String sessionId = (String) event.get("sessionId");
         String candidateId = (String) event.get("candidateId");
         String snapshotRef = (String) event.get("snapshotRef");
-        String tenantId = (String) event.get("tenantId");
+        String tenantId = (String) event.get(SharedConstants.TENANT_ID);
         int imageSize = event.get("imageSize") instanceof Number n ? n.intValue() : 0;
 
         processEvent(new ProctoringEvents.SnapshotCaptured(
-                (String) event.getOrDefault("eventType", "SNAPSHOT_CAPTURED"),
+                (String) event.getOrDefault(SharedConstants.EVENT_TYPE, "SNAPSHOT_CAPTURED"),
                 sessionId, candidateId, snapshotRef, tenantId,
                 (String) event.get("capturedAt"), imageSize));
     }
@@ -156,22 +159,15 @@ public class ProctoringAnalysisConsumer {
     private ProctoringEvents.SnapshotCaptured parseSnapshot(Object payload) {
         if (payload == null) return null;
         try {
-            if (payload instanceof ProctoringEvents.SnapshotCaptured sc) {
-                return sc;
-            }
-            if (payload instanceof Map<?, ?> map) {
-                return objectMapper.convertValue(map, ProctoringEvents.SnapshotCaptured.class);
-            }
-            if (payload instanceof Message amqpMsg) {
-                return objectMapper.readValue(amqpMsg.getBody(), ProctoringEvents.SnapshotCaptured.class);
-            }
-            if (payload instanceof byte[] bytes) {
-                return objectMapper.readValue(bytes, ProctoringEvents.SnapshotCaptured.class);
-            }
-            if (payload instanceof String s) {
-                return objectMapper.readValue(s, ProctoringEvents.SnapshotCaptured.class);
-            }
-            return objectMapper.convertValue(payload, ProctoringEvents.SnapshotCaptured.class);
+            return switch (payload) {
+                case ProctoringEvents.SnapshotCaptured sc -> sc;
+                case Map<?, ?> map -> objectMapper.convertValue(map, ProctoringEvents.SnapshotCaptured.class);
+                case Message amqpMsg ->
+                    objectMapper.readValue(amqpMsg.getBody(), ProctoringEvents.SnapshotCaptured.class);
+                case byte[] bytes -> objectMapper.readValue(bytes, ProctoringEvents.SnapshotCaptured.class);
+                case String s -> objectMapper.readValue(s, ProctoringEvents.SnapshotCaptured.class);
+                default -> objectMapper.convertValue(payload, ProctoringEvents.SnapshotCaptured.class);
+            };
         } catch (Exception e) {
             log.error("Failed to parse proctoring snapshot event: {}", e.getMessage());
             return null;
@@ -187,7 +183,7 @@ public class ProctoringAnalysisConsumer {
                     "ai-proctoring-analysis", confidence
             );
 
-            eventPublisher.publish(AUDIT_TOPIC, sessionId, auditEvent);
+            eventPublisher.publish(AUDIT_EVENTS_TOPIC, sessionId, auditEvent);
             log.warn("AI proctoring alert: type={}, session={}, candidate={}",
                     detectionType, sessionId, candidateId);
         } catch (Exception e) {

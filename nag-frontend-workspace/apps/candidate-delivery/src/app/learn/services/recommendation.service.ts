@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
-import { Recommendation, LearnerProfile } from '../models';
+import { Recommendation, LearnerProfile, StudyPlanItem } from '../models';
 
 @Injectable({ providedIn: 'root' })
 export class RecommendationService {
@@ -19,6 +19,50 @@ export class RecommendationService {
     return value || fallback;
   }
 
+  private normalizeStudyPlanItems(items: any): StudyPlanItem[] {
+    const parsed = this.tryParseJson<any[]>(items, []);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map((item: any) => ({
+      ...item,
+      day: item.day ?? 1,
+      topicName: item.topicName || item.focusTopic || 'Focus Topic',
+      estimatedMinutes: item.estimatedMinutes || item.durationMinutes || 45,
+      tasks: item.tasks || [],
+      focusTopic: item.focusTopic || item.topicName,
+      durationMinutes: item.durationMinutes || item.estimatedMinutes,
+      completed: !!item.completed,
+    }));
+  }
+
+  generate(examTarget: string = 'JEE_MAIN'): Observable<Recommendation> {
+    return this.http
+      .post<any>(
+        `${this.apiUrl}/generate?examTarget=${encodeURIComponent(examTarget)}`,
+        {}
+      )
+      .pipe(
+        map((res) => {
+          if (!res) return res;
+          return {
+            ...res,
+            weakTopicRecommendations: this.tryParseJson(
+              res.weakTopicRecommendations,
+              []
+            ),
+            studyPlanItems: this.normalizeStudyPlanItems(res.studyPlanItems),
+            suggestedPracticeSetIds: this.tryParseJson(
+              res.suggestedPracticeSetIds,
+              []
+            ),
+          } as Recommendation;
+        })
+      );
+  }
+
+  generateRecommendations(examTarget: string = 'JEE_MAIN'): Observable<Recommendation> {
+    return this.generate(examTarget);
+  }
+
   getLatest(): Observable<Recommendation | null> {
     return this.http.get<any>(`${this.apiUrl}/latest`).pipe(
       map(res => {
@@ -26,7 +70,7 @@ export class RecommendationService {
         return {
           ...res,
           weakTopicRecommendations: this.tryParseJson(res.weakTopicRecommendations, []),
-          studyPlanItems: this.tryParseJson(res.studyPlanItems, []),
+          studyPlanItems: this.normalizeStudyPlanItems(res.studyPlanItems),
           suggestedPracticeSetIds: this.tryParseJson(res.suggestedPracticeSetIds, [])
         } as Recommendation;
       })
@@ -43,7 +87,7 @@ export class RecommendationService {
           content: res.content.map((item: any) => ({
             ...item,
             weakTopicRecommendations: this.tryParseJson(item.weakTopicRecommendations, []),
-            studyPlanItems: this.tryParseJson(item.studyPlanItems, []),
+            studyPlanItems: this.normalizeStudyPlanItems(item.studyPlanItems),
             suggestedPracticeSetIds: this.tryParseJson(item.suggestedPracticeSetIds, [])
           }))
         };
@@ -65,6 +109,21 @@ export class RecommendationService {
           strongTopics: this.tryParseJson(res.strongTopics, []),
           topicAccuracyMap: this.tryParseJson(res.topicAccuracyMap, {})
         } as LearnerProfile;
+      })
+    );
+  }
+
+  toggleStudyPlanDay(dayNumber: number, completed: boolean): Observable<Recommendation> {
+    const params = new HttpParams().set('completed', completed.toString());
+    return this.http.patch<any>(`${this.apiUrl}/study-plan/days/${dayNumber}`, {}, { params }).pipe(
+      map(res => {
+        if (!res) return res;
+        return {
+          ...res,
+          weakTopicRecommendations: this.tryParseJson(res.weakTopicRecommendations, []),
+          studyPlanItems: this.normalizeStudyPlanItems(res.studyPlanItems),
+          suggestedPracticeSetIds: this.tryParseJson(res.suggestedPracticeSetIds, [])
+        } as Recommendation;
       })
     );
   }

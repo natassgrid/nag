@@ -19,6 +19,7 @@
 
 package com.examplatform.shared.config;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.GenericDomainEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
@@ -26,9 +27,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.*;
 
 @DisplayName("DynamicConfig Listeners Unit Tests")
 class DynamicConfigListenersTest {
@@ -57,7 +56,7 @@ class DynamicConfigListenersTest {
         Map<String, String> map = Map.of(
                 "paramName", "rate.limit",
                 "newValue", "100",
-                "tenantId", "t2"
+            SharedConstants.TENANT_ID, "t2"
         );
         listener.onConfigChangeEvent(map);
 

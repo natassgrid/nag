@@ -20,6 +20,7 @@ import com.examplatform.questionbank.ai.generation.ClarifyRequirementsResponse;
 import com.examplatform.questionbank.ai.generation.QuestionGenerationRequest;
 import com.examplatform.questionbank.ai.generation.QuestionPromptFormatter;
 import com.examplatform.questionbank.ai.parser.NormalizedSampleQuestion;
+import com.examplatform.shared.constants.QuestionTypeConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -79,7 +80,8 @@ public class RequirementAnalystAgent {
     public ClarifyRequirementsResponse clarifyRequirements(ClarifyRequirementsRequest request) {
         List<String> questions = new ArrayList<>();
         List<String> suggestedSubtopics = new ArrayList<>();
-        List<String> suggestedFormats = List.of("SINGLE_MCQ", "MULTI_MCQ", "NUMERICAL", "ASSERTION_REASON");
+        List<String> suggestedFormats = List.of(QuestionTypeConstants.SINGLE_MCQ, QuestionTypeConstants.MULTI_MCQ,
+            QuestionTypeConstants.NUMERICAL, QuestionTypeConstants.ASSERTION_REASON);
 
         boolean ambiguous = false;
 

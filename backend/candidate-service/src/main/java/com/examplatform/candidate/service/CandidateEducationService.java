@@ -24,6 +24,7 @@ import com.examplatform.candidate.dto.CandidateEducationRequest;
 import com.examplatform.candidate.dto.CandidateEducationResponse;
 import com.examplatform.candidate.exception.EducationNotFoundException;
 import com.examplatform.candidate.repository.CandidateEducationRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -83,7 +84,7 @@ public class CandidateEducationService {
                 .orElseThrow(() -> new EducationNotFoundException(
                         "Educational record not found for id=" + educationId + " and userId=" + userId));
 
-        BeanUtils.copyProperties(request, education, "id", "userId", "tenantId", "createdAt", "updatedAt");
+        BeanUtils.copyProperties(request, education, "id", "userId", SharedConstants.TENANT_ID, SharedConstants.CREATED_AT, "updatedAt");
 
         CandidateEducation updated = candidateEducationRepository.save(education);
         log.info("Updated education record id={} for candidate userId={} in tenant={}", educationId, userId, tenantId);

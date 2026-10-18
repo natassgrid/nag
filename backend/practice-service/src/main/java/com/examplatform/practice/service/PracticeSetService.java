@@ -20,6 +20,10 @@ public class PracticeSetService {
     @Transactional(readOnly = true)
     public List<PracticeSetDto> getPublishedSets() {
         return practiceSetRepository.findByPublishedTrue().stream()
+                .filter(ps -> ps.getSource() == null || (
+                        !"ADAPTIVE_QUIZ".equalsIgnoreCase(ps.getSource())
+                        && !"GATEKEEPER_TEST".equalsIgnoreCase(ps.getSource())
+                        && !"DIAGNOSTIC_TEST".equalsIgnoreCase(ps.getSource())))
                 .map(this::toDto)
                 .toList();
     }
@@ -32,7 +36,7 @@ public class PracticeSetService {
                 .orElseThrow(() -> new com.examplatform.practice.exception.PracticeSetNotFoundException(id));
     }
 
-    private PracticeSetDto toDto(PracticeSet ps) {
+    public PracticeSetDto toDto(PracticeSet ps) {
         return new PracticeSetDto(
                 ps.getId(), ps.getName(), ps.getDescription(), ps.getSource(),
                 ps.getDurationMinutes(), ps.getSubjectSlug(), ps.isPublished(), ps.getTotalQuestions()

@@ -19,6 +19,8 @@ import com.examplatform.questionbank.ai.generation.ExecutionMode;
 import com.examplatform.questionbank.ai.generation.ModelRouter;
 import com.examplatform.questionbank.ai.generation.QuestionGenerationRequest;
 import com.examplatform.questionbank.ai.parser.NormalizedSampleQuestion;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.examplatform.shared.constants.QuestionTypeConstants;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -49,9 +51,9 @@ class ComplexityEvaluatorTest {
         return QuestionGenerationRequest.builder()
                 .subject("Physics")
                 .topic("Kinematics")
-                .difficulty("EASY")
-                .cognitiveLevel("REMEMBER")
-                .questionType("SINGLE_MCQ")
+                .difficulty(QuestionTaxonomyConstants.Difficulty.EASY)
+                .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.REMEMBER)
+                .questionType(QuestionTypeConstants.SINGLE_MCQ)
                 .executionMode(ExecutionMode.AUTO)
                 .build();
     }
@@ -59,7 +61,7 @@ class ComplexityEvaluatorTest {
     @Test
     @DisplayName("Default routine MCQ routes to Single-Model Fast Path (<2s, minimal token cost)")
     void testFastPathDefault() {
-        when(modelRouter.selectModel("EASY")).thenReturn("nova-micro");
+        when(modelRouter.selectModel(QuestionTaxonomyConstants.Difficulty.EASY)).thenReturn("nova-micro");
 
         QuestionGenerationRequest req = createBaseRequest();
         ComplexityEvaluationResult result = evaluator.evaluate(req, List.of());
@@ -72,10 +74,10 @@ class ComplexityEvaluatorTest {
     @Test
     @DisplayName("Trigger 1: High cognitive level (ANALYZE / EVALUATE / CREATE) escalates to Multi-Agent")
     void testTrigger1HighCognitiveLevel() {
-        when(modelRouter.selectModel("HARD")).thenReturn("nova-lite");
+        when(modelRouter.selectModel(QuestionTaxonomyConstants.Difficulty.HARD)).thenReturn("nova-lite");
 
         QuestionGenerationRequest req = createBaseRequest();
-        req.setCognitiveLevel("ANALYZE");
+        req.setCognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.ANALYZE);
 
         ComplexityEvaluationResult result = evaluator.evaluate(req, List.of());
 
@@ -86,10 +88,10 @@ class ComplexityEvaluatorTest {
     @Test
     @DisplayName("Trigger 2: Complex question types (PARAGRAPH_SET, ASSERTION_REASON, MATRIX_MATCH) escalate")
     void testTrigger2ComplexQuestionTypes() {
-        when(modelRouter.selectModel("HARD")).thenReturn("nova-lite");
+        when(modelRouter.selectModel(QuestionTaxonomyConstants.Difficulty.HARD)).thenReturn("nova-lite");
 
         QuestionGenerationRequest req = createBaseRequest();
-        req.setQuestionType("ASSERTION_REASON");
+        req.setQuestionType(QuestionTypeConstants.ASSERTION_REASON);
 
         ComplexityEvaluationResult result = evaluator.evaluate(req, List.of());
 
@@ -100,7 +102,7 @@ class ComplexityEvaluatorTest {
     @Test
     @DisplayName("Trigger 3: Chemistry/math notation or diagram in sample escalates to Multi-Agent")
     void testTrigger3SampleFeaturesEscalate() {
-        when(modelRouter.selectModel("HARD")).thenReturn("nova-lite");
+        when(modelRouter.selectModel(QuestionTaxonomyConstants.Difficulty.HARD)).thenReturn("nova-lite");
 
         QuestionGenerationRequest req = createBaseRequest();
         NormalizedSampleQuestion sample = NormalizedSampleQuestion.builder()
@@ -119,7 +121,7 @@ class ComplexityEvaluatorTest {
     @Test
     @DisplayName("Trigger 4: Explicit flag (requireCriticReview or generationQuality: EXAM_READY) escalates")
     void testTrigger4ExplicitFlags() {
-        when(modelRouter.selectModel("HARD")).thenReturn("nova-lite");
+        when(modelRouter.selectModel(QuestionTaxonomyConstants.Difficulty.HARD)).thenReturn("nova-lite");
 
         QuestionGenerationRequest req = createBaseRequest();
         req.setRequireCriticReview(true);
@@ -135,7 +137,7 @@ class ComplexityEvaluatorTest {
     @Test
     @DisplayName("Explicit MULTI_AGENT execution mode forces Multi-Agent committee")
     void testExplicitMultiAgentExecutionMode() {
-        when(modelRouter.selectModel("HARD")).thenReturn("nova-lite");
+        when(modelRouter.selectModel(QuestionTaxonomyConstants.Difficulty.HARD)).thenReturn("nova-lite");
 
         QuestionGenerationRequest req = createBaseRequest();
         req.setExecutionMode(ExecutionMode.MULTI_AGENT);
@@ -149,10 +151,10 @@ class ComplexityEvaluatorTest {
     @Test
     @DisplayName("Explicit FAST execution mode forces Fast Path when no critic is requested")
     void testExplicitFastExecutionMode() {
-        when(modelRouter.selectModel("EASY")).thenReturn("nova-micro");
+        when(modelRouter.selectModel(QuestionTaxonomyConstants.Difficulty.EASY)).thenReturn("nova-micro");
 
         QuestionGenerationRequest req = createBaseRequest();
-        req.setCognitiveLevel("ANALYZE"); // normally triggers multi-agent
+        req.setCognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.ANALYZE); // normally triggers multi-agent
         req.setExecutionMode(ExecutionMode.FAST);
 
         ComplexityEvaluationResult result = evaluator.evaluate(req, List.of());

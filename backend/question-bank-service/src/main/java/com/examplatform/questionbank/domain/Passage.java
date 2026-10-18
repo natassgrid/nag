@@ -20,17 +20,11 @@
 package com.examplatform.questionbank.domain;
 
 import com.examplatform.questionbank.crypto.EncryptedFieldConverter;
+import com.examplatform.shared.constants.QuestionStateConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.entity.BaseEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Convert;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
-import jakarta.persistence.Transient;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
+import jakarta.persistence.*;
+import lombok.*;
 
 import java.util.UUID;
 
@@ -51,7 +45,7 @@ public class Passage extends BaseEntity {
     private String title;
 
     @Convert(converter = EncryptedFieldConverter.class)
-    @Column(name = "content", columnDefinition = "TEXT")
+    @Column(name = SharedConstants.CONTENT, columnDefinition = "TEXT")
     private String content;
 
     @Column(name = "content_format", nullable = false, length = 20)
@@ -64,7 +58,7 @@ public class Passage extends BaseEntity {
     @Column(name = "topic_id")
     private Long topicId;
 
-    @Column(name = "subject", nullable = false, length = 100)
+    @Column(name = SharedConstants.SUBJECT, nullable = false, length = 100)
     private String subject;
 
     @Column(name = "topic", length = 200)
@@ -76,7 +70,7 @@ public class Passage extends BaseEntity {
 
     @Column(name = "state", nullable = false, length = 20)
     @Builder.Default
-    private String state = "DRAFT";
+    private String state = QuestionStateConstants.DRAFT;
 
     @Column(name = "encryption_key_id")
     private String encryptionKeyId;

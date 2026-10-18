@@ -19,6 +19,7 @@
 
 package com.examplatform.questionbank.domain.enums;
 
+import com.examplatform.shared.constants.QuestionTypeConstants;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonCreator;
 
@@ -46,14 +47,14 @@ public enum QuestionType {
         }
         String normalized = value.trim().toUpperCase();
         return switch (normalized) {
-            case "MCQ", "SINGLE_MCQ", "SCQ" -> SINGLE_MCQ;
-            case "MSQ", "MULTI_MCQ", "MULTIPLE_MCQ" -> MULTI_MCQ;
-            case "NUMERICAL", "NAT" -> NUMERICAL;
-            case "DESCRIPTIVE", "ESSAY" -> DESCRIPTIVE;
-            case "MATRIX_MATCH", "MATCH_THE_FOLLOWING" -> MATRIX_MATCH;
-            case "ASSERTION_REASON", "AR" -> ASSERTION_REASON;
-            case "CODING" -> CODING;
-            case "CASE_STUDY", "PASSAGE" -> CASE_STUDY;
+            case "MCQ", QuestionTypeConstants.SINGLE_MCQ, "SCQ" -> SINGLE_MCQ;
+            case "MSQ", QuestionTypeConstants.MULTI_MCQ, "MULTIPLE_MCQ" -> MULTI_MCQ;
+            case QuestionTypeConstants.NUMERICAL, "NAT" -> NUMERICAL;
+            case QuestionTypeConstants.DESCRIPTIVE, "ESSAY" -> DESCRIPTIVE;
+            case QuestionTypeConstants.MATRIX_MATCH, "MATCH_THE_FOLLOWING" -> MATRIX_MATCH;
+            case QuestionTypeConstants.ASSERTION_REASON, "AR" -> ASSERTION_REASON;
+            case QuestionTypeConstants.CODING -> CODING;
+            case QuestionTypeConstants.CASE_STUDY, "PASSAGE" -> CASE_STUDY;
             default -> {
                 for (QuestionType type : values()) {
                     if (type.name().equalsIgnoreCase(normalized)) {

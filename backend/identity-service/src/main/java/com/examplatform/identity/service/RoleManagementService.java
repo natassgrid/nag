@@ -24,30 +24,20 @@ import com.examplatform.identity.domain.UserAccount;
 import com.examplatform.identity.domain.UserRoleAssignment;
 import com.examplatform.identity.domain.enums.AccountStatus;
 import com.examplatform.identity.domain.enums.UserRole;
-import com.examplatform.identity.dto.ActiveSessionResponse;
-import com.examplatform.identity.dto.AdminUpdateUserRequest;
-import com.examplatform.identity.dto.ReviewerResponse;
-import com.examplatform.identity.dto.RoleAction;
-import com.examplatform.identity.dto.RoleAssignmentRequest;
-import com.examplatform.identity.dto.RoleAssignmentResponse;
-import com.examplatform.identity.dto.UserAccountResponse;
+import com.examplatform.identity.dto.*;
 import com.examplatform.identity.exception.AccountNotFoundException;
 import com.examplatform.identity.repository.ActiveSessionRepository;
 import com.examplatform.identity.repository.UserAccountRepository;
 import com.examplatform.identity.repository.UserRoleAssignmentRepository;
 import com.examplatform.shared.audit.AuditEventType;
+import com.examplatform.shared.constants.SharedConstants;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -119,7 +109,7 @@ public class RoleManagementService {
      * Get assigned roles for a specific user within a tenant.
      */
     public List<UserRole> getRoles(UUID userId, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         return roleAssignmentRepository.findByUserIdAndTenantId(userId, effectiveTenant)
                 .stream()
                 .map(UserRoleAssignment::getRole)
@@ -130,7 +120,7 @@ public class RoleManagementService {
      * List all user accounts in tenant.
      */
     public List<UserAccountResponse> listAllUsers(String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         List<UserAccount> accounts = userAccountRepository.findByTenantId(effectiveTenant);
         if (accounts.isEmpty()) {
             return Collections.emptyList();
@@ -157,7 +147,7 @@ public class RoleManagementService {
      * Get user profile by ID or username.
      */
     public UserAccountResponse getUserProfile(String userIdentifier, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         UserAccount account = findAccountByIdentifier(userIdentifier, effectiveTenant);
 
         List<String> roles = roleAssignmentRepository.findByUserIdAndTenantId(account.getId(), effectiveTenant)
@@ -179,7 +169,7 @@ public class RoleManagementService {
                 ? account.getEmail()
                 : (account.getUsername() != null && account.getUsername().contains("@")
                         ? account.getUsername()
-                        : account.getUsername().toLowerCase().replace(" ", ".") + "@assessmentgrid.gov.in");
+                        : Objects.requireNonNull(account.getUsername()).toLowerCase().replace(" ", ".") + "@assessmentgrid.gov.in");
         String phone = (account.getPhoneNumber() != null && !account.getPhoneNumber().isBlank())
                 ? account.getPhoneNumber()
                 : "+91 98765 43210";
@@ -222,7 +212,7 @@ public class RoleManagementService {
      * Update editable profile fields for a user.
      */
     public UserAccountResponse updateUserProfile(String userIdentifier, AdminUpdateUserRequest request, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         UserAccount account = findAccountByIdentifier(userIdentifier, effectiveTenant);
 
         applyIfPresent(account::setFullName, request.getFullName());
@@ -258,7 +248,7 @@ public class RoleManagementService {
      * Get active login sessions for a user.
      */
     public List<ActiveSessionResponse> getActiveSessions(String userIdentifier, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         UserAccount account = findAccountByIdentifier(userIdentifier, effectiveTenant);
 
         List<ActiveSession> sessions = activeSessionRepository.findAllByUserIdAndTenantId(account.getId(), effectiveTenant);
@@ -296,7 +286,7 @@ public class RoleManagementService {
      * Terminate individual session.
      */
     public void revokeSession(String userIdentifier, UUID sessionId, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         UserAccount account = findAccountByIdentifier(userIdentifier, effectiveTenant);
         log.info("Revoking session [{}] for user [{}] in tenant [{}]", sessionId, account.getId(), effectiveTenant);
         activeSessionRepository.findById(sessionId).ifPresent(s -> {
@@ -310,7 +300,7 @@ public class RoleManagementService {
      * Revoke other active sessions for user.
      */
     public void revokeOtherSessions(String userIdentifier, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         UserAccount account = findAccountByIdentifier(userIdentifier, effectiveTenant);
         log.info("Revoking other sessions for user [{}] in tenant [{}]", account.getId(), effectiveTenant);
     }
@@ -328,7 +318,7 @@ public class RoleManagementService {
                     .findFirst()
                     .orElseGet(() -> {
                         List<UserAccount> all = userAccountRepository.findAll();
-                        return all.isEmpty() ? null : all.get(0);
+                        return all.isEmpty() ? null : all.getFirst();
                     });
         }
         try {
@@ -356,7 +346,7 @@ public class RoleManagementService {
      * @return list of matching reviewer responses
      */
     public List<ReviewerResponse> findReviewers(String subject, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         List<UserAccount> accounts = userAccountRepository.findByTenantId(effectiveTenant);
         if (accounts.isEmpty()) {
             return Collections.emptyList();
@@ -422,7 +412,7 @@ public class RoleManagementService {
                 actorId,
                 "identity:roles/" + targetUserId,
                 null, null,
-                Map.of("tenantId", tenantId, "action", action.name(),
+                Map.of(SharedConstants.TENANT_ID, tenantId, SharedConstants.ACTION, action.name(),
                         "targetUserId", targetUserId.toString(),
                         "role", role.name())
         );

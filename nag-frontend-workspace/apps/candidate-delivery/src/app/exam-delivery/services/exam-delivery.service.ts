@@ -44,6 +44,18 @@ export class ExamDeliveryService {
   readonly remainingSeconds = signal<number>(5400); // 90 minutes default
   private timerInterval: any = null;
 
+  private questionEnteredAtMs: number = Date.now();
+  private readonly questionTimeSpentMap = new Map<string, number>();
+
+  getAndRecordQuestionTimeSpentMs(questionId: string): number {
+    const now = Date.now();
+    const elapsed = Math.max(0, now - this.questionEnteredAtMs);
+    const total = (this.questionTimeSpentMap.get(questionId) || 0) + elapsed;
+    this.questionTimeSpentMap.set(questionId, total);
+    this.questionEnteredAtMs = now;
+    return total;
+  }
+
   readonly questions = signal<ExamItem[]>([]);
   readonly currentIndex = signal<number>(0);
   readonly submissionReceipt = signal<ExamSubmissionReceipt | null>(null);
@@ -97,6 +109,8 @@ export class ExamDeliveryService {
     this.submissionReceipt.set(null);
     this.sessionError.set(null);
     this.isConcurrentConflict.set(false);
+    this.questionEnteredAtMs = Date.now();
+    this.questionTimeSpentMap.clear();
 
     if (mode === 'PRACTICE') {
       const resolvedSessionId = sessionId || (paperId ? `PRACTICE-${paperId.substring(0, 8)}` : 'MOCK-SESSION-SIM-2026');
@@ -387,11 +401,12 @@ export class ExamDeliveryService {
 
     const sId = this.practiceSessionId();
     if (this.deliveryMode() === 'PRACTICE' && sId) {
+      const timeSpent = Math.max(1000, this.getAndRecordQuestionTimeSpentMs(item.id));
       this.practiceService.saveResponse(sId, {
         questionId: item.id,
         selectedOptionIds: `[\"${optionId}\"]`,
         enteredValue: null,
-        timeSpentMs: 15000,
+        timeSpentMs: timeSpent,
         markedForReview: !!item.isFlagged,
       }).subscribe({
         error: () => {
@@ -408,11 +423,12 @@ export class ExamDeliveryService {
 
     const sId = this.practiceSessionId();
     if (this.deliveryMode() === 'PRACTICE' && sId) {
+      const timeSpent = Math.max(1000, this.getAndRecordQuestionTimeSpentMs(item.id));
       this.practiceService.saveResponse(sId, {
         questionId: item.id,
         selectedOptionIds: null,
         enteredValue: null,
-        timeSpentMs: 15000,
+        timeSpentMs: timeSpent,
         markedForReview: false,
       }).subscribe({
         error: () => {}
@@ -427,11 +443,12 @@ export class ExamDeliveryService {
 
     const sId = this.practiceSessionId();
     if (this.deliveryMode() === 'PRACTICE' && sId) {
+      const timeSpent = Math.max(1000, this.getAndRecordQuestionTimeSpentMs(item.id));
       this.practiceService.saveResponse(sId, {
         questionId: item.id,
         selectedOptionIds: item.selectedOptionId ? `[\"${item.selectedOptionId}\"]` : null,
         enteredValue: null,
-        timeSpentMs: 15000,
+        timeSpentMs: timeSpent,
         markedForReview: !item.isFlagged,
       }).subscribe({
         error: () => {}
@@ -441,8 +458,13 @@ export class ExamDeliveryService {
 
   goToQuestion(index: number): void {
     const list = this.questions();
+    const currentItem = this.currentItem();
+    if (currentItem) {
+      this.getAndRecordQuestionTimeSpentMs(currentItem.id);
+    }
     if (index >= 0 && index < list.length) {
       this.currentIndex.set(index);
+      this.questionEnteredAtMs = Date.now();
       this.questions.update((items) =>
         items.map((q, i) => (i === index ? { ...q, isVisited: true } : q))
       );

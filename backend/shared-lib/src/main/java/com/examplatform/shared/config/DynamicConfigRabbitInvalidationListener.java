@@ -19,6 +19,8 @@
 
 package com.examplatform.shared.config;
 
+import com.examplatform.shared.constants.MessagingConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -49,7 +51,7 @@ public class DynamicConfigRabbitInvalidationListener {
     @RabbitListener(
             bindings = @QueueBinding(
                     value = @Queue(value = "#{T(java.util.UUID).randomUUID().toString()}", autoDelete = "true", exclusive = "true"),
-                    exchange = @Exchange(value = "exam.events", type = ExchangeTypes.TOPIC),
+                    exchange = @Exchange(value = MessagingConstants.EXAM_EVENTS_TOPIC, type = ExchangeTypes.TOPIC),
                     key = CONFIG_EVENTS_TOPIC
             )
     )
@@ -90,7 +92,7 @@ public class DynamicConfigRabbitInvalidationListener {
             String paramName = (String) map.get("paramName");
             String oldValue = (String) map.get("oldValue");
             String newValue = (String) map.get("newValue");
-            String tenantId = (String) map.get("tenantId");
+            String tenantId = (String) map.get(SharedConstants.TENANT_ID);
             return new SystemConfigChangeEvent(paramName, oldValue, newValue, tenantId, null);
         }
         if (message instanceof String jsonStr) {

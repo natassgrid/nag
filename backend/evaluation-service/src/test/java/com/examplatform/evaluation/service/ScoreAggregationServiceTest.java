@@ -21,6 +21,7 @@ package com.examplatform.evaluation.service;
 
 import com.examplatform.evaluation.domain.Evaluation;
 import com.examplatform.evaluation.repository.EvaluationRepository;
+import com.examplatform.shared.constants.MessagingConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -39,11 +40,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 /**
  * Unit tests for ScoreAggregationService.
@@ -89,7 +86,7 @@ class ScoreAggregationServiceTest {
         ArgumentCaptor<String> topicCaptor = ArgumentCaptor.forClass(String.class);
         verify(eventPublisher, atLeastOnce()).publish(topicCaptor.capture(), anyString(), any());
         assertThat(topicCaptor.getAllValues())
-                .contains("exam.evaluation.completed");
+                .contains(MessagingConstants.EVALUATION_COMPLETED_TOPIC);
     }
 
     @Test

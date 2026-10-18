@@ -65,11 +65,10 @@ public class BulkSaveService {
         List<SaveResponseResponse> results = new ArrayList<>();
 
         for (SaveResponseRequest saveRequest : request.getResponses()) {
-            // Look up current max revisionSequence for (sessionId, questionId)
             List<Response> existing = responseRepository
                     .findBySessionIdAndQuestionIdOrderByRevisionSequenceDesc(sessionId, saveRequest.getQuestionId());
 
-            int serverMaxRevision = existing.isEmpty() ? 0 : existing.get(0).getRevisionSequence();
+            int serverMaxRevision = existing.isEmpty() ? 0 : existing.getFirst().getRevisionSequence();
             int bufferedRevision = saveRequest.getRevisionSequence() != null
                     ? saveRequest.getRevisionSequence()
                     : serverMaxRevision + 1;

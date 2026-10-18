@@ -1,10 +1,14 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { PracticeQuestionReviewComponent } from './practice-question-review.component';
 import { QuestionResult } from '../../models';
+import { ExplanationService } from '../../../learn/services/explanation.service';
+import { of, throwError } from 'rxjs';
+import { ExplanationIr } from '../../../learn/models/explanation.model';
 
 describe('PracticeQuestionReviewComponent', () => {
   let component: PracticeQuestionReviewComponent;
   let fixture: ComponentFixture<PracticeQuestionReviewComponent>;
+  let explanationServiceMock: any;
 
   const mockQuestions: QuestionResult[] = [
     {
@@ -111,8 +115,15 @@ describe('PracticeQuestionReviewComponent', () => {
   ];
 
   beforeEach(async () => {
+    explanationServiceMock = {
+      getExplanation: jest.fn(),
+    };
+
     await TestBed.configureTestingModule({
       imports: [PracticeQuestionReviewComponent],
+      providers: [
+        { provide: ExplanationService, useValue: explanationServiceMock },
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(PracticeQuestionReviewComponent);
@@ -215,5 +226,33 @@ describe('PracticeQuestionReviewComponent', () => {
     const fallbackBadges = element.querySelectorAll('.fallback-indicator');
     expect(fallbackBadges.length).toBeGreaterThan(0);
     expect(fallbackBadges[0].textContent).toContain('Original English (Translation Unavailable)');
+  });
+
+  it('should toggle Socratic Explanation player and invoke ExplanationService', () => {
+    const mockIr: ExplanationIr = {
+      questionId: 'q-2',
+      steps: [
+        {
+          stepNumber: 1,
+          title: 'Understand Dijkstra',
+          content: 'Dijkstra finds shortest paths from single source.',
+        },
+      ],
+      hints: ['Think of greedy graph search.'],
+    };
+
+    explanationServiceMock.getExplanation.mockReturnValue(of(mockIr));
+
+    expect(component.expandedExplanationQuestionId()).toBeNull();
+
+    // First toggle expands and fetches
+    component.toggleAiExplanation(mockQuestions[1]);
+    expect(component.expandedExplanationQuestionId()).toBe('q-2');
+    expect(explanationServiceMock.getExplanation).toHaveBeenCalledWith('q-2');
+    expect(component.explanationDataMap()['q-2']).toEqual(mockIr);
+
+    // Second toggle collapses
+    component.toggleAiExplanation(mockQuestions[1]);
+    expect(component.expandedExplanationQuestionId()).toBeNull();
   });
 });

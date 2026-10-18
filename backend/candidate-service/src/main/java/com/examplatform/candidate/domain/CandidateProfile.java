@@ -19,20 +19,11 @@
 
 package com.examplatform.candidate.domain;
 
-import com.examplatform.candidate.dto.CreateCandidateProfileRequest;
-
 import com.examplatform.candidate.crypto.EncryptedFieldConverter;
+import com.examplatform.candidate.dto.CreateCandidateProfileRequest;
 import com.examplatform.shared.entity.BaseEntity;
-import jakarta.persistence.Column;
-import jakarta.persistence.Convert;
-import jakarta.persistence.Converts;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
+import jakarta.persistence.*;
+import lombok.*;
 
 import java.time.LocalDateTime;
 import java.util.UUID;

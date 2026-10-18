@@ -2,9 +2,13 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, signal } f
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MathRendererComponent } from '@nag-frontend-workspace/shared-ui-components';
 import { I18nService } from '@nag-frontend-workspace/shared-util-i18n';
 import { QuestionResult } from '../../models';
+import { ExplanationPlayerComponent } from '../../../learn/components/explanation-player/explanation-player.component';
+import { ExplanationService } from '../../../learn/services/explanation.service';
+import { ExplanationIr } from '../../../learn/models/explanation-ir.model';
 
 export type QuestionReviewFilter = 'ALL' | 'CORRECT' | 'INCORRECT' | 'SKIPPED' | 'FLAGGED';
 
@@ -16,18 +20,64 @@ export interface ParsedOption {
 @Component({
   selector: 'app-practice-question-review',
   standalone: true,
-  imports: [CommonModule, MatIconModule, MatButtonModule, MathRendererComponent],
+  imports: [
+    CommonModule,
+    MatIconModule,
+    MatButtonModule,
+    MatProgressSpinnerModule,
+    MathRendererComponent,
+    ExplanationPlayerComponent,
+  ],
   templateUrl: './practice-question-review.component.html',
   styleUrl: './practice-question-review.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PracticeQuestionReviewComponent {
   private readonly i18nService = inject(I18nService, { optional: true });
+  private readonly explanationService = inject(ExplanationService, { optional: true });
 
   readonly questionResults = input.required<QuestionResult[]>();
   readonly preferredLanguage = input<string>();
   readonly selectedLanguage = input<string>();
   readonly activeFilter = signal<QuestionReviewFilter>('ALL');
+
+  // Interactive AI Explanation State
+  readonly expandedExplanationQuestionId = signal<string | null>(null);
+  readonly loadingExplanationMap = signal<Record<string, boolean>>({});
+  readonly explanationDataMap = signal<Record<string, ExplanationIr | null>>({});
+  readonly explanationErrorMap = signal<Record<string, string | null>>({});
+
+  toggleAiExplanation(qr: QuestionResult): void {
+    const qId = qr.questionId;
+    if (this.expandedExplanationQuestionId() === qId) {
+      this.expandedExplanationQuestionId.set(null);
+      return;
+    }
+
+    this.expandedExplanationQuestionId.set(qId);
+
+    // If explanation already loaded or service missing, return
+    if (this.explanationDataMap()[qId] || !this.explanationService) {
+      return;
+    }
+
+    this.loadingExplanationMap.update((m) => ({ ...m, [qId]: true }));
+    this.explanationErrorMap.update((m) => ({ ...m, [qId]: null }));
+
+    this.explanationService.getExplanation(qId).subscribe({
+      next: (ir) => {
+        this.explanationDataMap.update((m) => ({ ...m, [qId]: ir }));
+        this.loadingExplanationMap.update((m) => ({ ...m, [qId]: false }));
+      },
+      error: () => {
+        this.explanationErrorMap.update((m) => ({
+          ...m,
+          [qId]: 'Detailed step-by-step AI explanation is currently unavailable for this question.',
+        }));
+        this.loadingExplanationMap.update((m) => ({ ...m, [qId]: false }));
+      },
+    });
+  }
 
   readonly effectiveLanguage = computed(() => {
     return this.selectedLanguage() || this.preferredLanguage() || this.i18nService?.currentLanguage() || 'en';

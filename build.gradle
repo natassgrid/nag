@@ -78,6 +78,8 @@ tasks.register('cpdCheck', JavaExec) {
 subprojects {
     group = 'com.examplatform'
 
+    ext['protobuf-java.version'] = rootProject.libs.versions.protobuf.version.get()
+
     repositories {
         mavenCentral()
     }

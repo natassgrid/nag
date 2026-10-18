@@ -6,7 +6,7 @@ import com.examplatform.practice.domain.PracticeResponse;
 import com.examplatform.practice.domain.PracticeSession;
 import com.examplatform.practice.domain.PracticeSet;
 import com.examplatform.practice.dto.*;
-import com.examplatform.practice.event.PracticeSessionCompletedEvent;
+import com.examplatform.shared.event.PracticeSessionCompletedEvent;
 import com.examplatform.practice.exception.PracticeSessionNotFoundException;
 import com.examplatform.practice.exception.PracticeSetNotFoundException;
 import com.examplatform.practice.exception.SessionAlreadySubmittedException;
@@ -15,8 +15,8 @@ import com.examplatform.practice.repository.PracticeSessionRepository;
 import com.examplatform.practice.repository.PracticeSetRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -28,7 +28,6 @@ import java.util.*;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class PracticeSessionService {
 
     private final PracticeSessionRepository practiceSessionRepository;
@@ -39,6 +38,43 @@ public class PracticeSessionService {
     private final QuestionBankClient questionBankClient;
     private final ApplicationEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
+    private final MockExamAccessValidator mockExamAccessValidator;
+
+    public PracticeSessionService(
+            PracticeSessionRepository practiceSessionRepository,
+            PracticeSetRepository practiceSetRepository,
+            PracticeResponseRepository practiceResponseRepository,
+            PracticeEvaluationService practiceEvaluationService,
+            PracticeResultService practiceResultService,
+            QuestionBankClient questionBankClient,
+            ApplicationEventPublisher eventPublisher,
+            ObjectMapper objectMapper) {
+        this(practiceSessionRepository, practiceSetRepository, practiceResponseRepository,
+                practiceEvaluationService, practiceResultService, questionBankClient,
+                eventPublisher, objectMapper, null);
+    }
+
+    @Autowired
+    public PracticeSessionService(
+            PracticeSessionRepository practiceSessionRepository,
+            PracticeSetRepository practiceSetRepository,
+            PracticeResponseRepository practiceResponseRepository,
+            PracticeEvaluationService practiceEvaluationService,
+            PracticeResultService practiceResultService,
+            QuestionBankClient questionBankClient,
+            ApplicationEventPublisher eventPublisher,
+            ObjectMapper objectMapper,
+            @Autowired(required = false) MockExamAccessValidator mockExamAccessValidator) {
+        this.practiceSessionRepository = practiceSessionRepository;
+        this.practiceSetRepository = practiceSetRepository;
+        this.practiceResponseRepository = practiceResponseRepository;
+        this.practiceEvaluationService = practiceEvaluationService;
+        this.practiceResultService = practiceResultService;
+        this.questionBankClient = questionBankClient;
+        this.eventPublisher = eventPublisher;
+        this.objectMapper = objectMapper;
+        this.mockExamAccessValidator = mockExamAccessValidator;
+    }
 
     @Transactional
     public PracticeSessionDto startSession(UUID candidateId, StartSessionRequest req) {
@@ -47,6 +83,15 @@ public class PracticeSessionService {
                 .orElseThrow(() -> new PracticeSetNotFoundException(req.practiceSetId()));
 
         String mode = req.mode() != null ? req.mode().toUpperCase() : "TIMED";
+
+        if ("EXAM_CLONE".equalsIgnoreCase(practiceSet.getSource())
+                || "FULL_MOCK".equalsIgnoreCase(practiceSet.getSource())
+                || "FULL_MOCK".equalsIgnoreCase(mode)) {
+            if (mockExamAccessValidator != null) {
+                mockExamAccessValidator.validateCandidateAccess(candidateId);
+            }
+        }
+
         String preferredLanguage = (req.preferredLanguage() != null && !req.preferredLanguage().isBlank())
                 ? req.preferredLanguage().trim().toLowerCase()
                 : "en";
@@ -111,17 +156,13 @@ public class PracticeSessionService {
             AnswerKeyDto key = keys.get(qId);
             if (key != null) {
                 Map<String, Map<String, Object>> translations = key.translations();
-                Map<String, Object> primaryTranslation = null;
+                Map<String, Object> primaryTranslation = new HashMap<>();
                 boolean fallbackToEnglish = false;
 
                 if ("en".equalsIgnoreCase(targetLang)) {
-                    primaryTranslation = null;
-                    fallbackToEnglish = false;
                 } else if (translations != null && translations.containsKey(targetLang)) {
                     primaryTranslation = translations.get(targetLang);
-                    fallbackToEnglish = false;
                 } else {
-                    primaryTranslation = null;
                     fallbackToEnglish = true;
                 }
 
@@ -139,7 +180,9 @@ public class PracticeSessionService {
                         targetLang,
                         fallbackToEnglish,
                         primaryTranslation,
-                        translations
+                        translations,
+                        key.subtopicName(),
+                        key.benchmarkTimeSeconds() > 0 ? key.benchmarkTimeSeconds() : 90
                 ));
                 order++;
             }
@@ -193,12 +236,20 @@ public class PracticeSessionService {
         practiceEvaluationService.evaluateSession(sessionId);
 
         PracticeSession evaluated = practiceSessionRepository.findById(sessionId).orElseThrow();
+        PracticeSet practiceSet = practiceSetRepository.findById(evaluated.getPracticeSetId()).orElse(null);
+        String practiceSetSource = practiceSet != null ? practiceSet.getSource() : null;
+        String targetExam = (practiceSet != null && practiceSet.getExamTitle() != null && !practiceSet.getExamTitle().isBlank())
+                ? practiceSet.getExamTitle()
+                : "JEE_MAIN";
 
         eventPublisher.publishEvent(new PracticeSessionCompletedEvent(
                 sessionId, candidateId, evaluated.getPracticeSetId(),
                 evaluated.getCorrectCount(), evaluated.getIncorrectCount(),
                 evaluated.getSkippedCount(), evaluated.getObtainedMarks(),
-                evaluated.getTotalMarks(), evaluated.getTopicWiseBreakdown()
+                evaluated.getTotalMarks(), evaluated.getTopicWiseBreakdown(),
+                evaluated.getSubtopicWiseBreakdown(),
+                practiceSetSource,
+                targetExam
         ));
 
         return practiceResultService.getResult(sessionId, candidateId);
@@ -249,7 +300,8 @@ public class PracticeSessionService {
     private List<UUID> parseQuestionIds(String json) {
         if (json == null || json.isBlank()) return Collections.emptyList();
         try {
-            return objectMapper.readValue(json, new TypeReference<List<UUID>>() {});
+            return objectMapper.readValue(json, new TypeReference<>() {
+            });
         } catch (Exception e) {
             return Collections.emptyList();
         }

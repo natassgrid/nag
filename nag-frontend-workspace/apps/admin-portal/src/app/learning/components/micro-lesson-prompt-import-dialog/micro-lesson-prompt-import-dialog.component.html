@@ -1,0 +1,342 @@
+<div class="dialog-shell flex flex-col max-h-[90vh] w-full max-w-4xl bg-white rounded-2xl overflow-hidden shadow-2xl">
+  <!-- Dialog Header -->
+  <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50/70">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center shadow-2xs">
+        <mat-icon class="!text-xl">psychology</mat-icon>
+      </div>
+      <div>
+        <h2 class="text-lg font-bold text-slate-900 tracking-tight">External AI Micro-Lesson Prompt &amp; JSON Import</h2>
+        <p class="text-xs text-slate-500">Generate 6-part remedial lesson prompts or import JSON directly into the authoring studio</p>
+      </div>
+    </div>
+    <button
+      type="button"
+      (click)="close()"
+      class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-200/60 transition"
+      aria-label="Close dialog"
+    >
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <!-- Navigation Tabs -->
+  <div class="flex items-center gap-2 px-6 pt-3 border-b border-slate-200 bg-white">
+    <button
+      type="button"
+      (click)="setTab('prompt')"
+      class="px-4 py-2.5 text-xs font-bold rounded-t-xl transition-all border-b-2 flex items-center gap-2"
+      [ngClass]="activeTab() === 'prompt' ? 'border-purple-600 text-purple-700 bg-purple-50/50' : 'border-transparent text-slate-500 hover:text-slate-800'"
+    >
+      <mat-icon class="!text-base">tune</mat-icon>
+      Generate &amp; Download Prompt
+    </button>
+    <button
+      type="button"
+      (click)="setTab('import')"
+      class="px-4 py-2.5 text-xs font-bold rounded-t-xl transition-all border-b-2 flex items-center gap-2"
+      [ngClass]="activeTab() === 'import' ? 'border-purple-600 text-purple-700 bg-purple-50/50' : 'border-transparent text-slate-500 hover:text-slate-800'"
+    >
+      <mat-icon class="!text-base">file_upload</mat-icon>
+      Import Micro-Lesson JSON (UI Only)
+    </button>
+  </div>
+
+  <!-- Dialog Body -->
+  <div class="flex-1 overflow-y-auto p-6 space-y-5">
+    <!-- TAB 1: PROMPT GENERATION -->
+    @if (activeTab() === 'prompt') {
+      <div class="space-y-4">
+        <div class="p-3.5 bg-purple-50/70 border border-purple-200 rounded-xl text-xs text-purple-950 flex items-start gap-2.5">
+          <mat-icon class="!text-base text-purple-600 mt-0.5">info</mat-icon>
+          <div>
+            <span class="font-bold">Remedial Micro-Lesson Prompt:</span> Select from the dynamic taxonomy hierarchy below to configure the remedial micro-lesson parameters. Download or copy the generated prompt to execute externally, then import the raw JSON response in the <strong>Import</strong> tab.
+          </div>
+        </div>
+
+        <!-- Dynamic Parameters Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs">
+          <!-- Subject Dropdown / Custom -->
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label class="font-semibold text-slate-700">Subject</label>
+              @if (hierarchy().length > 0) {
+                <button
+                  type="button"
+                  (click)="isCustomSubject.set(!isCustomSubject())"
+                  class="text-[10px] text-purple-600 hover:underline font-medium"
+                >
+                  {{ isCustomSubject() ? 'Select from list' : '+ Custom' }}
+                </button>
+              }
+            </div>
+            @if (!isCustomSubject() && hierarchy().length > 0) {
+              <select
+                [ngModel]="selectedSubjectId()"
+                (ngModelChange)="onSubjectSelect($event)"
+                class="w-full px-3 py-1.5 border border-slate-300 rounded-lg bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              >
+                @for (subj of hierarchy(); track subj.id) {
+                  <option [value]="subj.id">{{ subj.name }}</option>
+                }
+                <option value="__CUSTOM__">+ Custom Subject...</option>
+              </select>
+            } @else {
+              <input
+                type="text"
+                [ngModel]="customSubjectName()"
+                (ngModelChange)="customSubjectName.set($event)"
+                placeholder="Enter subject name"
+                class="w-full px-3 py-1.5 border border-slate-300 rounded-lg bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
+            }
+          </div>
+
+          <!-- Topic Dropdown / Custom -->
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label class="font-semibold text-slate-700">Topic</label>
+              @if (availableTopics().length > 0) {
+                <button
+                  type="button"
+                  (click)="isCustomTopic.set(!isCustomTopic())"
+                  class="text-[10px] text-purple-600 hover:underline font-medium"
+                >
+                  {{ isCustomTopic() ? 'Select from list' : '+ Custom' }}
+                </button>
+              }
+            </div>
+            @if (!isCustomTopic() && availableTopics().length > 0) {
+              <select
+                [ngModel]="selectedTopicId()"
+                (ngModelChange)="onTopicSelect($event)"
+                class="w-full px-3 py-1.5 border border-slate-300 rounded-lg bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              >
+                @for (top of availableTopics(); track top.id) {
+                  <option [value]="top.id">{{ top.name }}</option>
+                }
+                <option value="__CUSTOM__">+ Custom Topic...</option>
+              </select>
+            } @else {
+              <input
+                type="text"
+                [ngModel]="customTopicName()"
+                (ngModelChange)="customTopicName.set($event)"
+                placeholder="Enter topic name"
+                class="w-full px-3 py-1.5 border border-slate-300 rounded-lg bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
+            }
+          </div>
+
+          <!-- Sub-Topic Dropdown / Custom -->
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label class="font-semibold text-slate-700">Sub-Topic</label>
+              @if (availableSubtopics().length > 0) {
+                <button
+                  type="button"
+                  (click)="isCustomSubtopic.set(!isCustomSubtopic())"
+                  class="text-[10px] text-purple-600 hover:underline font-medium"
+                >
+                  {{ isCustomSubtopic() ? 'Select from list' : '+ Custom' }}
+                </button>
+              }
+            </div>
+            @if (!isCustomSubtopic() && availableSubtopics().length > 0) {
+              <select
+                [ngModel]="selectedSubtopicId()"
+                (ngModelChange)="onSubtopicSelect($event)"
+                class="w-full px-3 py-1.5 border border-slate-300 rounded-lg bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              >
+                @for (sub of availableSubtopics(); track sub.id) {
+                  <option [value]="sub.id">{{ sub.name }}</option>
+                }
+                <option value="__CUSTOM__">+ Custom Sub-topic...</option>
+              </select>
+            } @else {
+              <input
+                type="text"
+                [ngModel]="customSubtopicName()"
+                (ngModelChange)="customSubtopicName.set($event)"
+                placeholder="Enter sub-topic name"
+                class="w-full px-3 py-1.5 border border-slate-300 rounded-lg bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
+            }
+          </div>
+
+          <!-- Target Examination Dropdown -->
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Target Examination</label>
+            <select
+              [ngModel]="targetExam()"
+              (ngModelChange)="targetExam.set($event)"
+              class="w-full px-3 py-1.5 border border-slate-300 rounded-lg bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            >
+              @for (opt of examOptions(); track opt.value) {
+                <option [value]="opt.value">{{ opt.label }}</option>
+              }
+            </select>
+          </div>
+
+          <!-- Custom Focus Note -->
+          <div class="md:col-span-2">
+            <label class="block font-semibold text-slate-700 mb-1">Diagnosed Student Gap / Custom Context (Optional)</label>
+            <input
+              type="text"
+              [ngModel]="referenceText()"
+              (ngModelChange)="referenceText.set($event)"
+              placeholder="e.g. Candidates struggle to account for non-conservative work done by friction."
+              class="w-full px-3 py-1.5 border border-slate-300 rounded-lg bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            />
+          </div>
+        </div>
+
+        <!-- Prompt Preview -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+              <mat-icon class="!text-sm text-slate-400">code</mat-icon>
+              Generated Prompt Preview ({{ resolvedSubjectName() }} &gt; {{ resolvedTopicName() }} &gt; {{ resolvedSubtopicName() }})
+            </span>
+            <div class="flex items-center gap-2">
+              <button
+                type="button"
+                (click)="copyPrompt()"
+                class="px-3 py-1 text-xs font-semibold rounded-lg border transition flex items-center gap-1.5"
+                [ngClass]="copied() ? 'bg-emerald-50 text-emerald-700 border-emerald-300' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'"
+              >
+                <mat-icon class="!text-sm">{{ copied() ? 'check' : 'content_copy' }}</mat-icon>
+                {{ copied() ? 'Copied to Clipboard!' : 'Copy Prompt' }}
+              </button>
+              <button
+                type="button"
+                (click)="downloadPrompt()"
+                class="px-3 py-1 text-xs font-semibold rounded-lg bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 transition flex items-center gap-1.5"
+              >
+                <mat-icon class="!text-sm">file_download</mat-icon>
+                Download Prompt (.txt)
+              </button>
+            </div>
+          </div>
+          <textarea
+            readonly
+            rows="10"
+            class="w-full p-3.5 bg-slate-900 text-slate-200 font-mono text-xs rounded-xl border border-slate-700 focus:outline-none resize-none leading-relaxed select-all"
+            [value]="generatedPrompt()"
+          ></textarea>
+        </div>
+      </div>
+    }
+
+    <!-- TAB 2: IMPORT MICROLESON JSON -->
+    @if (activeTab() === 'import') {
+      <div class="space-y-4">
+        <div class="p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-xl text-xs text-emerald-950 flex items-start gap-2.5">
+          <mat-icon class="!text-base text-emerald-600 mt-0.5">verified</mat-icon>
+          <div>
+            <span class="font-bold">UI-Only Studio Import:</span> Paste the JSON response from your external AI tool below (or upload a .json file).
+            The micro-lesson will be validated and populated directly into the Authoring Studio in memory, updating all live preview blocks instantly.
+            <strong>No data is saved to the database yet.</strong> You can review, refine formulas, and click "Save Micro-Lesson" to commit as usual!
+          </div>
+        </div>
+
+        <!-- Action Bar: Sample + File Upload -->
+        <div class="flex flex-wrap items-center justify-between gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              (click)="loadSampleJson()"
+              class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 transition flex items-center gap-1.5"
+            >
+              <mat-icon class="!text-sm text-purple-600">data_object</mat-icon>
+              Load Sample JSON
+            </button>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <label class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 transition flex items-center gap-1.5 cursor-pointer">
+              <mat-icon class="!text-sm text-slate-500">upload_file</mat-icon>
+              Upload .json File
+              <input type="file" accept=".json,application/json" (change)="onFileSelected($event)" class="hidden" />
+            </label>
+          </div>
+        </div>
+
+        <!-- JSON Text Area -->
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">
+            Micro-Lesson JSON Content
+          </label>
+          <textarea
+            rows="12"
+            [ngModel]="jsonInput()"
+            (ngModelChange)="jsonInput.set($event); validateInputOnly()"
+            placeholder="Paste raw JSON or ```json ... ``` code block here..."
+            class="w-full p-3.5 font-mono text-xs rounded-xl border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-y leading-relaxed"
+          ></textarea>
+        </div>
+
+        <!-- Validation Errors Box -->
+        @if (validationErrors().length > 0) {
+          <div class="p-3.5 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800 space-y-1">
+            <div class="flex items-center gap-1.5 font-bold text-red-900">
+              <mat-icon class="!text-base text-red-600">error</mat-icon>
+              Validation Issues Detected ({{ validationErrors().length }}):
+            </div>
+            <ul class="list-disc list-inside space-y-0.5 pl-1">
+              @for (err of validationErrors(); track err) {
+                <li>{{ err }}</li>
+              }
+            </ul>
+          </div>
+        }
+
+        <!-- Validation Warnings Box -->
+        @if (validationWarnings().length > 0 && validationErrors().length === 0) {
+          <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 space-y-1">
+            <div class="flex items-center gap-1.5 font-bold text-amber-950">
+              <mat-icon class="!text-base text-amber-600">warning</mat-icon>
+              Validation Notes:
+            </div>
+            <ul class="list-disc list-inside space-y-0.5 pl-1">
+              @for (warn of validationWarnings(); track warn) {
+                <li>{{ warn }}</li>
+              }
+            </ul>
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+  <!-- Dialog Footer -->
+  <div class="flex items-center justify-between px-6 py-4 border-t border-slate-200 bg-slate-50/70">
+    <button mat-stroked-button type="button" (click)="close()">
+      Cancel
+    </button>
+
+    @if (activeTab() === 'prompt') {
+      <div class="flex items-center gap-2">
+        <button mat-stroked-button type="button" (click)="copyPrompt()">
+          <mat-icon>{{ copied() ? 'check' : 'content_copy' }}</mat-icon>
+          {{ copied() ? 'Copied' : 'Copy Prompt' }}
+        </button>
+        <button mat-flat-button color="primary" type="button" (click)="downloadPrompt()">
+          <mat-icon>file_download</mat-icon>
+          Download Prompt
+        </button>
+      </div>
+    } @else {
+      <button
+        mat-flat-button
+        color="primary"
+        type="button"
+        (click)="validateAndImport()"
+        [disabled]="!jsonInput().trim()"
+      >
+        <mat-icon>input</mat-icon>
+        Validate &amp; Import to Studio
+      </button>
+    }
+  </div>
+</div>

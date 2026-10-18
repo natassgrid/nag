@@ -19,6 +19,9 @@
 
 package com.examplatform.questionbank.translation.service;
 
+import com.examplatform.questionbank.translation.ai.IndicTrans2Service;
+
+
 import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.dto.QuestionOption;
 import com.examplatform.questionbank.repository.QuestionRepository;
@@ -30,6 +33,8 @@ import com.examplatform.questionbank.translation.dto.AutoTranslateResponse;
 import com.examplatform.questionbank.translation.dto.TranslatedOptionDto;
 import com.examplatform.questionbank.translation.repository.BatchTranslationJobRepository;
 import com.examplatform.questionbank.translation.repository.TranslationRepository;
+import com.examplatform.shared.constants.QuestionStateConstants;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -78,13 +83,13 @@ class AsyncBatchTranslationWorkerIntegrationTest extends AbstractIntegrationTest
                 .topicId(10L)
                 .subject("Physics")
                 .topic("Mechanics")
-                .difficulty("MEDIUM")
-                .cognitiveLevel("UNDERSTAND")
+                .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
+                .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.UNDERSTAND)
                 .questionType("MCQ")
                 .content("What is Newton's first law?")
                 .authorId(UUID.randomUUID())
                 .options(List.of(QuestionOption.builder().id("A").text("Inertia").correct(true).build()))
-                .state("APPROVED")
+                .state(QuestionStateConstants.APPROVED)
                 .build();
         q1.setTenantId(TENANT_ID);
 
@@ -93,13 +98,13 @@ class AsyncBatchTranslationWorkerIntegrationTest extends AbstractIntegrationTest
                 .topicId(20L)
                 .subject("Chemistry")
                 .topic("Organic")
-                .difficulty("EASY")
-                .cognitiveLevel("REMEMBER")
+                .difficulty(QuestionTaxonomyConstants.Difficulty.EASY)
+                .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.REMEMBER)
                 .questionType("MCQ")
                 .content("What is methane?")
                 .authorId(UUID.randomUUID())
                 .options(List.of(QuestionOption.builder().id("A").text("CH4").correct(true).build()))
-                .state("APPROVED")
+                .state(QuestionStateConstants.APPROVED)
                 .build();
         q2.setTenantId(TENANT_ID);
 
@@ -125,7 +130,7 @@ class AsyncBatchTranslationWorkerIntegrationTest extends AbstractIntegrationTest
                 .status(BatchTranslationJobStatus.PENDING)
                 .sourceLanguage("en")
                 .targetLanguage("hi")
-                .targetStatus("PUBLISHED")
+                .targetStatus(QuestionStateConstants.PUBLISHED)
                 .subjectFilter(null)
                 .batchSize(10)
                 .throttleDelayMs(0)
@@ -173,13 +178,13 @@ class AsyncBatchTranslationWorkerIntegrationTest extends AbstractIntegrationTest
                 .topicId(30L)
                 .subject("Mathematics")
                 .topic("Algebra")
-                .difficulty("HARD")
-                .cognitiveLevel("APPLY")
+                .difficulty(QuestionTaxonomyConstants.Difficulty.HARD)
+                .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.APPLY)
                 .questionType("MCQ")
                 .content("Solve 2x + 4 = 10")
                 .authorId(UUID.randomUUID())
                 .options(List.of(QuestionOption.builder().id("A").text("x = 3").correct(true).build()))
-                .state("APPROVED")
+                .state(QuestionStateConstants.APPROVED)
                 .build();
         q1.setTenantId(TENANT_ID);
 
@@ -188,13 +193,13 @@ class AsyncBatchTranslationWorkerIntegrationTest extends AbstractIntegrationTest
                 .topicId(40L)
                 .subject("History")
                 .topic("Modern India")
-                .difficulty("EASY")
-                .cognitiveLevel("REMEMBER")
+                .difficulty(QuestionTaxonomyConstants.Difficulty.EASY)
+                .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.REMEMBER)
                 .questionType("MCQ")
                 .content("When did India become independent?")
                 .authorId(UUID.randomUUID())
                 .options(List.of(QuestionOption.builder().id("A").text("1947").correct(true).build()))
-                .state("APPROVED")
+                .state(QuestionStateConstants.APPROVED)
                 .build();
         q2.setTenantId(TENANT_ID);
 
@@ -219,7 +224,7 @@ class AsyncBatchTranslationWorkerIntegrationTest extends AbstractIntegrationTest
                 .status(BatchTranslationJobStatus.PENDING)
                 .sourceLanguage("en")
                 .targetLanguage("hi")
-                .targetStatus("PUBLISHED")
+                .targetStatus(QuestionStateConstants.PUBLISHED)
                 .subjectFilter("Mathematics")
                 .batchSize(10)
                 .throttleDelayMs(0)

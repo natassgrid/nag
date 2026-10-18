@@ -25,6 +25,8 @@ import com.examplatform.identity.domain.enums.AccountStatus;
 import com.examplatform.identity.repository.UserAccountRepository;
 import com.examplatform.shared.audit.AuditEventType;
 import com.examplatform.shared.config.DynamicConfigService;
+import com.examplatform.shared.constants.MessagingConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -57,7 +59,7 @@ public class AccountLockoutService {
     private final AppSecurityProperties securityProperties;
     private final DynamicConfigService dynamicConfigService;
 
-    private static final String NOTIFICATIONS_TOPIC = "exam.notifications.outbound";
+    private static final String NOTIFICATIONS_TOPIC = MessagingConstants.NOTIFICATIONS_OUTBOUND_TOPIC;
 
     /**
      * Checks whether the account should be locked based on failed attempt count
@@ -94,7 +96,7 @@ public class AccountLockoutService {
                         null,
                         null,
                         Map.of(
-                                "tenantId", tenantId,
+                            SharedConstants.TENANT_ID, tenantId,
                                 "failedAttempts", account.getFailedAttemptCount(),
                                 "maxAttempts", maxAttempts,
                                 "lockoutMinutes", lockoutMinutes
@@ -103,11 +105,11 @@ public class AccountLockoutService {
 
                 // Publish notification event for alerting user
                 Map<String, Object> notification = Map.of(
-                        "eventType", "ACCOUNT_LOCKED",
+                    SharedConstants.EVENT_TYPE, "ACCOUNT_LOCKED",
                         "userId", String.valueOf(account.getId()),
-                        "tenantId", tenantId,
+                    SharedConstants.TENANT_ID, tenantId,
                         "lockedAt", account.getLockedAt().toString(),
-                        "message", "Your account has been locked due to multiple failed login attempts."
+                    SharedConstants.MESSAGE, "Your account has been locked due to multiple failed login attempts."
                 );
                 eventPublisher.publish(NOTIFICATIONS_TOPIC, String.valueOf(account.getId()), notification);
 

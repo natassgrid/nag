@@ -25,6 +25,7 @@ import com.examplatform.result.dto.CandidateExamResponseDto;
 import com.examplatform.result.dto.QuestionAnalyticsResult;
 import com.examplatform.result.dto.QuestionDetailDto;
 import com.examplatform.result.dto.ReviewOptionDto;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -36,16 +37,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.data.Offset.offset;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 /**
  * Unit tests for QuestionAnalyticsService.
@@ -117,8 +114,8 @@ class QuestionAnalyticsServiceTest {
                 .id(questionId1)
                 .subject("Physics")
                 .topic("Thermodynamics")
-                .difficulty("MEDIUM")
-                .cognitiveLevel("APPLY")
+                .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
+                .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.APPLY)
                 .explanation("Explanation for Q1")
                 .options(List.of(
                         ReviewOptionDto.builder().id("opt-a").text("Option A").isCorrect(true).build(),
@@ -131,8 +128,8 @@ class QuestionAnalyticsServiceTest {
                 .id(questionId2)
                 .subject("Math")
                 .topic("Algebra")
-                .difficulty("EASY")
-                .cognitiveLevel("REMEMBER")
+                .difficulty(QuestionTaxonomyConstants.Difficulty.EASY)
+                .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.REMEMBER)
                 .explanation("Explanation for Q2")
                 .options(List.of(
                         ReviewOptionDto.builder().id("opt-1").text("Option 1").isCorrect(true).build(),

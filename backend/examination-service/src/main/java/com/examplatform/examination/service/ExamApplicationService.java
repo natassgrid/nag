@@ -7,20 +7,14 @@
 
 package com.examplatform.examination.service;
 
-import com.examplatform.examination.domain.ExamApplication;
-import com.examplatform.examination.domain.ExamShift;
-import com.examplatform.examination.domain.Examination;
-import com.examplatform.examination.domain.ExaminationCentre;
-import com.examplatform.examination.domain.ExaminationSchedule;
+import com.examplatform.examination.domain.*;
 import com.examplatform.examination.dto.AdmitCardResponse;
 import com.examplatform.examination.dto.ExamApplicationRequest;
 import com.examplatform.examination.dto.ExamApplicationResponse;
 import com.examplatform.examination.dto.PublicCentreResponse;
-import com.examplatform.examination.repository.ExamApplicationRepository;
-import com.examplatform.examination.repository.ExamShiftRepository;
-import com.examplatform.examination.repository.ExaminationCentreRepository;
-import com.examplatform.examination.repository.ExaminationRepository;
-import com.examplatform.examination.repository.ExaminationScheduleRepository;
+import com.examplatform.examination.repository.*;
+import com.examplatform.shared.constants.QuestionStateConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,11 +27,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.util.HexFormat;
-import java.util.List;
-import java.util.Optional;
-import java.util.Random;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -81,7 +71,7 @@ public class ExamApplicationService {
         Examination exam = examinationRepository.findById(examId)
                 .orElseThrow(() -> new EntityNotFoundException("Examination not found: " + examId));
 
-        if (!"PUBLISHED".equalsIgnoreCase(exam.getStatus()) && !"ACTIVE".equalsIgnoreCase(exam.getStatus())) {
+        if (!QuestionStateConstants.PUBLISHED.equalsIgnoreCase(exam.getStatus()) && !"ACTIVE".equalsIgnoreCase(exam.getStatus())) {
             throw new IllegalStateException("Exam is not open for applications. Status: " + exam.getStatus());
         }
 
@@ -94,12 +84,13 @@ public class ExamApplicationService {
 
         // Determine allocated shift & schedule
         Optional<ExaminationSchedule> latestScheduleOpt = scheduleRepository
-                .findFirstByExaminationIdAndStatusAndTenantIdOrderByScheduleVersionDesc(examId, "PUBLISHED", tenantId);
+                .findFirstByExaminationIdAndStatusAndTenantIdOrderByScheduleVersionDesc(examId,
+                    QuestionStateConstants.PUBLISHED, tenantId);
         if (latestScheduleOpt.isEmpty()) {
             List<ExaminationSchedule> schedules = scheduleRepository
                     .findByExaminationIdAndTenantIdOrderByScheduleVersionDesc(examId, tenantId);
             if (!schedules.isEmpty()) {
-                latestScheduleOpt = Optional.of(schedules.get(0));
+                latestScheduleOpt = Optional.of(schedules.getFirst());
             }
         }
 
@@ -107,7 +98,7 @@ public class ExamApplicationService {
         if (allocatedShiftId == null && latestScheduleOpt.isPresent()) {
             List<ExamShift> shifts = shiftRepository.findByScheduleIdOrderByShiftNumber(latestScheduleOpt.get().getId());
             if (!shifts.isEmpty()) {
-                allocatedShiftId = shifts.get(0).getId();
+                allocatedShiftId = shifts.getFirst().getId();
             }
         }
 
@@ -154,7 +145,8 @@ public class ExamApplicationService {
                     ExaminationSchedule schedule = null;
                     if (exam != null) {
                         schedule = scheduleRepository
-                                .findFirstByExaminationIdAndStatusAndTenantIdOrderByScheduleVersionDesc(exam.getId(), "PUBLISHED", tenantId)
+                                .findFirstByExaminationIdAndStatusAndTenantIdOrderByScheduleVersionDesc(exam.getId(),
+                                    QuestionStateConstants.PUBLISHED, tenantId)
                                 .orElse(null);
                     }
                     return toResponse(app, exam, app.getAllocatedCentreId(), schedule, app.getAllocatedShiftId());
@@ -175,7 +167,8 @@ public class ExamApplicationService {
         ExaminationSchedule schedule = null;
         if (exam != null) {
             schedule = scheduleRepository
-                    .findFirstByExaminationIdAndStatusAndTenantIdOrderByScheduleVersionDesc(exam.getId(), "PUBLISHED", tenantId)
+                    .findFirstByExaminationIdAndStatusAndTenantIdOrderByScheduleVersionDesc(exam.getId(),
+                        QuestionStateConstants.PUBLISHED, tenantId)
                     .orElse(null);
         }
         return toResponse(app, exam, app.getAllocatedCentreId(), schedule, app.getAllocatedShiftId());
@@ -251,7 +244,7 @@ public class ExamApplicationService {
             }
         }
         List<ExaminationCentre> centres = centreRepository.findByTenantIdAndActiveTrue(tenantId);
-        return centres.isEmpty() ? null : centres.get(0).getId();
+        return centres.isEmpty() ? null : centres.getFirst().getId();
     }
 
     private String generateHallTicketNumber(String examCode, UUID candidateId) {
@@ -267,7 +260,7 @@ public class ExamApplicationService {
 
     private String generateQrVerificationHash(String hallTicketNumber, UUID candidateId, UUID examId, UUID centreId) {
         try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            MessageDigest digest = MessageDigest.getInstance(SharedConstants.SHA_256);
             String raw = String.format("%s:%s:%s:%s", hallTicketNumber, candidateId, examId, centreId);
             byte[] hash = digest.digest(raw.getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(hash);
@@ -294,7 +287,8 @@ public class ExamApplicationService {
         }
         if (schedule == null) {
             schedule = scheduleRepository
-                    .findFirstByExaminationIdAndStatusAndTenantIdOrderByScheduleVersionDesc(exam.getId(), "PUBLISHED", tenantId)
+                    .findFirstByExaminationIdAndStatusAndTenantIdOrderByScheduleVersionDesc(exam.getId(),
+                        QuestionStateConstants.PUBLISHED, tenantId)
                     .orElse(null);
         }
 

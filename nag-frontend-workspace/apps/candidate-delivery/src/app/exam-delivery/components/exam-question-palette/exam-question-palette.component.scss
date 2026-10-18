@@ -1,8 +1,9 @@
 :host {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
+  display: block;
   height: 100%;
-  width: 100%;
+  color: #1e293b;
+}
+
+.palette-sidebar {
+  color: #1e293b;
 }

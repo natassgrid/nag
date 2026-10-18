@@ -8,6 +8,10 @@ import com.examplatform.practice.dto.AnswerKeyDto;
 import com.examplatform.practice.repository.PracticeResponseRepository;
 import com.examplatform.practice.repository.PracticeSessionRepository;
 import com.examplatform.practice.repository.PracticeSetRepository;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.examplatform.shared.constants.QuestionTypeConstants;
+import com.examplatform.shared.dto.SubtopicPerformanceDto;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -89,8 +93,10 @@ class PracticeEvaluationServiceTest {
         when(practiceSessionRepository.findById(sessionId)).thenReturn(Optional.of(practiceSession));
         when(practiceResponseRepository.findByPracticeSessionId(sessionId)).thenReturn(List.of(resp1, resp2));
 
-        AnswerKeyDto ak1 = new AnswerKeyDto(q1, "opt-A", "MCQ", "t-1", "Algebra", "EASY", 4);
-        AnswerKeyDto ak2 = new AnswerKeyDto(q2, "opt-C", "MCQ", "t-2", "Geometry", "HARD", 4);
+        AnswerKeyDto ak1 = new AnswerKeyDto(q1, "opt-A", "MCQ", "t-1", "Algebra",
+            QuestionTaxonomyConstants.Difficulty.EASY, 4);
+        AnswerKeyDto ak2 = new AnswerKeyDto(q2, "opt-C", "MCQ", "t-2", "Geometry",
+            QuestionTaxonomyConstants.Difficulty.HARD, 4);
 
         when(questionBankClient.getAnswerKeys(any())).thenReturn(Map.of(q1, ak1, q2, ak2));
 
@@ -102,16 +108,110 @@ class PracticeEvaluationServiceTest {
         assertThat(practiceSession.getIncorrectCount()).isEqualTo(1);
         assertThat(practiceSession.getSkippedCount()).isEqualTo(1); // 3 total - 2 answered = 1 skipped
         assertThat(practiceSession.getObtainedMarks()).isEqualTo(3);
+        assertThat(practiceSession.getSubtopicWiseBreakdown()).isNotNull();
 
         verify(practiceSessionRepository).save(practiceSession);
         verify(practiceResponseRepository, atLeastOnce()).save(any(PracticeResponse.class));
     }
 
     @Test
+    @DisplayName("evaluateSession - correctly calculates granular subtopic accuracy, pace ratio, and skip rate")
+    void testEvaluateSession_CalculatesSubtopicAccuracyPaceAndSkipRate() throws Exception {
+        UUID q1 = UUID.randomUUID();
+        UUID q2 = UUID.randomUUID();
+        UUID q3 = UUID.randomUUID();
+
+        // Subtopic: "Moment of Inertia" (q1 correct, q2 incorrect, benchmark 60s)
+        PracticeResponse resp1 = PracticeResponse.builder()
+                .practiceSessionId(sessionId)
+                .questionId(q1)
+                .selectedOptionIds("[\"opt-A\"]")
+                .revisionSequence(1)
+                .timeSpentMs(30000L)
+                .build();
+
+        PracticeResponse resp2 = PracticeResponse.builder()
+                .practiceSessionId(sessionId)
+                .questionId(q2)
+                .selectedOptionIds("[\"opt-B\"]")
+                .revisionSequence(1)
+                .timeSpentMs(90000L)
+                .build();
+
+        // Subtopic: "Thermodynamics" (q3 skipped: empty selection)
+        PracticeResponse resp3 = PracticeResponse.builder()
+                .practiceSessionId(sessionId)
+                .questionId(q3)
+                .selectedOptionIds("[]")
+                .revisionSequence(1)
+                .timeSpentMs(5000L)
+                .build();
+
+        practiceSession.setTotalQuestions(3);
+
+        when(practiceSessionRepository.findById(sessionId)).thenReturn(Optional.of(practiceSession));
+        when(practiceResponseRepository.findByPracticeSessionId(sessionId)).thenReturn(List.of(resp1, resp2, resp3));
+
+        AnswerKeyDto ak1 = new AnswerKeyDto(
+                q1, "opt-A", "SINGLE_MCQ", "10", "Rotational Mechanics",
+                QuestionTaxonomyConstants.Difficulty.EASY, 2, "Q1", "[]", "Expl", "Physics",
+                null, 100L, 501L, "Moment of Inertia", 60
+        );
+
+        AnswerKeyDto ak2 = new AnswerKeyDto(
+                q2, "opt-C", "SINGLE_MCQ", "10", "Rotational Mechanics",
+                QuestionTaxonomyConstants.Difficulty.MEDIUM, 2, "Q2", "[]", "Expl", "Physics",
+                null, 100L, 501L, "Moment of Inertia", 60
+        );
+
+        AnswerKeyDto ak3 = new AnswerKeyDto(
+                q3, "opt-D", "SINGLE_MCQ", "20", "Heat",
+                QuestionTaxonomyConstants.Difficulty.HARD, 2, "Q3", "[]", "Expl", "Physics",
+                null, 100L, 502L, "Thermodynamics", 120
+        );
+
+        when(questionBankClient.getAnswerKeys(any())).thenReturn(Map.of(q1, ak1, q2, ak2, q3, ak3));
+
+        practiceEvaluationService.evaluateSession(sessionId);
+
+        assertThat(practiceSession.getSubtopicWiseBreakdown()).isNotNull();
+
+        List<SubtopicPerformanceDto> breakdown = objectMapper.readValue(
+                practiceSession.getSubtopicWiseBreakdown(), new TypeReference<>() {});
+
+        assertThat(breakdown).hasSize(2);
+
+        SubtopicPerformanceDto moi = breakdown.stream()
+                .filter(b -> "Moment of Inertia".equals(b.subtopicName()))
+                .findFirst().orElseThrow();
+
+        assertThat(moi.totalQuestions()).isEqualTo(2);
+        assertThat(moi.attemptedCount()).isEqualTo(2);
+        assertThat(moi.correctCount()).isEqualTo(1);
+        assertThat(moi.incorrectCount()).isEqualTo(1);
+        assertThat(moi.skippedCount()).isEqualTo(0);
+        assertThat(moi.accuracyPercent()).isEqualTo(50.0);
+        assertThat(moi.skipRatePercent()).isEqualTo(0.0);
+        // avg time spent = (30s + 90s) / 2 = 60s; benchmark = 60s -> pace ratio = 1.0
+        assertThat(moi.paceRatio()).isEqualTo(1.0);
+
+        SubtopicPerformanceDto thermo = breakdown.stream()
+                .filter(b -> "Thermodynamics".equals(b.subtopicName()))
+                .findFirst().orElseThrow();
+
+        assertThat(thermo.totalQuestions()).isEqualTo(1);
+        assertThat(thermo.attemptedCount()).isEqualTo(0);
+        assertThat(thermo.skippedCount()).isEqualTo(1);
+        assertThat(thermo.accuracyPercent()).isEqualTo(0.0);
+        assertThat(thermo.skipRatePercent()).isEqualTo(100.0);
+    }
+
+    @Test
     @DisplayName("evaluateAnswer - evaluates MULTI_MCQ exact match and rejects partial/extra selections")
     void testEvaluateMultiMcq() {
         UUID qId = UUID.randomUUID();
-        AnswerKeyDto ak = new AnswerKeyDto(qId, "[\"opt-A\", \"opt-B\"]", "MULTI_MCQ", "t-1", "Topic", "MEDIUM", 4);
+        AnswerKeyDto ak = new AnswerKeyDto(qId, "[\"opt-A\", \"opt-B\"]", QuestionTypeConstants.MULTI_MCQ, "t-1", "Topic",
+            QuestionTaxonomyConstants.Difficulty.MEDIUM, 4);
 
         // Exact match in same order
         PracticeResponse respExact = PracticeResponse.builder().selectedOptionIds("[\"opt-A\", \"opt-B\"]").build();
@@ -134,7 +234,8 @@ class PracticeEvaluationServiceTest {
     @DisplayName("evaluateAnswer - rejects multiple selections for SINGLE_MCQ even if one matches")
     void testEvaluateSingleMcqMultipleSelectionRejected() {
         UUID qId = UUID.randomUUID();
-        AnswerKeyDto ak = new AnswerKeyDto(qId, "opt-A", "SINGLE_MCQ", "t-1", "Topic", "EASY", 2);
+        AnswerKeyDto ak = new AnswerKeyDto(qId, "opt-A", QuestionTypeConstants.SINGLE_MCQ, "t-1", "Topic",
+            QuestionTaxonomyConstants.Difficulty.EASY, 2);
 
         // Correct single selection
         PracticeResponse respSingle = PracticeResponse.builder().selectedOptionIds("[\"opt-A\"]").build();
@@ -149,7 +250,8 @@ class PracticeEvaluationServiceTest {
     @DisplayName("evaluateAnswer - evaluates NUMERICAL questions with floating point tolerance")
     void testEvaluateNumerical() {
         UUID qId = UUID.randomUUID();
-        AnswerKeyDto ak = new AnswerKeyDto(qId, "3.14159", "NUMERICAL", "t-1", "Math", "MEDIUM", 2);
+        AnswerKeyDto ak = new AnswerKeyDto(qId, "3.14159", QuestionTypeConstants.NUMERICAL, "t-1", "Math",
+            QuestionTaxonomyConstants.Difficulty.MEDIUM, 2);
 
         // Exact string
         PracticeResponse resp1 = PracticeResponse.builder().enteredValue("3.14159").build();
@@ -160,7 +262,8 @@ class PracticeEvaluationServiceTest {
         assertThat(practiceEvaluationService.evaluateAnswer(resp2, ak)).isTrue();
 
         // Integer vs decimal representation (e.g. key: 42, entered: 42.0)
-        AnswerKeyDto akInt = new AnswerKeyDto(qId, "42", "NUMERICAL", "t-1", "Math", "EASY", 2);
+        AnswerKeyDto akInt = new AnswerKeyDto(qId, "42", QuestionTypeConstants.NUMERICAL, "t-1", "Math",
+            QuestionTaxonomyConstants.Difficulty.EASY, 2);
         PracticeResponse respInt = PracticeResponse.builder().enteredValue("42.0").build();
         assertThat(practiceEvaluationService.evaluateAnswer(respInt, akInt)).isTrue();
 
@@ -197,7 +300,8 @@ class PracticeEvaluationServiceTest {
         when(practiceSessionRepository.findById(sessionId)).thenReturn(Optional.of(practiceSession));
         when(practiceResponseRepository.findByPracticeSessionId(sessionId)).thenReturn(List.of(rev1, rev2));
 
-        AnswerKeyDto ak1 = new AnswerKeyDto(q1, "opt-Right", "MCQ", "t-1", "Topic", "EASY", 2);
+        AnswerKeyDto ak1 = new AnswerKeyDto(q1, "opt-Right", "MCQ", "t-1", "Topic",
+            QuestionTaxonomyConstants.Difficulty.EASY, 2);
         when(questionBankClient.getAnswerKeys(any())).thenReturn(Map.of(q1, ak1));
 
         practiceEvaluationService.evaluateSession(sessionId);

@@ -38,11 +38,14 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @DisplayName("SubjectTopicController REST Endpoints E2E Tests (MockMvc)")
 class SubjectTopicControllerIntegrationTest extends AbstractIntegrationTest {
@@ -260,6 +263,46 @@ class SubjectTopicControllerIntegrationTest extends AbstractIntegrationTest {
         @Test
         @DisplayName("+ve: QUESTION_AUTHOR retrieves full hierarchy - returns 200 OK")
         void authorCanGetHierarchy() throws Exception {
+            SubjectHierarchyResponse hierarchy = SubjectHierarchyResponse.builder()
+                    .id(1L)
+                    .name("Mathematics")
+                    .code("MATH")
+                    .topics(List.of())
+                    .build();
+
+            when(subjectTopicService.getHierarchy(eq(TENANT_ID))).thenReturn(List.of(hierarchy));
+
+            mockMvc.perform(get("/api/v1/subjects/hierarchy")
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_QUESTION_AUTHOR"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("success"))
+                    .andExpect(jsonPath("$.data[0].id").value(1));
+        }
+
+        @Test
+        @DisplayName("+ve: SUPER_ADMIN retrieves full hierarchy - returns 200 OK")
+        void superAdminCanGetHierarchy() throws Exception {
+            SubjectHierarchyResponse hierarchy = SubjectHierarchyResponse.builder()
+                    .id(1L)
+                    .name("Mathematics")
+                    .code("MATH")
+                    .topics(List.of())
+                    .build();
+
+            when(subjectTopicService.getHierarchy(eq(TENANT_ID))).thenReturn(List.of(hierarchy));
+
+            mockMvc.perform(get("/api/v1/subjects/hierarchy")
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("success"))
+                    .andExpect(jsonPath("$.data[0].id").value(1));
+        }
+
+        @Test
+        @DisplayName("+ve: QUESTION_AUTHOR retrieves full hierarchy - returns 200 OK")
+        void facultyCanGetHierarchy() throws Exception {
             SubjectHierarchyResponse hierarchy = SubjectHierarchyResponse.builder()
                     .id(1L)
                     .name("Mathematics")

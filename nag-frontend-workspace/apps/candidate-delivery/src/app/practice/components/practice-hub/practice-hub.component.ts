@@ -5,11 +5,14 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatIconModule } from '@angular/material/icon';
 import { MatDialog } from '@angular/material/dialog';
-import { RouterModule } from '@angular/router';
+import { ActivatedRoute, RouterModule } from '@angular/router';
 import { PracticeService } from '../../services/practice.service';
 import { PracticeSet } from '../../models';
 import { PracticeSetCardComponent } from '../practice-set-card/practice-set-card.component';
 import { PracticeLaunchDialogComponent } from '../practice-launch-dialog/practice-launch-dialog.component';
+import { LearningPathService } from '../../../learn/services/learning-path.service';
+import { GatekeeperDialogComponent } from '../../../learn/components/gatekeeper-dialog/gatekeeper-dialog.component';
+import { GatekeeperStatusResponse } from '../../../learn/models/learning-path.model';
 
 export type SourceFilter = 'ALL' | 'EXAM_CLONE' | 'MANUAL';
 
@@ -31,7 +34,9 @@ export type SourceFilter = 'ALL' | 'EXAM_CLONE' | 'MANUAL';
 })
 export class PracticeHubComponent implements OnInit {
   private readonly practiceService = inject(PracticeService);
+  private readonly route = inject(ActivatedRoute, { optional: true });
   private readonly dialog = inject(MatDialog);
+  private readonly learningPathService = inject(LearningPathService, { optional: true });
 
   readonly practiceSets = signal<PracticeSet[]>([]);
   readonly isLoading = signal(true);
@@ -101,6 +106,20 @@ export class PracticeHubComponent implements OnInit {
       next: (sets) => {
         this.practiceSets.set(sets || []);
         this.isLoading.set(false);
+
+        const targetSetId = this.route?.snapshot?.queryParamMap?.get('setId');
+        if (targetSetId) {
+          const match = (sets || []).find((s) => s.id === targetSetId);
+          if (match) {
+            this.openLaunch(match);
+          } else {
+            this.practiceService.getSet(targetSetId).subscribe({
+              next: (s) => {
+                if (s) this.openLaunch(s);
+              },
+            });
+          }
+        }
       },
       error: () => {
         this.error.set('Failed to load practice sets.');
@@ -124,10 +143,38 @@ export class PracticeHubComponent implements OnInit {
   }
 
   openLaunch(set: PracticeSet): void {
+    if (set.source === 'EXAM_CLONE' && this.learningPathService) {
+      this.learningPathService.checkGatekeeperStatus().subscribe({
+        next: (status: GatekeeperStatusResponse) => {
+          const isBlocked = (status?.gatekeeperRequired && !status?.clearedForFullMock) || status?.allowed === false;
+          if (status && isBlocked) {
+            this.dialog.open(GatekeeperDialogComponent, {
+              data: {
+                statusResponse: status,
+                mockExamTitle: set.name,
+              },
+              width: '520px',
+              panelClass: 'nag-dialog-clean',
+            });
+            return;
+          }
+          this.launchDirect(set);
+        },
+        error: () => {
+          this.launchDirect(set);
+        },
+      });
+      return;
+    }
+
+    this.launchDirect(set);
+  }
+
+  private launchDirect(set: PracticeSet): void {
     this.dialog.open(PracticeLaunchDialogComponent, {
       data: { set },
       width: '440px',
-      panelClass: 'nag-dialog-clean'
+      panelClass: 'nag-dialog-clean',
     });
   }
 }

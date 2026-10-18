@@ -22,6 +22,7 @@ package com.examplatform.questionbank.client;
 import com.examplatform.questionbank.dto.ReviewerDto;
 import com.examplatform.shared.auth.ClientAuthTokenResolver;
 import com.examplatform.shared.auth.ServiceAccountTokenProvider;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -79,7 +80,7 @@ public class ReviewerPoolClientImpl implements ReviewerPoolClient {
 
     @Override
     public List<ReviewerDto> getReviewers(String subject, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         String cleanSubject = (subject != null) ? subject.trim() : "";
 
         // 1. Try REST call to identity-service
@@ -91,13 +92,14 @@ public class ReviewerPoolClientImpl implements ReviewerPoolClient {
 
             RestClient.RequestHeadersSpec<?> spec = restClient.get()
                     .uri(url)
-                    .header("X-Tenant-Id", effectiveTenant)
+                    .header(SharedConstants.HEADER_TENANT_ID, effectiveTenant)
                     .accept(MediaType.APPLICATION_JSON);
             attachAuthHeader(spec);
 
             ApiResponseDto<List<ReviewerDto>> apiResponse = spec
                     .retrieve()
-                    .body(new ParameterizedTypeReference<ApiResponseDto<List<ReviewerDto>>>() {});
+                    .body(new ParameterizedTypeReference<>() {
+                    });
 
             if (apiResponse != null && apiResponse.getData() != null && !apiResponse.getData().isEmpty()) {
                 log.info("Retrieved {} reviewers from identity-service via REST for subject='{}'",

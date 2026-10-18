@@ -21,6 +21,7 @@ package com.examplatform.audit.controller;
 
 import com.examplatform.audit.domain.AuditEvent;
 import com.examplatform.audit.service.AuditQueryService;
+import com.examplatform.shared.constants.SharedConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -66,7 +67,7 @@ public class AuditQueryController {
      * @return paginated audit events
      */
     @GetMapping
-    @PreAuthorize("hasAnyRole('AUDITOR', 'ADMIN', 'SUPER_ADMIN', 'SECURITY_ADMIN')")
+    @PreAuthorize("hasAnyRole('AUDITOR', 'SUPER_ADMIN', 'SECURITY_ADMIN')")
     public ResponseEntity<Page<AuditEvent>> queryAuditEvents(
             @RequestParam(required = false) UUID userId,
             @RequestParam(required = false) String examId,
@@ -84,7 +85,7 @@ public class AuditQueryController {
         log.info("Audit query by user={}, filters: userId={}, examId={}, actionType={}, from={}, to={}, page={}, size={}",
                 auth.getName(), userId, examId, actionType, from, to, page, effectiveSize);
 
-        Pageable pageable = PageRequest.of(page, effectiveSize, Sort.by(Sort.Direction.DESC, "occurredAt"));
+        Pageable pageable = PageRequest.of(page, effectiveSize, Sort.by(Sort.Direction.DESC, SharedConstants.OCCURRED_AT));
 
         Page<AuditEvent> results = auditQueryService.queryEvents(
                 userId, actionType, examId, from, to, tenantId, pageable);

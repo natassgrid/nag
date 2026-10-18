@@ -21,23 +21,22 @@ package com.examplatform.result.service;
 import com.examplatform.result.domain.Result;
 import com.examplatform.result.dto.CandidateScoreInput;
 import com.examplatform.result.repository.ResultRepository;
+import com.examplatform.shared.constants.SharedConstants;
+import com.examplatform.shared.messaging.EventPublisher;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import com.examplatform.shared.messaging.EventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
+
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
 
 /**
  * Service responsible for computing examination results including total scores,
@@ -53,7 +52,6 @@ public class ResultComputationService {
 
     private static final double TARGET_MEAN = 50.0;
     private static final double TARGET_STD_DEV = 10.0;
-    private static final String AUDIT_TOPIC = "exam.audit.events";
 
     private final ResultRepository resultRepository;
     private final ObjectMapper objectMapper;
@@ -162,13 +160,13 @@ public class ResultComputationService {
      private void publishResultAuditEvent(UUID examId, int candidateCount, String tenantId) {
         try {
             Map<String, Object> event = Map.of(
-                    "eventType", "RESULT_PUBLISHED",
+                SharedConstants.EVENT_TYPE, "RESULT_PUBLISHED",
                     "examId", examId.toString(),
                     "candidateCount", candidateCount,
-                    "tenantId", tenantId,
-                    "occurredAt", Instant.now().toString()
+                SharedConstants.TENANT_ID, tenantId,
+                SharedConstants.OCCURRED_AT, Instant.now().toString()
             );
-            eventPublisher.publish(AUDIT_TOPIC, examId.toString(), event);
+            eventPublisher.publish(AUDIT_EVENTS_TOPIC, examId.toString(), event);
         } catch (Exception e) {
             log.error("Unexpected error publishing RESULT_PUBLISHED audit event: {}", e.getMessage());
         }

@@ -25,22 +25,14 @@ import com.examplatform.result.dto.CandidateExamResponseDto;
 import com.examplatform.result.dto.QuestionAnalyticsResult;
 import com.examplatform.result.dto.QuestionDetailDto;
 import com.examplatform.result.dto.ReviewOptionDto;
+import com.examplatform.shared.constants.SharedConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
@@ -61,7 +53,7 @@ public class QuestionAnalyticsService {
     /**
      * Computes analytics for all questions in an exam with real cross-service data.\n     *\n     * Psychometric Formulas:\n     * - Difficulty index (P) = correct responses / total attempted responses\n     * - Discrimination index (D) = (top 27% correct rate) - (bottom 27% correct rate)\n     * - Response distribution = count per option selected\n     *\n     * @param examId   the exam identifier\n     * @param tenantId the tenant identifier\n     * @return list of per-question analytics results\n     */
     public List<QuestionAnalyticsResult> computeAnalytics(UUID examId, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         String cacheKey = effectiveTenant + ":" + examId;
 
         // 1. Check cache
@@ -168,7 +160,7 @@ public class QuestionAnalyticsService {
                         : 0.0;
 
                 discriminationIndex = topCorrectRate - bottomCorrectRate;
-                discriminationIndex = Math.max(-1.0, Math.min(1.0, discriminationIndex));
+                discriminationIndex = Math.clamp(discriminationIndex, -1.0, 1.0);
                 discriminationIndex = Math.round(discriminationIndex * 1000.0) / 1000.0;
             } else {
                 discriminationIndex = 0.0;
@@ -236,8 +228,8 @@ public class QuestionAnalyticsService {
                     .filter(Objects::nonNull)
                     .toList();
             return !correctOptionIds.isEmpty() &&
-                correctOptionIds.containsAll(attempt.getSelectedOptionIds()) &&
-                attempt.getSelectedOptionIds().containsAll(correctOptionIds);
+                new HashSet<>(correctOptionIds).containsAll(attempt.getSelectedOptionIds()) &&
+                new HashSet<>(attempt.getSelectedOptionIds()).containsAll(correctOptionIds);
         }
         return false;
     }

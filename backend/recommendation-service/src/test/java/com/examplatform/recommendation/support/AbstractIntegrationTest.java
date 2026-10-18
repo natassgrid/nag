@@ -43,6 +43,8 @@ import org.testcontainers.utility.DockerImageName;
 
 import java.time.Duration;
 
+import static org.mockito.Mockito.*;
+
 /**
  * Base class for recommendation-service MockMvc integration tests.
  */
@@ -125,32 +127,32 @@ public abstract class AbstractIntegrationTest {
         @Bean
         @Primary
         public JwtDecoder mockJwtDecoder() {
-            return Mockito.mock(JwtDecoder.class);
+            return mock(JwtDecoder.class);
         }
 
         @Bean
         @Primary
         public StringRedisTemplate mockStringRedisTemplate() {
-            return Mockito.mock(StringRedisTemplate.class);
+            return mock(StringRedisTemplate.class);
         }
 
         @Bean
         @Primary
         @SuppressWarnings("unchecked")
         public KafkaTemplate<String, Object> mockKafkaTemplate() {
-            return Mockito.mock(KafkaTemplate.class);
+            return mock(KafkaTemplate.class);
         }
 
         @Bean
         @Primary
         public ChatModel mockChatModel() {
-            return Mockito.mock(ChatModel.class);
+            return mock(ChatModel.class);
         }
 
         @Bean
         @Primary
         public ChatClient mockChatClient() {
-            return Mockito.mock(ChatClient.class);
+            return mock(ChatClient.class);
         }
     }
 }

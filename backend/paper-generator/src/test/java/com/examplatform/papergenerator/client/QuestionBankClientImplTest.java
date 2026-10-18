@@ -19,13 +19,10 @@
 
 package com.examplatform.papergenerator.client;
 
+import com.examplatform.papergenerator.dto.BatchTranslationJobResponseDto;
 import com.examplatform.papergenerator.dto.QuestionSummary;
-import com.examplatform.questionbank.grpc.BatchFindQuestionsGrpcRequest;
-import com.examplatform.questionbank.grpc.BatchFindQuestionsGrpcResponse;
-import com.examplatform.questionbank.grpc.BlueprintMatchGrpcRequest;
-import com.examplatform.questionbank.grpc.BlueprintMatchGrpcResponse;
-import com.examplatform.questionbank.grpc.QuestionBankGrpcServiceGrpc;
-import com.examplatform.questionbank.grpc.QuestionSummaryGrpc;
+import com.examplatform.questionbank.grpc.*;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
@@ -48,13 +45,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import com.examplatform.papergenerator.dto.BatchTranslationJobResponseDto;
 import static org.springframework.http.HttpMethod.GET;
 import static org.springframework.http.HttpMethod.POST;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
-import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
-import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.*;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
@@ -107,12 +101,13 @@ class QuestionBankClientImplTest {
             }
             """.formatted(qId);
 
-        mockServer.expect(requestTo("http://localhost:8083/api/v1/questions/blueprint-match"))
+        mockServer.expect(requestTo("http://localhost:8083/api/v1/questions/match-blueprint"))
                 .andExpect(method(POST))
                 .andExpect(header("X-Tenant-Id", "tenant-1"))
                 .andRespond(withSuccess(jsonResponse, APPLICATION_JSON));
 
-        List<QuestionSummary> results = client.findAvailableQuestions("Mathematics", "Calculus", "MEDIUM", "APPLY", "tenant-1");
+        List<QuestionSummary> results = client.findAvailableQuestions("Mathematics", "Calculus",
+            QuestionTaxonomyConstants.Difficulty.MEDIUM, QuestionTaxonomyConstants.CognitiveLevel.APPLY, "tenant-1");
 
         assertThat(results).hasSize(1);
         assertThat(results.get(0).getQuestionId()).isEqualTo(qId);
@@ -134,11 +129,12 @@ class QuestionBankClientImplTest {
             }
             """;
 
-        mockServer.expect(requestTo("http://localhost:8083/api/v1/questions/blueprint-match"))
+        mockServer.expect(requestTo("http://localhost:8083/api/v1/questions/match-blueprint"))
                 .andExpect(method(POST))
                 .andRespond(withSuccess(jsonResponse, APPLICATION_JSON));
 
-        List<QuestionSummary> results = client.findAvailableQuestions("Computer Knowledge", "Computer Basics", "EASY", "REMEMBER", "tenant-1");
+        List<QuestionSummary> results = client.findAvailableQuestions("Computer Knowledge", "Computer Basics",
+            QuestionTaxonomyConstants.Difficulty.EASY, QuestionTaxonomyConstants.CognitiveLevel.REMEMBER, "tenant-1");
 
         assertThat(results).isEmpty();
         mockServer.verify();
@@ -149,7 +145,7 @@ class QuestionBankClientImplTest {
     @SuppressWarnings("unchecked")
     void findAvailableQuestions_restFails_fallsBackToJdbc() {
         UUID qId = UUID.randomUUID();
-        mockServer.expect(requestTo("http://localhost:8083/api/v1/questions/blueprint-match"))
+        mockServer.expect(requestTo("http://localhost:8083/api/v1/questions/match-blueprint"))
                 .andExpect(method(POST))
                 .andRespond(withServerError());
 
@@ -157,13 +153,14 @@ class QuestionBankClientImplTest {
                 .questionId(qId)
                 .subject("Physics")
                 .topic("Mechanics")
-                .difficulty("HARD")
+                .difficulty(QuestionTaxonomyConstants.Difficulty.HARD)
                 .build();
 
         when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(List.of(dbSummary));
 
-        List<QuestionSummary> results = client.findAvailableQuestions("Physics", "Mechanics", "HARD", null, "tenant-1");
+        List<QuestionSummary> results = client.findAvailableQuestions("Physics", "Mechanics",
+            QuestionTaxonomyConstants.Difficulty.HARD, null, "tenant-1");
 
         assertThat(results).hasSize(1);
         assertThat(results.get(0).getQuestionId()).isEqualTo(qId);
@@ -187,8 +184,8 @@ class QuestionBankClientImplTest {
                                         .setId(qId.toString())
                                         .setSubject("Chemistry")
                                         .setTopic("Organic")
-                                        .setDifficulty("EASY")
-                                        .setCognitiveLevel("REMEMBER")
+                                        .setDifficulty(QuestionTaxonomyConstants.Difficulty.EASY)
+                                        .setCognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.REMEMBER)
                                         .setContent("Structure of Benzene?")
                                         .build())
                                 .build();
@@ -207,7 +204,8 @@ class QuestionBankClientImplTest {
                 jdbcTemplate, "http://localhost:8083", true, "localhost", grpcPort);
 
         List<QuestionSummary> results = grpcClient.findAvailableQuestions(
-                "Chemistry", "Organic", "EASY", "REMEMBER", "tenant-1");
+                "Chemistry", "Organic", QuestionTaxonomyConstants.Difficulty.EASY,
+            QuestionTaxonomyConstants.CognitiveLevel.REMEMBER, "tenant-1");
 
         assertThat(results).hasSize(1);
         assertThat(results.get(0).getQuestionId()).isEqualTo(qId);
@@ -240,7 +238,8 @@ class QuestionBankClientImplTest {
                 jdbcTemplate, "http://localhost:8083", true, "localhost", grpcPort);
 
         List<QuestionSummary> results = grpcClient.findAvailableQuestions(
-                "Computer Knowledge", "Computer Basics", "EASY", "REMEMBER", "tenant-1");
+                "Computer Knowledge", "Computer Basics", QuestionTaxonomyConstants.Difficulty.EASY,
+            QuestionTaxonomyConstants.CognitiveLevel.REMEMBER, "tenant-1");
 
         assertThat(results).isEmpty();
     }
@@ -260,7 +259,7 @@ class QuestionBankClientImplTest {
                                         .setId(qId.toString())
                                         .setSubject("History")
                                         .setTopic("Modern India")
-                                        .setDifficulty("MEDIUM")
+                                        .setDifficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
                                         .setContent("Year of Independence?")
                                         .build())
                                 .build();
@@ -338,7 +337,7 @@ class QuestionBankClientImplTest {
             }
             """.formatted(qId);
 
-        mockServer.expect(requestTo("http://localhost:8083/api/v1/questions/batch-find"))
+        mockServer.expect(requestTo("http://localhost:8083/api/v1/questions/by-ids"))
                 .andExpect(method(POST))
                 .andExpect(header("X-Tenant-Id", "tenant-1"))
                 .andRespond(withSuccess(jsonResponse, APPLICATION_JSON));
@@ -382,12 +381,12 @@ class QuestionBankClientImplTest {
         MockRestServiceServer localMockServer = MockRestServiceServer.bindTo(restClientBuilder).build();
         ReflectionTestUtils.setField(fallbackClient, "restClient", restClientBuilder.build());
 
-        localMockServer.expect(requestTo("http://localhost:8083/api/v1/questions/blueprint-match"))
+        localMockServer.expect(requestTo("http://localhost:8083/api/v1/questions/match-blueprint"))
                 .andExpect(method(POST))
                 .andRespond(withSuccess(jsonResponse, APPLICATION_JSON));
 
         List<QuestionSummary> results = fallbackClient.findAvailableQuestions(
-                "Geography", "Rivers", "EASY", null, "tenant-1");
+                "Geography", "Rivers", QuestionTaxonomyConstants.Difficulty.EASY, null, "tenant-1");
 
         assertThat(results).hasSize(1);
         assertThat(results.get(0).getQuestionId()).isEqualTo(qId);

@@ -21,10 +21,13 @@ import com.examplatform.practice.domain.PracticeSet;
 import com.examplatform.practice.dto.AnswerKeyDto;
 import com.examplatform.practice.dto.SaveResponseRequest;
 import com.examplatform.practice.dto.StartSessionRequest;
+import com.examplatform.practice.dto.GenerateAdaptiveSetRequest;
 import com.examplatform.practice.repository.PracticeResponseRepository;
 import com.examplatform.practice.repository.PracticeSessionRepository;
 import com.examplatform.practice.repository.PracticeSetRepository;
 import com.examplatform.practice.support.AbstractIntegrationTest;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.examplatform.shared.constants.QuestionTypeConstants;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -38,14 +41,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -201,7 +200,7 @@ class PracticeSessionControllerIntegrationTest extends AbstractIntegrationTest {
             );
 
             AnswerKeyDto ak1 = new AnswerKeyDto(
-                    question1, "opt-A", "MCQ", "t-1", "Algorithms", "EASY", 2,
+                    question1, "opt-A", "MCQ", "t-1", "Algorithms", QuestionTaxonomyConstants.Difficulty.EASY, 2,
                     "What is O(1)?", "[{\"id\":\"opt-A\",\"text\":\"Constant\"}]",
                     "Explanation", "CS"
             );
@@ -253,7 +252,7 @@ class PracticeSessionControllerIntegrationTest extends AbstractIntegrationTest {
                     .thenReturn(List.of(fallbackQuestionId));
 
             AnswerKeyDto ak = new AnswerKeyDto(
-                    fallbackQuestionId, "opt-B", "MCQ", "t-2", "Algebra", "MEDIUM", 2,
+                    fallbackQuestionId, "opt-B", "MCQ", "t-2", "Algebra", QuestionTaxonomyConstants.Difficulty.MEDIUM, 2,
                     "Solve for x", "[{\"id\":\"opt-B\",\"text\":\"x=5\"}]",
                     "Explanation", "Quantitative Aptitude"
             );
@@ -378,12 +377,12 @@ class PracticeSessionControllerIntegrationTest extends AbstractIntegrationTest {
 
             // 3. Mock QuestionBank answer keys with rich content & explanations
             AnswerKeyDto ak1 = new AnswerKeyDto(
-                    question1, "opt-A", "MCQ", "t-1", "Algorithms", "EASY", 2,
+                    question1, "opt-A", "MCQ", "t-1", "Algorithms", QuestionTaxonomyConstants.Difficulty.EASY, 2,
                     "What is O(1)?", "[{\"id\":\"opt-A\",\"text\":\"Constant\"},{\"id\":\"opt-B\",\"text\":\"Linear\"}]",
                     "Constant time runs in fixed steps.", "CS"
             );
             AnswerKeyDto ak2 = new AnswerKeyDto(
-                    question2, "opt-B", "MCQ", "t-2", "Data Structures", "MEDIUM", 2,
+                    question2, "opt-B", "MCQ", "t-2", "Data Structures", QuestionTaxonomyConstants.Difficulty.MEDIUM, 2,
                     "What is a Stack?", "[{\"id\":\"opt-A\",\"text\":\"FIFO\"},{\"id\":\"opt-B\",\"text\":\"LIFO\"},{\"id\":\"opt-C\",\"text\":\"Random\"}]",
                     "Stack is a Last In First Out (LIFO) structure.", "CS"
             );
@@ -466,11 +465,11 @@ class PracticeSessionControllerIntegrationTest extends AbstractIntegrationTest {
             if (!testcontainersAvailable) return;
 
             AnswerKeyDto ak1 = new AnswerKeyDto(
-                    question1, "opt-A", "MCQ", "t-1", "Algorithms", "EASY", 2,
+                    question1, "opt-A", "MCQ", "t-1", "Algorithms", QuestionTaxonomyConstants.Difficulty.EASY, 2,
                     "Question 1", "[{\"id\":\"opt-A\",\"text\":\"A\"}]", "Exp", "CS"
             );
             AnswerKeyDto ak2 = new AnswerKeyDto(
-                    question2, "opt-B", "MCQ", "t-2", "Data Structures", "MEDIUM", 2,
+                    question2, "opt-B", "MCQ", "t-2", "Data Structures", QuestionTaxonomyConstants.Difficulty.MEDIUM, 2,
                     "Question 2", "[{\"id\":\"opt-B\",\"text\":\"B\"}]", "Exp", "CS"
             );
             when(questionBankClient.getAnswerKeys(any())).thenReturn(Map.of(question1, ak1, question2, ak2));
@@ -601,11 +600,12 @@ class PracticeSessionControllerIntegrationTest extends AbstractIntegrationTest {
                     .andExpect(status().isNoContent());
 
             AnswerKeyDto akNum = new AnswerKeyDto(
-                    numQ, "3.14", "NUMERICAL", "t-math", "Calculus", "MEDIUM", 3,
+                    numQ, "3.14", QuestionTypeConstants.NUMERICAL, "t-math", "Calculus", QuestionTaxonomyConstants.Difficulty.MEDIUM, 3,
                     "Approximate Pi to 2 decimal places", null, "Pi is approx 3.14", "Math"
             );
             AnswerKeyDto akMulti = new AnswerKeyDto(
-                    multiQ, "[\"opt-A\", \"opt-B\"]", "MULTI_MCQ", "t-algo", "Algorithms", "HARD", 4,
+                    multiQ, "[\"opt-A\", \"opt-B\"]", QuestionTypeConstants.MULTI_MCQ, "t-algo", "Algorithms",
+                QuestionTaxonomyConstants.Difficulty.HARD, 4,
                     "Select all comparison-based sorting algorithms",
                     "[{\"id\":\"opt-A\",\"text\":\"QuickSort\"},{\"id\":\"opt-B\",\"text\":\"MergeSort\"},{\"id\":\"opt-C\",\"text\":\"RadixSort\"}]",
                     "QuickSort and MergeSort are comparison-based.", "CS"
@@ -621,6 +621,68 @@ class PracticeSessionControllerIntegrationTest extends AbstractIntegrationTest {
                     .andExpect(jsonPath("$.obtainedMarks").value(7)) // 3 + 4 = 7
                     .andExpect(jsonPath("$.flaggedCount").value(1))
                     .andExpect(jsonPath("$.questionResults[0].markedForReview").value(true));
+        }
+    }
+
+    @Nested
+    @DisplayName("POST /api/practice/adaptive-sets/generate")
+    class GenerateAdaptiveSetEndpoint {
+
+        @Test
+        @DisplayName("+ve: Candidate successfully generates adaptive quiz practice set")
+        void generateAdaptiveSetSuccess() throws Exception {
+            if (!testcontainersAvailable) return;
+
+            when(questionBankClient.findQuestionsForAdaptiveQuiz(any(), any(), any(Integer.class)))
+                    .thenReturn(List.of(UUID.randomUUID(), UUID.randomUUID()));
+
+            GenerateAdaptiveSetRequest request = new GenerateAdaptiveSetRequest(
+                    CANDIDATE_ID,
+                    List.of("Algorithms", "Sorting"),
+                    "GATE_CS",
+                    10,
+                    false
+            );
+
+            mockMvc.perform(post("/api/practice/adaptive-sets/generate")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(CANDIDATE_ID.toString()).claim("tenant_id", TENANT_ID)))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.id").isNotEmpty())
+                    .andExpect(jsonPath("$.name").value("Adaptive Practice Quiz"))
+                    .andExpect(jsonPath("$.source").value("ADAPTIVE_QUIZ"))
+                    .andExpect(jsonPath("$.published").value(true));
+        }
+
+        @Test
+        @DisplayName("+ve: Generates gatekeeper practice set when isGatekeeper=true")
+        void generateGatekeeperSetSuccess() throws Exception {
+            if (!testcontainersAvailable) return;
+
+            when(questionBankClient.findQuestionsForAdaptiveQuiz(any(), any(), any(Integer.class)))
+                    .thenReturn(List.of(UUID.randomUUID(), UUID.randomUUID()));
+
+            GenerateAdaptiveSetRequest request = new GenerateAdaptiveSetRequest(
+                    CANDIDATE_ID,
+                    List.of("Algorithms"),
+                    "GATE_CS",
+                    15,
+                    true
+            );
+
+            mockMvc.perform(post("/api/practice/adaptive-sets/generate")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
+                                    .jwt(j -> j.subject(CANDIDATE_ID.toString()).claim("tenant_id", TENANT_ID)))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.id").isNotEmpty())
+                    .andExpect(jsonPath("$.name").value("GATE_CS Gatekeeper Test"))
+                    .andExpect(jsonPath("$.source").value("GATEKEEPER_TEST"))
+                    .andExpect(jsonPath("$.durationMinutes").value(45))
+                    .andExpect(jsonPath("$.published").value(true));
         }
     }
 }

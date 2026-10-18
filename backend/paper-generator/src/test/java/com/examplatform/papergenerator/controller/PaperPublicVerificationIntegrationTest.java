@@ -25,6 +25,7 @@ import com.examplatform.papergenerator.dto.MerkleLeafVerifyRequest;
 import com.examplatform.papergenerator.repository.PaperRepository;
 import com.examplatform.papergenerator.service.PaperAnchoringService;
 import com.examplatform.papergenerator.support.AbstractIntegrationTest;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -66,7 +67,7 @@ class PaperPublicVerificationIntegrationTest extends AbstractIntegrationTest {
                 .examId(UUID.randomUUID())
                 .shiftId("SHIFT-1")
                 .variant("SET-A")
-                .status("DRAFT")
+                .status(QuestionStateConstants.DRAFT)
                 .isPractice(false)
                 .paperDefinitionJson("{\"questionIds\":[\"" + q1 + "\",\"" + q2 + "\"]}")
                 .difficultyScore(2.1)

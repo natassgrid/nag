@@ -1,14 +1,19 @@
 .exam-runtime-container {
+  color: #0f172a;
+
   .question-stem-box {
     line-height: 1.6;
+    color: #0f172a;
   }
 
   .option-row {
     cursor: pointer;
+    color: #1e293b;
   }
 
   .palette-sidebar {
     user-select: none;
+    color: #1e293b;
   }
 
   .submission-modal-backdrop {

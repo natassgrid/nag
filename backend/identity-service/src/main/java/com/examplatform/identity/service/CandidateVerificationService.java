@@ -29,6 +29,7 @@ import com.examplatform.identity.exception.AccountNotFoundException;
 import com.examplatform.identity.exception.InvalidOtpException;
 import com.examplatform.identity.repository.UserAccountRepository;
 import com.examplatform.shared.audit.AuditEventType;
+import com.examplatform.shared.constants.SharedConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -56,7 +57,7 @@ public class CandidateVerificationService {
      */
     @Transactional
     public VerificationStatusResponse verifyEmailOtp(EmailVerifyRequest request, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         UUID userId = parseUserId(request.getUserId());
         UserAccount account = userAccountRepository.findByIdAndTenantId(userId, effectiveTenant)
                 .orElseThrow(() -> new AccountNotFoundException("Account not found for user: " + userId + " in tenant: " + effectiveTenant));
@@ -79,7 +80,7 @@ public class CandidateVerificationService {
      */
     @Transactional
     public VerificationStatusResponse verifyMobileOtp(MobileVerifyRequest request, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         UUID userId = parseUserId(request.getUserId());
         UserAccount account = userAccountRepository.findByIdAndTenantId(userId, effectiveTenant)
                 .orElseThrow(() -> new AccountNotFoundException("Account not found for user: " + userId + " in tenant: " + effectiveTenant));
@@ -101,7 +102,7 @@ public class CandidateVerificationService {
      */
     @Transactional(readOnly = true)
     public VerificationStatusResponse getVerificationStatus(UUID userId, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         UserAccount account = userAccountRepository.findByIdAndTenantId(userId, effectiveTenant)
                 .orElseThrow(() -> new AccountNotFoundException("Account not found for user: " + userId + " in tenant: " + effectiveTenant));
 
@@ -122,7 +123,7 @@ public class CandidateVerificationService {
                     account.getId().toString(),
                     "identity:candidate-verified",
                     null, null,
-                    Map.of("tenantId", tenantId, "source", eventSource)
+                    Map.of(SharedConstants.TENANT_ID, tenantId, "source", eventSource)
             );
         }
     }

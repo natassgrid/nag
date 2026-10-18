@@ -30,9 +30,10 @@ import com.examplatform.questionbank.dto.CreateQuestionRequest;
 import com.examplatform.questionbank.dto.QuestionResponse;
 import com.examplatform.questionbank.exception.SimilarQuestionException;
 import com.examplatform.questionbank.repository.QuestionRepository;
+import com.examplatform.questionbank.repository.QuestionVersionRepository;
 import com.examplatform.questionbank.repository.SimilarityResult;
 import com.examplatform.questionbank.translation.repository.TranslationRepository;
-import com.examplatform.questionbank.repository.QuestionVersionRepository;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -303,7 +304,7 @@ class DuplicateDetectionIntegrationTest {
 
             // Then: question was created successfully
             assertThat(response).isNotNull();
-            assertThat(response.getState()).isEqualTo("DRAFT");
+            assertThat(response.getState()).isEqualTo(QuestionStateConstants.DRAFT);
 
             // Then: response contains similarity warnings for human review (FR-2)
             assertThat(response.getWarnings()).isNotNull();
@@ -359,7 +360,7 @@ class DuplicateDetectionIntegrationTest {
             QuestionResponse response = questionService.createQuestion(request, AUTHOR_ID, TENANT_ID);
 
             assertThat(response).isNotNull();
-            assertThat(response.getState()).isEqualTo("DRAFT");
+            assertThat(response.getState()).isEqualTo(QuestionStateConstants.DRAFT);
             assertThat(response.getWarnings()).isNull();
 
             verify(questionRepository, atLeastOnce()).save(any(Question.class));
@@ -383,7 +384,7 @@ class DuplicateDetectionIntegrationTest {
             QuestionResponse response = questionService.createQuestion(request, AUTHOR_ID, TENANT_ID);
 
             assertThat(response).isNotNull();
-            assertThat(response.getState()).isEqualTo("DRAFT");
+            assertThat(response.getState()).isEqualTo(QuestionStateConstants.DRAFT);
             assertThat(response.getWarnings()).isNull();
         }
     }
@@ -407,7 +408,7 @@ class DuplicateDetectionIntegrationTest {
 
             // Then: question was created without warnings (duplicate detection skipped gracefully)
             assertThat(response).isNotNull();
-            assertThat(response.getState()).isEqualTo("DRAFT");
+            assertThat(response.getState()).isEqualTo(QuestionStateConstants.DRAFT);
             assertThat(response.getWarnings()).isNull();
 
             // Verify: question was still persisted despite embedding service failure
@@ -430,7 +431,7 @@ class DuplicateDetectionIntegrationTest {
 
             // Then: question was created without warnings
             assertThat(response).isNotNull();
-            assertThat(response.getState()).isEqualTo("DRAFT");
+            assertThat(response.getState()).isEqualTo(QuestionStateConstants.DRAFT);
             assertThat(response.getWarnings()).isNull();
 
             // Verify: question was persisted

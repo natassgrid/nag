@@ -24,6 +24,8 @@ import com.examplatform.result.dto.CandidateScoreInput;
 import com.examplatform.result.repository.ResultRepository;
 import com.examplatform.result.service.QuestionAnalyticsService;
 import com.examplatform.result.service.ResultComputationService;
+import com.examplatform.shared.constants.MessagingConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.AbstractEvaluationCompletedConsumer;
 import com.examplatform.shared.util.DataConversionUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -41,11 +43,7 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * Computes and persists diagnostic scorecards and invalidates question analytics cache.
@@ -85,7 +83,7 @@ public class EvaluationCompletedConsumer extends AbstractEvaluationCompletedCons
     @RabbitListener(
             bindings = @QueueBinding(
                     value = @Queue(value = "result.evaluation.events.queue", durable = "true"),
-                    exchange = @Exchange(value = "exam.events", type = ExchangeTypes.TOPIC),
+                    exchange = @Exchange(value = MessagingConstants.EXAM_EVENTS_TOPIC, type = ExchangeTypes.TOPIC),
                     key = EVALUATION_COMPLETED_TOPIC
             )
     )
@@ -98,7 +96,7 @@ public class EvaluationCompletedConsumer extends AbstractEvaluationCompletedCons
         handleEvaluationCompleted(payload, event -> {
             UUID candidateId = UUID.fromString((String) event.get("candidateId"));
             UUID examId      = DataConversionUtils.parseUUID(event.get("examId"));
-            String tenantId  = (String) event.getOrDefault("tenantId", "default");
+            String tenantId  = (String) event.getOrDefault(SharedConstants.TENANT_ID, SharedConstants.DEFAULT_TENANT);
             double totalRawScore = DataConversionUtils.toDouble(event.get("totalRawScore"));
 
             // Idempotency: skip if result already exists

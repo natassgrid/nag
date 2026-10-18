@@ -21,7 +21,6 @@ package com.examplatform.asset.service;
 
 import com.examplatform.asset.domain.entity.MediaAsset;
 import com.examplatform.asset.domain.enums.AssetStatus;
-import com.examplatform.asset.domain.enums.AssetType;
 import com.examplatform.asset.dto.AssetMetadataUpdateRequest;
 import com.examplatform.asset.dto.AssetSearchRequest;
 import com.examplatform.asset.dto.AssetUploadResponse;
@@ -34,6 +33,7 @@ import com.examplatform.asset.storage.StorageProvider;
 import com.examplatform.asset.storage.StorageProviderRegistry;
 import com.examplatform.asset.validation.AssetValidationException;
 import com.examplatform.asset.validation.SecurityValidationPipeline;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import com.examplatform.shared.tenant.TenantContext;
 import jakarta.persistence.EntityNotFoundException;
@@ -53,6 +53,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.Optional;
 import java.util.UUID;
 
+import static com.examplatform.shared.constants.MessagingConstants.AUDIT_EVENTS_TOPIC;
+
 /**
  * Core service orchestrating asset upload, retrieval, metadata update,
  * lifecycle management, and deletion.
@@ -69,8 +71,6 @@ public class AssetService {
     private final StorageProviderRegistry storageProviderRegistry;
     private final StorageProperties storageProperties;
     private final EventPublisher eventPublisher;
-
-    private static final String AUDIT_TOPIC = "exam.audit.events";
 
     /**
      * Upload a new asset: validate, compute hash, check for duplicates,
@@ -207,7 +207,7 @@ public class AssetService {
      */
     @Transactional(readOnly = true)
     public Page<AssetUploadResponse> listAssets(int page, int size, String tenantId) {
-        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, SharedConstants.CREATED_AT));
         return assetRepository.findByTenantIdAndStatusNot(tenantId, AssetStatus.DELETED, pageRequest)
                 .map(this::mapToResponse);
     }
@@ -217,7 +217,7 @@ public class AssetService {
      */
     @Transactional(readOnly = true)
     public Page<AssetUploadResponse> searchAssets(AssetSearchRequest searchRequest, int page, int size, String tenantId) {
-        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, SharedConstants.CREATED_AT));
         return assetRepository.searchAssets(
                 tenantId,
                 searchRequest.getFilename(),
@@ -372,13 +372,13 @@ public class AssetService {
     private void publishAuditEvent(String eventType, UUID assetId, UUID userId, String tenantId) {
         try {
             var event = java.util.Map.of(
-                    "eventType", eventType,
+                SharedConstants.EVENT_TYPE, eventType,
                     "assetId", assetId.toString(),
                     "userId", userId.toString(),
-                    "tenantId", tenantId,
+                SharedConstants.TENANT_ID, tenantId,
                     "timestamp", java.time.Instant.now().toString()
             );
-            eventPublisher.publish(AUDIT_TOPIC, assetId.toString(), event);
+            eventPublisher.publish(AUDIT_EVENTS_TOPIC, assetId.toString(), event);
         } catch (Exception e) {
             log.warn("Failed to publish audit event: {}", e.getMessage());
         }

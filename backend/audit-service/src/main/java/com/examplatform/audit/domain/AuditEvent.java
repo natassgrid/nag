@@ -19,16 +19,8 @@
 
 package com.examplatform.audit.domain;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.Table;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import jakarta.persistence.*;
+import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -65,13 +57,13 @@ public class AuditEvent {
     @Column(name = "ip_address", length = 45)
     private String ipAddress;
 
-    @Column(name = "device_fingerprint", length = 255)
+    @Column(name = "device_fingerprint")
     private String deviceFingerprint;
 
     @Column(name = "occurred_at", nullable = false)
     private Instant occurredAt;
 
-    @Column(name = "tenant_id", nullable = false, length = 255)
+    @Column(name = "tenant_id", nullable = false)
     private String tenantId;
 
     @Column(name = "payload_hash", nullable = false, length = 128)

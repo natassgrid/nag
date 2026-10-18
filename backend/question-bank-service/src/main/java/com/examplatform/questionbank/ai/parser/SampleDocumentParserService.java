@@ -16,6 +16,8 @@
 package com.examplatform.questionbank.ai.parser;
 
 import com.examplatform.questionbank.dto.QuestionOption;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.examplatform.shared.constants.QuestionTypeConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.Loader;
@@ -30,8 +32,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.imageio.ImageIO;
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
+import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -118,7 +119,7 @@ public class SampleDocumentParserService {
             // Collect embedded images across pages (Tier 1)
             List<BufferedImage> embeddedImages = extractEmbeddedImages(document);
 
-            if (!cleanText.isEmpty() && cleanText.length() >= 25) {
+            if (cleanText.length() >= 25) {
                 if (embeddedImages.isEmpty()) {
                     // Tier 0: Pure Text PDF — Zero vision tokens!
                     log.info("Tier 0 Local Extraction: Pure text PDF (length={}), zero vision tokens", cleanText.length());
@@ -148,9 +149,9 @@ public class SampleDocumentParserService {
                             .embeddedMedia(mediaRef)
                             .parsingTier("TIER_2_SCANNED_FALLBACK")
                             .hasDiagram(true)
-                            .questionType("SINGLE_MCQ")
-                            .difficulty("MEDIUM")
-                            .bloomLevel("APPLY")
+                            .questionType(QuestionTypeConstants.SINGLE_MCQ)
+                            .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
+                            .bloomLevel(QuestionTaxonomyConstants.CognitiveLevel.APPLY)
                             .build();
                     questions.add(nq);
                 }
@@ -176,9 +177,9 @@ public class SampleDocumentParserService {
                 .embeddedMedia(mediaRef)
                 .parsingTier("STANDALONE_IMAGE")
                 .hasDiagram(true)
-                .questionType("SINGLE_MCQ")
-                .difficulty("MEDIUM")
-                .bloomLevel("APPLY")
+                .questionType(QuestionTypeConstants.SINGLE_MCQ)
+                .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
+                .bloomLevel(QuestionTaxonomyConstants.CognitiveLevel.APPLY)
                 .build();
     }
 
@@ -258,7 +259,8 @@ public class SampleDocumentParserService {
         List<QuestionOption> options = extractOptions(normalizedText);
 
         // Infer question type
-        String questionType = options.size() >= 2 ? "SINGLE_MCQ" : "DESCRIPTIVE";
+        String questionType = options.size() >= 2 ? QuestionTypeConstants.SINGLE_MCQ :
+            QuestionTypeConstants.DESCRIPTIVE;
 
         // Separate stem from options
         String stem = cleanStemText(normalizedText, options);
@@ -271,8 +273,8 @@ public class SampleDocumentParserService {
                 .hasDiagram(mediaRef != null && !mediaRef.isBlank())
                 .parsingTier(tier)
                 .questionType(questionType)
-                .difficulty("MEDIUM")
-                .bloomLevel(hasMath || hasChemistry ? "ANALYZE" : "APPLY")
+                .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
+                .bloomLevel(hasMath || hasChemistry ? QuestionTaxonomyConstants.CognitiveLevel.ANALYZE : QuestionTaxonomyConstants.CognitiveLevel.APPLY)
                 .build();
     }
 

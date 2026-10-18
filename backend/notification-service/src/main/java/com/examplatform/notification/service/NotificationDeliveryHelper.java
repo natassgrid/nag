@@ -22,6 +22,7 @@ package com.examplatform.notification.service;
 import com.examplatform.notification.domain.Notification;
 import com.examplatform.notification.domain.Notification.NotificationStatus;
 import com.examplatform.notification.repository.NotificationRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.experimental.UtilityClass;
@@ -199,8 +200,8 @@ public class NotificationDeliveryHelper {
             if (root.has("id")) {
                 return root.get("id").asText();
             }
-            if (root.has("name")) {
-                return root.get("name").asText();
+            if (root.has(SharedConstants.NAME)) {
+                return root.get(SharedConstants.NAME).asText();
             }
         } catch (Exception ignored) {
         }

@@ -20,6 +20,7 @@
 package com.examplatform.admin.service;
 
 import com.examplatform.admin.client.KeycloakAdminClient;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -101,7 +102,7 @@ class UserDeactivationServiceTest {
         assertThat(auditEvent.get("eventType")).isEqualTo("ROLE_CHANGE");
         assertThat(auditEvent.get("userId")).isEqualTo(userId.toString());
         assertThat(auditEvent.get("actorId")).isEqualTo(actorId.toString());
-        assertThat(auditEvent.get("tenantId")).isEqualTo(tenantId);
+        assertThat(auditEvent.get(SharedConstants.TENANT_ID)).isEqualTo(tenantId);
         assertThat(auditEvent.get("action")).isEqualTo("USER_DEACTIVATED");
         assertThat(auditEvent.get("timestamp")).isNotNull();
     }

@@ -1,0 +1,39 @@
+:host {
+  display: block;
+}
+
+.hero-card {
+  h1, h2, h3, h4, p, span {
+    color: #ffffff !important;
+  }
+
+  ::ng-deep {
+    nag-math-renderer,
+    app-math-renderer,
+    .math-renderer-content,
+    .katex,
+    .katex-html,
+    .katex-display,
+    p,
+    span {
+      color: #ffffff !important;
+    }
+  }
+}
+
+::ng-deep {
+  .bg-slate-900,
+  .bg-slate-950 {
+    nag-math-renderer,
+    app-math-renderer,
+    .math-renderer-content,
+    .katex,
+    .katex-html,
+    .katex-display,
+    p,
+    span {
+      color: #f8fafc !important;
+    }
+  }
+}
+

@@ -24,11 +24,7 @@ import com.examplatform.questionbank.translation.domain.BatchTranslationJobStatu
 import com.examplatform.questionbank.translation.dto.BatchTranslationJobResponse;
 import com.examplatform.questionbank.translation.dto.BatchTranslationRequest;
 import com.examplatform.questionbank.translation.repository.BatchTranslationJobRepository;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -36,6 +32,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.*;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -46,9 +43,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class BatchTranslationServiceTest {
@@ -79,7 +74,7 @@ class BatchTranslationServiceTest {
         BatchTranslationRequest request = BatchTranslationRequest.builder()
                 .sourceLanguage("en")
                 .targetLanguage("hi")
-                .targetStatus("PUBLISHED")
+                .targetStatus(QuestionStateConstants.PUBLISHED)
                 .batchSize(25)
                 .throttleDelayMs(30)
                 .maxConcurrency(2)
@@ -97,7 +92,7 @@ class BatchTranslationServiceTest {
         assertThat(response.getId()).isEqualTo(jobId);
         assertThat(response.getStatus()).isEqualTo(BatchTranslationJobStatus.PENDING);
         assertThat(response.getTargetLanguage()).isEqualTo("hi");
-        assertThat(response.getTargetStatus()).isEqualTo("PUBLISHED");
+        assertThat(response.getTargetStatus()).isEqualTo(QuestionStateConstants.PUBLISHED);
 
         verify(jobRepository).save(any(BatchTranslationJob.class));
         verify(asyncWorker).processBatchTranslationJob(jobId, tenantId);
@@ -126,7 +121,7 @@ class BatchTranslationServiceTest {
                 .failedQuestions(2)
                 .sourceLanguage("en")
                 .targetLanguage("hi")
-                .targetStatus("PUBLISHED")
+                .targetStatus(QuestionStateConstants.PUBLISHED)
                 .build();
         ReflectionTestUtils.setField(job, "id", jobId);
         job.setTenantId(tenantId);

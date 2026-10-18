@@ -21,21 +21,13 @@ package com.examplatform.papergenerator.controller;
 
 import com.examplatform.papergenerator.client.QuestionBankClient;
 import com.examplatform.papergenerator.domain.Paper;
-import com.examplatform.papergenerator.dto.BlueprintFeasibilityRequest;
-import com.examplatform.papergenerator.dto.BlueprintFeasibilityResponse;
-import com.examplatform.papergenerator.dto.BlueprintRule;
-import com.examplatform.papergenerator.dto.PaperGenerationRequest;
-import com.examplatform.papergenerator.dto.PaperTranslateRequest;
-import com.examplatform.papergenerator.dto.PaperTranslateResponse;
+import com.examplatform.papergenerator.dto.*;
 import com.examplatform.papergenerator.exception.InsufficientQuestionsException;
 import com.examplatform.papergenerator.repository.PaperRepository;
-import com.examplatform.papergenerator.service.ExaminationLookupService;
-import com.examplatform.papergenerator.service.PaperApprovalService;
-import com.examplatform.papergenerator.service.PaperAssemblyService;
-import com.examplatform.papergenerator.service.PaperSerializer;
-import com.examplatform.papergenerator.service.PaperTranslationService;
+import com.examplatform.papergenerator.service.*;
 import com.examplatform.papergenerator.support.AbstractIntegrationTest;
-import jakarta.persistence.EntityNotFoundException;
+import com.examplatform.shared.constants.QuestionStateConstants;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -48,14 +40,10 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -97,8 +85,8 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
         return BlueprintRule.builder()
                 .subject("Mathematics")
                 .topic("Algebra")
-                .difficulty("EASY")
-                .cognitiveLevel("APPLY")
+                .difficulty(QuestionTaxonomyConstants.Difficulty.EASY)
+                .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.APPLY)
                 .questionCount(5)
                 .build();
     }
@@ -114,7 +102,7 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
                     .name("Mock Paper")
                     .examId(EXAM_ID)
                     .shiftId("SHIFT-1")
-                    .status("DRAFT")
+                    .status(QuestionStateConstants.DRAFT)
                     .isPractice(false)
                     .difficultyScore(2.0)
                     .build();
@@ -129,7 +117,7 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.content.length()").value(1))
                     .andExpect(jsonPath("$.content[0].paperId").value(PAPER_ID.toString()))
-                    .andExpect(jsonPath("$.content[0].status").value("DRAFT"));
+                    .andExpect(jsonPath("$.content[0].status").value(QuestionStateConstants.DRAFT));
         }
 
         @Test
@@ -153,7 +141,7 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
                     .name("Single Paper")
                     .examId(EXAM_ID)
                     .shiftId("SHIFT-1")
-                    .status("DRAFT")
+                    .status(QuestionStateConstants.DRAFT)
                     .paperDefinitionJson("{\"questionIds\": [\"00000000-0000-0000-0000-000000000001\"]}")
                     .topicDistributionJson("{\"Algebra\": 1}")
                     .build();
@@ -243,7 +231,7 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
                     .name("New Test Paper")
                     .examId(EXAM_ID)
                     .shiftId("SHIFT-A")
-                    .status("DRAFT")
+                    .status(QuestionStateConstants.DRAFT)
                     .isPractice(false)
                     .build();
             ReflectionTestUtils.setField(paper, "id", PAPER_ID);
@@ -257,7 +245,7 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isAccepted())
                     .andExpect(jsonPath("$.paperId").value(PAPER_ID.toString()))
-                    .andExpect(jsonPath("$.status").value("DRAFT"));
+                    .andExpect(jsonPath("$.status").value(QuestionStateConstants.DRAFT));
         }
 
         @Test
@@ -343,7 +331,7 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
                     .name("Approved Paper")
                     .examId(EXAM_ID)
                     .shiftId("SHIFT-1")
-                    .status("APPROVED")
+                    .status(QuestionStateConstants.APPROVED)
                     .encryptionKeyId("key-12345")
                     .build();
             ReflectionTestUtils.setField(paper, "id", PAPER_ID);
@@ -355,7 +343,7 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
                                     .jwt(j -> j.subject(USER_ID.toString()).claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.paperId").value(PAPER_ID.toString()))
-                    .andExpect(jsonPath("$.status").value("APPROVED"))
+                    .andExpect(jsonPath("$.status").value(QuestionStateConstants.APPROVED))
                     .andExpect(jsonPath("$.encryptionKeyId").value("key-12345"));
         }
 
@@ -378,7 +366,7 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
         void examControllerCanTriggerPaperTranslation() throws Exception {
             PaperTranslateRequest request = PaperTranslateRequest.builder()
                     .targetLanguage("hi")
-                    .targetStatus("PUBLISHED")
+                    .targetStatus(QuestionStateConstants.PUBLISHED)
                     .overwriteExisting(true)
                     .build();
 
@@ -388,7 +376,7 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
                     .status("PENDING")
                     .sourceLanguage("en")
                     .targetLanguage("hi")
-                    .targetStatus("PUBLISHED")
+                    .targetStatus(QuestionStateConstants.PUBLISHED)
                     .overwriteExisting(true)
                     .totalQuestions(10)
                     .progressPercentage(0.0)
@@ -407,7 +395,7 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
                     .andExpect(jsonPath("$.jobId").value(JOB_ID.toString()))
                     .andExpect(jsonPath("$.paperId").value(PAPER_ID.toString()))
                     .andExpect(jsonPath("$.targetLanguage").value("hi"))
-                    .andExpect(jsonPath("$.targetStatus").value("PUBLISHED"))
+                    .andExpect(jsonPath("$.targetStatus").value(QuestionStateConstants.PUBLISHED))
                     .andExpect(jsonPath("$.overwriteExisting").value(true));
         }
 
@@ -464,7 +452,7 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
         }
 
         @Test
-        @DisplayName("+ve: Query paper translation status via /translation-status/{jobId} alias - returns 200 OK")
+        @DisplayName("+ve: Query paper translation status via /translate/{jobId} - returns 200 OK")
         void queryPaperTranslationStatusViaJobIdAlias() throws Exception {
             PaperTranslateResponse response = PaperTranslateResponse.builder()
                     .jobId(JOB_ID)
@@ -480,7 +468,7 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
             when(paperTranslationService.getTranslationStatus(eq(PAPER_ID), eq(JOB_ID), eq(TENANT_ID)))
                     .thenReturn(response);
 
-            mockMvc.perform(get("/api/v1/papers/{paperId}/translation-status/{jobId}", PAPER_ID, JOB_ID)
+            mockMvc.perform(get("/api/v1/papers/{paperId}/translate/{jobId}", PAPER_ID, JOB_ID)
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EXAM_CONTROLLER"))
                                     .jwt(j -> j.subject(USER_ID.toString()).claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isOk())

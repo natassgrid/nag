@@ -50,6 +50,8 @@ import org.testcontainers.utility.DockerImageName;
 import java.time.Duration;
 import java.util.List;
 
+import static org.mockito.Mockito.*;
+
 /**
  * Production-grade base class for response-service MockMvc integration tests using Testcontainers.
  */
@@ -166,7 +168,7 @@ public abstract class AbstractIntegrationTest {
         @Bean
         @Primary
         public JwtDecoder mockJwtDecoder() {
-            return Mockito.mock(JwtDecoder.class);
+            return mock(JwtDecoder.class);
         }
     }
 }

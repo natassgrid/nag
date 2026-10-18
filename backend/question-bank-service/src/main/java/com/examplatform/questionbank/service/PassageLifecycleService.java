@@ -19,6 +19,7 @@ import com.examplatform.questionbank.exception.FourEyesPrincipleViolationExcepti
 import com.examplatform.questionbank.exception.InvalidTransitionException;
 import com.examplatform.questionbank.repository.PassageRepository;
 import com.examplatform.questionbank.repository.QuestionRepository;
+import com.examplatform.shared.constants.QuestionStateConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +27,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -43,14 +43,16 @@ import java.util.UUID;
 @Transactional
 public class PassageLifecycleService {
 
-    private static final String AUDIT_TOPIC = "exam.audit.events";
-
     private static final Map<String, Set<String>> VALID_TRANSITIONS = Map.of(
-            "DRAFT", Set.of("REVIEW"),
-            "REVIEW", Set.of("APPROVED", "DRAFT"),
-            "APPROVED", Set.of("PUBLISHED"),
-            "PUBLISHED", Set.of("ARCHIVED")
+        QuestionStateConstants.DRAFT, Set.of(QuestionStateConstants.REVIEW),
+        QuestionStateConstants.REVIEW, Set.of(QuestionStateConstants.APPROVED, QuestionStateConstants.DRAFT),
+        QuestionStateConstants.APPROVED, Set.of(QuestionStateConstants.PUBLISHED),
+        QuestionStateConstants.PUBLISHED, Set.of(QuestionStateConstants.ARCHIVED)
     );
+    public static final String PASSAGE_NOT_FOUND = "Passage not found: ";
+    public static final String TO_STATE = "toState";
+    public static final String FROM_STATE = "fromState";
+    public static final String SUB_QUESTION_COUNT = "subQuestionCount";
 
     private final PassageRepository passageRepository;
     private final QuestionRepository questionRepository;
@@ -62,7 +64,7 @@ public class PassageLifecycleService {
      */
     public PassageResponse transition(UUID passageId, TransitionRequest request, UUID actorId, String tenantId) {
         Passage passage = passageRepository.findByIdAndTenantId(passageId, tenantId)
-                .orElseThrow(() -> new EntityNotFoundException("Passage not found: " + passageId));
+                .orElseThrow(() -> new EntityNotFoundException(PASSAGE_NOT_FOUND + passageId));
 
         String currentState = passage.getState();
         String targetState = request.getTargetState().toUpperCase();
@@ -72,14 +74,14 @@ public class PassageLifecycleService {
             throw new InvalidTransitionException(currentState, targetState);
         }
 
-        if ("APPROVED".equals(targetState) && passage.getAuthorId().equals(actorId)) {
+        if (QuestionStateConstants.APPROVED.equals(targetState) && passage.getAuthorId().equals(actorId)) {
             throw new FourEyesPrincipleViolationException();
         }
 
-        List<Question> subQuestions = updatePassageAndSubQuestions(passage, targetState, "APPROVED".equals(targetState) ? actorId : null);
+        List<Question> subQuestions = updatePassageAndSubQuestions(passage, targetState, QuestionStateConstants.APPROVED.equals(targetState) ? actorId : null);
 
         passageService.publishAuditEvent("PASSAGE_STATE_TRANSITIONED", passageId, actorId, tenantId,
-                Map.of("fromState", currentState, "toState", targetState, "subQuestionCount", subQuestions.size()));
+                Map.of(FROM_STATE, currentState, TO_STATE, targetState, SUB_QUESTION_COUNT, subQuestions.size()));
 
         return passageService.toResponse(passage, subQuestions);
     }
@@ -89,22 +91,22 @@ public class PassageLifecycleService {
      */
     public PassageResponse submitForReview(UUID passageId, UUID authorId, String tenantId) {
         Passage passage = passageRepository.findByIdAndTenantId(passageId, tenantId)
-                .orElseThrow(() -> new EntityNotFoundException("Passage not found: " + passageId));
+                .orElseThrow(() -> new EntityNotFoundException(PASSAGE_NOT_FOUND + passageId));
 
         if (!passage.getAuthorId().equals(authorId)) {
             throw new IllegalArgumentException("Only the passage author can submit for review");
         }
 
-        if (!"DRAFT".equals(passage.getState())) {
+        if (!QuestionStateConstants.DRAFT.equals(passage.getState())) {
             throw new IllegalStateException("Passage must be in DRAFT state to submit for review. Current state: " + passage.getState());
         }
 
-        List<Question> subQuestions = updatePassageAndSubQuestions(passage, "REVIEW", null);
+        List<Question> subQuestions = updatePassageAndSubQuestions(passage, QuestionStateConstants.REVIEW, null);
 
         log.info("Passage submitted for review: id={}, author={}, tenant={}", passageId, authorId, tenantId);
 
         passageService.publishAuditEvent("PASSAGE_SUBMITTED_FOR_REVIEW", passage.getId(), authorId, tenantId,
-                Map.of("fromState", "DRAFT", "toState", "REVIEW", "subQuestionCount", subQuestions.size()));
+                Map.of(FROM_STATE, QuestionStateConstants.DRAFT, TO_STATE, QuestionStateConstants.REVIEW, SUB_QUESTION_COUNT, subQuestions.size()));
 
         return passageService.toResponse(passage, subQuestions);
     }
@@ -114,22 +116,22 @@ public class PassageLifecycleService {
      */
     public PassageResponse approve(UUID passageId, UUID reviewerId, String tenantId) {
         Passage passage = passageRepository.findByIdAndTenantId(passageId, tenantId)
-                .orElseThrow(() -> new EntityNotFoundException("Passage not found: " + passageId));
+                .orElseThrow(() -> new EntityNotFoundException(PASSAGE_NOT_FOUND + passageId));
 
         if (passage.getAuthorId().equals(reviewerId)) {
             throw new FourEyesPrincipleViolationException();
         }
 
-        if (!"REVIEW".equals(passage.getState())) {
+        if (!QuestionStateConstants.REVIEW.equals(passage.getState())) {
             throw new IllegalStateException("Passage must be in REVIEW state to approve. Current state: " + passage.getState());
         }
 
-        List<Question> subQuestions = updatePassageAndSubQuestions(passage, "APPROVED", reviewerId);
+        List<Question> subQuestions = updatePassageAndSubQuestions(passage, QuestionStateConstants.APPROVED, reviewerId);
 
         log.info("Passage approved: id={}, reviewer={}, tenant={}", passageId, reviewerId, tenantId);
 
         passageService.publishAuditEvent("PASSAGE_APPROVED", passage.getId(), reviewerId, tenantId,
-                Map.of("fromState", "REVIEW", "toState", "APPROVED", "subQuestionCount", subQuestions.size()));
+                Map.of(FROM_STATE, QuestionStateConstants.REVIEW, TO_STATE, QuestionStateConstants.APPROVED, SUB_QUESTION_COUNT, subQuestions.size()));
 
         return passageService.toResponse(passage, subQuestions);
     }
@@ -139,20 +141,20 @@ public class PassageLifecycleService {
      */
     public PassageResponse reject(UUID passageId, UUID reviewerId, String comments, String tenantId) {
         Passage passage = passageRepository.findByIdAndTenantId(passageId, tenantId)
-                .orElseThrow(() -> new EntityNotFoundException("Passage not found: " + passageId));
+                .orElseThrow(() -> new EntityNotFoundException(PASSAGE_NOT_FOUND + passageId));
 
-        if (!"REVIEW".equals(passage.getState())) {
+        if (!QuestionStateConstants.REVIEW.equals(passage.getState())) {
             throw new IllegalStateException("Passage must be in REVIEW state to reject. Current state: " + passage.getState());
         }
 
-        List<Question> subQuestions = updatePassageAndSubQuestions(passage, "DRAFT", null);
+        List<Question> subQuestions = updatePassageAndSubQuestions(passage, QuestionStateConstants.DRAFT, null);
 
         log.info("Passage rejected: id={}, reviewer={}, tenant={}, comments={}", passageId, reviewerId, tenantId, comments);
 
         Map<String, Object> extra = new java.util.HashMap<>();
-        extra.put("fromState", "REVIEW");
-        extra.put("toState", "DRAFT");
-        extra.put("subQuestionCount", subQuestions.size());
+        extra.put(FROM_STATE, QuestionStateConstants.REVIEW);
+        extra.put(TO_STATE, QuestionStateConstants.DRAFT);
+        extra.put(SUB_QUESTION_COUNT, subQuestions.size());
         if (comments != null) {
             extra.put("comments", comments);
         }

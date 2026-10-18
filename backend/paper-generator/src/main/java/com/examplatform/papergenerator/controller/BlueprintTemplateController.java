@@ -23,6 +23,7 @@ import com.examplatform.papergenerator.dto.BlueprintFeasibilityResponse;
 import com.examplatform.papergenerator.dto.BlueprintTemplateRequest;
 import com.examplatform.papergenerator.dto.BlueprintTemplateResponse;
 import com.examplatform.papergenerator.service.BlueprintTemplateService;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.tenant.TenantContext;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -32,15 +33,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
@@ -140,7 +133,7 @@ public class BlueprintTemplateController {
 
     private String tenantId() {
         String t = TenantContext.getTenantId();
-        return (t != null && !t.isBlank()) ? t : "default";
+        return (t != null && !t.isBlank()) ? t : SharedConstants.DEFAULT_TENANT;
     }
 
     private UUID extractUserId(Jwt jwt) {
@@ -148,7 +141,7 @@ public class BlueprintTemplateController {
         try {
             String sub = jwt.getSubject();
             return sub != null ? UUID.fromString(sub) : null;
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException _) {
             log.debug("JWT subject is not a UUID: {}", jwt.getSubject());
             return null;
         }

@@ -23,10 +23,13 @@ import com.examplatform.questionbank.crypto.VaultCryptoServiceHolder;
 import com.examplatform.questionbank.translation.domain.TranslatedQuestionPayload;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 /**
  * Handles serialization and optional encryption of {@link TranslatedQuestionPayload}.
@@ -52,18 +55,31 @@ public class TranslationPayloadService {
 
     private final ObjectMapper objectMapper;
 
+    /**
+     * -- GETTER --
+     *  Returns
+     *  when encryption is currently enabled.
+     *  Callers use this to set the
+     *  flag on new rows.
+     */
+    @Getter
     @Value("${app.translation.encryption.enabled:false}")
     private boolean encryptionEnabled;
 
     /**
      * Serialize (and optionally encrypt) a payload for storage.
+     * Automatically strips stray underscore artifacts around formulas and non-translatable tokens.
      *
      * @param payload the structured translation payload
      * @return the string to write into the {@code translated_payload} column
      */
     public String serialize(TranslatedQuestionPayload payload) {
+        if (payload == null) {
+            return null;
+        }
         try {
-            String json = objectMapper.writeValueAsString(payload);
+            TranslatedQuestionPayload sanitized = sanitizePayload(payload);
+            String json = objectMapper.writeValueAsString(sanitized);
             if (encryptionEnabled) {
                 return VaultCryptoServiceHolder.getInstance().encrypt(VAULT_KEY, json);
             }
@@ -75,6 +91,7 @@ public class TranslationPayloadService {
 
     /**
      * Deserialize (and optionally decrypt) a raw stored string.
+     * Cleans any stray underscore artifacts around formulas and numbers left by translation models.
      *
      * @param stored           raw value from the {@code translated_payload} column
      * @param payloadEncrypted the per-row {@code payload_encrypted} flag
@@ -92,17 +109,32 @@ public class TranslationPayloadService {
                 // Either not encrypted, or written before the flag was enabled — read as-is.
                 json = stored;
             }
-            return objectMapper.readValue(json, TranslatedQuestionPayload.class);
+            TranslatedQuestionPayload payload = objectMapper.readValue(json, TranslatedQuestionPayload.class);
+            return sanitizePayload(payload);
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("Failed to deserialize TranslatedQuestionPayload", e);
         }
     }
 
-    /**
-     * Returns {@code true} when encryption is currently enabled.
-     * Callers use this to set the {@code payload_encrypted} flag on new rows.
-     */
-    public boolean isEncryptionEnabled() {
-        return encryptionEnabled;
+    private TranslatedQuestionPayload sanitizePayload(TranslatedQuestionPayload payload) {
+        if (payload == null) {
+            return null;
+        }
+        List<TranslatedQuestionPayload.TranslatedOption> cleanedOptions = null;
+        if (payload.options() != null) {
+            cleanedOptions = payload.options().stream()
+                    .map(opt -> new TranslatedQuestionPayload.TranslatedOption(
+                            opt.id(),
+                            LatexPreservationUtil.cleanStrayUnderscores(opt.text()),
+                            opt.imageUrl(),
+                            opt.imageAltText()))
+                    .toList();
+        }
+        return new TranslatedQuestionPayload(
+                LatexPreservationUtil.cleanStrayUnderscores(payload.content()),
+                cleanedOptions,
+                LatexPreservationUtil.cleanStrayUnderscores(payload.explanation())
+        );
     }
+
 }

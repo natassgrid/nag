@@ -19,11 +19,13 @@
 
 package com.examplatform.shared.error;
 
+import lombok.Getter;
 import org.springframework.http.HttpStatus;
 
 /**
  * Base abstract domain exception carrying HTTP status and machine-readable error code.
  */
+@Getter
 public abstract class DomainException extends RuntimeException {
 
     private final HttpStatus status;
@@ -41,11 +43,4 @@ public abstract class DomainException extends RuntimeException {
         this.errorCode = errorCode;
     }
 
-    public HttpStatus getStatus() {
-        return status;
-    }
-
-    public String getErrorCode() {
-        return errorCode;
-    }
 }

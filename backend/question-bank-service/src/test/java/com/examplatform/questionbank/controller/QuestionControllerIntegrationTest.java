@@ -29,12 +29,11 @@ import com.examplatform.questionbank.dto.QuestionResponse;
 import com.examplatform.questionbank.dto.TransitionRequest;
 import com.examplatform.questionbank.exception.FourEyesPrincipleViolationException;
 import com.examplatform.questionbank.exception.InvalidTransitionException;
-import com.examplatform.questionbank.service.QuestionLifecycleService;
-import com.examplatform.questionbank.service.QuestionSearchService;
-import com.examplatform.questionbank.service.QuestionService;
-import com.examplatform.questionbank.service.QuestionUpdateService;
-import com.examplatform.questionbank.service.QuestionVersioningService;
+import com.examplatform.questionbank.service.*;
 import com.examplatform.questionbank.support.AbstractIntegrationTest;
+import com.examplatform.shared.constants.QuestionStateConstants;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.examplatform.shared.constants.QuestionTypeConstants;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -51,12 +50,11 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * QuestionController REST endpoint integration tests (MockMvc).
@@ -119,12 +117,12 @@ class QuestionControllerIntegrationTest extends AbstractIntegrationTest {
                 .subject("Physics")
                 .topic("Thermodynamics")
                 .subtopic("Carnot Engine")
-                .difficulty("MEDIUM")
-                .cognitiveLevel("APPLY")
-                .questionType("SINGLE_MCQ")
+                .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
+                .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.APPLY)
+                .questionType(QuestionTypeConstants.SINGLE_MCQ)
                 .content("What is the efficiency of an ideal Carnot engine operating between 300K and 600K?")
                 .answerKey("B")
-                .state("DRAFT")
+                .state(QuestionStateConstants.DRAFT)
                 .authorId(AUTHOR_ID)
                 .createdAt(LocalDateTime.now())
                 .build();
@@ -334,7 +332,7 @@ class QuestionControllerIntegrationTest extends AbstractIntegrationTest {
         @DisplayName("+ve: QUESTION_AUTHOR submits question for review - returns 200 OK")
         void authorCanSubmitForReview() throws Exception {
             QuestionResponse inReview = sampleQuestionResponse();
-            inReview.setState("REVIEW");
+            inReview.setState(QuestionStateConstants.REVIEW);
 
             when(questionService.submitForReview(eq(QUESTION_ID), eq(AUTHOR_ID), eq(TENANT_ID)))
                     .thenReturn(inReview);
@@ -346,19 +344,19 @@ class QuestionControllerIntegrationTest extends AbstractIntegrationTest {
                             .contentType(MediaType.APPLICATION_JSON))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("success"))
-                    .andExpect(jsonPath("$.data.state").value("REVIEW"));
+                    .andExpect(jsonPath("$.data.state").value(QuestionStateConstants.REVIEW));
         }
 
         @Test
         @DisplayName("+ve: REVIEWER transitions question - returns 200 OK")
         void reviewerCanTransitionQuestion() throws Exception {
             TransitionRequest request = TransitionRequest.builder()
-                    .targetState("APPROVED")
+                    .targetState(QuestionStateConstants.APPROVED)
                     .comments("Looks solid")
                     .build();
 
             QuestionResponse approved = sampleQuestionResponse();
-            approved.setState("APPROVED");
+            approved.setState(QuestionStateConstants.APPROVED);
 
             when(questionLifecycleService.transition(eq(QUESTION_ID), any(TransitionRequest.class), eq(REVIEWER_ID), eq(TENANT_ID)))
                     .thenReturn(approved);
@@ -371,18 +369,19 @@ class QuestionControllerIntegrationTest extends AbstractIntegrationTest {
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("success"))
-                    .andExpect(jsonPath("$.data.state").value("APPROVED"));
+                    .andExpect(jsonPath("$.data.state").value(QuestionStateConstants.APPROVED));
         }
 
         @Test
         @DisplayName("-ve: Invalid transition throws InvalidTransitionException - returns 422 Unprocessable Entity")
         void invalidTransitionReturnsUnprocessableEntity() throws Exception {
             TransitionRequest request = TransitionRequest.builder()
-                    .targetState("PUBLISHED")
+                    .targetState(QuestionStateConstants.PUBLISHED)
                     .build();
 
             when(questionLifecycleService.transition(eq(QUESTION_ID), any(TransitionRequest.class), eq(REVIEWER_ID), eq(TENANT_ID)))
-                    .thenThrow(new InvalidTransitionException("DRAFT", "PUBLISHED"));
+                    .thenThrow(new InvalidTransitionException(QuestionStateConstants.DRAFT,
+                        QuestionStateConstants.PUBLISHED));
 
             mockMvc.perform(post("/api/v1/questions/{id}/transition", QUESTION_ID)
                             .header("X-Tenant-Id", TENANT_ID)
@@ -398,7 +397,7 @@ class QuestionControllerIntegrationTest extends AbstractIntegrationTest {
         @DisplayName("-ve: Four-eyes violation throws FourEyesPrincipleViolationException - returns 403 Forbidden")
         void fourEyesViolationReturnsForbidden() throws Exception {
             TransitionRequest request = TransitionRequest.builder()
-                    .targetState("APPROVED")
+                    .targetState(QuestionStateConstants.APPROVED)
                     .build();
 
             when(questionLifecycleService.transition(eq(QUESTION_ID), any(TransitionRequest.class), eq(AUTHOR_ID), eq(TENANT_ID)))
@@ -418,7 +417,7 @@ class QuestionControllerIntegrationTest extends AbstractIntegrationTest {
         @DisplayName("+ve: REVIEWER approves question - returns 200 OK")
         void reviewerCanApproveQuestion() throws Exception {
             QuestionResponse approved = sampleQuestionResponse();
-            approved.setState("APPROVED");
+            approved.setState(QuestionStateConstants.APPROVED);
 
             when(questionLifecycleService.approve(eq(QUESTION_ID), eq(REVIEWER_ID), eq(TENANT_ID)))
                     .thenReturn(approved);
@@ -430,14 +429,14 @@ class QuestionControllerIntegrationTest extends AbstractIntegrationTest {
                             .contentType(MediaType.APPLICATION_JSON))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("success"))
-                    .andExpect(jsonPath("$.data.state").value("APPROVED"));
+                    .andExpect(jsonPath("$.data.state").value(QuestionStateConstants.APPROVED));
         }
 
         @Test
         @DisplayName("+ve: REVIEWER rejects question - returns 200 OK")
         void reviewerCanRejectQuestion() throws Exception {
             QuestionResponse rejected = sampleQuestionResponse();
-            rejected.setState("DRAFT");
+            rejected.setState(QuestionStateConstants.DRAFT);
 
             when(questionLifecycleService.reject(eq(QUESTION_ID), eq(REVIEWER_ID), eq("Needs revision"), eq(TENANT_ID)))
                     .thenReturn(rejected);
@@ -450,7 +449,7 @@ class QuestionControllerIntegrationTest extends AbstractIntegrationTest {
                             .content(objectMapper.writeValueAsString(Map.of("comments", "Needs revision"))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("success"))
-                    .andExpect(jsonPath("$.data.state").value("DRAFT"));
+                    .andExpect(jsonPath("$.data.state").value(QuestionStateConstants.DRAFT));
         }
 
         // === Issue #275 edge cases ===
@@ -525,7 +524,7 @@ class QuestionControllerIntegrationTest extends AbstractIntegrationTest {
         @DisplayName("+ve: Author can re-submit rejected question (DRAFT -> REVIEW again) - returns 200 OK")
         void authorCanResubmitAfterRejection() throws Exception {
             QuestionResponse inReview = sampleQuestionResponse();
-            inReview.setState("REVIEW");
+            inReview.setState(QuestionStateConstants.REVIEW);
 
             when(questionService.submitForReview(eq(QUESTION_ID), eq(AUTHOR_ID), eq(TENANT_ID)))
                     .thenReturn(inReview);
@@ -537,14 +536,14 @@ class QuestionControllerIntegrationTest extends AbstractIntegrationTest {
                             .contentType(MediaType.APPLICATION_JSON))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("success"))
-                    .andExpect(jsonPath("$.data.state").value("REVIEW"));
+                    .andExpect(jsonPath("$.data.state").value(QuestionStateConstants.REVIEW));
         }
 
         @Test
         @DisplayName("+ve: Rejected question response includes reviewComments field")
         void rejectedQuestionResponseIncludesReviewComments() throws Exception {
             QuestionResponse rejected = sampleQuestionResponse();
-            rejected.setState("DRAFT");
+            rejected.setState(QuestionStateConstants.DRAFT);
             rejected.setReviewComments("Missing distractors in options B and C.");
 
             when(questionLifecycleService.reject(
@@ -561,7 +560,7 @@ class QuestionControllerIntegrationTest extends AbstractIntegrationTest {
                                     Map.of("comments", "Missing distractors in options B and C."))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("success"))
-                    .andExpect(jsonPath("$.data.state").value("DRAFT"))
+                    .andExpect(jsonPath("$.data.state").value(QuestionStateConstants.DRAFT))
                     .andExpect(jsonPath("$.data.reviewComments")
                             .value("Missing distractors in options B and C."));
         }
@@ -618,33 +617,10 @@ class QuestionControllerIntegrationTest extends AbstractIntegrationTest {
     class BlueprintMatchAndBatchFindEndpoints {
 
         @Test
-        @DisplayName("+ve: Match blueprint via /api/v1/questions/blueprint-match alias - returns 200 OK")
+        @DisplayName("+ve: Match blueprint via /api/v1/questions/match-blueprint alias - returns 200 OK")
         void matchBlueprintViaAlias() throws Exception {
-            when(questionService.findBlueprintQuestions(eq("Physics"), eq("Thermodynamics"), eq("MEDIUM"), eq("APPLY"), eq(TENANT_ID)))
-                    .thenReturn(List.of(sampleQuestionResponse()));
-
-            String requestJson = """
-                    {
-                      "subject": "Physics",
-                      "topic": "Thermodynamics",
-                      "difficulty": "MEDIUM",
-                      "cognitiveLevel": "APPLY"
-                    }
-                    """;
-
-            mockMvc.perform(post("/api/v1/questions/blueprint-match")
-                            .header("X-Tenant-Id", TENANT_ID)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(requestJson))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.status").value("success"))
-                    .andExpect(jsonPath("$.data[0].id").value(QUESTION_ID.toString()));
-        }
-
-        @Test
-        @DisplayName("+ve: Match blueprint via /api/v1/questions/match-blueprint - returns 200 OK")
-        void matchBlueprintStandard() throws Exception {
-            when(questionService.findBlueprintQuestions(eq("Physics"), eq("Thermodynamics"), eq("MEDIUM"), eq("APPLY"), eq(TENANT_ID)))
+            when(questionService.findBlueprintQuestions(eq("Physics"), eq("Thermodynamics"), eq(
+                QuestionTaxonomyConstants.Difficulty.MEDIUM), eq(QuestionTaxonomyConstants.CognitiveLevel.APPLY), eq(TENANT_ID)))
                     .thenReturn(List.of(sampleQuestionResponse()));
 
             String requestJson = """
@@ -666,12 +642,37 @@ class QuestionControllerIntegrationTest extends AbstractIntegrationTest {
         }
 
         @Test
-        @DisplayName("+ve: Find questions by IDs via /api/v1/questions/batch-find alias - returns 200 OK")
+        @DisplayName("+ve: Match blueprint via /api/v1/questions/match-blueprint - returns 200 OK")
+        void matchBlueprintStandard() throws Exception {
+            when(questionService.findBlueprintQuestions(eq("Physics"), eq("Thermodynamics"), eq(
+                QuestionTaxonomyConstants.Difficulty.MEDIUM), eq(QuestionTaxonomyConstants.CognitiveLevel.APPLY), eq(TENANT_ID)))
+                    .thenReturn(List.of(sampleQuestionResponse()));
+
+            String requestJson = """
+                    {
+                      "subject": "Physics",
+                      "topic": "Thermodynamics",
+                      "difficulty": "MEDIUM",
+                      "cognitiveLevel": "APPLY"
+                    }
+                    """;
+
+            mockMvc.perform(post("/api/v1/questions/match-blueprint")
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(requestJson))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("success"))
+                    .andExpect(jsonPath("$.data[0].id").value(QUESTION_ID.toString()));
+        }
+
+        @Test
+        @DisplayName("+ve: Find questions by IDs via /api/v1/questions/by-ids alias - returns 200 OK")
         void findQuestionsByIdsViaAlias() throws Exception {
             when(questionService.findQuestionsByIds(eq(List.of(QUESTION_ID)), eq(TENANT_ID)))
                     .thenReturn(List.of(sampleQuestionResponse()));
 
-            mockMvc.perform(post("/api/v1/questions/batch-find")
+            mockMvc.perform(post("/api/v1/questions/by-ids")
                             .header("X-Tenant-Id", TENANT_ID)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(List.of(QUESTION_ID))))
@@ -703,14 +704,14 @@ class QuestionControllerIntegrationTest extends AbstractIntegrationTest {
         }
 
         @Test
-        @DisplayName("+ve: ADMIN can delete question - returns 200 OK")
+        @DisplayName("+ve: SUPER_ADMIN can delete question - returns 200 OK")
         void adminCanDeleteQuestion() throws Exception {
             UUID adminId = UUID.randomUUID();
             doNothing().when(questionService).deleteQuestion(eq(QUESTION_ID), eq(adminId), eq(TENANT_ID));
 
             mockMvc.perform(delete("/api/v1/questions/{id}", QUESTION_ID)
                             .header("X-Tenant-Id", TENANT_ID)
-                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))
                                     .jwt(j -> j.subject(adminId.toString()))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("success"))

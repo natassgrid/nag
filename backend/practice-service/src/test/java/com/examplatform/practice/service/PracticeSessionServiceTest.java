@@ -6,19 +6,19 @@ import com.examplatform.practice.domain.PracticeResponse;
 import com.examplatform.practice.domain.PracticeSession;
 import com.examplatform.practice.domain.PracticeSet;
 import com.examplatform.practice.dto.*;
-import com.examplatform.practice.event.PracticeSessionCompletedEvent;
-import com.examplatform.practice.exception.PracticeSessionNotFoundException;
+import com.examplatform.shared.event.PracticeSessionCompletedEvent;
 import com.examplatform.practice.exception.PracticeSetNotFoundException;
 import com.examplatform.practice.exception.SessionAlreadySubmittedException;
 import com.examplatform.practice.repository.PracticeResponseRepository;
 import com.examplatform.practice.repository.PracticeSessionRepository;
 import com.examplatform.practice.repository.PracticeSetRepository;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.examplatform.shared.constants.QuestionTypeConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
@@ -30,7 +30,8 @@ import java.util.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class PracticeSessionServiceTest {
@@ -168,6 +169,8 @@ class PracticeSessionServiceTest {
                 .thenReturn(Optional.of(practiceSession));
         when(practiceSessionRepository.findById(sessionId))
                 .thenReturn(Optional.of(practiceSession));
+        when(practiceSetRepository.findById(practiceSetId))
+                .thenReturn(Optional.of(practiceSet));
 
         PracticeResultDto mockResult = new PracticeResultDto(
                 sessionId, 15, 3, 2, 57, 80, 75.0, "{}", "{}", "{}",
@@ -181,7 +184,13 @@ class PracticeSessionServiceTest {
         assertThat(result.correctCount()).isEqualTo(15);
         assertThat(result.obtainedMarks()).isEqualTo(57);
         verify(practiceEvaluationService).evaluateSession(sessionId);
-        verify(eventPublisher).publishEvent(any(PracticeSessionCompletedEvent.class));
+
+        org.mockito.ArgumentCaptor<PracticeSessionCompletedEvent> captor = org.mockito.ArgumentCaptor.forClass(PracticeSessionCompletedEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        PracticeSessionCompletedEvent captured = captor.getValue();
+        assertThat(captured.practiceSetId()).isEqualTo(practiceSetId);
+        assertThat(captured.practiceSetSource()).isEqualTo("EXAM_CLONE");
+        assertThat(captured.targetExam()).isEqualTo("Calculus Practice");
     }
 
     @Test
@@ -215,7 +224,7 @@ class PracticeSessionServiceTest {
         transMap.put("hi", hiTranslation);
 
         AnswerKeyDto ak = new AnswerKeyDto(
-                qId, "A", "SINGLE_MCQ", "top-1", "Calculus", "MEDIUM", 2,
+                qId, "A", QuestionTypeConstants.SINGLE_MCQ, "top-1", "Calculus", QuestionTaxonomyConstants.Difficulty.MEDIUM, 2,
                 "What is calculus?", "[]", "Calculus is math.", "Math", transMap
         );
         when(questionBankClient.getAnswerKeys(List.of(qId)))
@@ -244,7 +253,7 @@ class PracticeSessionServiceTest {
                 .thenReturn(Optional.of(practiceSet));
 
         AnswerKeyDto ak = new AnswerKeyDto(
-                qId, "A", "SINGLE_MCQ", "top-1", "Calculus", "MEDIUM", 2,
+                qId, "A", QuestionTypeConstants.SINGLE_MCQ, "top-1", "Calculus", QuestionTaxonomyConstants.Difficulty.MEDIUM, 2,
                 "What is calculus?", "[]", "Calculus is math.", "Math", null
         );
         when(questionBankClient.getAnswerKeys(List.of(qId)))
@@ -256,7 +265,7 @@ class PracticeSessionServiceTest {
         PracticeQuestionDto q = questions.get(0);
         assertThat(q.primaryLanguage()).isEqualTo("ta");
         assertThat(q.fallbackToEnglish()).isTrue();
-        assertThat(q.primaryTranslation()).isNull();
+        assertThat(q.primaryTranslation()).isEmpty();
         assertThat(q.content()).isEqualTo("What is calculus?");
     }
 }

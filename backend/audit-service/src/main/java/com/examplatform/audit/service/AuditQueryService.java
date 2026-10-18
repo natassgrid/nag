@@ -21,6 +21,7 @@ package com.examplatform.audit.service;
 
 import com.examplatform.audit.domain.AuditEvent;
 import com.examplatform.audit.repository.AuditEventRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -76,8 +77,8 @@ public class AuditQueryService {
      * Retrieves recent immutable ledger events for operational monitoring and RPC queries.
      */
     public List<Map<String, Object>> getRecentLedgerEvents(String tenantId, int limit) {
-        Pageable pageable = PageRequest.of(0, limit, Sort.by(Sort.Direction.DESC, "occurredAt"));
-        Page<AuditEvent> page = (tenantId == null || "default".equalsIgnoreCase(tenantId) || tenantId.isBlank())
+        Pageable pageable = PageRequest.of(0, limit, Sort.by(Sort.Direction.DESC, SharedConstants.OCCURRED_AT));
+        Page<AuditEvent> page = (tenantId == null || SharedConstants.DEFAULT_TENANT.equalsIgnoreCase(tenantId) || tenantId.isBlank())
                 ? auditEventRepository.findAll(pageable)
                 : auditEventRepository.findAll(tenantEquals(tenantId), pageable);
 
@@ -88,11 +89,11 @@ public class AuditQueryService {
         return page.getContent().stream()
                 .map(event -> Map.<String, Object>of(
                         "id", event.getId() != null ? event.getId().toString() : UUID.randomUUID().toString(),
-                        "action", event.getEventType() != null ? event.getEventType() : "UNKNOWN_ACTION",
+                    SharedConstants.ACTION, event.getEventType() != null ? event.getEventType() : "UNKNOWN_ACTION",
                         "entityType", event.getResource() != null ? event.getResource() : "RESOURCE",
                         "performedBy", event.getActorId() != null ? event.getActorId().toString() : "system",
                         "timestamp", event.getOccurredAt() != null ? event.getOccurredAt().toString() : Instant.now().toString(),
-                        "status", "SUCCESS"
+                    SharedConstants.STATUS, "SUCCESS"
                 ))
                 .toList();
     }
@@ -121,7 +122,7 @@ public class AuditQueryService {
     }
 
     private static Specification<AuditEvent> tenantEquals(String tenantId) {
-        return (root, query, cb) -> cb.equal(root.get("tenantId"), tenantId);
+        return (root, query, cb) -> cb.equal(root.get(SharedConstants.TENANT_ID), tenantId);
     }
 
     private static Specification<AuditEvent> actorIdEquals(UUID actorId) {
@@ -129,7 +130,7 @@ public class AuditQueryService {
     }
 
     private static Specification<AuditEvent> eventTypeEquals(String eventType) {
-        return (root, query, cb) -> cb.equal(root.get("eventType"), eventType);
+        return (root, query, cb) -> cb.equal(root.get(SharedConstants.EVENT_TYPE), eventType);
     }
 
     private static Specification<AuditEvent> resourceContains(String resource) {
@@ -137,10 +138,10 @@ public class AuditQueryService {
     }
 
     private static Specification<AuditEvent> occurredAtAfter(Instant from) {
-        return (root, query, cb) -> cb.greaterThanOrEqualTo(root.get("occurredAt"), from);
+        return (root, query, cb) -> cb.greaterThanOrEqualTo(root.get(SharedConstants.OCCURRED_AT), from);
     }
 
     private static Specification<AuditEvent> occurredAtBefore(Instant to) {
-        return (root, query, cb) -> cb.lessThanOrEqualTo(root.get("occurredAt"), to);
+        return (root, query, cb) -> cb.lessThanOrEqualTo(root.get(SharedConstants.OCCURRED_AT), to);
     }
 }

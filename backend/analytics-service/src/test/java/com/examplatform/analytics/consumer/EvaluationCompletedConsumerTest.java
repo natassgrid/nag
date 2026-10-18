@@ -20,6 +20,8 @@
 package com.examplatform.analytics.consumer;
 
 import com.examplatform.analytics.service.AnalyticsService;
+import com.examplatform.shared.constants.MessagingConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.GenericDomainEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,9 +32,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.amqp.core.Message;
 
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -71,7 +71,7 @@ class EvaluationCompletedConsumerTest {
                 "sessionId", SESSION_ID.toString(),
                 "totalRawScore", 85.5,
                 "sectionScores", Map.of("Physics", 40.0, "Chemistry", 45.5),
-                "tenantId", "tenant-test",
+            SharedConstants.TENANT_ID, "tenant-test",
                 "evaluatedAt", Instant.now().toString()
         );
         String payload = objectMapper.writeValueAsString(event);
@@ -99,7 +99,7 @@ class EvaluationCompletedConsumerTest {
                 "candidateId", CANDIDATE_ID.toString(),
                 "sessionId", SESSION_ID.toString(),
                 "totalRawScore", 92.0,
-                "tenantId", "tenant-1"
+            SharedConstants.TENANT_ID, "tenant-1"
         );
         byte[] body = objectMapper.writeValueAsBytes(event);
         Message amqpMessage = new Message(body);
@@ -127,10 +127,10 @@ class EvaluationCompletedConsumerTest {
                 "candidateId", CANDIDATE_ID.toString(),
                 "sessionId", SESSION_ID.toString(),
                 "totalRawScore", 78.0,
-                "tenantId", "default"
+            SharedConstants.TENANT_ID, "default"
         );
         GenericDomainEvent domainEvent = new GenericDomainEvent(
-                "exam.evaluation.completed",
+            MessagingConstants.EVALUATION_COMPLETED_TOPIC,
                 SESSION_ID.toString(),
                 objectMapper.writeValueAsString(event)
         );

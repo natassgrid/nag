@@ -21,6 +21,7 @@ package com.examplatform.admin.controller;
 
 import com.examplatform.admin.dto.DashboardSummaryResponse;
 import com.examplatform.admin.service.AdminDashboardService;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,7 +41,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/admin/dashboard")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SECURITY_ADMIN', 'ADMIN', 'EXAM_CONTROLLER', 'QUESTION_AUTHOR', 'REVIEWER', 'EVALUATOR')")
+@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SECURITY_ADMIN', 'EXAM_CONTROLLER', 'QUESTION_AUTHOR', 'REVIEWER', 'EVALUATOR')")
 public class AdminDashboardController {
 
     private final AdminDashboardService adminDashboardService;
@@ -67,6 +68,6 @@ public class AdminDashboardController {
         if (contextTenant != null && !contextTenant.isBlank()) {
             return contextTenant;
         }
-        return "default";
+        return SharedConstants.DEFAULT_TENANT;
     }
 }

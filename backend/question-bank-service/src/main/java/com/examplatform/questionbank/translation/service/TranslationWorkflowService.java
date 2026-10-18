@@ -22,8 +22,8 @@ package com.examplatform.questionbank.translation.service;
 import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.dto.QuestionOption;
 import com.examplatform.questionbank.repository.QuestionRepository;
-import com.examplatform.questionbank.translation.domain.Translation;
 import com.examplatform.questionbank.translation.domain.TranslatedQuestionPayload;
+import com.examplatform.questionbank.translation.domain.Translation;
 import com.examplatform.questionbank.translation.dto.TranslatedOptionDto;
 import com.examplatform.questionbank.translation.dto.TranslationRequest;
 import com.examplatform.questionbank.translation.repository.TranslationRepository;
@@ -32,12 +32,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -113,7 +108,7 @@ public class TranslationWorkflowService {
                 .findByQuestionIdAndLanguageCodeAndTenantId(request.getQuestionId(), request.getLanguageCode(), tenantId);
 
         if (!existing.isEmpty()) {
-            Translation translation = existing.get(0);
+            Translation translation = existing.getFirst();
             translation.setTranslatedPayload(serialized);
             translation.setPayloadEncrypted(payloadService.isEncryptionEnabled());
             translation.setSourceVersion(question.getVersion() != null ? question.getVersion() : 0L);
@@ -193,7 +188,18 @@ public class TranslationWorkflowService {
     /**
      * Upsert a translation (e.g. from automated IndicTrans2 background pipeline).
      * If existing translation exists, updates payload and sets to target status (e.g. PUBLISHED).
-     * If not, inserts new translation directly.
+     * If not, inserts new record with target status.
+     *
+     * @param questionId            source question ID
+     * @param languageCode          target language code
+     * @param content               translated content text
+     * @param options               translated option list
+     * @param explanation           translated explanation (nullable)
+     * @param targetStatus          status to assign (PUBLISHED, APPROVED, etc.)
+     * @param translatorOrSystemId  UUID of translator or automated system
+     * @param reviewComments        optional review comments
+     * @param tenantId              examination authority identifier
+     * @return saved Translation entity
      */
     public Translation upsertTranslation(
             UUID questionId,
@@ -214,9 +220,9 @@ public class TranslationWorkflowService {
                 resolvePayloadOptions(options, question);
 
         TranslatedQuestionPayload payload = new TranslatedQuestionPayload(
-                content != null ? content : "",
+                LatexPreservationUtil.cleanStrayUnderscores(content != null ? content : ""),
                 payloadOptions,
-                explanation
+                LatexPreservationUtil.cleanStrayUnderscores(explanation)
         );
 
         String serialized = payloadService.serialize(payload);
@@ -228,7 +234,7 @@ public class TranslationWorkflowService {
 
         Translation translation;
         if (!existing.isEmpty()) {
-            translation = existing.get(0);
+            translation = existing.getFirst();
             translation.setTranslatedPayload(serialized);
             translation.setPayloadEncrypted(payloadService.isEncryptionEnabled());
             translation.setSourceVersion(question.getVersion() != null ? question.getVersion() : 0L);
@@ -294,9 +300,9 @@ public class TranslationWorkflowService {
                 resolvePayloadOptions(request.getTranslatedOptions(), question);
 
         return new TranslatedQuestionPayload(
-                request.getTranslatedContent(),
+                LatexPreservationUtil.cleanStrayUnderscores(request.getTranslatedContent()),
                 options,
-                request.getTranslatedExplanation()
+                LatexPreservationUtil.cleanStrayUnderscores(request.getTranslatedExplanation())
         );
     }
 
@@ -315,13 +321,17 @@ public class TranslationWorkflowService {
                 String altText = (dto.imageAltText() != null && !dto.imageAltText().isBlank())
                         ? dto.imageAltText()
                         : (src != null ? src.getImageAltText() : null);
-                return new TranslatedQuestionPayload.TranslatedOption(dto.id(), dto.text(), imgUrl, altText);
+                return new TranslatedQuestionPayload.TranslatedOption(
+                        dto.id(),
+                        LatexPreservationUtil.cleanStrayUnderscores(dto.text()),
+                        imgUrl,
+                        altText);
             }).toList();
         } else if (question != null && question.getOptions() != null && !question.getOptions().isEmpty()) {
             return question.getOptions().stream().map(src ->
                     new TranslatedQuestionPayload.TranslatedOption(
                             src.getId(),
-                            src.getText(),
+                            LatexPreservationUtil.cleanStrayUnderscores(src.getText()),
                             src.getImageUrl(),
                             src.getImageAltText()
                     )

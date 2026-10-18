@@ -20,6 +20,7 @@
 package com.examplatform.asset.validation;
 
 import com.examplatform.asset.domain.enums.AssetType;
+import com.examplatform.shared.constants.SharedConstants;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -104,7 +105,7 @@ public class SecurityValidationPipeline {
      */
     public static String computeSha256(byte[] data) {
         try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            MessageDigest digest = MessageDigest.getInstance(SharedConstants.SHA_256);
             byte[] hashBytes = digest.digest(data);
             return bytesToHex(hashBytes);
         } catch (NoSuchAlgorithmException e) {

@@ -25,14 +25,10 @@ import com.examplatform.identity.dto.AuthTokenRequest;
 import com.examplatform.identity.dto.AuthTokenResponse;
 import com.examplatform.identity.exception.MfaRequiredException;
 import com.examplatform.identity.repository.UserAccountRepository;
-import com.examplatform.identity.service.AuthenticationService;
-import com.examplatform.identity.service.GeoIpService;
-import com.examplatform.shared.crypto.HashingService;
-import com.examplatform.identity.service.KeycloakService;
-import com.examplatform.identity.service.OtpService;
-import com.examplatform.identity.service.RiskAssessmentService;
+import com.examplatform.identity.service.*;
 import com.examplatform.identity.support.AbstractIntegrationTest;
 import com.examplatform.shared.config.DynamicConfigService;
+import com.examplatform.shared.crypto.HashingService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -42,7 +38,6 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -107,6 +102,7 @@ class IpGeoRiskIntegrationTest extends AbstractIntegrationTest {
         // Mock DynamicConfigService defaults
         when(dynamicConfigService.getBoolean(eq("auth.mfa.enforced"), eq(TENANT_ID), any(Boolean.class))).thenReturn(false);
         when(dynamicConfigService.getBoolean(eq("auth.stepup.enforced"), eq(TENANT_ID), any(Boolean.class))).thenReturn(true);
+        when(dynamicConfigService.getBoolean(eq("auth.risk.time.enabled"), eq(TENANT_ID), any(Boolean.class))).thenReturn(false);
         when(dynamicConfigService.getBoolean(eq("auth.risk.ip.enabled"), eq(TENANT_ID), eq(true))).thenReturn(true);
         when(dynamicConfigService.getBoolean(eq("auth.risk.ip.country-change.enabled"), eq(TENANT_ID), eq(true))).thenReturn(true);
         when(dynamicConfigService.getBoolean(eq("auth.risk.ip.vpn-tor.enabled"), eq(TENANT_ID), eq(true))).thenReturn(true);
@@ -208,7 +204,8 @@ class IpGeoRiskIntegrationTest extends AbstractIntegrationTest {
                             .build());
 
             AuthTokenRequest request = new AuthTokenRequest(USERNAME, PASSWORD, null, "test-device-fp");
-            AuthTokenResponse response = authenticationService.authenticate(request, TENANT_ID, "103.21.244.1");
+            AuthTokenResponse response = authenticationService.authenticate(
+                    request, TENANT_ID, "103.21.244.1", LocalDateTime.of(2026, 10, 12, 14, 0));
 
             assertThat(response).isNotNull();
             assertThat(response.getAccessToken()).isEqualTo("jwt.test.token");
@@ -232,7 +229,8 @@ class IpGeoRiskIntegrationTest extends AbstractIntegrationTest {
             // Attempt login from US IP without OTP
             AuthTokenRequest request = new AuthTokenRequest(USERNAME, PASSWORD, null, "test-device-fp");
 
-            assertThatThrownBy(() -> authenticationService.authenticate(request, TENANT_ID, "8.8.8.8"))
+            assertThatThrownBy(() -> authenticationService.authenticate(
+                    request, TENANT_ID, "8.8.8.8", LocalDateTime.of(2026, 10, 12, 14, 0)))
                     .isInstanceOf(MfaRequiredException.class)
                     .hasMessageContaining("Step-up authentication required");
         }

@@ -18,8 +18,8 @@ import { FormsModule } from '@angular/forms';
 export class ExamFormRulesComponent {
   readonly duration = input<number>(180);
   readonly totalMarks = input<number>(300);
-  readonly navPolicy = input<string>('FREE_NAVIGATION');
-  readonly calcPolicy = input<string>('VIRTUAL_SCIENTIFIC');
+  readonly navPolicy = input<string>('FLEXIBLE');
+  readonly calcPolicy = input<string>('NONE');
   readonly negMarking = input<boolean>(true);
   readonly negMarkingValue = input<number>(1.0);
   readonly reviewFlag = input<boolean>(true);

@@ -19,9 +19,11 @@
 
 package com.examplatform.admin.controller;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.tenant.TenantContext;
 import org.springframework.security.oauth2.jwt.Jwt;
 
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 /**
@@ -42,17 +44,21 @@ public final class AdminControllerHelper {
         if (contextTenant != null && !contextTenant.isBlank()) {
             return contextTenant;
         }
-        return "default";
+        return SharedConstants.DEFAULT_TENANT;
     }
 
     public static UUID extractActorId(Jwt jwt) {
-        if (jwt == null || jwt.getSubject() == null) {
+        if (jwt == null) {
+            return DEFAULT_ANONYMOUS_ACTOR;
+        }
+        String subject = jwt.getSubject();
+        if (subject == null) {
             return DEFAULT_ANONYMOUS_ACTOR;
         }
         try {
-            return UUID.fromString(jwt.getSubject());
-        } catch (IllegalArgumentException e) {
-            return UUID.nameUUIDFromBytes(jwt.getSubject().getBytes());
+            return UUID.fromString(subject);
+        } catch (IllegalArgumentException _) {
+            return UUID.nameUUIDFromBytes(subject.getBytes(StandardCharsets.UTF_8));
         }
     }
 }

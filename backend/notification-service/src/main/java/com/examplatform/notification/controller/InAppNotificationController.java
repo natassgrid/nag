@@ -21,6 +21,7 @@ package com.examplatform.notification.controller;
 
 import com.examplatform.notification.domain.Notification;
 import com.examplatform.notification.service.InAppNotificationService;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,15 +33,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -72,8 +70,8 @@ public class InAppNotificationController {
     public ResponseEntity<Page<Notification>> getNotifications(
             @PageableDefault(size = 20) Pageable pageable,
             @AuthenticationPrincipal Jwt jwt) {
-        UUID userId = UUID.fromString(jwt.getSubject());
-        String tenantId = TenantContext.get() != null ? TenantContext.get() : "default";
+        UUID userId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
+        String tenantId = TenantContext.get() != null ? TenantContext.get() : SharedConstants.DEFAULT_TENANT;
 
         Page<Notification> notifications = inAppNotificationService.getNotifications(
                 userId, tenantId, pageable);
@@ -87,7 +85,7 @@ public class InAppNotificationController {
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @PreAuthorize("isAuthenticated()")
     public SseEmitter streamNotifications(@AuthenticationPrincipal Jwt jwt) {
-        UUID userId = UUID.fromString(jwt.getSubject());
+        UUID userId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
         log.info("SSE connection established for userId={}", userId);
 
         SseEmitter emitter = new SseEmitter(Long.MAX_VALUE);
@@ -129,8 +127,8 @@ public class InAppNotificationController {
     public ResponseEntity<Notification> markAsRead(
             @PathVariable UUID id,
             @AuthenticationPrincipal Jwt jwt) {
-        UUID userId = UUID.fromString(jwt.getSubject());
-        String tenantId = TenantContext.get() != null ? TenantContext.get() : "default";
+        UUID userId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
+        String tenantId = TenantContext.get() != null ? TenantContext.get() : SharedConstants.DEFAULT_TENANT;
 
         Notification notification = inAppNotificationService.markAsRead(id, userId, tenantId);
         return ResponseEntity.ok(notification);

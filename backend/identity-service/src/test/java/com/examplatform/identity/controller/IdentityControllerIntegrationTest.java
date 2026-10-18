@@ -21,12 +21,7 @@ package com.examplatform.identity.controller;
 
 import com.examplatform.identity.domain.enums.IdentityDocType;
 import com.examplatform.identity.dto.*;
-import com.examplatform.identity.exception.AccountNotFoundException;
-import com.examplatform.identity.exception.AccountNotVerifiedException;
-import com.examplatform.identity.exception.AuthenticationException;
-import com.examplatform.identity.exception.DuplicateIdentityException;
-import com.examplatform.identity.exception.InvalidOtpException;
-import com.examplatform.identity.exception.MfaRequiredException;
+import com.examplatform.identity.exception.*;
 import com.examplatform.identity.service.*;
 import com.examplatform.identity.support.AbstractIntegrationTest;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,15 +36,12 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @DisplayName("IdentityController REST Endpoints E2E Tests (MockMvc)")
 class IdentityControllerIntegrationTest extends AbstractIntegrationTest {
@@ -444,7 +436,7 @@ class IdentityControllerIntegrationTest extends AbstractIntegrationTest {
                     .andExpect(jsonPath("$.message").value("Password changed successfully."));
 
             verify(authenticationService).changePassword(
-                    eq(TEST_USER_ID.toString()), eq("OldSecurePassword123#"), eq("NewSecurePassword123#"), eq(TENANT_ID));
+                    eq(TEST_USER_ID.toString()), eq("NewSecurePassword123#"), eq(TENANT_ID));
         }
 
         @Test
@@ -455,7 +447,7 @@ class IdentityControllerIntegrationTest extends AbstractIntegrationTest {
             request.setNewPassword("NewSecurePassword123#");
 
             doThrow(new AuthenticationException("Current password is incorrect."))
-                    .when(authenticationService).changePassword(any(), any(), any(), any());
+                    .when(authenticationService).changePassword(any(), any(), any());
 
             mockMvc.perform(post("/api/v1/identity/auth/change-password")
                             .header("X-Tenant-Id", TENANT_ID)

@@ -31,4 +31,5 @@ message ShiftAssignmentGrpcResponse {
   int32 extra_time_minutes = 4;
   string exam_shift_id = 5;
   bool is_assigned = 6;
+  string navigation_policy = 7;
 }

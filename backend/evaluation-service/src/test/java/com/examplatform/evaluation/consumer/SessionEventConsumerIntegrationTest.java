@@ -28,6 +28,9 @@ import com.examplatform.evaluation.dto.MarkingScheme;
 import com.examplatform.evaluation.exception.UpstreamServiceUnavailableException;
 import com.examplatform.evaluation.repository.EvaluationRepository;
 import com.examplatform.evaluation.support.AbstractIntegrationTest;
+import com.examplatform.shared.constants.MessagingConstants;
+import com.examplatform.shared.constants.QuestionTypeConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import com.examplatform.shared.messaging.GenericDomainEvent;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,13 +48,8 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 @DisplayName("Evaluation Pipeline End-to-End Integration Tests (#140 / #108)")
 class SessionEventConsumerIntegrationTest extends AbstractIntegrationTest {
@@ -101,7 +99,7 @@ class SessionEventConsumerIntegrationTest extends AbstractIntegrationTest {
             List<AnswerKey> mockAnswerKeys = List.of(
                     AnswerKey.builder()
                             .questionId(q1SingleMcqCorrect)
-                            .questionType("SINGLE_MCQ")
+                            .questionType(QuestionTypeConstants.SINGLE_MCQ)
                             .correctAnswer("[\"opt-A\"]")
                             .marksPerQuestion(4.0)
                             .negativeMarks(1.0)
@@ -109,7 +107,7 @@ class SessionEventConsumerIntegrationTest extends AbstractIntegrationTest {
                             .build(),
                     AnswerKey.builder()
                             .questionId(q2SingleMcqWrong)
-                            .questionType("SINGLE_MCQ")
+                            .questionType(QuestionTypeConstants.SINGLE_MCQ)
                             .correctAnswer("[\"opt-B\"]")
                             .marksPerQuestion(4.0)
                             .negativeMarks(1.0)
@@ -117,7 +115,7 @@ class SessionEventConsumerIntegrationTest extends AbstractIntegrationTest {
                             .build(),
                     AnswerKey.builder()
                             .questionId(q3MultiMcqPartial)
-                            .questionType("MULTI_MCQ")
+                            .questionType(QuestionTypeConstants.MULTI_MCQ)
                             .correctAnswer("[\"opt-A\", \"opt-B\", \"opt-C\", \"opt-D\"]")
                             .marksPerQuestion(4.0)
                             .negativeMarks(1.0)
@@ -125,7 +123,7 @@ class SessionEventConsumerIntegrationTest extends AbstractIntegrationTest {
                             .build(),
                     AnswerKey.builder()
                             .questionId(q4MultiMcqWrong)
-                            .questionType("MULTI_MCQ")
+                            .questionType(QuestionTypeConstants.MULTI_MCQ)
                             .correctAnswer("[\"opt-A\", \"opt-B\"]")
                             .marksPerQuestion(4.0)
                             .negativeMarks(1.0)
@@ -133,7 +131,7 @@ class SessionEventConsumerIntegrationTest extends AbstractIntegrationTest {
                             .build(),
                     AnswerKey.builder()
                             .questionId(q5NumericalCorrect)
-                            .questionType("NUMERICAL")
+                            .questionType(QuestionTypeConstants.NUMERICAL)
                             .correctAnswer("42.0")
                             .marksPerQuestion(4.0)
                             .negativeMarks(0.5)
@@ -141,7 +139,7 @@ class SessionEventConsumerIntegrationTest extends AbstractIntegrationTest {
                             .build(),
                     AnswerKey.builder()
                             .questionId(q6NumericalWrong)
-                            .questionType("NUMERICAL")
+                            .questionType(QuestionTypeConstants.NUMERICAL)
                             .correctAnswer("100.0")
                             .marksPerQuestion(4.0)
                             .negativeMarks(0.5)
@@ -149,7 +147,7 @@ class SessionEventConsumerIntegrationTest extends AbstractIntegrationTest {
                             .build(),
                     AnswerKey.builder()
                             .questionId(q7Unattempted)
-                            .questionType("SINGLE_MCQ")
+                            .questionType(QuestionTypeConstants.SINGLE_MCQ)
                             .correctAnswer("[\"opt-A\"]")
                             .marksPerQuestion(4.0)
                             .negativeMarks(1.0)
@@ -157,7 +155,7 @@ class SessionEventConsumerIntegrationTest extends AbstractIntegrationTest {
                             .build(),
                     AnswerKey.builder()
                             .questionId(q8ZeroNegativeScheme)
-                            .questionType("SINGLE_MCQ")
+                            .questionType(QuestionTypeConstants.SINGLE_MCQ)
                             .correctAnswer("[\"opt-A\"]")
                             .marksPerQuestion(4.0)
                             .negativeMarks(1.0)
@@ -218,7 +216,7 @@ class SessionEventConsumerIntegrationTest extends AbstractIntegrationTest {
                     "candidateId", candidateId.toString(),
                     "paperId", paperId.toString(),
                     "examId", examId.toString(),
-                    "tenantId", tenantId
+                SharedConstants.TENANT_ID, tenantId
             );
             sessionEventConsumer.onSpringSessionEvent(new GenericDomainEvent(
                     SessionEventConsumer.SESSION_EVENTS_TOPIC,
@@ -251,14 +249,14 @@ class SessionEventConsumerIntegrationTest extends AbstractIntegrationTest {
             // Total: 4.0 - 1.0 + 2.0 - 1.0 + 4.0 - 0.5 + 0.0 + 0.0 = 7.50
             @SuppressWarnings("unchecked")
             ArgumentCaptor<Map<String, Object>> completedEventCaptor = ArgumentCaptor.forClass(Map.class);
-            verify(eventPublisher, atLeastOnce()).publish(eq("exam.evaluation.completed"), eq(sessionId.toString()), completedEventCaptor.capture());
+            verify(eventPublisher, atLeastOnce()).publish(eq(MessagingConstants.EVALUATION_COMPLETED_TOPIC), eq(sessionId.toString()), completedEventCaptor.capture());
 
             Map<String, Object> completedEvent = completedEventCaptor.getValue();
             assertThat(completedEvent.get("eventType")).isEqualTo("EVALUATION_COMPLETED");
             assertThat(completedEvent.get("sessionId")).isEqualTo(sessionId.toString());
             assertThat(completedEvent.get("candidateId")).isEqualTo(candidateId.toString());
             assertThat(completedEvent.get("examId")).isEqualTo(examId.toString());
-            assertThat(completedEvent.get("tenantId")).isEqualTo(tenantId);
+            assertThat(completedEvent.get(SharedConstants.TENANT_ID)).isEqualTo(tenantId);
             assertThat(completedEvent.get("totalRawScore")).isEqualTo(new BigDecimal("7.50"));
 
             @SuppressWarnings("unchecked")
@@ -294,7 +292,7 @@ class SessionEventConsumerIntegrationTest extends AbstractIntegrationTest {
                     "candidateId", candidateId.toString(),
                     "paperId", paperId.toString(),
                     "examId", examId.toString(),
-                    "tenantId", tenantId
+                SharedConstants.TENANT_ID, tenantId
             );
             sessionEventConsumer.onSpringSessionEvent(new GenericDomainEvent(
                     SessionEventConsumer.SESSION_EVENTS_TOPIC,
@@ -317,13 +315,13 @@ class SessionEventConsumerIntegrationTest extends AbstractIntegrationTest {
             assertThat(dlqEvent.get("candidateId")).isEqualTo(candidateId.toString());
             assertThat(dlqEvent.get("paperId")).isEqualTo(paperId.toString());
             assertThat(dlqEvent.get("examId")).isEqualTo(examId.toString());
-            assertThat(dlqEvent.get("tenantId")).isEqualTo(tenantId);
+            assertThat(dlqEvent.get(SharedConstants.TENANT_ID)).isEqualTo(tenantId);
             assertThat(dlqEvent.get("reason").toString()).contains("Connection to question-bank-service refused");
             assertThat(dlqEvent).containsKey("failedAt");
             assertThat(dlqEvent).containsKey("originalEvent");
 
             // Verify completed event was NEVER published
-            verify(eventPublisher, never()).publish(eq("exam.evaluation.completed"), anyString(), any());
+            verify(eventPublisher, never()).publish(eq(MessagingConstants.EVALUATION_COMPLETED_TOPIC), anyString(), any());
         }
 
         @Test
@@ -342,7 +340,7 @@ class SessionEventConsumerIntegrationTest extends AbstractIntegrationTest {
                     "sessionId", sessionId.toString(),
                     "candidateId", candidateId.toString(),
                     "paperId", paperId.toString(),
-                    "tenantId", tenantId
+                SharedConstants.TENANT_ID, tenantId
             );
             sessionEventConsumer.onSpringSessionEvent(new GenericDomainEvent(
                     SessionEventConsumer.SESSION_EVENTS_TOPIC,
@@ -413,7 +411,7 @@ class SessionEventConsumerIntegrationTest extends AbstractIntegrationTest {
                     .thenReturn(List.of(
                             AnswerKey.builder()
                                     .questionId(questionId)
-                                    .questionType("SINGLE_MCQ")
+                                    .questionType(QuestionTypeConstants.SINGLE_MCQ)
                                     .correctAnswer("[\"opt-1\"]")
                                     .marksPerQuestion(2.0)
                                     .negativeMarks(0.5)
@@ -436,7 +434,7 @@ class SessionEventConsumerIntegrationTest extends AbstractIntegrationTest {
                     "candidateId", candidateId.toString(),
                     "paperId", paperId.toString(),
                     "examId", examId.toString(),
-                    "tenantId", customTenantId
+                SharedConstants.TENANT_ID, customTenantId
             );
             sessionEventConsumer.onSpringSessionEvent(new GenericDomainEvent(
                     SessionEventConsumer.SESSION_EVENTS_TOPIC,
@@ -451,10 +449,10 @@ class SessionEventConsumerIntegrationTest extends AbstractIntegrationTest {
 
             @SuppressWarnings("unchecked")
             ArgumentCaptor<Map<String, Object>> completedEventCaptor = ArgumentCaptor.forClass(Map.class);
-            verify(eventPublisher, atLeastOnce()).publish(eq("exam.evaluation.completed"), eq(sessionId.toString()), completedEventCaptor.capture());
+            verify(eventPublisher, atLeastOnce()).publish(eq(MessagingConstants.EVALUATION_COMPLETED_TOPIC), eq(sessionId.toString()), completedEventCaptor.capture());
 
             Map<String, Object> completedEvent = completedEventCaptor.getValue();
-            assertThat(completedEvent.get("tenantId")).isEqualTo(customTenantId);
+            assertThat(completedEvent.get(SharedConstants.TENANT_ID)).isEqualTo(customTenantId);
         }
     }
 }

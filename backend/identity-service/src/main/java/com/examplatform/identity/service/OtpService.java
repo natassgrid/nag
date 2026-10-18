@@ -19,12 +19,10 @@
 
 package com.examplatform.identity.service;
 
-import com.examplatform.shared.crypto.HashingService;
-
-import com.examplatform.identity.config.SmsProperties;
 import com.examplatform.identity.domain.OtpVerification;
-import com.examplatform.identity.exception.RateLimitExceededException;
 import com.examplatform.identity.repository.OtpVerificationRepository;
+import com.examplatform.shared.constants.SharedConstants;
+import com.examplatform.shared.crypto.HashingService;
 import com.examplatform.shared.messaging.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -63,7 +61,7 @@ public class OtpService {
      */
     @Transactional
     public void sendSmsOtp(UUID userId, String mobileHash, String mobileNumber, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         String identifier = (userId != null) ? (userId + ":SMS") : (effectiveTenant + ":SMS:" + (mobileHash != null ? mobileHash : "anonymous"));
 
         // 0. Enforce weekly SMS quota if enabled
@@ -92,7 +90,7 @@ public class OtpService {
      */
     @Transactional
     public void sendEmailOtp(UUID userId, String emailHash, String email, String candidateName, String tenantId) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         String identifier = (userId != null) ? (userId + ":EMAIL") : (effectiveTenant + ":EMAIL:" + (emailHash != null ? emailHash : "anonymous"));
 
         GeneratedOtp generatedOtp = generateAndPersistOtp(
@@ -159,10 +157,10 @@ public class OtpService {
             String otpHash,
             LocalDateTime expiresAt) {
         var notificationEvent = Map.of(
-                "eventType", eventType,
+            SharedConstants.EVENT_TYPE, eventType,
                 "userId", userId != null ? userId.toString() : "",
                 hashKey, hashValue != null ? hashValue : "",
-                "tenantId", effectiveTenant,
+            SharedConstants.TENANT_ID, effectiveTenant,
                 "channel", channel,
                 "otpHash", otpHash,
                 "expiresAt", expiresAt != null ? expiresAt.toString() : ""
@@ -179,7 +177,7 @@ public class OtpService {
      */
     @Transactional
     public void sendOtp(UUID userId, String mobileHash, String mobile) {
-        sendSmsOtp(userId, mobileHash, mobile, "default");
+        sendSmsOtp(userId, mobileHash, mobile, SharedConstants.DEFAULT_TENANT);
     }
 
     /**
@@ -196,7 +194,7 @@ public class OtpService {
      */
     @Transactional
     public boolean verifyEmailOtp(UUID userId, String emailHash, String otpCode) {
-        return verifyEmailOtp(userId, emailHash, otpCode, "default");
+        return verifyEmailOtp(userId, emailHash, otpCode, SharedConstants.DEFAULT_TENANT);
     }
 
     /**
@@ -212,16 +210,16 @@ public class OtpService {
      */
     @Transactional
     public boolean verifyOtp(String mobileHash, String otpCode) {
-        return verifyMobileOtp(null, mobileHash, otpCode, "default");
+        return verifyMobileOtp(null, mobileHash, otpCode, SharedConstants.DEFAULT_TENANT);
     }
 
     @Transactional
     public boolean verifyMobileOtp(UUID userId, String mobileHash, String otpCode) {
-        return verifyMobileOtp(userId, mobileHash, otpCode, "default");
+        return verifyMobileOtp(userId, mobileHash, otpCode, SharedConstants.DEFAULT_TENANT);
     }
 
     private boolean verifyOtpInternal(UUID userId, String targetHash, String otpCode, String tenantId, String otpType, String channelSuffix) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : "default";
+        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
         String identifier = (userId != null) ? (userId + ":" + channelSuffix) : (effectiveTenant + ":" + channelSuffix + ":" + (targetHash != null ? targetHash : "anonymous"));
 
         // Developer test bypass code 000000

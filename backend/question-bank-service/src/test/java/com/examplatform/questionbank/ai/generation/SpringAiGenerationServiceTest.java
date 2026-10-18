@@ -21,6 +21,9 @@ import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.repository.QuestionRepository;
 import com.examplatform.questionbank.repository.SimilarityResult;
 import com.examplatform.questionbank.service.SimilarityDetectionService;
+import com.examplatform.shared.constants.QuestionStateConstants;
+import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.examplatform.shared.constants.QuestionTypeConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -35,14 +38,8 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 /**
  * Integration tests for {@link SpringAiGenerationService}.
@@ -156,9 +153,9 @@ class SpringAiGenerationServiceTest {
             QuestionGenerationRequest request = QuestionGenerationRequest.builder()
                     .subject("Mathematics")
                     .topic("Quadratic Equations")
-                    .difficulty("MEDIUM")
-                    .cognitiveLevel("APPLY")
-                    .questionType("SINGLE_MCQ")
+                    .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
+                    .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.APPLY)
+                    .questionType(QuestionTypeConstants.SINGLE_MCQ)
                     .count(1)
                     .avoidDuplicate(true)
                     .autoSave(false)
@@ -179,9 +176,9 @@ class SpringAiGenerationServiceTest {
             assertThat(question.getContent()).isEqualTo("Solve: $$x^2 - 5x + 6 = 0$$");
             assertThat(question.getAnswerKey()).isEqualTo("A");
             assertThat(question.getOptions()).hasSize(4);
-            assertThat(question.getDifficulty()).isEqualTo("MEDIUM");
-            assertThat(question.getCognitiveLevel()).isEqualTo("APPLY");
-            assertThat(question.getQuestionType()).isEqualTo("SINGLE_MCQ");
+            assertThat(question.getDifficulty()).isEqualTo(QuestionTaxonomyConstants.Difficulty.MEDIUM);
+            assertThat(question.getCognitiveLevel()).isEqualTo(QuestionTaxonomyConstants.CognitiveLevel.APPLY);
+            assertThat(question.getQuestionType()).isEqualTo(QuestionTypeConstants.SINGLE_MCQ);
             assertThat(question.getValidation().isValid()).isTrue();
             assertThat(question.getValidation().getErrors()).isEmpty();
             assertThat(question.getDuplicate()).isNull();
@@ -235,9 +232,9 @@ class SpringAiGenerationServiceTest {
             QuestionGenerationRequest request = QuestionGenerationRequest.builder()
                     .subject("Mathematics")
                     .topic("Arithmetic")
-                    .difficulty("EASY")
-                    .cognitiveLevel("REMEMBER")
-                    .questionType("SINGLE_MCQ")
+                    .difficulty(QuestionTaxonomyConstants.Difficulty.EASY)
+                    .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.REMEMBER)
+                    .questionType(QuestionTypeConstants.SINGLE_MCQ)
                     .count(2)
                     .avoidDuplicate(true)
                     .autoSave(false)
@@ -287,9 +284,9 @@ class SpringAiGenerationServiceTest {
             QuestionGenerationRequest request = QuestionGenerationRequest.builder()
                     .subject("General Science")
                     .topic("Biology")
-                    .difficulty("EASY")
-                    .cognitiveLevel("REMEMBER")
-                    .questionType("SINGLE_MCQ")
+                    .difficulty(QuestionTaxonomyConstants.Difficulty.EASY)
+                    .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.REMEMBER)
+                    .questionType(QuestionTypeConstants.SINGLE_MCQ)
                     .count(1)
                     .avoidDuplicate(true)
                     .autoSave(false)
@@ -321,9 +318,9 @@ class SpringAiGenerationServiceTest {
             QuestionGenerationRequest request = QuestionGenerationRequest.builder()
                     .subject("Mathematics")
                     .topic("Algebra")
-                    .difficulty("MEDIUM")
-                    .cognitiveLevel("APPLY")
-                    .questionType("SINGLE_MCQ")
+                    .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
+                    .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.APPLY)
+                    .questionType(QuestionTypeConstants.SINGLE_MCQ)
                     .count(1)
                     .build();
 
@@ -347,9 +344,9 @@ class SpringAiGenerationServiceTest {
             QuestionGenerationRequest request = QuestionGenerationRequest.builder()
                     .subject("Indian History")
                     .topic("Mughal Empire")
-                    .difficulty("MEDIUM")
-                    .cognitiveLevel("REMEMBER")
-                    .questionType("SINGLE_MCQ")
+                    .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
+                    .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.REMEMBER)
+                    .questionType(QuestionTypeConstants.SINGLE_MCQ)
                     .count(1)
                     .build();
 
@@ -373,9 +370,9 @@ class SpringAiGenerationServiceTest {
             QuestionGenerationRequest request = QuestionGenerationRequest.builder()
                     .subject("English")
                     .topic("Grammar")
-                    .difficulty("EASY")
-                    .cognitiveLevel("UNDERSTAND")
-                    .questionType("SINGLE_MCQ")
+                    .difficulty(QuestionTaxonomyConstants.Difficulty.EASY)
+                    .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.UNDERSTAND)
+                    .questionType(QuestionTypeConstants.SINGLE_MCQ)
                     .count(1)
                     .build();
 
@@ -423,9 +420,9 @@ class SpringAiGenerationServiceTest {
             QuestionGenerationRequest request = QuestionGenerationRequest.builder()
                     .subject("Mathematics")
                     .topic("Algebra")
-                    .difficulty("EASY")
-                    .cognitiveLevel("REMEMBER")
-                    .questionType("SINGLE_MCQ")
+                    .difficulty(QuestionTaxonomyConstants.Difficulty.EASY)
+                    .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.REMEMBER)
+                    .questionType(QuestionTypeConstants.SINGLE_MCQ)
                     .count(1)
                     .avoidDuplicate(true)
                     .autoSave(false)
@@ -472,9 +469,9 @@ class SpringAiGenerationServiceTest {
             QuestionGenerationRequest request = QuestionGenerationRequest.builder()
                     .subject("Mathematics")
                     .topic("Arithmetic")
-                    .difficulty("EASY")
-                    .cognitiveLevel("REMEMBER")
-                    .questionType("SINGLE_MCQ")
+                    .difficulty(QuestionTaxonomyConstants.Difficulty.EASY)
+                    .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.REMEMBER)
+                    .questionType(QuestionTypeConstants.SINGLE_MCQ)
                     .count(1)
                     .avoidDuplicate(true)
                     .autoSave(false)
@@ -521,9 +518,9 @@ class SpringAiGenerationServiceTest {
             QuestionGenerationRequest request = QuestionGenerationRequest.builder()
                     .subject("Indian Geography")
                     .topic("Capitals")
-                    .difficulty("EASY")
-                    .cognitiveLevel("REMEMBER")
-                    .questionType("SINGLE_MCQ")
+                    .difficulty(QuestionTaxonomyConstants.Difficulty.EASY)
+                    .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.REMEMBER)
+                    .questionType(QuestionTypeConstants.SINGLE_MCQ)
                     .count(1)
                     .avoidDuplicate(true)
                     .autoSave(false)
@@ -553,9 +550,9 @@ class SpringAiGenerationServiceTest {
             QuestionGenerationRequest request = QuestionGenerationRequest.builder()
                     .subject("Mathematics")
                     .topic("Algebra")
-                    .difficulty("MEDIUM")
-                    .cognitiveLevel("APPLY")
-                    .questionType("SINGLE_MCQ")
+                    .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
+                    .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.APPLY)
+                    .questionType(QuestionTypeConstants.SINGLE_MCQ)
                     .count(1)
                     .avoidDuplicate(false)
                     .autoSave(false)
@@ -615,9 +612,9 @@ class SpringAiGenerationServiceTest {
             QuestionGenerationRequest request = QuestionGenerationRequest.builder()
                     .subject("Mathematics")
                     .topic("Quadratic Equations")
-                    .difficulty("MEDIUM")
-                    .cognitiveLevel("APPLY")
-                    .questionType("SINGLE_MCQ")
+                    .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
+                    .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.APPLY)
+                    .questionType(QuestionTypeConstants.SINGLE_MCQ)
                     .count(1)
                     .avoidDuplicate(true)
                     .autoSave(false)
@@ -668,9 +665,9 @@ class SpringAiGenerationServiceTest {
             QuestionGenerationRequest request = QuestionGenerationRequest.builder()
                     .subject("Physics")
                     .topic("Mechanics")
-                    .difficulty("EASY")
-                    .cognitiveLevel("REMEMBER")
-                    .questionType("SINGLE_MCQ")
+                    .difficulty(QuestionTaxonomyConstants.Difficulty.EASY)
+                    .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.REMEMBER)
+                    .questionType(QuestionTypeConstants.SINGLE_MCQ)
                     .count(1)
                     .avoidDuplicate(false)
                     .autoSave(false)
@@ -725,7 +722,7 @@ class SpringAiGenerationServiceTest {
             Question savedQuestion = Question.builder()
                     .subject("Physics")
                     .topic("Mechanics")
-                    .state("DRAFT")
+                    .state(QuestionStateConstants.DRAFT)
                     .build();
             savedQuestion.setTenantId(TENANT_ID);
             // Use reflection-like approach via the setter on BaseEntity
@@ -743,9 +740,9 @@ class SpringAiGenerationServiceTest {
             QuestionGenerationRequest request = QuestionGenerationRequest.builder()
                     .subject("Physics")
                     .topic("Mechanics")
-                    .difficulty("MEDIUM")
-                    .cognitiveLevel("UNDERSTAND")
-                    .questionType("SINGLE_MCQ")
+                    .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
+                    .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.UNDERSTAND)
+                    .questionType(QuestionTypeConstants.SINGLE_MCQ)
                     .count(1)
                     .avoidDuplicate(true)
                     .autoSave(true)
@@ -793,9 +790,9 @@ class SpringAiGenerationServiceTest {
             QuestionGenerationRequest request = QuestionGenerationRequest.builder()
                     .subject("English")
                     .topic("General Knowledge")
-                    .difficulty("EASY")
-                    .cognitiveLevel("REMEMBER")
-                    .questionType("SINGLE_MCQ")
+                    .difficulty(QuestionTaxonomyConstants.Difficulty.EASY)
+                    .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.REMEMBER)
+                    .questionType(QuestionTypeConstants.SINGLE_MCQ)
                     .count(1)
                     .avoidDuplicate(true)
                     .autoSave(false)
@@ -849,9 +846,9 @@ class SpringAiGenerationServiceTest {
             QuestionGenerationRequest request = QuestionGenerationRequest.builder()
                     .subject("Mathematics")
                     .topic("Algebra")
-                    .difficulty("EASY")
-                    .cognitiveLevel("REMEMBER")
-                    .questionType("SINGLE_MCQ")
+                    .difficulty(QuestionTaxonomyConstants.Difficulty.EASY)
+                    .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.REMEMBER)
+                    .questionType(QuestionTypeConstants.SINGLE_MCQ)
                     .count(1)
                     .avoidDuplicate(true)
                     .autoSave(true)
@@ -908,9 +905,9 @@ class SpringAiGenerationServiceTest {
             QuestionGenerationRequest request = QuestionGenerationRequest.builder()
                     .subject("Mathematics")
                     .topic("Quadratic Equations")
-                    .difficulty("MEDIUM")
-                    .cognitiveLevel("APPLY")
-                    .questionType("SINGLE_MCQ")
+                    .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
+                    .cognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.APPLY)
+                    .questionType(QuestionTypeConstants.SINGLE_MCQ)
                     .count(1)
                     .avoidDuplicate(true)
                     .autoSave(false)

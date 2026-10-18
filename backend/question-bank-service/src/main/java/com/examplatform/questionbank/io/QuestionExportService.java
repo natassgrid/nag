@@ -21,6 +21,7 @@ package com.examplatform.questionbank.io;
 
 import com.examplatform.questionbank.dto.QuestionResponse;
 import com.examplatform.questionbank.service.QuestionService;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import lombok.RequiredArgsConstructor;
@@ -62,9 +63,9 @@ public class QuestionExportService {
     /** CSV column order used for both export and import. */
     static final List<String> CSV_HEADERS = List.of(
             "id", "subjectId", "topicId", "subtopicId",
-            "subject", "topic", "subtopic", "chapter",
-            "difficulty", "cognitiveLevel", "questionType",
-            "content", "answerKey", "explanation", "references",
+        SharedConstants.SUBJECT, "topic", "subtopic", "chapter",
+        SharedConstants.DIFFICULTY, "cognitiveLevel", "questionType",
+        SharedConstants.CONTENT, "answerKey", "explanation", "references",
             "state", "optionsJson");
 
     private final QuestionService questionService;
@@ -170,7 +171,7 @@ public class QuestionExportService {
         Map<String, Object> manifest = new LinkedHashMap<>();
         manifest.put("schema", "nag.question-export.v1");
         manifest.put("format", format);
-        manifest.put("tenantId", tenantId);
+        manifest.put(SharedConstants.TENANT_ID, tenantId);
         manifest.put("exportedAt", Instant.now().toString());
         manifest.put("batchSize", BATCH_SIZE);
         manifest.put("totalQuestions", total);

@@ -1,0 +1,375 @@
+<div class="max-w-5xl mx-auto p-4 md:p-6 space-y-6">
+  <!-- Top Banner: DLP Phased Roadmap Overview -->
+  <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-3xl p-6 md:p-8 shadow-xl relative overflow-hidden">
+    <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div class="space-y-2">
+        <div class="flex items-center gap-2 text-xs font-semibold tracking-wider uppercase text-indigo-300">
+          <mat-icon class="!w-4 !h-4 !text-[16px]">route</mat-icon>
+          Dynamic Learning Path &bull; 4-Week "Stat Plan"
+        </div>
+        <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight">
+          Adaptive Roadmap
+        </h1>
+        <p class="text-sm text-slate-300 max-w-xl">
+          Remediate identified conceptual bottlenecks, demonstrate &ge; 70% in adaptive drills, and pass the &ge; 75% Gatekeeper test to unlock all full-length mock examinations.
+        </p>
+      </div>
+
+      <!-- Overall Progress Card -->
+      <div class="bg-white/10 backdrop-blur-md rounded-2xl p-5 border border-white/20 shrink-0 min-w-[220px]">
+        <div class="text-xs font-semibold text-indigo-200 uppercase tracking-wider mb-1">
+          Overall Progress
+        </div>
+        <div class="flex items-baseline gap-2 mb-2">
+          <span class="text-3xl font-extrabold text-white">{{ overallProgressPercent() }}%</span>
+          <span class="text-xs text-indigo-200">
+            @if (gatekeeperPassed()) {
+              Mastered &#10003;
+            } @else if (isDiagnosticRequired()) {
+              Diagnostic Needed
+            } @else {
+              Phase {{ currentPhaseNumber() }} of 3
+            }
+          </span>
+        </div>
+        <mat-progress-bar
+          mode="determinate"
+          [value]="overallProgressPercent()"
+          class="!h-2 !rounded-full"
+        ></mat-progress-bar>
+      </div>
+    </div>
+  </div>
+
+  <!-- Diagnostic Required Banner for Cold-Start Candidates -->
+  @if (isDiagnosticRequired()) {
+    <div class="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border-2 border-amber-300 rounded-3xl p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-sm">
+      <div class="flex items-start gap-4">
+        <div class="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+          <mat-icon class="!w-6 !h-6 !text-[24px]">assignment_late</mat-icon>
+        </div>
+        <div class="space-y-1">
+          <h3 class="text-lg font-bold text-slate-900">Baseline Diagnostic Required</h3>
+          <p class="text-sm text-slate-600 max-w-xl">
+            You don't have enough test history yet to personalize your 3-phase remediation curriculum. Take a baseline practice test so the AI engine can pinpoint your conceptual gaps.
+          </p>
+        </div>
+      </div>
+      <div class="shrink-0">
+        <button
+          mat-flat-button
+          color="primary"
+          type="button"
+          [disabled]="actionInProgress()"
+          (click)="onStartDiagnosticTest()"
+          class="!bg-indigo-600 hover:!bg-indigo-700 !text-white !font-bold !px-6 !py-3 !rounded-xl shadow-md flex items-center gap-2 cursor-pointer"
+        >
+          <mat-icon class="!w-5 !h-5 !text-[20px]">play_arrow</mat-icon>
+          <span>Take Baseline Practice Set</span>
+        </button>
+      </div>
+    </div>
+  }
+
+  @if (message()) {
+    <div class="bg-emerald-50 border border-emerald-300 text-emerald-800 p-4 rounded-2xl flex items-center justify-between gap-3 shadow-sm">
+      <div class="flex items-center gap-2 text-sm font-medium">
+        <mat-icon class="!w-5 !h-5 !text-[20px] text-emerald-600">check_circle</mat-icon>
+        {{ message() }}
+      </div>
+      <button mat-icon-button (click)="message.set(null)" class="text-emerald-700">
+        <mat-icon class="!w-4 !h-4 !text-[16px]">close</mat-icon>
+      </button>
+    </div>
+  }
+
+  @if (error()) {
+    <div class="bg-red-50 border border-red-300 text-red-800 p-4 rounded-2xl flex items-center justify-between gap-3 shadow-sm">
+      <div class="flex items-center gap-2 text-sm font-medium">
+        <mat-icon class="!w-5 !h-5 !text-[20px] text-red-600">error_outline</mat-icon>
+        {{ error() }}
+      </div>
+      <button mat-icon-button (click)="error.set(null)" class="text-red-700">
+        <mat-icon class="!w-4 !h-4 !text-[16px]">close</mat-icon>
+      </button>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="py-20 text-center space-y-4">
+      <mat-progress-bar mode="indeterminate" class="max-w-md mx-auto"></mat-progress-bar>
+      <p class="text-sm text-slate-500">Synchronizing adaptive milestone graph...</p>
+    </div>
+  } @else if (learningPath(); as lp) {
+    <!-- 3-Phase Stepper Cards -->
+    <div class="grid grid-cols-1 gap-6">
+
+      <!-- PHASE 1: REMEDIATION (WEEKS 1-2) -->
+      @for (phase of phases(); track phase.phaseNumber) {
+        @if (phase.phaseNumber === 1) {
+          <div class="bg-white rounded-3xl p-6 border-2 transition-all shadow-sm"
+               [ngClass]="{
+                 'border-indigo-500 ring-2 ring-indigo-100': phase.status === 'ACTIVE' || phase.status === 'IN_PROGRESS',
+                 'border-emerald-300 bg-emerald-50/20': phase.status === 'COMPLETED',
+                 'border-slate-200': phase.status === 'LOCKED'
+               }">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 pb-4 border-b border-slate-100">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl flex items-center justify-center font-extrabold text-sm"
+                     [ngClass]="{
+                       'bg-indigo-600 text-white': phase.status === 'ACTIVE' || phase.status === 'IN_PROGRESS',
+                       'bg-emerald-600 text-white': phase.status === 'COMPLETED',
+                       'bg-slate-100 text-slate-400': phase.status === 'LOCKED'
+                     }">
+                  1
+                </div>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <h2 class="text-lg font-bold text-slate-900">Phase 1: Remediation</h2>
+                    <span class="text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider"
+                          [ngClass]="{
+                            'bg-indigo-100 text-indigo-800': phase.status === 'ACTIVE' || phase.status === 'IN_PROGRESS',
+                            'bg-emerald-100 text-emerald-800': phase.status === 'COMPLETED',
+                            'bg-slate-100 text-slate-600': phase.status === 'LOCKED'
+                          }">
+                      {{ phase.status }}
+                    </span>
+                  </div>
+                  <p class="text-xs text-slate-500">Weeks 1–2 &bull; Core concepts, trap alerts & KaTeX formulas</p>
+                </div>
+              </div>
+
+              <div class="text-xs text-slate-500">
+                Target: Master all weak sub-topic micro-lessons
+              </div>
+            </div>
+
+            <!-- Milestone items cards (Weak Sub-Topics) -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              @for (item of phase.items; track getItemId(item)) {
+                <div class="p-4 rounded-2xl border transition-all flex items-center justify-between gap-3"
+                     [ngClass]="{
+                       'bg-slate-50 border-slate-200': !isItemCompleted(item),
+                       'bg-emerald-50/60 border-emerald-200': isItemCompleted(item)
+                     }">
+                  <div class="space-y-1 min-w-0">
+                    <div class="flex items-center gap-1.5">
+                      <span class="w-2 h-2 rounded-full bg-red-500 shrink-0"></span>
+                      <span class="text-xs font-semibold text-red-700 uppercase tracking-wider">Conceptual Gap</span>
+                    </div>
+                    <h3 class="text-sm font-bold text-slate-900 truncate" [matTooltip]="item.subtopicName || ''">
+                      {{ item.subtopicName }}
+                    </h3>
+                    <p class="text-xs text-slate-500 truncate">
+                      {{ item.subjectName }} &bull; {{ item.topicName }}
+                    </p>
+                  </div>
+
+                  <div class="shrink-0 flex items-center gap-2">
+                    @if (isItemCompleted(item)) {
+                      <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
+                        <mat-icon class="!w-4 !h-4 !text-[16px]">check</mat-icon>
+                        Completed
+                      </span>
+                    } @else {
+                      <button
+                        mat-flat-button
+                        color="primary"
+                        type="button"
+                        class="!bg-indigo-600 !text-white !text-xs !font-bold !rounded-xl !px-3 !py-1"
+                        (click)="onStudyMicroLesson(item)"
+                      >
+                        <mat-icon class="!w-4 !h-4 !text-[16px] mr-1">menu_book</mat-icon>
+                        Study Lesson
+                      </button>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        }
+
+        <!-- PHASE 2: ADAPTIVE QUIZZING (WEEK 3) -->
+        @if (phase.phaseNumber === 2) {
+          <div class="bg-white rounded-3xl p-6 border-2 transition-all shadow-sm"
+               [ngClass]="{
+                 'border-indigo-500 ring-2 ring-indigo-100': phase.status === 'ACTIVE' || phase.status === 'IN_PROGRESS',
+                 'border-emerald-300 bg-emerald-50/20': phase.status === 'COMPLETED',
+                 'border-slate-200 opacity-80': phase.status === 'LOCKED'
+               }">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 pb-4 border-b border-slate-100">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl flex items-center justify-center font-extrabold text-sm"
+                     [ngClass]="{
+                       'bg-indigo-600 text-white': phase.status === 'ACTIVE' || phase.status === 'IN_PROGRESS',
+                       'bg-emerald-600 text-white': phase.status === 'COMPLETED',
+                       'bg-slate-100 text-slate-400': phase.status === 'LOCKED'
+                     }">
+                  2
+                </div>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <h2 class="text-lg font-bold text-slate-900">Phase 2: Adaptive Quiz</h2>
+                    <span class="text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider"
+                          [ngClass]="{
+                            'bg-indigo-100 text-indigo-800': phase.status === 'ACTIVE' || phase.status === 'IN_PROGRESS',
+                            'bg-emerald-100 text-emerald-800': phase.status === 'COMPLETED',
+                            'bg-slate-100 text-slate-600': phase.status === 'LOCKED'
+                          }">
+                      {{ phase.status }}
+                    </span>
+                  </div>
+                  <p class="text-xs text-slate-500">Week 3 &bull; 70% Easy/Medium &bull; 30% Hard ratio &bull; Target: &ge; 70%</p>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-4">
+                <div class="text-right">
+                  <div class="text-xs text-slate-500 font-medium">Passing Target</div>
+                  <div class="text-base font-extrabold text-indigo-700">&ge; {{ phase.targetAccuracy }}%</div>
+                </div>
+                @if (phase.achievedAccuracy != null) {
+                  <div class="text-right">
+                    <div class="text-xs text-slate-500 font-medium">Achieved Score</div>
+                    <div class="text-base font-extrabold" [ngClass]="phase.passed ? 'text-emerald-700' : 'text-amber-700'">
+                      {{ phase.achievedAccuracy }}%
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+
+            <div class="bg-slate-50 rounded-2xl p-5 border border-slate-200/80 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div class="space-y-1 text-sm text-slate-700">
+                <div class="font-bold text-slate-900">Reinforcement & Pacing Drill</div>
+                <p class="text-xs text-slate-500 max-w-xl">
+                  Adaptive quiz calibrates question difficulty according to your real-time responses. Achieving a score of at least 70% will promote your path to the Phase 3 Gatekeeper test.
+                </p>
+              </div>
+
+              <div class="shrink-0 flex items-center gap-2">
+                @if (phase.status === 'LOCKED') {
+                  <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-200 text-slate-600">
+                    <mat-icon class="!w-4 !h-4 !text-[16px]">lock</mat-icon>
+                    Complete Phase 1 First
+                  </span>
+                } @else if (phase.passed) {
+                  <span class="inline-flex items-center gap-1 px-4 py-2 rounded-xl text-xs font-bold bg-emerald-100 text-emerald-800">
+                    <mat-icon class="!w-4 !h-4 !text-[16px]">verified</mat-icon>
+                    Passed ({{ phase.achievedAccuracy }}%)
+                  </span>
+                } @else {
+                  <button
+                    mat-flat-button
+                    color="primary"
+                    type="button"
+                    [disabled]="actionInProgress()"
+                    class="!bg-indigo-600 !text-white !font-bold !px-5 !py-2 !rounded-xl shadow hover:!bg-indigo-700"
+                    (click)="onStartAdaptiveQuiz()"
+                  >
+                    <mat-icon class="!w-4 !h-4 !text-[16px] mr-1">play_arrow</mat-icon>
+                    Launch Adaptive Quiz
+                  </button>
+                }
+              </div>
+            </div>
+          </div>
+        }
+
+        <!-- PHASE 3: GATEKEEPER TEST (WEEK 4) -->
+        @if (phase.phaseNumber === 3) {
+          <div class="bg-white rounded-3xl p-6 border-2 transition-all shadow-sm"
+               [ngClass]="{
+                 'border-indigo-500 ring-2 ring-indigo-100': phase.status === 'ACTIVE' || phase.status === 'IN_PROGRESS',
+                 'border-emerald-300 bg-emerald-50/20': phase.status === 'COMPLETED',
+                 'border-slate-200 opacity-80': phase.status === 'LOCKED'
+               }">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 pb-4 border-b border-slate-100">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl flex items-center justify-center font-extrabold text-sm"
+                     [ngClass]="{
+                       'bg-indigo-600 text-white': phase.status === 'ACTIVE' || phase.status === 'IN_PROGRESS',
+                       'bg-emerald-600 text-white': phase.status === 'COMPLETED',
+                       'bg-slate-100 text-slate-400': phase.status === 'LOCKED'
+                     }">
+                  3
+                </div>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <h2 class="text-lg font-bold text-slate-900">Phase 3: Gatekeeper Test</h2>
+                    <span class="text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider"
+                          [ngClass]="{
+                            'bg-indigo-100 text-indigo-800': phase.status === 'ACTIVE' || phase.status === 'IN_PROGRESS',
+                            'bg-emerald-100 text-emerald-800': phase.status === 'COMPLETED',
+                            'bg-slate-100 text-slate-600': phase.status === 'LOCKED'
+                          }">
+                      {{ phase.status }}
+                    </span>
+                  </div>
+                  <p class="text-xs text-slate-500">Week 4 &bull; Prerequisite assessment &bull; Score &ge; 75% required</p>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center">
+                  <mat-icon>shield</mat-icon>
+                </div>
+                <div class="text-right">
+                  <div class="text-xs text-slate-500 font-medium">Gatekeeper Clearance</div>
+                  <div class="text-base font-extrabold text-amber-700">&ge; {{ phase.passThreshold }}% Pass Score</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-amber-50/70 rounded-2xl p-5 border border-amber-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div class="space-y-1 text-sm text-slate-700">
+                <div class="font-bold text-slate-900 flex items-center gap-2">
+                  <span>Prerequisite Shield Active</span>
+                  @if (gatekeeperPassed()) {
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">CLEARED</span>
+                  } @else {
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold">MOCK EXAMS BLOCKED</span>
+                  }
+                </div>
+                <p class="text-xs text-slate-600 max-w-xl">
+                  @if (gatekeeperPassed()) {
+                    Congratulations! You passed the Gatekeeper Test. All full mock exams and CBT sessions are unlocked.
+                  } @else {
+                    Full mock examinations are blocked by the system until this Gatekeeper test is completed with at least 75% accuracy.
+                  }
+                </p>
+              </div>
+
+              <div class="shrink-0 flex items-center gap-2">
+                @if (phase.status === 'LOCKED') {
+                  <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-200 text-slate-600">
+                    <mat-icon class="!w-4 !h-4 !text-[16px]">lock</mat-icon>
+                    Complete Phase 2 First
+                  </span>
+                } @else if (gatekeeperPassed()) {
+                  <span class="inline-flex items-center gap-1 px-4 py-2 rounded-xl text-xs font-bold bg-emerald-100 text-emerald-800 shadow-sm">
+                    <mat-icon class="!w-4 !h-4 !text-[16px]">verified_user</mat-icon>
+                    Gatekeeper Cleared
+                  </span>
+                } @else {
+                  <button
+                    mat-flat-button
+                    color="primary"
+                    type="button"
+                    [disabled]="actionInProgress()"
+                    class="!bg-amber-600 !text-white !font-bold !px-5 !py-2 !rounded-xl shadow hover:!bg-amber-700"
+                    (click)="onStartGatekeeper()"
+                  >
+                    <mat-icon class="!w-4 !h-4 !text-[16px] mr-1">shield</mat-icon>
+                    Take Gatekeeper Test
+                  </button>
+                }
+              </div>
+            </div>
+          </div>
+        }
+      }
+    </div>
+  }
+</div>

@@ -19,13 +19,15 @@
 
 package com.examplatform.shared.api;
 
+import com.examplatform.shared.constants.QuestionStateConstants;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 
 import java.net.URI;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class ExamPlatformProblemDetailTest {
 
@@ -37,14 +39,14 @@ class ExamPlatformProblemDetailTest {
                 .title("Invalid State Transition")
                 .detail("Cannot move from APPROVED to DRAFT")
                 .instance(URI.create("/api/v1/questions/123/transition"))
-                .property("currentState", "APPROVED")
+                .property("currentState", QuestionStateConstants.APPROVED)
                 .property("traceId", "abc-123")
                 .build();
 
         assertEquals(422, problem.getStatus());
         assertEquals("Invalid State Transition", problem.getTitle());
         assertEquals("Cannot move from APPROVED to DRAFT", problem.getDetail());
-        assertEquals("APPROVED", problem.getProperties().get("currentState"));
+        assertEquals(QuestionStateConstants.APPROVED, problem.getProperties().get("currentState"));
         assertEquals("abc-123", problem.getProperties().get("traceId"));
     }
 

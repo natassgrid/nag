@@ -25,20 +25,14 @@ import com.examplatform.evaluation.dto.ScoreRecordedResponse;
 import com.examplatform.evaluation.dto.ScoreRequest;
 import com.examplatform.evaluation.service.ManualEvaluationService;
 import com.examplatform.evaluation.service.ScoreAggregationService;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.tenant.TenantContext;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
@@ -93,7 +87,7 @@ public class EvaluationController {
         UUID sessionId = UUID.fromString(body.get("sessionId"));
         UUID candidateId = UUID.fromString(body.get("candidateId"));
         UUID examId = body.containsKey("examId") && body.get("examId") != null ? UUID.fromString(body.get("examId")) : null;
-        String tenantId = TenantContext.get() != null ? TenantContext.get() : "default";
+        String tenantId = TenantContext.get() != null ? TenantContext.get() : SharedConstants.DEFAULT_TENANT;
 
         log.info("Score aggregation requested for session={}, candidate={}, exam={}", sessionId, candidateId, examId);
 
@@ -108,11 +102,11 @@ public class EvaluationController {
      * GET /api/v1/evaluations/candidate/{candidateId}
      */
     @GetMapping("/candidate/{candidateId}")
-    @PreAuthorize("hasAnyRole('CANDIDATE', 'EVALUATOR', 'EXAM_CONTROLLER', 'SUPER_ADMIN', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('CANDIDATE', 'EVALUATOR', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
     public ResponseEntity<List<Evaluation>> getCandidateEvaluations(
             @PathVariable UUID candidateId,
             @RequestParam(required = false) UUID sessionId,
-            @RequestHeader(value = "X-Tenant-Id", defaultValue = "default") String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
 
         log.info("Fetching evaluations for candidate={}, sessionId={}, tenant={}", candidateId, sessionId, tenantId);
 
