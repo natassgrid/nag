@@ -59,13 +59,21 @@ export class RecommendationsDashboardComponent {
 
   readonly isGenerating = signal<boolean>(false);
   readonly completingActivity = signal<boolean>(false);
-  readonly selectedExam = signal<string>('SSC_CGL');
+  readonly selectedExam = signal<string>('');
   readonly generateError = signal<string | null>(null);
 
   readonly activeEnrollment = this.learningService.activeEnrollment;
   readonly readinessScore = this.learningService.readinessScore;
   readonly nextActivity = this.learningService.nextActivity;
   readonly progress = this.learningService.progress;
+
+  readonly effectiveExamTarget = computed<string>(() => {
+    return (
+      this.selectedExam() ||
+      this.activeEnrollment()?.examinationCode ||
+      'GENERAL_COMPETITIVE'
+    );
+  });
 
   readonly dueReviews = computed<SubtopicMastery[]>(() => {
     return this.progress()?.dueReviews || [];
@@ -158,7 +166,7 @@ export class RecommendationsDashboardComponent {
   onRefreshRecommendations(): void {
     this.isGenerating.set(true);
     this.generateError.set(null);
-    const target = this.selectedExam();
+    const target = this.effectiveExamTarget();
     forkJoin([
       this.learningPathService.recalculate(target).pipe(catchError(() => of(null))),
       this.recommendationService.generate(target).pipe(catchError(() => of(null))),

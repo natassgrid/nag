@@ -71,8 +71,8 @@ export class PracticeSetFormModalComponent implements OnInit {
 
   form!: FormGroup;
 
-  // Source selection: 'EXAM_CLONE' (Attach Practice Paper) or 'MANUAL' (Custom Curation)
-  readonly sourceType = signal<'EXAM_CLONE' | 'MANUAL'>('EXAM_CLONE');
+  // Source selection: 'EXAM_CLONE' (Attach Practice Paper), 'MANUAL' (Custom Curation), or 'DIAGNOSTIC_TEST' (Diagnostic Baseline)
+  readonly sourceType = signal<'EXAM_CLONE' | 'MANUAL' | 'DIAGNOSTIC_TEST'>('EXAM_CLONE');
   readonly practicePapers = signal<PaperSummary[]>([]);
   readonly loadingPapers = signal<boolean>(false);
   readonly loadingPaperDetails = signal<boolean>(false);
@@ -190,7 +190,12 @@ export class PracticeSetFormModalComponent implements OnInit {
       this.loadSubjects();
       this.loadBankQuestions();
     } else {
-      const setSource = this.data.set?.source === 'EXAM_CLONE' ? 'EXAM_CLONE' : 'MANUAL';
+      const setSource =
+        this.data.set?.source === 'EXAM_CLONE'
+          ? 'EXAM_CLONE'
+          : this.data.set?.source === 'DIAGNOSTIC_TEST'
+            ? 'DIAGNOSTIC_TEST'
+            : 'MANUAL';
       this.sourceType.set(setSource);
       this.loadSubjects();
       this.loadBankQuestions();
@@ -330,13 +335,20 @@ export class PracticeSetFormModalComponent implements OnInit {
       });
   }
 
-  onSourceTypeChange(type: 'EXAM_CLONE' | 'MANUAL') {
+  onSourceTypeChange(type: 'EXAM_CLONE' | 'MANUAL' | 'DIAGNOSTIC_TEST') {
     this.sourceType.set(type);
     this.validationError.set(null);
-    if (type === 'MANUAL') {
+    if (type === 'MANUAL' || type === 'DIAGNOSTIC_TEST') {
       this.selectedPaperId.set(null);
       if (this.bankQuestions().length === 0) {
         this.loadBankQuestions();
+      }
+      if (type === 'DIAGNOSTIC_TEST' && !this.form.get('description')?.value) {
+        this.form.patchValue({
+          durationMinutes: 15,
+          description:
+            'Diagnostic baseline assessment to calibrate initial learner mastery across syllabus subtopics.',
+        });
       }
     }
     this.cdr.markForCheck();

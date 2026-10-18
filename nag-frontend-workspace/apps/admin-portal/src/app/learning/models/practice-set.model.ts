@@ -1,8 +1,16 @@
+export type PracticeSetSource =
+  | 'MANUAL'
+  | 'AUTO_GENERATED'
+  | 'EXAM_CLONE'
+  | 'DIAGNOSTIC_TEST'
+  | 'ADAPTIVE_QUIZ'
+  | 'GATEKEEPER_TEST';
+
 export interface PracticeSet {
   id: string;
   name: string;
   description: string | null;
-  source: 'MANUAL' | 'AUTO_GENERATED' | 'EXAM_CLONE';
+  source: PracticeSetSource;
   durationMinutes: number;
   subjectSlug: string | null;
   published: boolean;
@@ -18,7 +26,7 @@ export interface CreatePracticeSetRequest {
   durationMinutes: number;
   subjectSlug: string | null;
   questionIds: string[];
-  source?: 'MANUAL' | 'AUTO_GENERATED' | 'EXAM_CLONE';
+  source?: PracticeSetSource;
   totalQuestions?: number;
 }
 

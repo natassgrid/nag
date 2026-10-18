@@ -4,6 +4,7 @@ import {
   input,
   output,
   signal,
+  computed,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
@@ -39,21 +40,27 @@ export class SyllabusMasteryTreeComponent {
   readonly subtopicSelected = output<SubtopicMastery>();
   readonly practiceRequested = output<SubtopicMastery>();
 
-  readonly expandedSubjectIds = signal<Set<number>>(new Set([101, 104, 106]));
+  private readonly collapsedSubjectIds = signal<Set<number>>(new Set());
   readonly filterStatus = signal<string>('ALL');
 
+  readonly expandedSubjectIds = computed<Set<number>>(() => {
+    const collapsed = this.collapsedSubjectIds();
+    const ids = (this.syllabus() || []).map((s) => s.subjectId);
+    return new Set(ids.filter((id) => !collapsed.has(id)));
+  });
+
   toggleSubject(subjectId: number): void {
-    const set = new Set(this.expandedSubjectIds());
-    if (set.has(subjectId)) {
-      set.delete(subjectId);
+    const collapsed = new Set(this.collapsedSubjectIds());
+    if (collapsed.has(subjectId)) {
+      collapsed.delete(subjectId);
     } else {
-      set.add(subjectId);
+      collapsed.add(subjectId);
     }
-    this.expandedSubjectIds.set(set);
+    this.collapsedSubjectIds.set(collapsed);
   }
 
   isSubjectExpanded(subjectId: number): boolean {
-    return this.expandedSubjectIds().has(subjectId);
+    return !this.collapsedSubjectIds().has(subjectId);
   }
 
   getStatusBadgeClass(status: SubtopicMasteryStatus): string {

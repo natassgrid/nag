@@ -66,6 +66,14 @@ export class LearningComponent implements OnInit {
   readonly totalQuestionsCount = computed(() =>
     this.practiceSets().reduce((sum, s) => sum + (s.totalQuestions || 0), 0)
   );
+  readonly diagnosticBaselineCount = computed(
+    () =>
+      this.practiceSets().filter(
+        (s) =>
+          s.source === 'DIAGNOSTIC_TEST' ||
+          (s.name && s.name.toLowerCase().includes('diagnostic'))
+      ).length
+  );
 
   ngOnInit() {
     this.loadSets();

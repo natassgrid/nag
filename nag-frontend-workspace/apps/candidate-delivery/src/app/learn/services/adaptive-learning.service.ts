@@ -122,13 +122,17 @@ export class AdaptiveLearningService {
   }
 
   getEnrollments(): Observable<LearnerEnrollment[]> {
-    return this.http.get<LearnerEnrollment[]>('/api/v1/learner/enrollments').pipe(
+    return this.http.get<any[]>('/api/v1/learner/enrollments').pipe(
+      map((list) =>
+        Array.isArray(list) ? list.map((item) => this.normalizeEnrollment(item)) : []
+      ),
       catchError(() => of(this.activeEnrollment() ? [this.activeEnrollment()!] : []))
     );
   }
 
   getActiveEnrollment(): Observable<LearnerEnrollment | null> {
-    return this.http.get<LearnerEnrollment>('/api/v1/learner/enrollments/active').pipe(
+    return this.http.get<any>('/api/v1/learner/enrollments/active').pipe(
+      map((res) => (res ? this.normalizeEnrollment(res) : null)),
       tap((res) => {
         if (res) this.activeEnrollment.set(res);
       }),
@@ -137,7 +141,8 @@ export class AdaptiveLearningService {
   }
 
   createEnrollment(req: CreateEnrollmentRequest): Observable<LearnerEnrollment> {
-    const exam = this.publishedExams().find((e) => e.id === req.examinationId) || this.publishedExams()[0];
+    const exam =
+      this.publishedExams().find((e) => e.id === req.examinationId) || this.publishedExams()[0];
     const fallbackEnrollment: LearnerEnrollment = {
       id: `enr-${Date.now()}`,
       candidateId: this.profile()?.candidateId || 'cand-001',
@@ -148,11 +153,12 @@ export class AdaptiveLearningService {
       status: 'ACTIVE',
       startedAt: new Date().toISOString(),
       diagnosticCompleted: false,
-      readinessScore: 40,
+      readinessScore: 0,
     };
 
-    return this.http.post<LearnerEnrollment>('/api/v1/learner/enrollments', req).pipe(
-      tap((res) => this.activeEnrollment.set(res || fallbackEnrollment)),
+    return this.http.post<any>('/api/v1/learner/enrollments', req).pipe(
+      map((res) => (res ? this.normalizeEnrollment(res, fallbackEnrollment) : fallbackEnrollment)),
+      tap((res) => this.activeEnrollment.set(res)),
       catchError(() => {
         this.activeEnrollment.set(fallbackEnrollment);
         return of(fallbackEnrollment);
@@ -166,16 +172,21 @@ export class AdaptiveLearningService {
 
   startDiagnostic(enrollmentId: string): Observable<DiagnosticSession> {
     const active = this.activeEnrollment();
-    const session: DiagnosticSession = {
+    const fallbackSession: DiagnosticSession = {
       ...SEED_DIAGNOSTIC_SESSION,
       enrollmentId,
       examinationId: active?.examinationId || SEED_DIAGNOSTIC_SESSION.examinationId,
       examinationTitle: active?.examinationTitle || SEED_DIAGNOSTIC_SESSION.examinationTitle,
+      examinationCode: active?.examinationCode,
+      neutralPriorPercent: 50,
     };
 
     return this.http
-      .post<DiagnosticSession>(`/api/v1/learner/enrollments/${enrollmentId}/diagnostic`, {})
-      .pipe(catchError(() => of(session)));
+      .post<any>(`/api/v1/learner/enrollments/${enrollmentId}/diagnostic`, {})
+      .pipe(
+        map((res) => this.normalizeDiagnosticSession(res, fallbackSession)),
+        catchError(() => of(fallbackSession))
+      );
   }
 
   submitDiagnostic(
@@ -183,18 +194,23 @@ export class AdaptiveLearningService {
     req: DiagnosticSubmitRequest
   ): Observable<DiagnosticSubmitResult> {
     return this.http
-      .post<DiagnosticSubmitResult>(`/api/v1/learner/enrollments/${enrollmentId}/diagnostic/submit`, req)
+      .post<any>(`/api/v1/learner/enrollments/${enrollmentId}/diagnostic/submit`, req)
       .pipe(
+        map((res) => this.normalizeDiagnosticResult(res, enrollmentId, false)),
         tap((res) => {
           this.activeEnrollment.update((curr) =>
             curr ? { ...curr, diagnosticCompleted: true, readinessScore: res.initialReadinessScore } : null
           );
+          this.progress.update((p) =>
+            p ? { ...p, readinessScore: res.initialReadinessScore } : null
+          );
         }),
         catchError(() => {
+          const fallback = this.computeClientSideDiagnosticResult(enrollmentId, req);
           this.activeEnrollment.update((curr) =>
-            curr ? { ...curr, diagnosticCompleted: true, readinessScore: SEED_DIAGNOSTIC_RESULT.initialReadinessScore } : null
+            curr ? { ...curr, diagnosticCompleted: true, readinessScore: fallback.initialReadinessScore } : null
           );
-          return of(SEED_DIAGNOSTIC_RESULT);
+          return of(fallback);
         })
       );
   }
@@ -202,20 +218,28 @@ export class AdaptiveLearningService {
   skipDiagnostic(enrollmentId: string): Observable<DiagnosticSubmitResult> {
     const skippedResult: DiagnosticSubmitResult = {
       ...SEED_DIAGNOSTIC_RESULT,
+      enrollmentId,
+      status: 'SKIPPED',
       score: 0,
       accuracyPercent: 50,
       initialReadinessScore: 50,
+      neutralPriorPercent: 50,
+      baselineLabel: 'Neutral Baseline (50% Prior)',
+      strengths: [],
       weaknesses: ['Diagnostic skipped: subtopic mastery initialized with neutral prior.'],
     };
 
     return this.http
-      .post<DiagnosticSubmitResult>(`/api/v1/learner/enrollments/${enrollmentId}/diagnostic/submit`, {
+      .post<any>(`/api/v1/learner/enrollments/${enrollmentId}/diagnostic/submit`, {
         answers: [],
+        isSkip: true,
       })
       .pipe(
-        tap(() => {
+        map((res) => this.normalizeDiagnosticResult(res, enrollmentId, true)),
+        tap((res) => {
+          const score = res.initialReadinessScore || 50;
           this.activeEnrollment.update((curr) =>
-            curr ? { ...curr, diagnosticCompleted: true, readinessScore: 50 } : null
+            curr ? { ...curr, diagnosticCompleted: true, readinessScore: score } : null
           );
         }),
         catchError(() => {
@@ -225,6 +249,202 @@ export class AdaptiveLearningService {
           return of(skippedResult);
         })
       );
+  }
+
+  private normalizeEnrollment(raw: any, fallback?: LearnerEnrollment): LearnerEnrollment {
+    const exam = this.publishedExams().find(
+      (e) => e.id === raw?.examinationId || e.code === raw?.examinationCode
+    );
+    const diagnosticStatus = raw?.diagnosticStatus || '';
+    const diagnosticCompleted =
+      raw?.diagnosticCompleted ??
+      (diagnosticStatus === 'COMPLETED' || diagnosticStatus === 'SKIPPED');
+    const readinessScore =
+      raw?.readinessScore ??
+      (diagnosticStatus === 'SKIPPED' ? 50 : fallback?.readinessScore ?? 0);
+
+    return {
+      id: String(raw?.id || fallback?.id || `enr-${Date.now()}`),
+      candidateId: String(raw?.candidateId || fallback?.candidateId || this.profile()?.candidateId || 'cand-001'),
+      examinationId: String(raw?.examinationId || fallback?.examinationId || ''),
+      examName: raw?.examName || raw?.examinationTitle || exam?.title,
+      examinationTitle:
+        raw?.examinationTitle ||
+        raw?.examName ||
+        exam?.title ||
+        fallback?.examinationTitle ||
+        'Target Examination',
+      examinationCode:
+        raw?.examinationCode ||
+        exam?.code ||
+        fallback?.examinationCode ||
+        'GENERAL_EXAM',
+      targetDate: raw?.targetDate ?? fallback?.targetDate ?? null,
+      status: raw?.status || fallback?.status || 'ACTIVE',
+      diagnosticStatus,
+      diagnosticSessionId: raw?.diagnosticSessionId,
+      startedAt: raw?.startedAt || raw?.enrolledAt || fallback?.startedAt || new Date().toISOString(),
+      diagnosticCompleted,
+      readinessScore,
+    };
+  }
+
+  private normalizeDiagnosticSession(
+    raw: any,
+    fallback: DiagnosticSession
+  ): DiagnosticSession {
+    if (!raw || !Array.isArray(raw.questions) || raw.questions.length === 0) {
+      return fallback;
+    }
+    const questions = raw.questions.map((q: any) => ({
+      id: String(q.id || q.questionId || ''),
+      questionId: String(q.questionId || q.id || ''),
+      stem: q.stem || q.content || '',
+      content: q.content || q.stem || '',
+      options: Array.isArray(q.options)
+        ? q.options.map((o: any) => ({ id: String(o.id), text: String(o.text) }))
+        : [],
+      subjectId: Number(q.subjectId ?? 1),
+      subjectName: q.subjectName || 'General Subject',
+      topicId: Number(q.topicId ?? 10),
+      topicName: q.topicName || 'Core Topic',
+      subtopicId: Number(q.subtopicId ?? 101),
+      subtopicName: q.subtopicName || 'Core Subtopic',
+      difficulty: q.difficulty || 'CORE',
+    }));
+
+    return {
+      sessionId: String(raw.sessionId || fallback.sessionId),
+      enrollmentId: String(raw.enrollmentId || fallback.enrollmentId),
+      examinationId: String(raw.examinationId || fallback.examinationId),
+      examinationTitle:
+        raw.examinationTitle ||
+        this.activeEnrollment()?.examinationTitle ||
+        fallback.examinationTitle,
+      examinationCode:
+        raw.examinationCode ||
+        this.activeEnrollment()?.examinationCode ||
+        fallback.examinationCode,
+      status: raw.status || 'IN_PROGRESS',
+      totalQuestions: raw.totalQuestions ?? questions.length,
+      estimatedMinutes: raw.estimatedMinutes ?? Math.max(5, questions.length * 2),
+      neutralPriorPercent: raw.neutralPriorPercent ?? 50,
+      questions,
+    };
+  }
+
+  private normalizeDiagnosticResult(
+    raw: any,
+    enrollmentId: string,
+    isSkip = false
+  ): DiagnosticSubmitResult {
+    if (!raw) {
+      return {
+        ...SEED_DIAGNOSTIC_RESULT,
+        enrollmentId,
+        initialReadinessScore: isSkip ? 50 : SEED_DIAGNOSTIC_RESULT.initialReadinessScore,
+        neutralPriorPercent: 50,
+        baselineLabel: isSkip ? 'Neutral Baseline (50% Prior)' : 'Calibrated Diagnostic Baseline',
+      };
+    }
+
+    const totalQuestions = Number(raw.totalQuestions ?? SEED_DIAGNOSTIC_RESULT.totalQuestions);
+    const correctCount = Number(raw.correctCount ?? raw.correctAnswers ?? raw.score ?? 0);
+    const accuracyPercent =
+      raw.accuracyPercent !== undefined
+        ? Math.round(Number(raw.accuracyPercent))
+        : totalQuestions > 0
+          ? Math.round((correctCount * 100) / totalQuestions)
+          : isSkip
+            ? 50
+            : 0;
+    const initialReadinessScore =
+      raw.initialReadinessScore !== undefined
+        ? Number(raw.initialReadinessScore)
+        : isSkip
+          ? 50
+          : accuracyPercent;
+    const breakdownKeys =
+      raw.subtopicBreakdown && typeof raw.subtopicBreakdown === 'object'
+        ? Object.keys(raw.subtopicBreakdown).length
+        : 0;
+
+    return {
+      sessionId: raw.sessionId,
+      enrollmentId: String(raw.enrollmentId || enrollmentId),
+      status: raw.status || (isSkip ? 'SKIPPED' : 'COMPLETED'),
+      score: Number(raw.score ?? correctCount),
+      totalQuestions,
+      correctCount,
+      correctAnswers: correctCount,
+      accuracyPercent,
+      seededSubtopicsCount: Number(
+        raw.seededSubtopicsCount ?? (breakdownKeys > 0 ? breakdownKeys : Math.max(totalQuestions, 3))
+      ),
+      initialReadinessScore,
+      strengths: Array.isArray(raw.strengths) ? raw.strengths : [],
+      weaknesses:
+        Array.isArray(raw.weaknesses) && raw.weaknesses.length > 0
+          ? raw.weaknesses
+          : isSkip
+            ? ['Diagnostic skipped: subtopic mastery initialized with neutral prior.']
+            : [],
+      baselineLabel:
+        raw.baselineLabel ||
+        (isSkip ? 'Neutral Baseline (50% Prior)' : 'Calibrated Diagnostic Baseline'),
+      neutralPriorPercent: Number(raw.neutralPriorPercent ?? 50),
+      subtopicBreakdown: raw.subtopicBreakdown,
+      completedAt: raw.completedAt,
+    };
+  }
+
+  private computeClientSideDiagnosticResult(
+    enrollmentId: string,
+    req: DiagnosticSubmitRequest
+  ): DiagnosticSubmitResult {
+    const answers = req?.answers || [];
+    if (answers.length === 0) {
+      return {
+        ...SEED_DIAGNOSTIC_RESULT,
+        enrollmentId,
+        baselineLabel: 'Calibrated Diagnostic Baseline',
+        neutralPriorPercent: 50,
+      };
+    }
+    const questions = SEED_DIAGNOSTIC_SESSION.questions;
+    const strengths: string[] = [];
+    const weaknesses: string[] = [];
+    let correct = 0;
+
+    for (const ans of answers) {
+      const q = questions.find((item) => item.id === ans.questionId);
+      const isCorr = ans.selectedOptionId === 'opt-1' || ans.selectedOptionId === 'A';
+      if (isCorr) {
+        correct++;
+        if (q?.subtopicName && !strengths.includes(q.subtopicName)) {
+          strengths.push(q.subtopicName);
+        }
+      } else if (q?.subtopicName && !weaknesses.includes(q.subtopicName)) {
+        weaknesses.push(q.subtopicName);
+      }
+    }
+
+    const total = Math.max(answers.length, questions.length);
+    const accuracy = Math.round((correct * 100) / total);
+    return {
+      enrollmentId,
+      score: correct,
+      totalQuestions: total,
+      correctCount: correct,
+      correctAnswers: correct,
+      accuracyPercent: accuracy,
+      seededSubtopicsCount: total,
+      initialReadinessScore: accuracy,
+      strengths,
+      weaknesses,
+      baselineLabel: 'Calibrated Diagnostic Baseline',
+      neutralPriorPercent: 50,
+    };
   }
 
   getNextActivity(enrollmentId: string): Observable<NextActivity> {

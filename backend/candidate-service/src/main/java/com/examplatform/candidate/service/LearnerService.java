@@ -152,17 +152,17 @@ public class LearnerService {
         log.info("Created active enrollment {} for candidate {} targeting exam {} ({})",
                 saved.getId(), candidateId, exam.name(), exam.code());
 
-        return toEnrollmentResponse(saved, exam.name());
+        return toEnrollmentResponse(saved, exam.name(), exam.code());
     }
 
     @Transactional(readOnly = true)
     public Optional<LearnerEnrollmentResponse> getActiveEnrollment(UUID candidateId) {
         return enrollmentRepository.findByCandidateIdAndStatus(candidateId, "ACTIVE")
                 .map(e -> {
-                    String examName = examinationClient.getExam(e.getExaminationId(), e.getTenantId())
-                            .map(PublishedExamDto::name)
-                            .orElse("Target Examination");
-                    return toEnrollmentResponse(e, examName);
+                    Optional<PublishedExamDto> examOpt = examinationClient.getExam(e.getExaminationId(), e.getTenantId());
+                    String examName = examOpt.map(PublishedExamDto::name).orElse("Target Examination");
+                    String examCode = examOpt.map(PublishedExamDto::code).orElse("GENERAL_EXAM");
+                    return toEnrollmentResponse(e, examName, examCode);
                 });
     }
 
@@ -170,10 +170,10 @@ public class LearnerService {
     public List<LearnerEnrollmentResponse> getEnrollments(UUID candidateId) {
         return enrollmentRepository.findByCandidateIdOrderByStartedAtDesc(candidateId).stream()
                 .map(e -> {
-                    String examName = examinationClient.getExam(e.getExaminationId(), e.getTenantId())
-                            .map(PublishedExamDto::name)
-                            .orElse("Target Examination");
-                    return toEnrollmentResponse(e, examName);
+                    Optional<PublishedExamDto> examOpt = examinationClient.getExam(e.getExaminationId(), e.getTenantId());
+                    String examName = examOpt.map(PublishedExamDto::name).orElse("Target Examination");
+                    String examCode = examOpt.map(PublishedExamDto::code).orElse("GENERAL_EXAM");
+                    return toEnrollmentResponse(e, examName, examCode);
                 })
                 .toList();
     }
@@ -185,10 +185,14 @@ public class LearnerService {
         LearnerEnrollment enrollment = enrollmentRepository.findByIdAndCandidateId(enrollmentId, candidateId)
                 .orElseThrow(() -> new ResourceNotFoundException("LearnerEnrollment", enrollmentId.toString()));
 
+        Optional<PublishedExamDto> examOpt = examinationClient.getExam(enrollment.getExaminationId(), enrollment.getTenantId());
+        String examName = examOpt.map(PublishedExamDto::name).orElse("Target Examination");
+        String examCode = examOpt.map(PublishedExamDto::code).orElse("GENERAL_EXAM");
+
         // If an IN_PROGRESS session already exists, return it
         Optional<DiagnosticSession> existing = diagnosticRepository.findByEnrollmentId(enrollmentId);
         if (existing.isPresent() && "IN_PROGRESS".equalsIgnoreCase(existing.get().getStatus())) {
-            return toDiagnosticSessionResponse(existing.get());
+            return toDiagnosticSessionResponse(existing.get(), examName, examCode);
         }
 
         // Generate diagnostic question set sampled across exam syllabus
@@ -218,7 +222,7 @@ public class LearnerService {
 
         log.info("Initiated diagnostic session {} with {} questions for enrollment {}",
                 saved.getId(), questions.size(), enrollmentId);
-        return toDiagnosticSessionResponse(saved);
+        return toDiagnosticSessionResponse(saved, examName, examCode);
     }
 
     @Transactional
@@ -248,9 +252,9 @@ public class LearnerService {
             return toResultResponse(session);
         }
 
-        // Grade submitted responses
-        List<SubmitDiagnosticRequest.DiagnosticAnswerDto> answers = (req != null && req.responses() != null)
-                ? req.responses()
+        // Grade submitted responses (supports both 'responses' and 'answers' payload formats)
+        List<SubmitDiagnosticRequest.DiagnosticAnswerDto> answers = (req != null)
+                ? req.effectiveResponses()
                 : Collections.emptyList();
 
         try {
@@ -259,24 +263,34 @@ public class LearnerService {
             log.warn("Failed to serialize diagnostic responses: {}", e.getMessage());
         }
 
+        List<DiagnosticQuestionDto> sessionQuestions = parseSessionQuestions(session);
+        Map<UUID, DiagnosticQuestionDto> questionById = new HashMap<>();
+        for (DiagnosticQuestionDto q : sessionQuestions) {
+            if (q.questionId() != null) {
+                questionById.put(q.questionId(), q);
+            }
+        }
+
         int correctCount = 0;
-        Map<Long, Integer> subtopicAttempts = new HashMap<>();
-        Map<Long, Integer> subtopicCorrect = new HashMap<>();
+        Map<Long, Integer> subtopicAttempts = new LinkedHashMap<>();
+        Map<Long, Integer> subtopicCorrect = new LinkedHashMap<>();
 
         for (SubmitDiagnosticRequest.DiagnosticAnswerDto ans : answers) {
-            Long subtopicId = ans.subtopicId() != null ? ans.subtopicId() : 101L;
+            DiagnosticQuestionDto matchedQ = ans.questionId() != null ? questionById.get(ans.questionId()) : null;
+            Long subtopicId = ans.subtopicId() != null
+                    ? ans.subtopicId()
+                    : (matchedQ != null && matchedQ.subtopicId() != null ? matchedQ.subtopicId() : 101L);
             subtopicAttempts.merge(subtopicId, 1, Integer::sum);
 
-            // In simulated grading, non-empty answer is evaluated (correct if contains expected option)
-            boolean isCorrect = ans.selectedOptionIds() != null && !ans.selectedOptionIds().isEmpty()
-                    && ans.selectedOptionIds().contains("opt-1");
+            List<String> selectedIds = ans.effectiveSelectedOptionIds();
+            boolean isCorrect = !selectedIds.isEmpty() && selectedIds.contains("opt-1");
             if (isCorrect) {
                 correctCount++;
                 subtopicCorrect.merge(subtopicId, 1, Integer::sum);
             }
         }
 
-        Map<Long, Double> subtopicBreakdown = new HashMap<>();
+        Map<Long, Double> subtopicBreakdown = new LinkedHashMap<>();
         for (Map.Entry<Long, Integer> entry : subtopicAttempts.entrySet()) {
             Long sId = entry.getKey();
             int total = entry.getValue();
@@ -285,11 +299,13 @@ public class LearnerService {
         }
 
         double score = answers.isEmpty() ? 0.0 : (double) correctCount * 2.0;
-        double accuracy = answers.isEmpty() ? 0.0 : (double) correctCount * 100.0 / answers.size();
 
         session.setStatus("COMPLETED");
         session.setCorrectCount(correctCount);
         session.setScore(score);
+        if (session.getTotalQuestions() <= 0 && !answers.isEmpty()) {
+            session.setTotalQuestions(answers.size());
+        }
         try {
             session.setSubtopicResultsJson(objectMapper.writeValueAsString(subtopicBreakdown));
         } catch (Exception e) {
@@ -330,36 +346,65 @@ public class LearnerService {
         );
     }
 
-    private LearnerEnrollmentResponse toEnrollmentResponse(LearnerEnrollment e, String examName) {
+    private LearnerEnrollmentResponse toEnrollmentResponse(LearnerEnrollment e, String examName, String examCode) {
+        boolean diagnosticCompleted = "COMPLETED".equalsIgnoreCase(e.getDiagnosticStatus())
+                || "SKIPPED".equalsIgnoreCase(e.getDiagnosticStatus());
+
+        int readinessScore = 0;
+        if ("SKIPPED".equalsIgnoreCase(e.getDiagnosticStatus())) {
+            readinessScore = 50;
+        } else if ("COMPLETED".equalsIgnoreCase(e.getDiagnosticStatus())) {
+            readinessScore = diagnosticRepository.findByEnrollmentId(e.getId())
+                    .map(s -> s.getTotalQuestions() > 0
+                            ? (int) Math.round((double) s.getCorrectCount() * 100.0 / s.getTotalQuestions())
+                            : 50)
+                    .orElse(50);
+        }
+
         return new LearnerEnrollmentResponse(
                 e.getId(),
                 e.getCandidateId(),
                 e.getExaminationId(),
                 examName,
+                examName,
+                examCode,
                 e.getTargetDate(),
                 e.getStatus(),
                 e.getDiagnosticStatus(),
+                diagnosticCompleted,
                 e.getDiagnosticSessionId(),
+                readinessScore,
+                e.getStartedAt(),
                 e.getStartedAt()
         );
     }
 
-    private DiagnosticSessionResponse toDiagnosticSessionResponse(DiagnosticSession s) {
-        List<DiagnosticQuestionDto> questions = Collections.emptyList();
+    private List<DiagnosticQuestionDto> parseSessionQuestions(DiagnosticSession s) {
         if (s.getQuestionsJson() != null && !s.getQuestionsJson().isBlank()) {
             try {
-                questions = objectMapper.readValue(s.getQuestionsJson(), new TypeReference<>() {});
+                return objectMapper.readValue(s.getQuestionsJson(), new TypeReference<>() {});
             } catch (Exception ignored) {}
         }
+        return Collections.emptyList();
+    }
+
+    private DiagnosticSessionResponse toDiagnosticSessionResponse(
+            DiagnosticSession s, String examName, String examCode) {
+        List<DiagnosticQuestionDto> questions = parseSessionQuestions(s);
+        int totalQ = s.getTotalQuestions() > 0 ? s.getTotalQuestions() : questions.size();
 
         return new DiagnosticSessionResponse(
                 s.getId(),
                 s.getEnrollmentId(),
                 s.getCandidateId(),
                 s.getExaminationId(),
+                examName,
+                examCode,
                 s.getStatus(),
                 questions,
-                s.getTotalQuestions(),
+                totalQ,
+                Math.max(5, totalQ * 2),
+                50,
                 s.getStartedAt()
         );
     }
@@ -372,9 +417,43 @@ public class LearnerService {
             } catch (Exception ignored) {}
         }
 
+        List<DiagnosticQuestionDto> sessionQuestions = parseSessionQuestions(s);
+        Map<Long, String> subtopicNames = new LinkedHashMap<>();
+        for (DiagnosticQuestionDto q : sessionQuestions) {
+            if (q.subtopicId() != null && q.subtopicName() != null) {
+                subtopicNames.put(q.subtopicId(), q.subtopicName());
+            }
+        }
+        // Fallback default names for standard diagnostic subtopics if questionsJson was not populated
+        subtopicNames.putIfAbsent(101L, "Syllogisms");
+        subtopicNames.putIfAbsent(102L, "Logical Deductions");
+        subtopicNames.putIfAbsent(201L, "Percentages");
+        subtopicNames.putIfAbsent(301L, "Chemical Reactions");
+
+        List<String> strengths = new ArrayList<>();
+        List<String> weaknesses = new ArrayList<>();
+        for (Map.Entry<Long, Double> entry : breakdown.entrySet()) {
+            String name = subtopicNames.getOrDefault(entry.getKey(), "Subtopic #" + entry.getKey());
+            if (entry.getValue() != null && entry.getValue() >= 0.6) {
+                strengths.add(name);
+            } else {
+                weaknesses.add(name);
+            }
+        }
+
+        boolean isSkipped = "SKIPPED".equalsIgnoreCase(s.getStatus());
         double accuracy = s.getTotalQuestions() > 0
                 ? (double) s.getCorrectCount() * 100.0 / s.getTotalQuestions()
                 : 0.0;
+        int initialReadinessScore = isSkipped
+                ? 50
+                : (s.getTotalQuestions() > 0 ? (int) Math.round(accuracy) : 50);
+        int seededSubtopicsCount = !breakdown.isEmpty()
+                ? breakdown.size()
+                : Math.max(sessionQuestions.size(), 3);
+        String baselineLabel = isSkipped
+                ? "Neutral Baseline (50% Prior)"
+                : "Calibrated Diagnostic Baseline";
 
         return new DiagnosticResultResponse(
                 s.getId(),
@@ -383,7 +462,14 @@ public class LearnerService {
                 s.getScore(),
                 s.getTotalQuestions(),
                 s.getCorrectCount(),
+                s.getCorrectCount(),
                 accuracy,
+                initialReadinessScore,
+                seededSubtopicsCount,
+                strengths,
+                weaknesses,
+                baselineLabel,
+                50,
                 breakdown,
                 s.getCompletedAt() != null ? s.getCompletedAt() : Instant.now()
         );

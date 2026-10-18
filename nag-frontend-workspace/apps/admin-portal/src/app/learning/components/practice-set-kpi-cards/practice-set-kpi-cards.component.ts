@@ -14,5 +14,6 @@ export class PracticeSetKpiCardsComponent {
   total = input.required<number>();
   published = input.required<number>();
   totalQuestions = input<number>(0);
+  diagnosticSets = input<number>(0);
   draft = computed(() => Math.max(0, this.total() - this.published()));
 }

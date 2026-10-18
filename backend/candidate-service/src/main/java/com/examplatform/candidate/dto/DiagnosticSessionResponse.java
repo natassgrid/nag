@@ -23,8 +23,38 @@ public record DiagnosticSessionResponse(
         UUID enrollmentId,
         UUID candidateId,
         UUID examinationId,
+        String examinationTitle,
+        String examinationCode,
         String status,
         List<DiagnosticQuestionDto> questions,
         int totalQuestions,
+        int estimatedMinutes,
+        int neutralPriorPercent,
         Instant startedAt
-) {}
+) {
+    public DiagnosticSessionResponse(
+            UUID sessionId,
+            UUID enrollmentId,
+            UUID candidateId,
+            UUID examinationId,
+            String status,
+            List<DiagnosticQuestionDto> questions,
+            int totalQuestions,
+            Instant startedAt
+    ) {
+        this(
+                sessionId,
+                enrollmentId,
+                candidateId,
+                examinationId,
+                null,
+                null,
+                status,
+                questions,
+                totalQuestions,
+                Math.max(5, totalQuestions * 2),
+                50,
+                startedAt
+        );
+    }
+}

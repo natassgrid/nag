@@ -14,6 +14,7 @@ describe('AdminBlueprintManagementComponent', () => {
   let fixture: ComponentFixture<AdminBlueprintManagementComponent>;
   let mockBlueprintService: {
     listTemplates: jest.Mock;
+    listBlueprints: jest.Mock;
   };
   let mockSubjectTopicService: {
     getSubjects: jest.Mock;
@@ -23,6 +24,7 @@ describe('AdminBlueprintManagementComponent', () => {
   beforeEach(async () => {
     mockBlueprintService = {
       listTemplates: jest.fn().mockReturnValue(of([])),
+      listBlueprints: jest.fn().mockReturnValue(of([])),
     };
     mockSubjectTopicService = {
       getSubjects: jest.fn().mockReturnValue(of([])),
@@ -47,6 +49,6 @@ describe('AdminBlueprintManagementComponent', () => {
 
   it('should render blueprint management and fetch templates', () => {
     expect(component).toBeTruthy();
-    expect(mockBlueprintService.listTemplates).toHaveBeenCalled();
+    expect(mockBlueprintService.listBlueprints).toHaveBeenCalled();
   });
 });

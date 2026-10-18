@@ -8,10 +8,12 @@ import {
   StartAdaptiveQuizResponse,
   StartGatekeeperResponse,
 } from '../models/learning-path.model';
+import { AdaptiveLearningService } from './adaptive-learning.service';
 
 @Injectable({ providedIn: 'root' })
 export class LearningPathService {
   private readonly http = inject(HttpClient);
+  private readonly learningService = inject(AdaptiveLearningService);
   private readonly apiUrl = '/api/learning-path';
 
   getLearningPath(): Observable<DynamicLearningPath> {
@@ -23,8 +25,12 @@ export class LearningPathService {
   }
 
   generateLearningPath(targetExam?: string): Observable<DynamicLearningPath> {
+    const resolvedTarget =
+      targetExam ||
+      this.learningService.activeEnrollment()?.examinationCode ||
+      'GENERAL_COMPETITIVE';
     return this.http.post<DynamicLearningPath>(`${this.apiUrl}/recalculate`, {
-      examTarget: targetExam || 'GENERAL_COMPETITIVE',
+      examTarget: resolvedTarget,
     });
   }
 
