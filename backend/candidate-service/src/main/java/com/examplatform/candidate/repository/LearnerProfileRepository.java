@@ -18,7 +18,7 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 import java.util.UUID;
 
-@Repository
+@Repository("candidateLearnerProfileRepository")
 public interface LearnerProfileRepository extends JpaRepository<LearnerProfile, UUID> {
     Optional<LearnerProfile> findByCandidateId(UUID candidateId);
     Optional<LearnerProfile> findByCandidateIdAndTenantId(UUID candidateId, String tenantId);

@@ -33,7 +33,7 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Entity
+@Entity(name = "CandidateLearnerProfile")
 @Table(name = "learner_profile", schema = "candidate_service")
 public class LearnerProfile {
 

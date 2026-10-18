@@ -30,6 +30,7 @@ import com.examplatform.questionbank.repository.TopicRepository;
 import com.examplatform.shared.taxonomy.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,6 +42,7 @@ import java.util.stream.Collectors;
  * Merges platform-default nodes ({@code tenant_id IS NULL}) with tenant overrides and custom tenant nodes.
  */
 @Slf4j
+@Primary
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
