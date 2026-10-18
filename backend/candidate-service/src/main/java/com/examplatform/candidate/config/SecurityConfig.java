@@ -44,7 +44,7 @@ public class SecurityConfig {
     public SecurityFilterChain candidateSecurityFilterChain(HttpSecurity http,
                                                    JwtAuthenticationConverter jwtAuthenticationConverter) throws Exception {
         http
-            .securityMatcher("/api/v1/candidate/**", "/api/v1/candidates/**")
+            .securityMatcher("/api/v1/candidate/**", "/api/v1/candidates/**", "/api/v1/learner/**")
             .csrf(csrf -> csrf.disable())
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
