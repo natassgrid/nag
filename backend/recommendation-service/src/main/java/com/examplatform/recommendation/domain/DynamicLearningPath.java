@@ -24,11 +24,18 @@ public class DynamicLearningPath extends BaseEntity {
     @Column(name = "candidate_id", nullable = false, columnDefinition = "uuid")
     private UUID candidateId;
 
+    @Column(name = "enrollment_id", columnDefinition = "uuid")
+    private UUID enrollmentId;
+
     @Column(name = "source_session_id", columnDefinition = "uuid")
     private UUID sourceSessionId;
 
-    @Column(name = "exam_target", nullable = false, length = 50)
+    @Column(name = "exam_target", length = 50)
     private String examTarget;
+
+    @Column(name = "readiness_score", nullable = false)
+    @Builder.Default
+    private double readinessScore = 0.0;
 
     @Column(name = SharedConstants.STATUS, nullable = false, length = 30)
     @Builder.Default
@@ -49,4 +56,9 @@ public class DynamicLearningPath extends BaseEntity {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "milestone_graph_json", nullable = false, columnDefinition = "jsonb")
     private String milestoneGraphJson;
+
+    @Override
+    public void setId(UUID id) {
+        super.setId(id);
+    }
 }

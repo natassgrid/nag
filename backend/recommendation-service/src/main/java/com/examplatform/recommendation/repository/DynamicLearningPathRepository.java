@@ -19,4 +19,8 @@ public interface DynamicLearningPathRepository extends JpaRepository<DynamicLear
     List<DynamicLearningPath> findByCandidateIdAndStatus(UUID candidateId, String status);
 
     List<DynamicLearningPath> findByCandidateIdOrderByCreatedAtDesc(UUID candidateId);
+ 
+    Optional<DynamicLearningPath> findByEnrollmentId(UUID enrollmentId);
+
+    Optional<DynamicLearningPath> findFirstByEnrollmentIdAndStatusOrderByCreatedAtDesc(UUID enrollmentId, String status);
 }
