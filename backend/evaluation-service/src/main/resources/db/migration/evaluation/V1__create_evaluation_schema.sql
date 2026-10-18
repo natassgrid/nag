@@ -16,6 +16,14 @@ CREATE TABLE evaluation_service.evaluation (
     session_id      UUID NOT NULL,
     question_id     UUID NOT NULL,
     candidate_id    UUID NOT NULL,
+    section_id      UUID,
+    section_name    VARCHAR(200),
+    subject_id      BIGINT,
+    subject         VARCHAR(200),
+    topic_id        BIGINT,
+    topic           VARCHAR(200),
+    subtopic_id     BIGINT,
+    subtopic        VARCHAR(200),
     evaluation_type VARCHAR(10) NOT NULL,
     evaluator_id    UUID,
     score           NUMERIC(10,2) NOT NULL,
@@ -31,4 +39,6 @@ CREATE TABLE evaluation_service.evaluation (
 CREATE INDEX idx_evaluation_tenant_id ON evaluation_service.evaluation(tenant_id);
 CREATE INDEX idx_evaluation_session_id ON evaluation_service.evaluation(session_id);
 CREATE INDEX idx_evaluation_candidate_id ON evaluation_service.evaluation(candidate_id);
+CREATE INDEX idx_evaluation_section_id ON evaluation_service.evaluation(section_id);
+CREATE INDEX idx_evaluation_subtopic_id ON evaluation_service.evaluation(subtopic_id);
 CREATE INDEX idx_evaluation_status ON evaluation_service.evaluation(status);

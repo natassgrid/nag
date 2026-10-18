@@ -48,7 +48,12 @@ public class QuestionDeliveryDto {
     private Double negativeMarks = 0.5;
     private String sectionId;
     private String sectionName;
+    private Long subjectId;
+    private String subject;
+    private Long topicId;
     private String topic;
+    private Long subtopicId;
+    private String subtopic;
     private Integer correctOptionIndex;
     private String explanation;
     private String questionType;

@@ -268,6 +268,11 @@ public class QuestionDeliveryRepository {
 
         ParsedQuestionOptions parsedOptions = parseOptionsForQuestion(id, optionsJson, answerKey, hasImages);
 
+        Long subjectId = getSafeLong(rs, "subject_id");
+        Long topicId = getSafeLong(rs, "topic_id");
+        Long subtopicId = getSafeLong(rs, "subtopic_id");
+        String subtopic = getSafeString(rs, "subtopic");
+
         String sId = defaultSecId != null ? defaultSecId : parser.resolveSectionId(subject, rowNum + 1);
         String sName = defaultSecName != null ? defaultSecName : parser.resolveSectionName(subject, rowNum + 1);
 
@@ -280,7 +285,12 @@ public class QuestionDeliveryRepository {
                 .negativeMarks(negMarks)
                 .sectionId(sId)
                 .sectionName(sName)
+                .subjectId(subjectId)
+                .subject(subject)
+                .topicId(topicId)
                 .topic(topic != null ? topic : "General")
+                .subtopicId(subtopicId)
+                .subtopic(subtopic)
                 .correctOptionIndex(parsedOptions.correctOptionIndex())
                 .explanation(explanation)
                 .questionType(questionType != null ? questionType : QuestionTypeConstants.SINGLE_MCQ)
@@ -288,6 +298,23 @@ public class QuestionDeliveryRepository {
                 .passageContent(passageContent)
                 .passageOrderIndex(passageOrderIndex)
                 .build();
+    }
+
+    private Long getSafeLong(ResultSet rs, String column) {
+        try {
+            long val = rs.getLong(column);
+            return rs.wasNull() ? null : val;
+        } catch (SQLException _) {
+            return null;
+        }
+    }
+
+    private String getSafeString(ResultSet rs, String column) {
+        try {
+            return rs.getString(column);
+        } catch (SQLException _) {
+            return null;
+        }
     }
 
     record ParsedQuestionOptions(

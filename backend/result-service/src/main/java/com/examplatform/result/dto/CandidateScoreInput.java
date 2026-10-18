@@ -24,6 +24,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -53,6 +54,31 @@ public class CandidateScoreInput {
      * Section name → score mapping.
      */
     private Map<String, Double> sectionScores;
+
+    /**
+     * Section breakdowns containing sectionId, sectionName, subjectId, score, accuracy, etc.
+     */
+    private List<SectionBreakdownDto> sectionBreakdowns;
+
+    /**
+     * Topic breakdowns containing subjectId, topicId, score, accuracy, etc.
+     */
+    private List<TaxonomyBreakdownDto> topicBreakdowns;
+
+    /**
+     * Subtopic breakdowns containing subjectId, topicId, subtopicId, score, accuracy, etc.
+     */
+    private List<TaxonomyBreakdownDto> subtopicBreakdowns;
+
+    /**
+     * Question-level score details.
+     */
+    private List<Map<String, Object>> questionLevelScores;
+
+    /**
+     * Overall accuracy rate (correct / attempted * 100).
+     */
+    private Double accuracyRate;
 
     /**
      * Mean score of all candidates in this candidate's shift (for normalization).

@@ -21,6 +21,8 @@ package com.examplatform.result.consumer;
 
 import com.examplatform.result.domain.Result;
 import com.examplatform.result.dto.CandidateScoreInput;
+import com.examplatform.result.dto.SectionBreakdownDto;
+import com.examplatform.result.dto.TaxonomyBreakdownDto;
 import com.examplatform.result.repository.ResultRepository;
 import com.examplatform.result.service.QuestionAnalyticsService;
 import com.examplatform.result.service.ResultComputationService;
@@ -28,6 +30,7 @@ import com.examplatform.shared.constants.MessagingConstants;
 import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.AbstractEvaluationCompletedConsumer;
 import com.examplatform.shared.util.DataConversionUtils;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.ExchangeTypes;
@@ -115,11 +118,23 @@ public class EvaluationCompletedConsumer extends AbstractEvaluationCompletedCons
             Map<String, Double> sectionScores = new HashMap<>();
             rawSectionScores.forEach((k, v) -> sectionScores.put(k, DataConversionUtils.toDouble(v)));
 
+            List<SectionBreakdownDto> sectionBreakdowns = parseSectionBreakdowns(event.get("sectionBreakdowns"));
+            List<TaxonomyBreakdownDto> topicBreakdowns = parseTaxonomyBreakdowns(event.get("topicBreakdowns"));
+            List<TaxonomyBreakdownDto> subtopicBreakdowns = parseTaxonomyBreakdowns(event.get("subtopicBreakdowns"));
+
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> questionLevelScores =
+                    (List<Map<String, Object>>) event.getOrDefault("questionLevelScores", List.of());
+
             // Build score input
             CandidateScoreInput scoreInput = CandidateScoreInput.builder()
                     .candidateId(candidateId)
                     .totalRawScore(totalRawScore)
                     .sectionScores(sectionScores)
+                    .sectionBreakdowns(sectionBreakdowns)
+                    .topicBreakdowns(topicBreakdowns)
+                    .subtopicBreakdowns(subtopicBreakdowns)
+                    .questionLevelScores(questionLevelScores)
                     .shiftMean(0)
                     .shiftStdDev(0)
                     .build();
@@ -143,7 +158,7 @@ public class EvaluationCompletedConsumer extends AbstractEvaluationCompletedCons
 
     /**
      * Enriches saved results with diagnostic data from the evaluation event.
-     * Computes accuracy rate and time analysis from question-level scores.
+     * Computes accuracy rate and time analysis from question-level scores if not already set.
      */
     private void enrichWithDiagnostics(List<Result> results, Map<String, Object> event, String tenantId) {
         if (results.isEmpty()) return;
@@ -153,25 +168,58 @@ public class EvaluationCompletedConsumer extends AbstractEvaluationCompletedCons
             List<Map<String, Object>> questionLevelScores =
                     (List<Map<String, Object>>) event.getOrDefault("questionLevelScores", List.of());
 
-            if (questionLevelScores.isEmpty()) return;
+            BigDecimal accuracyRate = null;
+            if (!questionLevelScores.isEmpty()) {
+                long totalAttempted = questionLevelScores.size();
+                long correct = questionLevelScores.stream()
+                        .filter(q -> DataConversionUtils.toDouble(q.get("score")) > 0)
+                        .count();
+                accuracyRate = BigDecimal.valueOf(correct * 100.0 / totalAttempted)
+                        .setScale(2, RoundingMode.HALF_UP);
+            }
 
-            // Compute accuracy: questions with score > 0 / total attempted
-            long totalAttempted = questionLevelScores.size();
-            long correct = questionLevelScores.stream()
-                    .filter(q -> DataConversionUtils.toDouble(q.get("score")) > 0)
-                    .count();
-
-            BigDecimal accuracyRate = BigDecimal.valueOf(correct * 100.0 / totalAttempted)
-                    .setScale(2, RoundingMode.HALF_UP);
-
+            boolean updated = false;
             for (Result r : results) {
-                r.setAccuracyRate(accuracyRate);
+                if (accuracyRate != null && r.getAccuracyRate() == null) {
+                    r.setAccuracyRate(accuracyRate);
+                    updated = true;
+                }
                 r.setTenantId(tenantId);
             }
-            resultRepository.saveAll(results);
+            if (updated) {
+                resultRepository.saveAll(results);
+            }
 
         } catch (Exception e) {
             log.warn("Failed to enrich results with diagnostic data: {}", e.getMessage());
         }
+    }
+
+    private List<SectionBreakdownDto> parseSectionBreakdowns(Object raw) {
+        if (raw == null) return null;
+        try {
+            if (raw instanceof List<?> list) {
+                return objectMapper.convertValue(list, new TypeReference<List<SectionBreakdownDto>>() {});
+            } else if (raw instanceof String str && !str.isBlank()) {
+                return objectMapper.readValue(str, new TypeReference<List<SectionBreakdownDto>>() {});
+            }
+        } catch (Exception e) {
+            log.warn("Failed to parse section breakdowns from event: {}", e.getMessage());
+        }
+        return null;
+    }
+
+    private List<TaxonomyBreakdownDto> parseTaxonomyBreakdowns(Object raw) {
+        if (raw == null) return null;
+        try {
+            if (raw instanceof List<?> list) {
+                return objectMapper.convertValue(list, new TypeReference<List<TaxonomyBreakdownDto>>() {});
+            } else if (raw instanceof String str && !str.isBlank()) {
+                return objectMapper.readValue(str, new TypeReference<List<TaxonomyBreakdownDto>>() {});
+            }
+        } catch (Exception e) {
+            log.warn("Failed to parse taxonomy breakdowns from event: {}", e.getMessage());
+        }
+        return null;
     }
 }

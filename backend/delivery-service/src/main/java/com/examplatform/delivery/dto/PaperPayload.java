@@ -19,13 +19,16 @@
 
 package com.examplatform.delivery.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * POJO representing a complete examination paper structure.
@@ -37,5 +40,15 @@ import java.util.List;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class PaperPayload {
 
+    private UUID examId;
+    private String shiftId;
+    private UUID blueprintId;
+    private Integer blueprintVersion;
+    private String name;
+
     private List<PaperQuestionPayload> questions;
+
+    @Builder.Default
+    @JsonAlias("paper_sections")
+    private List<PaperSectionPayload> sections = new ArrayList<>();
 }

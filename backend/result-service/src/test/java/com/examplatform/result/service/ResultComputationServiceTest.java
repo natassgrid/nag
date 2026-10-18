@@ -21,8 +21,12 @@ package com.examplatform.result.service;
 
 import com.examplatform.result.domain.Result;
 import com.examplatform.result.dto.CandidateScoreInput;
+import com.examplatform.result.dto.SectionBreakdownDto;
+import com.examplatform.result.dto.TaxonomyBreakdownDto;
 import com.examplatform.result.repository.ResultRepository;
+import com.examplatform.shared.dto.SubtopicPerformanceDto;
 import com.examplatform.shared.messaging.EventPublisher;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
@@ -313,6 +317,159 @@ class ResultComputationServiceTest {
             assertThatThrownBy(() -> service.getResult(candidateId, EXAM_ID, TENANT_ID))
                     .isInstanceOf(EntityNotFoundException.class)
                     .hasMessageContaining("Result not found");
+        }
+    }
+
+    @Nested
+    @DisplayName("Section and Taxonomy Breakdowns")
+    class SectionAndTaxonomyBreakdowns {
+
+        @Test
+        @DisplayName("Serializes explicit section and taxonomy breakdowns into sectionalStatusJson and topicBreakdownJson")
+        void computeResults_withExplicitBreakdowns_serializesCorrectly() throws Exception {
+            UUID c1 = UUID.randomUUID();
+            UUID secId = UUID.randomUUID();
+            ObjectMapper mapper = new ObjectMapper()
+                    .configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
+            SectionBreakdownDto secDto = SectionBreakdownDto.builder()
+                    .sectionId(secId)
+                    .sectionName("Physics Section A")
+                    .subjectId(1001L)
+                    .subject("Physics")
+                    .score(40.0)
+                    .maxMarks(50.0)
+                    .accuracyRate(80.0)
+                    .questionCount(10)
+                    .attemptedCount(10)
+                    .correctCount(8)
+                    .build();
+
+            TaxonomyBreakdownDto taxDto = TaxonomyBreakdownDto.builder()
+                    .subjectId(1001L)
+                    .subject("Physics")
+                    .topicId(2001L)
+                    .topic("Thermodynamics")
+                    .subtopicId(3001L)
+                    .subtopic("Carnot Cycle")
+                    .score(16.0)
+                    .maxMarks(20.0)
+                    .accuracyRate(80.0)
+                    .questionCount(5)
+                    .attemptedCount(5)
+                    .correctCount(4)
+                    .totalTimeSpentMs(150000L)
+                    .build();
+
+            CandidateScoreInput input = CandidateScoreInput.builder()
+                    .candidateId(c1)
+                    .examId(EXAM_ID)
+                    .totalRawScore(40.0)
+                    .sectionScores(Map.of("Physics Section A", 40.0))
+                    .sectionBreakdowns(List.of(secDto))
+                    .subtopicBreakdowns(List.of(taxDto))
+                    .accuracyRate(80.0)
+                    .build();
+
+            when(resultRepository.saveAll(anyList())).thenAnswer(inv -> inv.getArgument(0));
+
+            List<Result> results = service.computeResults(EXAM_ID, List.of(input), false, TENANT_ID);
+
+            assertThat(results).hasSize(1);
+            Result res = results.get(0);
+
+            assertThat(res.getAccuracyRate()).isEqualByComparingTo(BigDecimal.valueOf(80.00));
+            assertThat(res.getSectionalStatusJson()).isNotNull();
+            assertThat(res.getTopicBreakdownJson()).isNotNull();
+
+            List<SectionBreakdownDto> parsedSections = mapper.readValue(
+                    res.getSectionalStatusJson(), new TypeReference<>() {});
+            assertThat(parsedSections).hasSize(1);
+            assertThat(parsedSections.get(0).getSectionId()).isEqualTo(secId);
+            assertThat(parsedSections.get(0).getSubjectId()).isEqualTo(1001L);
+            assertThat(parsedSections.get(0).getAccuracyRate()).isEqualTo(80.0);
+
+            List<TaxonomyBreakdownDto> parsedTax = mapper.readValue(
+                    res.getTopicBreakdownJson(), new TypeReference<>() {});
+            assertThat(parsedTax).hasSize(1);
+            assertThat(parsedTax.get(0).getSubtopicId()).isEqualTo(3001L);
+            assertThat(parsedTax.get(0).getSubjectId()).isEqualTo(1001L);
+
+            // Interoperability with SubtopicPerformanceDto for learner mastery updates
+            List<SubtopicPerformanceDto> learnerPerfs = mapper.readValue(
+                    res.getTopicBreakdownJson(), new TypeReference<>() {});
+            assertThat(learnerPerfs).hasSize(1);
+            assertThat(learnerPerfs.get(0).subtopicId()).isEqualTo(3001L);
+            assertThat(learnerPerfs.get(0).subtopicName()).isEqualTo("Carnot Cycle");
+            assertThat(learnerPerfs.get(0).accuracyPercent()).isEqualTo(80.0);
+        }
+
+        @Test
+        @DisplayName("Derives section and taxonomy breakdowns from questionLevelScores when breakdowns are absent")
+        void computeResults_derivesBreakdownsFromQuestionLevelScores() throws Exception {
+            UUID c1 = UUID.randomUUID();
+            UUID secId = UUID.randomUUID();
+            ObjectMapper mapper = new ObjectMapper()
+                    .configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
+            List<Map<String, Object>> questions = List.of(
+                    Map.ofEntries(
+                            Map.entry("sectionId", secId.toString()),
+                            Map.entry("sectionName", "Math Section"),
+                            Map.entry("subjectId", 1002L),
+                            Map.entry("subject", "Mathematics"),
+                            Map.entry("topicId", 2002L),
+                            Map.entry("topic", "Calculus"),
+                            Map.entry("subtopicId", 3002L),
+                            Map.entry("subtopic", "Definite Integrals"),
+                            Map.entry("score", 4.0),
+                            Map.entry("maxMarks", 4.0),
+                            Map.entry("status", "CORRECT"),
+                            Map.entry("timeSpentMs", 60000L)
+                    ),
+                    Map.ofEntries(
+                            Map.entry("sectionId", secId.toString()),
+                            Map.entry("sectionName", "Math Section"),
+                            Map.entry("subjectId", 1002L),
+                            Map.entry("subject", "Mathematics"),
+                            Map.entry("topicId", 2002L),
+                            Map.entry("topic", "Calculus"),
+                            Map.entry("subtopicId", 3002L),
+                            Map.entry("subtopic", "Definite Integrals"),
+                            Map.entry("score", -1.0),
+                            Map.entry("maxMarks", 4.0),
+                            Map.entry("status", "INCORRECT"),
+                            Map.entry("timeSpentMs", 75000L)
+                    )
+            );
+
+            CandidateScoreInput input = CandidateScoreInput.builder()
+                    .candidateId(c1)
+                    .examId(EXAM_ID)
+                    .totalRawScore(3.0)
+                    .sectionScores(Map.of("Math Section", 3.0))
+                    .questionLevelScores(questions)
+                    .build();
+
+            when(resultRepository.saveAll(anyList())).thenAnswer(inv -> inv.getArgument(0));
+
+            List<Result> results = service.computeResults(EXAM_ID, List.of(input), false, TENANT_ID);
+
+            assertThat(results).hasSize(1);
+            Result res = results.get(0);
+
+            // 1 correct out of 2 attempted = 50.0%
+            assertThat(res.getAccuracyRate()).isEqualByComparingTo(BigDecimal.valueOf(50.00));
+            assertThat(res.getSectionalStatusJson()).contains("Math Section");
+            assertThat(res.getTopicBreakdownJson()).contains("Definite Integrals");
+
+            List<SubtopicPerformanceDto> perfDtos = mapper.readValue(
+                    res.getTopicBreakdownJson(), new TypeReference<>() {});
+            assertThat(perfDtos).hasSize(1);
+            assertThat(perfDtos.get(0).subtopicId()).isEqualTo(3002L);
+            assertThat(perfDtos.get(0).correctCount()).isEqualTo(1);
+            assertThat(perfDtos.get(0).attemptedCount()).isEqualTo(2);
+            assertThat(perfDtos.get(0).accuracyPercent()).isEqualTo(50.0);
         }
     }
 }

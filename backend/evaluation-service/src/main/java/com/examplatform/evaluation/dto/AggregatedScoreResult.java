@@ -22,6 +22,7 @@ package com.examplatform.evaluation.dto;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Map;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -32,5 +33,19 @@ public record AggregatedScoreResult(
         BigDecimal totalMaxMarks,
         Map<String, BigDecimal> sectionScores,
         int evaluationCount,
-        String tenantId
-) {}
+        String tenantId,
+        List<SectionScoreBreakdown> sectionBreakdowns,
+        List<TaxonomyScoreBreakdown> topicBreakdowns,
+        List<TaxonomyScoreBreakdown> subtopicBreakdowns
+) {
+    public AggregatedScoreResult(
+            String sessionId,
+            String candidateId,
+            BigDecimal totalRawScore,
+            BigDecimal totalMaxMarks,
+            Map<String, BigDecimal> sectionScores,
+            int evaluationCount,
+            String tenantId) {
+        this(sessionId, candidateId, totalRawScore, totalMaxMarks, sectionScores, evaluationCount, tenantId, List.of(), List.of(), List.of());
+    }
+}

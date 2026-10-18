@@ -21,6 +21,7 @@ package com.examplatform.delivery.service;
 
 import com.examplatform.delivery.domain.ExamSession;
 import com.examplatform.delivery.dto.QuestionDeliveryDto;
+import com.examplatform.delivery.dto.SectionDeliveryDto;
 import com.examplatform.delivery.repository.ExamSessionRepository;
 import com.examplatform.shared.constants.SharedConstants;
 import lombok.RequiredArgsConstructor;
@@ -211,5 +212,9 @@ public class ExamQuestionDeliveryService {
 
     public List<UUID> extractQuestionUuidsFromJsonOrString(String raw) {
         return questionDeliveryParser.extractQuestionUuidsFromJsonOrString(raw);
+    }
+
+    public List<SectionDeliveryDto> buildSections(List<QuestionDeliveryDto> questions) {
+        return questionDeliveryParser.buildSections(questions);
     }
 }

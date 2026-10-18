@@ -29,7 +29,8 @@ import java.util.UUID;
 
 /**
  * Represents the evaluation of a single candidate response to a question.
- * Supports both auto-evaluation (MCQ, numerical) and manual evaluation (subjective).
+ * Supports both auto-evaluation (MCQ, numerical) and manual evaluation (subjective),
+ * enriched with section and taxonomy identifiers and display names.
  */
 @Entity
 @Table(name = "evaluation", schema = "evaluation_service")
@@ -48,6 +49,30 @@ public class Evaluation extends BaseEntity {
 
     @Column(name = "candidate_id", nullable = false)
     private UUID candidateId;
+
+    @Column(name = "section_id")
+    private UUID sectionId;
+
+    @Column(name = "section_name")
+    private String sectionName;
+
+    @Column(name = "subject_id")
+    private Long subjectId;
+
+    @Column(name = "subject")
+    private String subject;
+
+    @Column(name = "topic_id")
+    private Long topicId;
+
+    @Column(name = "topic")
+    private String topic;
+
+    @Column(name = "subtopic_id")
+    private Long subtopicId;
+
+    @Column(name = "subtopic")
+    private String subtopic;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "evaluation_type", nullable = false, length = 10)

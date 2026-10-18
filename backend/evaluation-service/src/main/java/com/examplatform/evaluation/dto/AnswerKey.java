@@ -19,6 +19,7 @@
 
 package com.examplatform.evaluation.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -28,15 +29,26 @@ import java.util.UUID;
 
 /**
  * POJO representing an answer key entry for a single question.
- * Used during auto-evaluation to determine correct answers and marking scheme.
+ * Used during auto-evaluation to determine correct answers, marking scheme,
+ * and section/taxonomy classification.
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class AnswerKey {
 
     private UUID questionId;
+
+    private UUID sectionId;
+    private String sectionName;
+    private Long subjectId;
+    private String subject;
+    private Long topicId;
+    private String topic;
+    private Long subtopicId;
+    private String subtopic;
 
     /**
      * Question type: SINGLE_MCQ, MULTI_MCQ, NUMERICAL
