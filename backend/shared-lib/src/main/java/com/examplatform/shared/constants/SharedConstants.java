@@ -59,6 +59,11 @@ public final class SharedConstants {
     public static final String RECIPIENT_ID = "recipientId";
     public static final String AUTHOR_ID = "authorId";
     public static final String TENANT_ID = "tenantId";
+    public static final String SUBJECT_ID = "subjectId";
+    public static final String TOPIC_ID = "topicId";
+    public static final String SUBTOPIC_ID = "subtopicId";
+    public static final String ENROLLMENT_ID = "enrollmentId";
+    public static final String BLUEPRINT_ID = "blueprintId";
     public static final String YOUR_QUESTION_FOR_SUBJECT = "Your question for subject '";
     public static final String YOUR_QUESTION_FOR_SUBJECT_PREFIX = YOUR_QUESTION_FOR_SUBJECT;
 
