@@ -374,8 +374,10 @@ public class QuestionService {
             spec = spec.and(searchLike(search));
         }
 
-        if ((targetLang != null && !targetLang.isBlank()) || (translationStatus != null && !translationStatus.isBlank() && !"ALL".equalsIgnoreCase(translationStatus))) {
-            spec = spec.and(buildTranslationSpecification(targetLang, translationStatus, tenantId));
+        org.springframework.data.jpa.domain.Specification<Question> transSpec =
+                buildTranslationSpecification(targetLang, translationStatus, tenantId);
+        if (transSpec != null) {
+            spec = spec.and(transSpec);
         }
 
         org.springframework.data.domain.Page<Question> pageResult = questionRepository.findAll(spec, pageable);
@@ -517,6 +519,23 @@ public class QuestionService {
      */
     private org.springframework.data.jpa.domain.Specification<Question> buildTranslationSpecification(
             String targetLang, String translationStatus, String tenantId) {
+        if (translationStatus == null || translationStatus.isBlank() || "ALL".equalsIgnoreCase(translationStatus)) {
+            // When no specific translation status filter is requested, do not filter out questions based on translation presence
+            return null;
+        }
+
+        String normalizedTargetLang = targetLang != null ? targetLang.trim().toLowerCase() : null;
+        String status = translationStatus.trim().toUpperCase();
+
+        // English is the source language for all platform questions
+        if ("en".equals(normalizedTargetLang)) {
+            if ("MISSING".equals(status) || "UNTRANSLATED".equals(status)) {
+                return (root, query, cb) -> cb.disjunction(); // No questions are missing English
+            }
+            // For any other status (APPROVED, PUBLISHED, EXISTS, etc.), all questions have English
+            return null;
+        }
+
         return (root, query, cb) -> {
             jakarta.persistence.criteria.Subquery<UUID> subquery = query.subquery(UUID.class);
             jakarta.persistence.criteria.Root<Translation> tRoot = subquery.from(Translation.class);
@@ -532,55 +551,52 @@ public class QuestionService {
                 ));
             }
 
-            if (targetLang != null && !targetLang.isBlank()) {
-                predicates.add(cb.equal(cb.lower(tRoot.get("languageCode")), targetLang.trim().toLowerCase()));
+            if (normalizedTargetLang != null && !normalizedTargetLang.isBlank()) {
+                predicates.add(cb.equal(cb.lower(tRoot.get("languageCode")), normalizedTargetLang));
             }
 
-            String status = translationStatus != null ? translationStatus.trim().toUpperCase() : null;
             boolean negate = false;
 
-            if (status != null && !status.isBlank() && !"ALL".equals(status)) {
-                switch (status) {
-                    case "MISSING":
-                    case "UNTRANSLATED":
-                        negate = true;
-                        break;
-                    case "EXISTS":
-                        // Existence check already covered by questionId + languageCode
-                        break;
-                    case QuestionStateConstants.APPROVED:
-                        predicates.add(cb.equal(tRoot.get(SharedConstants.STATUS), Translation.TranslationStatus.APPROVED));
-                        break;
-                    case QuestionStateConstants.PUBLISHED:
-                        predicates.add(cb.equal(tRoot.get(SharedConstants.STATUS), Translation.TranslationStatus.PUBLISHED));
-                        break;
-                    case "APPROVED_PUBLISHED":
-                    case "APPROVED_OR_PUBLISHED":
-                        predicates.add(tRoot.get(SharedConstants.STATUS).in(Translation.TranslationStatus.APPROVED, Translation.TranslationStatus.PUBLISHED));
-                        break;
-                    case QuestionStateConstants.DRAFT, "IN_REVIEW", "PENDING_REVIEW":
-                        predicates.add(cb.equal(tRoot.get(SharedConstants.STATUS), Translation.TranslationStatus.DRAFT));
-                        break;
-                    case "STALE":
-                        predicates.add(cb.equal(tRoot.get(SharedConstants.STATUS), Translation.TranslationStatus.STALE));
-                        break;
-                    case "REJECTED":
-                    case "NEEDS_REWORK":
-                        jakarta.persistence.criteria.Predicate rejPred = cb.and(
-                                cb.equal(tRoot.get(SharedConstants.STATUS), Translation.TranslationStatus.DRAFT),
-                                cb.isNotNull(tRoot.get("reviewComments")),
-                                cb.notEqual(tRoot.get("reviewComments"), "")
-                        );
-                        jakarta.persistence.criteria.Predicate stalePred = cb.equal(tRoot.get(SharedConstants.STATUS), Translation.TranslationStatus.STALE);
-                        predicates.add(cb.or(rejPred, stalePred));
-                        break;
-                    default:
-                        try {
-                            Translation.TranslationStatus enumStatus = Translation.TranslationStatus.valueOf(status);
-                            predicates.add(cb.equal(tRoot.get(SharedConstants.STATUS), enumStatus));
-                        } catch (IllegalArgumentException ignored) {}
-                        break;
-                }
+            switch (status) {
+                case "MISSING":
+                case "UNTRANSLATED":
+                    negate = true;
+                    break;
+                case "EXISTS":
+                    // Existence check already covered by questionId + languageCode
+                    break;
+                case QuestionStateConstants.APPROVED:
+                    predicates.add(cb.equal(tRoot.get(SharedConstants.STATUS), Translation.TranslationStatus.APPROVED));
+                    break;
+                case QuestionStateConstants.PUBLISHED:
+                    predicates.add(cb.equal(tRoot.get(SharedConstants.STATUS), Translation.TranslationStatus.PUBLISHED));
+                    break;
+                case "APPROVED_PUBLISHED":
+                case "APPROVED_OR_PUBLISHED":
+                    predicates.add(tRoot.get(SharedConstants.STATUS).in(Translation.TranslationStatus.APPROVED, Translation.TranslationStatus.PUBLISHED));
+                    break;
+                case QuestionStateConstants.DRAFT, "IN_REVIEW", "PENDING_REVIEW":
+                    predicates.add(cb.equal(tRoot.get(SharedConstants.STATUS), Translation.TranslationStatus.DRAFT));
+                    break;
+                case "STALE":
+                    predicates.add(cb.equal(tRoot.get(SharedConstants.STATUS), Translation.TranslationStatus.STALE));
+                    break;
+                case "REJECTED":
+                case "NEEDS_REWORK":
+                    jakarta.persistence.criteria.Predicate rejPred = cb.and(
+                            cb.equal(tRoot.get(SharedConstants.STATUS), Translation.TranslationStatus.DRAFT),
+                            cb.isNotNull(tRoot.get("reviewComments")),
+                            cb.notEqual(tRoot.get("reviewComments"), "")
+                    );
+                    jakarta.persistence.criteria.Predicate stalePred = cb.equal(tRoot.get(SharedConstants.STATUS), Translation.TranslationStatus.STALE);
+                    predicates.add(cb.or(rejPred, stalePred));
+                    break;
+                default:
+                    try {
+                        Translation.TranslationStatus enumStatus = Translation.TranslationStatus.valueOf(status);
+                        predicates.add(cb.equal(tRoot.get(SharedConstants.STATUS), enumStatus));
+                    } catch (IllegalArgumentException ignored) {}
+                    break;
             }
 
             subquery.where(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
@@ -801,13 +817,21 @@ public class QuestionService {
             }
 
             if (targetLang != null && !targetLang.isBlank()) {
-                activeTransStatus = statusMap.get(targetLang.toLowerCase());
-                if (activeTransStatus == null) {
-                    activeTransStatus = "MISSING";
+                if ("en".equalsIgnoreCase(targetLang.trim())) {
+                    activeTransStatus = question.getState() != null ? question.getState() : "PUBLISHED";
+                } else {
+                    activeTransStatus = statusMap.get(targetLang.toLowerCase());
+                    if (activeTransStatus == null) {
+                        activeTransStatus = "MISSING";
+                    }
                 }
             }
         } else if (targetLang != null && !targetLang.isBlank()) {
-            activeTransStatus = "MISSING";
+            if ("en".equalsIgnoreCase(targetLang.trim())) {
+                activeTransStatus = question.getState() != null ? question.getState() : "PUBLISHED";
+            } else {
+                activeTransStatus = "MISSING";
+            }
         }
 
         TaxonomyNames names = taxonomyClient != null

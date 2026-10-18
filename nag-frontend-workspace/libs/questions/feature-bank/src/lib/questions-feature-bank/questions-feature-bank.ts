@@ -267,6 +267,8 @@ export class QuestionsFeatureBank implements OnInit {
         status: stat !== 'ALL' ? stat : undefined,
         sort: 'createdAt',
         order: 'desc',
+        targetLang: undefined,
+        translationStatus: undefined,
       })
       .subscribe();
   }

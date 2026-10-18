@@ -476,6 +476,36 @@ class QuestionServiceTest {
         }
 
         @Test
+        @DisplayName("should attach English source status when targetLang is en")
+        void shouldHandleEnglishTargetLang() {
+            UUID q1Id = UUID.randomUUID();
+            Question q1 = Question.builder()
+                    .subjectId(1L)
+                    .topicId(10L)
+                    .subtopicId(100L)
+                    .difficulty(QuestionTaxonomyConstants.Difficulty.MEDIUM)
+                    .state(QuestionStateConstants.PUBLISHED)
+                    .content("What is Newton's second law?")
+                    .build();
+            try {
+                var idField = q1.getClass().getSuperclass().getDeclaredField("id");
+                idField.setAccessible(true);
+                idField.set(q1, q1Id);
+            } catch (Exception ignored) {}
+
+            Page<Question> questionPage = new PageImpl<>(List.of(q1));
+            when(questionRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(questionPage);
+
+            Page<QuestionResponse> result = questionService.listQuestions(
+                    null, null, null, null, null, null, null,
+                    "en", null, 0, 20, "tenant-abc");
+
+            assertThat(result.getContent()).hasSize(1);
+            QuestionResponse resp = result.getContent().get(0);
+            assertThat(resp.getTranslationStatus()).isEqualTo(QuestionStateConstants.PUBLISHED);
+        }
+
+        @Test
         @DisplayName("searchLike specification builds multi-field predicates")
         void searchLikeBuildsSpecification() {
             Specification<Question> singleTokenSpec = questionService.searchLike("Physics");

@@ -31,7 +31,14 @@ export class QuestionBankService {
 
   loadQuestions(customFilter?: Partial<QuestionFilter>): Observable<PagedQuestionsResponse> {
     this.loading.set(true);
-    const current = { ...this.filter(), ...(customFilter || {}) };
+    const current = customFilter
+      ? {
+          ...this.filter(),
+          ...customFilter,
+          targetLang: customFilter.targetLang,
+          translationStatus: customFilter.translationStatus,
+        }
+      : this.filter();
     this.filter.set(current);
     if (current.size !== undefined && typeof this.pageSize.set === 'function') {
       this.pageSize.set(current.size);
