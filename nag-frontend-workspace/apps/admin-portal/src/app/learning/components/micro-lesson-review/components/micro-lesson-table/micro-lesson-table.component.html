@@ -19,6 +19,7 @@
               />
             </th>
             <th class="py-3 px-4">Subtopic / Subject</th>
+            <th class="py-3 px-4">Type &amp; Level</th>
             <th class="py-3 px-4">Status</th>
             @if (!selectedLessonId()) {
               <th class="py-3 px-4">Exam</th>
@@ -49,12 +50,22 @@
                 <p class="text-[11px] text-slate-400 mt-0.5">{{ item.subjectName || item.subject }} &bull; {{ item.topicName || item.topic }}</p>
               </td>
               <td class="py-3 px-4 whitespace-nowrap">
+                <div class="flex flex-col gap-1 items-start">
+                  <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                    {{ item.lessonType || 'CONCEPT' }}
+                  </span>
+                  <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-semibold text-slate-500 bg-slate-100">
+                    {{ item.difficultyLevel || 'CORE' }} &bull; {{ item.estimatedMinutes || 5 }}m
+                  </span>
+                </div>
+              </td>
+              <td class="py-3 px-4 whitespace-nowrap">
                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border" [ngClass]="getStatusBadgeClass(item.status)">
                   {{ item.status }}
                 </span>
               </td>
               @if (!selectedLessonId()) {
-                <td class="py-3 px-4 text-slate-600 font-medium">{{ item.targetExam || 'General' }}</td>
+                <td class="py-3 px-4 text-slate-600 font-medium">{{ item.targetExam || 'Universal' }}</td>
                 <td class="py-3 px-4 text-slate-500 font-mono">v{{ item.contentVersion || 1 }}</td>
                 <td class="py-3 px-4 text-slate-400">{{ item.updatedAt ? (item.updatedAt | date:'shortDate') : '-' }}</td>
               }

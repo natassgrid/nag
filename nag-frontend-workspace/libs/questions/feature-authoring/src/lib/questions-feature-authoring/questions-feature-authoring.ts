@@ -541,6 +541,23 @@ export class QuestionsFeatureAuthoring implements OnInit {
       return;
     }
 
+    if (!this.selectedTopicId) {
+      this.feedback.set({
+        type: 'error',
+        message: 'Please select a Topic from the taxonomy hierarchy before saving.',
+      });
+      return;
+    }
+
+    if (!this.selectedSubtopicId) {
+      this.feedback.set({
+        type: 'error',
+        message: 'Under the Unified Exam Spine, every question must belong to a Subtopic. Please select a Subtopic.',
+      });
+      return;
+    }
+
+
     if (!this.content.trim()) {
       this.feedback.set({
         type: 'error',
@@ -629,8 +646,9 @@ export class QuestionsFeatureAuthoring implements OnInit {
       subject: selectedSub?.name || 'General',
       topic: selectedTop?.name || 'General',
       subtopic: selectedSubtop?.name || '',
-      subjectId: this.selectedSubjectId || 0,
-      topicId: this.selectedTopicId || undefined,
+      subjectId: this.selectedSubjectId ? Number(this.selectedSubjectId) : 0,
+      topicId: this.selectedTopicId ? Number(this.selectedTopicId) : undefined,
+      subtopicId: this.selectedSubtopicId ? Number(this.selectedSubtopicId) : undefined,
       marks: this.marks,
       negativeMarks: this.negativeMarks,
       options: formattedOptions,
@@ -768,8 +786,9 @@ export class QuestionsFeatureAuthoring implements OnInit {
       subject: selectedSub?.name || 'General',
       topic: selectedTop?.name || 'General',
       subtopic: selectedSubtop?.name || undefined,
-      subjectId: this.selectedSubjectId || 0,
-      topicId: this.selectedTopicId || undefined,
+      subjectId: this.selectedSubjectId ? Number(this.selectedSubjectId) : 0,
+      topicId: this.selectedTopicId ? Number(this.selectedTopicId) : undefined,
+      subtopicId: this.selectedSubtopicId ? Number(this.selectedSubtopicId) : undefined,
       state: 'DRAFT',
       status: 'DRAFT',
       subQuestions: formattedSubQuestions,

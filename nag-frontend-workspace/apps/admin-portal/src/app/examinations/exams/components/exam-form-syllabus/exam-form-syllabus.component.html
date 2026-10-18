@@ -1,0 +1,146 @@
+<div class="space-y-3 pt-3 border-t border-slate-200">
+  <div class="flex items-center justify-between">
+    <div>
+      <div class="flex items-center gap-2">
+        <h3 class="text-xs font-bold text-indigo-900 uppercase tracking-wider">
+          Examination Syllabus Scope (exam_syllabus_node)
+        </h3>
+        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-800">
+          {{ syllabusCounts().subtopics }} Subtopics in Scope
+        </span>
+      </div>
+      <p class="text-[11px] text-slate-500 mt-0.5">
+        Defines the canonical syllabus boundaries driving candidate learning journeys, diagnostics, and blueprint validation.
+      </p>
+    </div>
+    <div class="flex items-center gap-2">
+      <button
+        type="button"
+        (click)="selectAllSubjects()"
+        class="text-xs font-bold text-indigo-600 hover:text-indigo-800"
+      >
+        Select All
+      </button>
+      <span class="text-slate-300">|</span>
+      <button
+        type="button"
+        (click)="clearSyllabus()"
+        class="text-xs font-bold text-slate-500 hover:text-rose-600"
+      >
+        Clear
+      </button>
+    </div>
+  </div>
+
+  <!-- Syllabus Tree Box -->
+  <div class="border border-slate-200 rounded-xl bg-slate-50 max-h-72 overflow-y-auto divide-y divide-slate-200/80 p-2">
+    @if (tree().length === 0) {
+      <div class="p-6 text-center text-xs text-slate-400">
+        No taxonomy nodes available. Ensure taxonomy is initialized.
+      </div>
+    }
+
+    @for (subject of tree(); track subject.id) {
+      <div class="py-1.5 px-2">
+        <!-- Subject Row -->
+        <div class="flex items-center justify-between py-1 hover:bg-slate-100/70 rounded-lg px-1.5 transition-colors">
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              (click)="toggleSubjectExpand(subject.id)"
+              class="w-5 h-5 flex items-center justify-center text-slate-500 hover:text-slate-800"
+            >
+              <mat-icon class="!text-sm">
+                {{ isSubjectExpanded(subject.id) ? 'expand_more' : 'chevron_right' }}
+              </mat-icon>
+            </button>
+            <label class="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                [checked]="isNodeSelected('SUBJECT', subject.id)"
+                (change)="toggleNode('SUBJECT', subject.id, subject.name, subject.code)"
+                class="rounded text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5"
+              />
+              <span class="text-xs font-bold text-slate-900">{{ subject.name }}</span>
+            </label>
+          </div>
+          <span class="text-[10px] text-slate-400 font-mono">
+            {{ (subject.topics || []).length }} topics
+          </span>
+        </div>
+
+        <!-- Topics List (Collapsible) -->
+        @if (isSubjectExpanded(subject.id)) {
+          <div class="pl-6 space-y-1 mt-1 border-l-2 border-indigo-200 ml-3">
+            @for (topic of subject.topics || []; track topic.id) {
+              <div>
+                <div class="flex items-center justify-between py-0.5 hover:bg-slate-100/70 rounded px-1.5">
+                  <div class="flex items-center gap-2">
+                    <button
+                      type="button"
+                      (click)="toggleTopicExpand(topic.id)"
+                      class="w-4 h-4 flex items-center justify-center text-slate-400 hover:text-slate-700"
+                    >
+                      <mat-icon class="!text-xs">
+                        {{ isTopicExpanded(topic.id) ? 'expand_more' : 'chevron_right' }}
+                      </mat-icon>
+                    </button>
+                    <label class="flex items-center gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        [checked]="isNodeSelected('TOPIC', topic.id)"
+                        (change)="toggleNode('TOPIC', topic.id, topic.name, topic.code)"
+                        class="rounded text-indigo-600 focus:ring-indigo-500 w-3 h-3"
+                      />
+                      <span class="text-[11px] font-semibold text-slate-800">{{ topic.name }}</span>
+                    </label>
+                  </div>
+                  <span class="text-[10px] text-slate-400 font-mono">
+                    {{ (topic.subtopics || []).length }} subtopics
+                  </span>
+                </div>
+
+                <!-- Subtopics List (Collapsible) -->
+                @if (isTopicExpanded(topic.id)) {
+                  <div class="pl-6 space-y-0.5 mt-0.5 border-l border-slate-300 ml-2">
+                    @for (subtopic of topic.subtopics || []; track subtopic.id) {
+                      <div class="flex items-center justify-between py-0.5 px-1 hover:bg-white rounded">
+                        <label class="flex items-center gap-2 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            [checked]="isNodeSelected('SUBTOPIC', subtopic.id)"
+                            (change)="toggleNode('SUBTOPIC', subtopic.id, subtopic.name, subtopic.code)"
+                            class="rounded text-indigo-600 focus:ring-indigo-500 w-3 h-3"
+                          />
+                          <span class="text-[11px] text-slate-700 font-medium">{{ subtopic.name }}</span>
+                        </label>
+                        @if (subtopic.code) {
+                          <span class="text-[9px] text-slate-400 font-mono">{{ subtopic.code }}</span>
+                        }
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+  <div class="flex items-center gap-4 text-[11px] text-slate-500 bg-white p-2.5 rounded-lg border border-slate-200">
+    <div class="flex items-center gap-1.5">
+      <mat-icon class="!text-sm text-indigo-600">check_circle</mat-icon>
+      <span>Selected: <strong>{{ syllabusCounts().subjects }}</strong> Subjects</span>
+    </div>
+    <div class="flex items-center gap-1.5">
+      <mat-icon class="!text-sm text-purple-600">check_circle</mat-icon>
+      <span><strong>{{ syllabusCounts().topics }}</strong> Topics</span>
+    </div>
+    <div class="flex items-center gap-1.5">
+      <mat-icon class="!text-sm text-emerald-600">check_circle</mat-icon>
+      <span><strong>{{ syllabusCounts().subtopics }}</strong> Subtopics</span>
+    </div>
+  </div>
+</div>

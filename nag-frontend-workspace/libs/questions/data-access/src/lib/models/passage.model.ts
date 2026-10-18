@@ -23,6 +23,7 @@ export interface PassageRequest {
   contentFormat?: string;
   subjectId: number;
   topicId?: number;
+  subtopicId?: number;
   subject?: string;
   topic?: string;
   subtopic?: string;
@@ -39,6 +40,7 @@ export interface PassageResponse {
   contentFormat?: string;
   subjectId: number;
   topicId?: number;
+  subtopicId?: number;
   subject?: string;
   topic?: string;
   subtopic?: string;

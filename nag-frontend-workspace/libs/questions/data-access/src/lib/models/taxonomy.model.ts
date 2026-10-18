@@ -55,3 +55,67 @@ export interface TargetExaminationOption {
   category?: string;
   examinationType?: string;
 }
+
+export type TaxonomyNodeType = 'SUBJECT' | 'TOPIC' | 'SUBTOPIC';
+
+export interface TaxonomySubtopicNode {
+  id: number;
+  topicId?: number;
+  code?: string;
+  name: string;
+  description?: string;
+  displayOrder?: number;
+  active?: boolean;
+  questionCount?: number;
+  lessonCount?: number;
+}
+
+export interface TaxonomyTopicNode {
+  id: number;
+  subjectId?: number;
+  code?: string;
+  name: string;
+  description?: string;
+  displayOrder?: number;
+  active?: boolean;
+  questionCount?: number;
+  lessonCount?: number;
+  subtopics: TaxonomySubtopicNode[];
+}
+
+export interface TaxonomySubjectNode {
+  id: number;
+  code?: string;
+  name: string;
+  description?: string;
+  displayOrder?: number;
+  active?: boolean;
+  questionCount?: number;
+  lessonCount?: number;
+  topics: TaxonomyTopicNode[];
+}
+
+export interface TaxonomyOverrideRequest {
+  nodeType: TaxonomyNodeType;
+  nodeId: number;
+  hidden?: boolean;
+  nameOverride?: string;
+  orderOverride?: number;
+}
+
+export interface MergeTaxonomyRequest {
+  nodeType: TaxonomyNodeType;
+  sourceNodeId: number;
+  targetNodeId: number;
+}
+
+export interface NodeOrderItem {
+  id: number;
+  displayOrder: number;
+}
+
+export interface ReorderTaxonomyRequest {
+  nodeType: TaxonomyNodeType;
+  items: NodeOrderItem[];
+}
+

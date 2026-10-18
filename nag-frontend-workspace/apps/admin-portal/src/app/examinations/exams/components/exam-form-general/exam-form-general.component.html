@@ -80,5 +80,32 @@
         class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
       />
     </div>
+
+    <!-- Unified Spine Blueprint Binding (Single blueprintId per exam) -->
+    <div class="sm:col-span-2 space-y-1">
+      <div class="flex items-center justify-between">
+        <label for="exam-blueprint-select" class="block text-xs font-semibold text-slate-700 uppercase">
+          Unified Exam Spine Blueprint *
+        </label>
+        <span class="text-[10px] text-indigo-600 font-bold">1:1 Examination Blueprint Contract</span>
+      </div>
+      <select
+        id="exam-blueprint-select"
+        [ngModel]="blueprintId()"
+        (ngModelChange)="blueprintIdChange.emit($event)"
+        class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+      >
+        <option value="">-- Select Rule Blueprint --</option>
+        @for (bp of blueprints(); track bp.id) {
+          <option [value]="bp.id">
+            {{ bp.name }} {{ bp.code ? '(' + bp.code + ')' : '' }}
+          </option>
+        }
+      </select>
+      <p class="text-[11px] text-slate-500">
+        Every examination binds to exactly one blueprint governing question quotas and sufficiency audits.
+      </p>
+    </div>
   </div>
 </div>
+

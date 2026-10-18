@@ -32,11 +32,14 @@
           [authority]="formAuthority"
           [category]="formCategory"
           [academicYear]="formAcademicYear"
+          [blueprintId]="formBlueprintId"
+          [blueprints]="availableBlueprints()"
           (nameChange)="formName = $event"
           (codeChange)="formCode = $event"
           (authorityChange)="formAuthority = $event"
           (categoryChange)="formCategory = $event"
           (academicYearChange)="formAcademicYear = $event"
+          (blueprintIdChange)="formBlueprintId = $event"
         ></nag-exam-form-general>
 
         <!-- Rules and Policies Sub-component -->
@@ -59,13 +62,22 @@
           (isPracticeChange)="formIsPractice = $event"
         ></nag-exam-form-rules>
 
-        <!-- Sections Breakdown Sub-component -->
+        <!-- Sections Breakdown Sub-component with Subject Mapping -->
         <nag-exam-form-sections
           [sections]="formSections"
+          [subjects]="taxonomySubjects()"
           (addSection)="addSection()"
           (removeSection)="removeSection($event)"
         ></nag-exam-form-sections>
+
+        <!-- Syllabus Scope Selection Sub-component -->
+        <nag-exam-form-syllabus
+          [tree]="taxonomyTree()"
+          [selectedNodes]="formSyllabusNodes"
+          (nodesChange)="formSyllabusNodes = $event"
+        ></nag-exam-form-syllabus>
       </div>
+
 
       <!-- Drawer Footer Actions -->
       <div class="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-end gap-3 sticky bottom-0 z-10">

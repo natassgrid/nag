@@ -7,6 +7,12 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
+export interface BlueprintOption {
+  id: string;
+  name: string;
+  code?: string;
+}
+
 @Component({
   selector: 'nag-exam-form-general',
   standalone: true,
@@ -21,10 +27,13 @@ export class ExamFormGeneralComponent {
   readonly authority = input<string>('');
   readonly category = input<string>('');
   readonly academicYear = input<string>('2025-2026');
+  readonly blueprintId = input<string>('');
+  readonly blueprints = input<BlueprintOption[]>([]);
 
   readonly nameChange = output<string>();
   readonly codeChange = output<string>();
   readonly authorityChange = output<string>();
   readonly categoryChange = output<string>();
   readonly academicYearChange = output<string>();
+  readonly blueprintIdChange = output<string>();
 }

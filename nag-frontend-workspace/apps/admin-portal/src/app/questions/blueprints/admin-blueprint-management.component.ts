@@ -8,9 +8,13 @@ import {
   BlueprintTemplateService,
   BlueprintTemplateResponse,
   BlueprintTemplateRequest,
+  BlueprintRequest,
+  BlueprintResponse,
   BlueprintRule,
+  BlueprintSectionDto,
   BlueprintFeasibilityResponse,
   SubjectTopicService,
+  TaxonomyStore,
   Subject,
   SubjectHierarchy,
 } from '@nag-frontend-workspace/questions-data-access';
@@ -43,11 +47,13 @@ import {
 export class AdminBlueprintManagementComponent implements OnInit {
   private readonly blueprintService = inject(BlueprintTemplateService);
   private readonly subjectTopicService = inject(SubjectTopicService);
+  private readonly taxonomyStore = inject(TaxonomyStore);
   private readonly fb = inject(FormBuilder);
   private readonly router = inject(Router);
   private readonly notificationService = inject(NotificationService);
 
   readonly templates = signal<BlueprintTemplateResponse[]>([]);
+
   readonly loading = signal<boolean>(false);
   readonly saving = signal<boolean>(false);
   readonly deletingId = signal<string | null>(null);
@@ -98,19 +104,26 @@ export class AdminBlueprintManagementComponent implements OnInit {
   }
 
   loadTaxonomy(): void {
-    this.subjectTopicService.getHierarchy().subscribe({
-      next: (hierarchy) => {
-        if (hierarchy && hierarchy.length > 0) {
-          this.taxonomyHierarchy.set(hierarchy);
+    this.taxonomyStore.loadTree().subscribe({
+      next: (tree) => {
+        if (tree && tree.length > 0) {
+          this.taxonomySubjects.set(
+            tree.map((s) => ({
+              id: s.id,
+              name: s.name,
+              code: s.code,
+              description: s.description,
+            }))
+          );
         }
       },
       error: () => {},
     });
 
-    this.subjectTopicService.getSubjects().subscribe({
-      next: (subs) => {
-        if (subs && subs.length > 0) {
-          this.taxonomySubjects.set(subs);
+    this.subjectTopicService.getHierarchy().subscribe({
+      next: (hierarchy) => {
+        if (hierarchy && hierarchy.length > 0) {
+          this.taxonomyHierarchy.set(hierarchy);
         }
       },
       error: () => {},
@@ -130,12 +143,22 @@ export class AdminBlueprintManagementComponent implements OnInit {
   onRuleSubjectChanged(index: number): void {
     const ruleGroup = this.rulesArray.at(index) as FormGroup;
     if (!ruleGroup) return;
-    const subj = ruleGroup.get('subject')?.value || '';
-    const topics = this.getTopicsForSubject(subj);
+    const sId = ruleGroup.get('subjectId')?.value;
+    const topics = sId ? this.taxonomyStore.getTopicsForSubject(sId) : [];
     if (topics.length > 0) {
-      ruleGroup.patchValue({ topic: topics[0] });
+      ruleGroup.patchValue({
+        topicId: topics[0].id,
+        topic: topics[0].name,
+        subtopicId: null,
+        subtopic: '',
+      });
     } else {
-      ruleGroup.patchValue({ topic: '' });
+      ruleGroup.patchValue({
+        topicId: null,
+        topic: '',
+        subtopicId: null,
+        subtopic: '',
+      });
     }
   }
 
@@ -153,14 +176,23 @@ export class AdminBlueprintManagementComponent implements OnInit {
   }
 
   createRuleGroup(rule?: Partial<BlueprintRule>): FormGroup {
-    const defaultSubj = this.taxonomySubjects().length > 0 ? this.taxonomySubjects()[0].name : (rule?.subject || 'Quantitative Aptitude');
+    const subs = this.taxonomyStore.subjects();
+    const defaultSub = subs.length > 0 ? subs[0] : null;
+    const sId = rule?.subjectId ?? (defaultSub ? Number(defaultSub.id) : 1);
+    const sName = rule?.subject || (defaultSub ? defaultSub.name : 'Quantitative Aptitude');
+
     return this.fb.group({
-      subject: [rule?.subject || defaultSubj, Validators.required],
+      subjectId: [sId, Validators.required],
+      topicId: [rule?.topicId || null],
+      subtopicId: [rule?.subtopicId || null],
+      subject: [sName],
       topic: [rule?.topic || ''],
+      subtopic: [rule?.subtopic || ''],
       difficulty: [rule?.difficulty || 'MEDIUM'],
       cognitiveLevel: [rule?.cognitiveLevel || 'APPLY'],
       questionType: [rule?.questionType || 'SINGLE_MCQ'],
       questionCount: [rule?.questionCount ?? rule?.targetCount ?? 5, [Validators.required, Validators.min(1)]],
+      marksOverride: [rule?.marksOverride || null],
       marksPerQuestion: [rule?.marksPerQuestion ?? 2, [Validators.required, Validators.min(1)]],
       negativeMarks: [rule?.negativeMarks ?? 0.5],
     });
@@ -176,7 +208,7 @@ export class AdminBlueprintManagementComponent implements OnInit {
 
   loadTemplates(): void {
     this.loading.set(true);
-    this.blueprintService.listTemplates().subscribe({
+    this.blueprintService.listBlueprints().subscribe({
       next: (data) => {
         this.templates.set(data || []);
         this.loading.set(false);
@@ -197,10 +229,24 @@ export class AdminBlueprintManagementComponent implements OnInit {
       examId: '',
     });
     this.rulesArray.clear();
-    const defaultSubj1 = this.taxonomySubjects().length > 0 ? this.taxonomySubjects()[0].name : 'Quantitative Aptitude';
-    const defaultSubj2 = this.taxonomySubjects().length > 1 ? this.taxonomySubjects()[1].name : 'General Intelligence';
-    this.addRule({ subject: defaultSubj1, topic: 'Arithmetic', difficulty: 'EASY', questionCount: 10, marksPerQuestion: 2 });
-    this.addRule({ subject: defaultSubj2, topic: 'Reasoning', difficulty: 'MEDIUM', questionCount: 10, marksPerQuestion: 2 });
+    const subs = this.taxonomyStore.subjects();
+    const s1 = subs.length > 0 ? subs[0] : null;
+    const s2 = subs.length > 1 ? subs[1] : null;
+
+    this.addRule({
+      subjectId: s1 ? Number(s1.id) : 1,
+      subject: s1 ? s1.name : 'Quantitative Aptitude',
+      difficulty: 'EASY',
+      questionCount: 10,
+      marksPerQuestion: 2,
+    });
+    this.addRule({
+      subjectId: s2 ? Number(s2.id) : 2,
+      subject: s2 ? s2.name : 'General Intelligence',
+      difficulty: 'MEDIUM',
+      questionCount: 10,
+      marksPerQuestion: 2,
+    });
     this.drawerOpen.set(true);
   }
 
@@ -233,16 +279,47 @@ export class AdminBlueprintManagementComponent implements OnInit {
 
     this.saving.set(true);
     const formValue = this.form.value;
-    const req: BlueprintTemplateRequest = {
+    const rawRules: any[] = formValue.rules || [];
+
+    const rules: BlueprintRule[] = rawRules.map((r, idx) => ({
+      ...r,
+      orderIndex: idx + 1,
+      subjectId: r.subjectId ? Number(r.subjectId) : undefined,
+      topicId: r.topicId ? Number(r.topicId) : undefined,
+      subtopicId: r.subtopicId ? Number(r.subtopicId) : undefined,
+      subject: r.subject || this.taxonomyStore.subjectName(r.subjectId),
+      topic: r.topic || this.taxonomyStore.topicName(r.topicId),
+      subtopic: r.subtopic || this.taxonomyStore.subtopicName(r.subtopicId),
+    }));
+
+    // Group rules into relational sections by subject
+    const sectionMap = new Map<number, BlueprintSectionDto>();
+    for (const r of rules) {
+      const sId = r.subjectId || 0;
+      if (!sectionMap.has(sId)) {
+        sectionMap.set(sId, {
+          name: r.subject || `Section ${sectionMap.size + 1}`,
+          subjectId: sId > 0 ? sId : undefined,
+          subject: r.subject,
+          orderIndex: sectionMap.size + 1,
+          rules: [],
+        });
+      }
+      sectionMap.get(sId)!.rules.push(r);
+    }
+    const sections = Array.from(sectionMap.values());
+
+    const req: BlueprintRequest = {
       name: formValue.name,
       description: formValue.description,
       examId: formValue.examId || undefined,
-      rules: formValue.rules,
+      sections,
+      rules,
     };
 
     const current = this.editingTemplate();
     if (current) {
-      this.blueprintService.updateTemplate(current.id, req).subscribe({
+      this.blueprintService.updateBlueprint(current.id, req).subscribe({
         next: (updated) => {
           this.templates.update((list) =>
             list.map((item) => (item.id === current.id ? { ...item, ...updated } : item))
@@ -267,7 +344,7 @@ export class AdminBlueprintManagementComponent implements OnInit {
         },
       });
     } else {
-      this.blueprintService.createTemplate(req).subscribe({
+      this.blueprintService.createBlueprint(req).subscribe({
         next: (created) => {
           this.templates.update((list) => [created, ...list]);
           this.saving.set(false);
@@ -278,6 +355,7 @@ export class AdminBlueprintManagementComponent implements OnInit {
           const createdLocal: BlueprintTemplateResponse = {
             id: 'tpl-' + Math.random().toString(36).substring(2, 9),
             ...req,
+            rules: req.rules || [],
             totalQuestions: this.calculateTotalQuestions(req.rules),
             createdAt: new Date().toISOString(),
           };
@@ -337,7 +415,7 @@ export class AdminBlueprintManagementComponent implements OnInit {
           totalAvailable: 342,
           totalRequested: this.calculateTotalQuestions(tpl.rules),
           rules: (tpl.rules || []).map((r) => ({
-            subject: r.subject,
+            subject: r.subject || 'General',
             topic: r.topic || 'General',
             difficulty: r.difficulty || 'MEDIUM',
             requested: r.questionCount || r.targetCount || 5,

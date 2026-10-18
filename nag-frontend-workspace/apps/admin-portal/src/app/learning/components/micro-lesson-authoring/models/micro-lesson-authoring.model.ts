@@ -14,6 +14,7 @@ export interface TargetExamOption {
 }
 
 export const DEFAULT_EXAM_OPTIONS: TargetExamOption[] = [
+  { label: 'Universal / All Exams (Agnostic)', value: 'ALL' },
   { label: 'JEE Main & Advanced (JEE_MAIN)', value: 'JEE_MAIN' },
   { label: 'JEE Advanced (JEE_ADVANCED)', value: 'JEE_ADVANCED' },
   { label: 'NEET-UG Medical (NEET)', value: 'NEET' },
@@ -22,6 +23,22 @@ export const DEFAULT_EXAM_OPTIONS: TargetExamOption[] = [
   { label: 'CAT Management (CAT)', value: 'CAT' },
   { label: 'SSC CGL (SSC_CGL)', value: 'SSC_CGL' },
   { label: 'General / Foundational (GENERAL)', value: 'GENERAL' },
+];
+
+export const LESSON_TYPE_OPTIONS = [
+  { label: 'Core Concept (CONCEPT)', value: 'CONCEPT' },
+  { label: 'Worked Examples (WORKED_EXAMPLES)', value: 'WORKED_EXAMPLES' },
+  { label: 'Traps & Common Pitfalls (TRAPS_AND_PITFALLS)', value: 'TRAPS_AND_PITFALLS' },
+  { label: 'Formula Cheat Sheet (CHEAT_SHEET)', value: 'CHEAT_SHEET' },
+  { label: 'Visual Intuition (VISUAL)', value: 'VISUAL' },
+  { label: 'Quick Recap (QUICK_RECAP)', value: 'QUICK_RECAP' },
+  { label: 'Story & Analogy (STORY_ANALOGY)', value: 'STORY_ANALOGY' },
+];
+
+export const DIFFICULTY_LEVEL_OPTIONS = [
+  { label: 'Foundation (Remedial / Beginner)', value: 'FOUNDATION' },
+  { label: 'Core (Standard Curriculum)', value: 'CORE' },
+  { label: 'Advanced (High-Order / Olympiad)', value: 'ADVANCED' },
 ];
 
 export const AUTHORING_STATUS_OPTIONS = [
@@ -100,6 +117,10 @@ export const DEFAULT_KEY_TAKEAWAYS: string[] = [
 
 export interface ParsedAuthoringLessonState {
   targetExam: string;
+  lessonType: string;
+  difficultyLevel: string;
+  sequenceNo: number;
+  estimatedMinutes: number;
   status: string;
   subtopicCustomName: string;
   coreConcept: string;
@@ -207,7 +228,11 @@ export function parseLessonForAuthoring(lesson: MicroLessonReviewItem): ParsedAu
       : [{ question: '', options: [], answer: '', correctAnswer: '', explanation: '' }];
 
   return {
-    targetExam: lesson.targetExam || 'JEE_MAIN',
+    targetExam: lesson.targetExam || '',
+    lessonType: lesson.lessonType || 'CONCEPT',
+    difficultyLevel: lesson.difficultyLevel || 'CORE',
+    sequenceNo: lesson.sequenceNo ?? 1,
+    estimatedMinutes: lesson.estimatedMinutes ?? 5,
     status: lesson.status || 'APPROVED',
     subtopicCustomName: lesson.subtopicName || lesson.subtopic || '',
     coreConcept,
@@ -229,7 +254,11 @@ export function buildCreateOrUpdateRequest(params: {
   topicName: string;
   subtopicId: number | null;
   subtopicName: string;
-  targetExam: string;
+  targetExam?: string;
+  lessonType?: string;
+  difficultyLevel?: string;
+  sequenceNo?: number;
+  estimatedMinutes?: number;
   status: string;
   coreConcept: string;
   trapAlert: TrapAlert;
@@ -316,7 +345,11 @@ export function buildCreateOrUpdateRequest(params: {
     subtopicId: params.subtopicId ?? undefined,
     subtopic: params.subtopicName.trim() || 'General',
     subtopicName: params.subtopicName.trim() || 'General',
-    targetExam: params.targetExam.trim() || 'JEE_MAIN',
+    targetExam: params.targetExam?.trim() || undefined,
+    lessonType: params.lessonType || 'CONCEPT',
+    difficultyLevel: params.difficultyLevel || 'CORE',
+    sequenceNo: params.sequenceNo ?? 1,
+    estimatedMinutes: params.estimatedMinutes ?? 5,
     status: params.status || 'APPROVED',
     coreConcept: params.coreConcept.trim(),
     trap: trapString,

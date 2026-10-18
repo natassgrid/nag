@@ -338,7 +338,10 @@ export class ExaminationsFeaturePaperGen implements OnInit, OnDestroy {
         return;
       }
       rulesToUse = (selectedTpl.rules || []).map((r) => ({
-        subject: r.subject,
+        subjectId: r.subjectId,
+        topicId: r.topicId,
+        subtopicId: r.subtopicId,
+        subject: r.subject || '',
         topic: r.topic || '',
         difficulty: r.difficulty || 'MEDIUM',
         cognitiveLevel: r.cognitiveLevel || 'APPLY',

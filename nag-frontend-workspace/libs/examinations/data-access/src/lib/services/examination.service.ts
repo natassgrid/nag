@@ -145,4 +145,17 @@ export class ExaminationService {
         )
       );
   }
+
+  getSyllabus(examId: string): Observable<any> {
+    return this.http
+      .get<ApiResponse<any> | any>(`${this.baseUrl}/${examId}/syllabus`)
+      .pipe(map((res) => (res as any)?.data ?? res));
+  }
+
+  updateSyllabus(examId: string, nodes: any[]): Observable<any> {
+    return this.http
+      .put<ApiResponse<any> | any>(`${this.baseUrl}/${examId}/syllabus`, { nodes })
+      .pipe(map((res) => (res as any)?.data ?? res));
+  }
 }
+

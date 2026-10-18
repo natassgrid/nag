@@ -316,12 +316,20 @@ Expected JSON Output Schema:
     }
 
     const targetExam = (parsed.targetExam || contentObj.targetExam || 'JEE_MAIN').toString().trim();
+    const lessonType = (parsed.lessonType || contentObj.lessonType || 'CONCEPT').toString().trim();
+    const difficultyLevel = (parsed.difficultyLevel || contentObj.difficultyLevel || 'CORE').toString().trim();
+    const sequenceNo = Number(parsed.sequenceNo || contentObj.sequenceNo || 1);
+    const estimatedMinutes = Number(parsed.estimatedMinutes || contentObj.estimatedMinutes || 5);
     const subtopicCustomName = (parsed.subtopicCustomName || parsed.subtopicName || parsed.subtopic || '').toString().trim();
     const status = (parsed.status || 'APPROVED').toString().trim();
     const reviewerNotes = (parsed.reviewerNotes || '').toString().trim();
 
     const data: ParsedAuthoringLessonState = {
       targetExam,
+      lessonType,
+      difficultyLevel,
+      sequenceNo,
+      estimatedMinutes,
       status,
       subtopicCustomName,
       coreConcept,

@@ -7,7 +7,15 @@ import {
   Subtopic,
   SubjectHierarchy,
   TargetExaminationOption,
+  TaxonomySubjectNode,
+  TaxonomyTopicNode,
+  TaxonomySubtopicNode,
+  TaxonomyOverrideRequest,
+  MergeTaxonomyRequest,
+  ReorderTaxonomyRequest,
 } from '../models/taxonomy.model';
+import { TaxonomyStore } from './taxonomy.store';
+
 
 @Injectable({
   providedIn: 'root',
@@ -70,9 +78,83 @@ export class SubjectTopicService {
   }
 
   getHierarchy(): Observable<SubjectHierarchy[]> {
-    return this.http
-      .get<{ data?: SubjectHierarchy[] } | SubjectHierarchy[]>(`${this.baseUrl}/hierarchy`)
-      .pipe(map((res) => (Array.isArray(res) ? res : (res as any)?.data || [])));
+    return this.getTaxonomyTree().pipe(
+      map((tree) => {
+        if (!tree || tree.length === 0) return [];
+        return tree.map((s) => ({
+          id: s.id,
+          name: s.name,
+          code: s.code,
+          description: s.description,
+          questionCount: s.questionCount,
+          topics: (s.topics || []).map((t) => ({
+            id: t.id,
+            name: t.name,
+            description: t.description,
+            questionCount: t.questionCount,
+            subtopics: (t.subtopics || []).map((st) => ({
+              id: st.id,
+              name: st.name,
+              description: st.description,
+              questionCount: st.questionCount,
+            })),
+          })),
+        }));
+      }),
+      catchError(() =>
+        this.http
+          .get<{ data?: SubjectHierarchy[] } | SubjectHierarchy[]>(`${this.baseUrl}/hierarchy`)
+          .pipe(map((res) => (Array.isArray(res) ? res : (res as any)?.data || [])))
+      )
+    );
+  }
+
+  // ── Unified Exam Spine Taxonomy Operations ─────────────────────────────
+
+  private readonly taxonomyStore = inject(TaxonomyStore);
+
+  /** Signal of effective taxonomy tree from store */
+  readonly taxonomyTree = this.taxonomyStore.tree;
+  readonly taxonomyLoading = this.taxonomyStore.loading;
+
+  getTaxonomyTree(examId?: string): Observable<TaxonomySubjectNode[]> {
+    return this.taxonomyStore.loadTree(examId);
+  }
+
+  applyOverrides(requests: TaxonomyOverrideRequest[]): Observable<void> {
+    return this.taxonomyStore.applyOverrides(requests);
+  }
+
+  mergeNodes(request: MergeTaxonomyRequest): Observable<void> {
+    return this.taxonomyStore.mergeNodes(request);
+  }
+
+  reorderNodes(request: ReorderTaxonomyRequest): Observable<void> {
+    return this.taxonomyStore.reorderNodes(request);
+  }
+
+  nodeName(type: 'SUBJECT' | 'TOPIC' | 'SUBTOPIC' | string, id: number | null | undefined): string {
+    return this.taxonomyStore.nodeName(type, id);
+  }
+
+  subjectName(id: number | null | undefined): string {
+    return this.taxonomyStore.subjectName(id);
+  }
+
+  topicName(id: number | null | undefined): string {
+    return this.taxonomyStore.topicName(id);
+  }
+
+  subtopicName(id: number | null | undefined): string {
+    return this.taxonomyStore.subtopicName(id);
+  }
+
+  getTopicsForSubject(subjectId: number | null | undefined): TaxonomyTopicNode[] {
+    return this.taxonomyStore.getTopicsForSubject(subjectId);
+  }
+
+  getSubtopicsForTopic(topicId: number | null | undefined): TaxonomySubtopicNode[] {
+    return this.taxonomyStore.getSubtopicsForTopic(topicId);
   }
 
   /**
@@ -134,3 +216,4 @@ export class SubjectTopicService {
     return this.getExaminations(page, size);
   }
 }
+

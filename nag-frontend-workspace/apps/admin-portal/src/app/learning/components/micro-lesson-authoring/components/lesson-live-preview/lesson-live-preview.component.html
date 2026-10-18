@@ -7,9 +7,15 @@
         Real-Time Candidate Micro-Lesson Preview
       </h3>
     </div>
-    <div class="flex items-center gap-1.5">
+    <div class="flex items-center gap-1.5 flex-wrap justify-end">
+      <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+        {{ lessonType() }}
+      </span>
+      <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+        {{ difficultyLevel() }}
+      </span>
       <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
-        {{ targetExam() || 'GENERAL' }}
+        {{ targetExam() || 'UNIVERSAL' }}
       </span>
       <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
         {{ status() }}
@@ -28,7 +34,7 @@
         <nag-math-renderer class="!text-white" [content]="subtopicName() || 'Untitled Subtopic'" [inline]="true"></nag-math-renderer>
       </h2>
       <p class="text-xs text-slate-300 mt-1">
-        Remedial Micro-Lesson &bull; Target Exam: {{ targetExam() || 'Competitive Exam' }}
+        {{ lessonType() }} &bull; {{ difficultyLevel() }} &bull; ~{{ estimatedMinutes() }} min &bull; {{ targetExam() || 'Universal' }}
       </p>
     </div>
 
