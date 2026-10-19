@@ -54,10 +54,12 @@ import java.util.regex.Pattern;
 public class QuestionPaperPdfParser {
 
     public static final int MAX_DIAGRAM_DIMENSION = 1024;
-    public static final int MAX_RENDERED_PAGE_DIMENSION = 1280;
-    public static final int SCANNED_RENDER_DPI = 150;
+    public static final int MAX_RENDERED_PAGE_DIMENSION = 1800;
+    public static final int SCANNED_RENDER_DPI = 200;
     public static final int MIN_TEXT_LENGTH_THRESHOLD = 40;
     public static final int MIN_IMAGE_DIMENSION = 40;
+    public static final int FULL_PAGE_IMAGE_MIN_WIDTH = 500;
+    public static final int FULL_PAGE_IMAGE_MIN_HEIGHT = 700;
 
     private static final Pattern PAREN_DELIMITER_PATTERN =
             Pattern.compile(Pattern.quote("\\(") + "(.*?)" + Pattern.quote("\\)"), Pattern.DOTALL);
@@ -111,6 +113,7 @@ public class QuestionPaperPdfParser {
 
         // Step 2: Extract embedded raster images (PDImageXObject) from this page
         List<String> embeddedDiagramDataUris = new ArrayList<>();
+        boolean hasFullPageScanImage = false;
         PDPage page = document.getPage(oneBasedPageNumber - 1);
         PDResources resources = page.getResources();
         if (resources != null) {
@@ -119,11 +122,15 @@ public class QuestionPaperPdfParser {
                     if (resources.isImageXObject(name)) {
                         PDImageXObject imageObject = (PDImageXObject) resources.getXObject(name);
                         BufferedImage image = imageObject.getImage();
-                        if (image != null && image.getWidth() >= MIN_IMAGE_DIMENSION && image.getHeight() >= MIN_IMAGE_DIMENSION) {
-                            BufferedImage downsampled = downsampleImage(image, MAX_DIAGRAM_DIMENSION);
-                            String dataUri = encodeImageToDataUri(downsampled);
-                            if (dataUri != null) {
-                                embeddedDiagramDataUris.add(dataUri);
+                        if (image != null) {
+                            if (image.getWidth() >= FULL_PAGE_IMAGE_MIN_WIDTH && image.getHeight() >= FULL_PAGE_IMAGE_MIN_HEIGHT) {
+                                hasFullPageScanImage = true;
+                            } else if (image.getWidth() >= MIN_IMAGE_DIMENSION && image.getHeight() >= MIN_IMAGE_DIMENSION) {
+                                BufferedImage downsampled = downsampleImage(image, MAX_DIAGRAM_DIMENSION);
+                                String dataUri = encodeImageToDataUri(downsampled);
+                                if (dataUri != null) {
+                                    embeddedDiagramDataUris.add(dataUri);
+                                }
                             }
                         }
                     }
@@ -138,11 +145,12 @@ public class QuestionPaperPdfParser {
         boolean scannedOrImageHeavy = false;
         String renderedPageDataUri = null;
 
-        if (cleanText.length() < MIN_TEXT_LENGTH_THRESHOLD) {
+        if (cleanText.length() < MIN_TEXT_LENGTH_THRESHOLD || hasFullPageScanImage) {
             // Tier 2: Scanned fallback
             tier = PdfPageContent.TIER_2_SCANNED_FALLBACK;
             scannedOrImageHeavy = true;
-            log.info("Page {} classified as {} (cleanText length={})", oneBasedPageNumber, tier, cleanText.length());
+            log.info("Page {} classified as {} (cleanText length={}, hasFullPageScanImage={})",
+                    oneBasedPageNumber, tier, cleanText.length(), hasFullPageScanImage);
 
             PDFRenderer renderer = new PDFRenderer(document);
             BufferedImage renderedPage = renderer.renderImageWithDPI(oneBasedPageNumber - 1, SCANNED_RENDER_DPI);

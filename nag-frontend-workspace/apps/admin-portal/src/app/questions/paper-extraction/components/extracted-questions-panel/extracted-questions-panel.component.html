@@ -315,6 +315,11 @@
                       </div>
                       <div class="flex-1 min-w-0">
                         <nag-math-renderer [content]="opt.text"></nag-math-renderer>
+                        @if (bilingualMode() && getHindiOptionText(q, opt.id)) {
+                          <div class="mt-1.5 pt-1.5 border-t border-slate-200/60 text-amber-950 font-normal">
+                            <nag-math-renderer [content]="getHindiOptionText(q, opt.id)"></nag-math-renderer>
+                          </div>
+                        }
                       </div>
                       @if (isOptionCorrect(q, opt)) {
                         <mat-icon class="!text-base text-emerald-600 shrink-0">check_circle</mat-icon>
@@ -355,6 +360,12 @@
                 <div class="p-3 bg-indigo-50/40 rounded-xl border border-indigo-100 text-xs text-slate-700">
                   <div class="font-bold text-indigo-900 uppercase tracking-wider text-[10px] mb-1">Step-by-Step Solution / Derivation</div>
                   <nag-math-renderer [content]="q.explanation"></nag-math-renderer>
+                </div>
+              }
+              @if (bilingualMode() && getHindiTranslation(q)?.explanation) {
+                <div class="p-3 bg-amber-50/40 rounded-xl border border-amber-100 text-xs text-slate-700">
+                  <div class="font-bold text-amber-900 uppercase tracking-wider text-[10px] mb-1">हल / व्याख्या (Hindi Explanation)</div>
+                  <nag-math-renderer [content]="getHindiTranslation(q)?.explanation"></nag-math-renderer>
                 </div>
               }
             </div>

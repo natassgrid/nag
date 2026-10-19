@@ -185,6 +185,16 @@ export class ExtractedQuestionsPanelComponent {
     return null;
   }
 
+  getHindiOptionText(q: ExtractedQuestion, optionId: string): string | null {
+    const hi = this.getHindiTranslation(q);
+    if (!hi || !hi.options || !Array.isArray(hi.options)) return null;
+    const cleanId = (optionId || '').trim().toUpperCase();
+    const match = hi.options.find(
+      (o: any) => o && o.id && o.id.toString().trim().toUpperCase() === cleanId
+    );
+    return match ? match.text : null;
+  }
+
   onQuickStatusChange(q: ExtractedQuestion, newStatus: ExtractedQuestionStatus): void {
     this.updateQuestion.emit({
       questionId: q.id,

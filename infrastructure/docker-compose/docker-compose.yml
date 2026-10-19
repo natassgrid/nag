@@ -386,6 +386,12 @@ services:
         else
           echo "llama3.2:1b already present, skipping."
         fi
+        if ! curl -sf http://ollama:11434/api/tags | grep -q "qwen2.5-vl:7b"; then
+          echo "Pulling qwen2.5-vl:7b for multimodal scanned OCR..."
+          curl -sf http://ollama:11434/api/pull -d '{"name":"qwen2.5-vl:7b"}'
+        else
+          echo "qwen2.5-vl:7b already present, skipping."
+        fi
         if ! curl -sf http://ollama:11434/api/tags | grep -q "qwen3:8b"; then
           echo "Pulling qwen3:8b for extraction..."
           curl -sf http://ollama:11434/api/pull -d '{"name":"qwen3:8b"}'

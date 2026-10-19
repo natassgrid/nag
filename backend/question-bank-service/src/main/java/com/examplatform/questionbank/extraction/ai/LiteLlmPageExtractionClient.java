@@ -269,8 +269,8 @@ public class LiteLlmPageExtractionClient {
 
     private String buildSystemPrompt() {
         return """
-            You are an expert Question Paper Digitization and Extraction AI for high-stakes national examinations (e.g. JEE, NEET, UPSC, GATE).
-            Your task is to analyze the provided Question Paper page (digital text and/or page image/diagrams) and extract all content into a valid, strictly conformant JSON object.
+            You are an expert Question Paper Digitization and Extraction AI specializing in high-stakes national examinations (e.g. UPSC, State PSC, SSC, JEE, NEET, GATE).
+            Your task is to analyze the provided Question Paper page (visual page scan and/or digital text) and extract all content into a strictly conformant JSON object.
 
             ### CORE EXTRACTION RULES:
             1. COVER & INSTRUCTION PAGE DETECTION:
@@ -278,24 +278,36 @@ public class LiteLlmPageExtractionClient {
                  Set "coverPage": true and extract "detectedPaperCode", "detectedBookletSerialNo", "detectedExamYear", "detectedSubjectName", "detectedTotalQuestions", "detectedDurationMinutes", "detectedMaxMarks", "detectedNegativeMarkingRatio", "detectedSections".
                - If this page is an ordinary question page, set "coverPage": false.
 
-            2. QUESTION EXTRACTION:
-               - Extract every distinct question item into the "questions" array in sequential order.
+            2. BILINGUAL SCANNED QUESTION PAPERS (PARALLEL TWO-COLUMN LAYOUT):
+               - National and state competitive exam papers typically feature a parallel two-column layout:
+                 * LEFT COLUMN: Question text and options in ENGLISH.
+                 * RIGHT COLUMN: Identical question text and options in HINDI (Devanagari script).
+               - DO NOT create two separate question items for the same question number!
+               - Pair each question by its printed question number:
+                 * Map the English stem to "content".
+                 * Map English choices to "options": [{"id": "A", "text": "...", "isCorrect": false}, ...].
+                 * Map the Hindi stem (in Devanagari script) to "hindiContent".
+                 * Map Hindi choices to "hindiOptions": [{"id": "A", "text": "...", "isCorrect": false}, ...].
+                 * Ensure option IDs ("A", "B", "C", "D") match between English and Hindi, even if Hindi options are numbered (1), (2), (3), (4) or (क), (ख), (ग), (घ).
+
+            3. QUESTION EXTRACTION & TYPING:
+               - Extract every distinct question item into the "questions" array in ascending numerical order.
                - Extract printed question number into "questionNumber".
                - Identify question type: SINGLE_MCQ, MULTI_MCQ, MATRIX_MATCH, NUMERICAL, DESCRIPTIVE, ASSERTION_REASON, PARAGRAPH_SET.
-               - For MCQs, extract choices into "options" with id "A", "B", "C", "D" and correct text. If answer key is evident or indicated, mark "isCorrect": true or populate "answerKey".
+               - If the correct answer key is marked or evident, populate "answerKey" (e.g. "B") and mark the matching option "isCorrect": true.
 
-            3. STRICT LATEX MATH & SCIENCE FORMULAS ($$...$$ ONLY):
-               - Enclose ALL mathematical, physical, chemical equations, variables, Greek letters, fractions, subscripts, superscripts, and units in double dollars: $$ ... $$.
-               - NEVER use single dollar ($ ... $) and NEVER use \\( ... \\) or \\[ ... \\].
-               - Use \\ce{...} inside $$...$$ for chemistry (e.g., $$\\ce{H2SO4}$$).
-               - Escape backslashes properly in JSON strings (e.g. "$$\\frac{a}{b}$$").
+            4. STRICT LATEX MATH & SCIENCE FORMULAS ($$...$$ ONLY):
+               - Enclose ALL mathematical, physical, and chemical formulas, variables, Greek letters, fractions, superscripts, subscripts, and physical units in double dollars: $$ ... $$.
+               - STRICTLY FORBIDDEN: Single dollar ($ ... $), \\( ... \\), and \\[ ... \\].
+               - Chemistry notation: Use \\ce{...} inside $$...$$ (e.g., $$\\ce{H2SO4}$$).
+               - Physical units: Use \\pu{...} inside $$...$$ (e.g., $$\\pu{9.8 m/s^2}$$).
+               - Escape backslashes properly in JSON strings (e.g. "$$\\frac{a}{b}$$", "$$\\sqrt{x}$$").
 
-            4. MARKDOWN & TABLE FORMATTING:
-               - Multi-statement reasoning (Statements I, II, III, IV or 1, 2, 3) MUST be formatted as clean Markdown numbered or Roman numeral lists with double newlines between sections.
-               - Matching questions (List-I / List-II or Column-A / Column-B) MUST be formatted as clean GitHub-Flavored Markdown (GFM) pipe tables with header and alignment row.
-
-            5. BILINGUAL PAPERS (ENGLISH + HINDI):
-               - In bilingual two-column or interleaved papers, extract the English version into "content" and "options", and the Hindi version into "hindiContent" and "hindiOptions".
+            5. MARKDOWN & TABLE FORMATTING:
+               - Multi-statement reasoning: Format statements as clean numbered or Roman lists with double line breaks:
+                 English: "**Statements:**\\n1. Statement one.\\n2. Statement two.\\n\\n**Conclusions:**\\nI. Conclusion one.\\nII. Conclusion two."
+                 Hindi: "**कथन:**\\n1. पहला कथन।\\n2. दूसरा कथन।\\n\\n**निष्कर्ष:**\\nI. पहला निष्कर्ष।\\nII. दूसरा निष्कर्ष।"
+               - Match-the-following questions (List-I / List-II or सूची-I / सूची-II): Format as clean GitHub-Flavored Markdown (GFM) pipe tables in both "content" and "hindiContent".
 
             6. OUTPUT FORMAT:
                - Output ONLY a single JSON object conforming to the schema. No conversational preambles, notes, or markdown outside of ```json ... ``` code fence.
@@ -311,14 +323,15 @@ public class LiteLlmPageExtractionClient {
           .append(" of ").append(pageContent.getTotalPages()).append("\n");
         sb.append("Extraction Tier: ").append(pageContent.getParsingTier()).append("\n");
         if (pageContent.isScannedOrImageHeavy()) {
-            sb.append("Note: This page is scanned/image-heavy. Full page image attached.\n");
+            sb.append("Note: This page is a scanned document page image (attached). Transcribe all visual text carefully.\n");
+            sb.append("Notice: If parallel English (left) and Hindi (right) columns are present, align them into content/options and hindiContent/hindiOptions.\n");
         }
         if (pageContent.getEmbeddedDiagramDataUris() != null && !pageContent.getEmbeddedDiagramDataUris().isEmpty()) {
             sb.append("Note: ").append(pageContent.getEmbeddedDiagramDataUris().size())
               .append(" embedded raster diagram(s) extracted from this page.\n");
         }
         sb.append("\n--- EXTRACTED DIGITAL TEXT STREAM ---\n");
-        sb.append(pageContent.getDigitalText() != null ? pageContent.getDigitalText() : "(No digital text detected)");
+        sb.append(pageContent.getDigitalText() != null ? pageContent.getDigitalText() : "(No digital text detected - rely on visual page image)");
         sb.append("\n--- END DIGITAL TEXT ---\n\n");
         sb.append("Extract all cover metadata (if page 1 / instruction page) and all question items into structured JSON.");
         return sb.toString();
