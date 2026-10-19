@@ -28,6 +28,7 @@ import com.examplatform.questionbank.extraction.ai.LiteLlmPageExtractionClient;
 import com.examplatform.questionbank.extraction.ai.LlmPageExtractionResult;
 import com.examplatform.questionbank.extraction.ai.PdfPageContent;
 import com.examplatform.questionbank.extraction.ai.QuestionPaperPdfParser;
+import com.examplatform.questionbank.extraction.client.AssetServiceClient;
 import com.examplatform.questionbank.extraction.domain.ExtractedQuestion;
 import com.examplatform.questionbank.extraction.domain.ExtractedQuestionStatus;
 import com.examplatform.questionbank.extraction.domain.PaperExtractionStatus;
@@ -75,7 +76,7 @@ class AsyncPaperExtractionWorkerTest {
     private ExtractedQuestionRepository extractedQuestionRepository;
 
     @Mock
-    private PaperFileStorageService paperFileStorageService;
+    private AssetServiceClient assetServiceClient;
 
     @Mock
     private LiteLlmPageExtractionClient extractionClient;
@@ -99,6 +100,7 @@ class AsyncPaperExtractionWorkerTest {
 
     private final String tenantId = "tenant-test-extraction";
     private final UUID paperId = UUID.randomUUID();
+    private final UUID assetId = UUID.randomUUID();
 
     @BeforeEach
     void setUp() {
@@ -107,7 +109,7 @@ class AsyncPaperExtractionWorkerTest {
         worker = new AsyncPaperExtractionWorker(
                 metadataRepository,
                 extractedQuestionRepository,
-                paperFileStorageService,
+                assetServiceClient,
                 pdfParser,
                 extractionClient,
                 modelRouter,
@@ -151,7 +153,8 @@ class AsyncPaperExtractionWorkerTest {
         QuestionPaperMetadata paper = QuestionPaperMetadata.builder()
                 .examinationName("UPSC Civil Services 2024")
                 .examYear(2024)
-                .fileStoragePath("/storage/test/upsc.pdf")
+                .fileAssetId(assetId)
+                .fileStoragePath("asset://" + assetId)
                 .defaultSubjectId(100L)
                 .defaultTopicId(200L)
                 .defaultSubtopicId(300L)
@@ -163,7 +166,7 @@ class AsyncPaperExtractionWorkerTest {
         when(metadataRepository.findByIdAndTenantId(paperId, tenantId)).thenReturn(Optional.of(paper));
         when(metadataRepository.save(any(QuestionPaperMetadata.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(modelRouter.selectPaperExtractionModel(true)).thenReturn("gemini-2.5-pro");
-        when(paperFileStorageService.loadPdfBytes(eq(paperId), eq("/storage/test/upsc.pdf"))).thenReturn(pdfBytes);
+        when(assetServiceClient.downloadAssetBytes(eq(assetId), eq(tenantId))).thenReturn(pdfBytes);
         when(extractedQuestionRepository.findByPaperMetadataIdAndTenantIdOrderByQuestionNumberAsc(paperId, tenantId))
                 .thenReturn(Collections.emptyList());
         when(extractedQuestionRepository.save(any(ExtractedQuestion.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -268,7 +271,7 @@ class AsyncPaperExtractionWorkerTest {
         assertThat(hiMap.get("content").toString()).contains("$$F = ma$$");
         assertThat(hiMap.get("options")).isNotNull();
 
-        verify(paperFileStorageService).evictMemoryCache(paperId);
+        verify(assetServiceClient).downloadAssetBytes(eq(assetId), eq(tenantId));
         assertThat(TenantContext.getTenantId()).isNull();
     }
 
@@ -280,7 +283,8 @@ class AsyncPaperExtractionWorkerTest {
         QuestionPaperMetadata paper = QuestionPaperMetadata.builder()
                 .examinationName("GATE Physics 2024")
                 .examYear(2024)
-                .fileStoragePath("/storage/gate.pdf")
+                .fileAssetId(assetId)
+                .fileStoragePath("asset://" + assetId)
                 .extractionStatus(PaperExtractionStatus.PENDING)
                 .build();
         ReflectionTestUtils.setField(paper, "id", paperId);
@@ -289,7 +293,7 @@ class AsyncPaperExtractionWorkerTest {
         when(metadataRepository.findByIdAndTenantId(paperId, tenantId)).thenReturn(Optional.of(paper));
         when(metadataRepository.save(any(QuestionPaperMetadata.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(modelRouter.selectPaperExtractionModel(true)).thenReturn("claude-3-7-sonnet");
-        when(paperFileStorageService.loadPdfBytes(eq(paperId), any())).thenReturn(pdfBytes);
+        when(assetServiceClient.downloadAssetBytes(eq(assetId), eq(tenantId))).thenReturn(pdfBytes);
         when(extractedQuestionRepository.findByPaperMetadataIdAndTenantIdOrderByQuestionNumberAsc(paperId, tenantId))
                 .thenReturn(Collections.emptyList());
 
@@ -324,7 +328,8 @@ class AsyncPaperExtractionWorkerTest {
         QuestionPaperMetadata paper = QuestionPaperMetadata.builder()
                 .examinationName("CAT 2024")
                 .examYear(2024)
-                .fileStoragePath("/storage/cat.pdf")
+                .fileAssetId(assetId)
+                .fileStoragePath("asset://" + assetId)
                 .extractionStatus(PaperExtractionStatus.PENDING)
                 .build();
         ReflectionTestUtils.setField(paper, "id", paperId);
@@ -333,7 +338,7 @@ class AsyncPaperExtractionWorkerTest {
         when(metadataRepository.findByIdAndTenantId(paperId, tenantId)).thenReturn(Optional.of(paper));
         when(metadataRepository.save(any(QuestionPaperMetadata.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(modelRouter.selectPaperExtractionModel(true)).thenReturn("gemini-2.5-pro");
-        when(paperFileStorageService.loadPdfBytes(eq(paperId), any())).thenReturn(pdfBytes);
+        when(assetServiceClient.downloadAssetBytes(eq(assetId), eq(tenantId))).thenReturn(pdfBytes);
         when(extractedQuestionRepository.findByPaperMetadataIdAndTenantIdOrderByQuestionNumberAsc(paperId, tenantId))
                 .thenReturn(Collections.emptyList());
 
@@ -357,7 +362,8 @@ class AsyncPaperExtractionWorkerTest {
         QuestionPaperMetadata paper = QuestionPaperMetadata.builder()
                 .examinationName("NEET UG 2024")
                 .examYear(2024)
-                .fileStoragePath("/storage/neet.pdf")
+                .fileAssetId(assetId)
+                .fileStoragePath("asset://" + assetId)
                 .extractionStatus(PaperExtractionStatus.PENDING)
                 .build();
         ReflectionTestUtils.setField(paper, "id", paperId);
@@ -366,7 +372,7 @@ class AsyncPaperExtractionWorkerTest {
         when(metadataRepository.findByIdAndTenantId(paperId, tenantId)).thenReturn(Optional.of(paper));
         when(metadataRepository.save(any(QuestionPaperMetadata.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(modelRouter.selectPaperExtractionModel(true)).thenReturn("gemini-2.5-pro");
-        when(paperFileStorageService.loadPdfBytes(eq(paperId), any())).thenReturn(pdfBytes);
+        when(assetServiceClient.downloadAssetBytes(eq(assetId), eq(tenantId))).thenReturn(pdfBytes);
         when(extractedQuestionRepository.findByPaperMetadataIdAndTenantIdOrderByQuestionNumberAsc(paperId, tenantId))
                 .thenReturn(Collections.emptyList());
 
@@ -396,7 +402,8 @@ class AsyncPaperExtractionWorkerTest {
         QuestionPaperMetadata paper = QuestionPaperMetadata.builder()
                 .examinationName("CLAT 2024")
                 .examYear(2024)
-                .fileStoragePath("/storage/clat.pdf")
+                .fileAssetId(assetId)
+                .fileStoragePath("asset://" + assetId)
                 .extractionStatus(PaperExtractionStatus.PENDING)
                 .build();
         ReflectionTestUtils.setField(paper, "id", paperId);
@@ -405,7 +412,8 @@ class AsyncPaperExtractionWorkerTest {
         QuestionPaperMetadata cancelledPaper = QuestionPaperMetadata.builder()
                 .examinationName("CLAT 2024")
                 .examYear(2024)
-                .fileStoragePath("/storage/clat.pdf")
+                .fileAssetId(assetId)
+                .fileStoragePath("asset://" + assetId)
                 .extractionStatus(PaperExtractionStatus.CANCELLED)
                 .build();
         ReflectionTestUtils.setField(cancelledPaper, "id", paperId);
@@ -417,7 +425,7 @@ class AsyncPaperExtractionWorkerTest {
 
         when(metadataRepository.save(any(QuestionPaperMetadata.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(modelRouter.selectPaperExtractionModel(true)).thenReturn("gemini-2.5-pro");
-        when(paperFileStorageService.loadPdfBytes(eq(paperId), any())).thenReturn(pdfBytes);
+        when(assetServiceClient.downloadAssetBytes(eq(assetId), eq(tenantId))).thenReturn(pdfBytes);
         when(extractedQuestionRepository.findByPaperMetadataIdAndTenantIdOrderByQuestionNumberAsc(paperId, tenantId))
                 .thenReturn(Collections.emptyList());
 
@@ -432,7 +440,8 @@ class AsyncPaperExtractionWorkerTest {
         QuestionPaperMetadata paper = QuestionPaperMetadata.builder()
                 .examinationName("JEE Advanced 2024")
                 .examYear(2024)
-                .fileStoragePath("/missing/storage/jee.pdf")
+                .fileAssetId(assetId)
+                .fileStoragePath("asset://" + assetId)
                 .extractionStatus(PaperExtractionStatus.PENDING)
                 .build();
         ReflectionTestUtils.setField(paper, "id", paperId);
@@ -441,13 +450,13 @@ class AsyncPaperExtractionWorkerTest {
         when(metadataRepository.findByIdAndTenantId(paperId, tenantId)).thenReturn(Optional.of(paper));
         when(metadataRepository.save(any(QuestionPaperMetadata.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(modelRouter.selectPaperExtractionModel(true)).thenReturn("gemini-2.5-pro");
-        when(paperFileStorageService.loadPdfBytes(eq(paperId), any()))
-                .thenThrow(new IllegalStateException("Disk I/O error loading PDF"));
+        when(assetServiceClient.downloadAssetBytes(eq(assetId), eq(tenantId)))
+                .thenThrow(new IllegalStateException("Asset download error"));
 
         worker.processPaperExtractionJob(paperId, tenantId);
 
         assertThat(paper.getExtractionStatus()).isEqualTo(PaperExtractionStatus.FAILED);
-        assertThat(paper.getErrorMessage()).contains("Disk I/O error loading PDF");
+        assertThat(paper.getErrorMessage()).contains("Asset download error");
         assertThat(TenantContext.getTenantId()).isNull();
     }
 
@@ -458,7 +467,7 @@ class AsyncPaperExtractionWorkerTest {
 
         worker.processPaperExtractionJob(paperId, tenantId);
 
-        verify(paperFileStorageService, never()).loadPdfBytes(any(), any());
+        verify(assetServiceClient, never()).downloadAssetBytes(any(), any());
         verifyNoInteractions(extractionClient);
     }
 
@@ -471,7 +480,8 @@ class AsyncPaperExtractionWorkerTest {
                 .examinationName("Board Exam 2024")
                 .examYear(2024)
                 .subjectName("Mathematics")
-                .fileStoragePath("/storage/math.pdf")
+                .fileAssetId(assetId)
+                .fileStoragePath("asset://" + assetId)
                 .extractionStatus(PaperExtractionStatus.PENDING)
                 .build();
         ReflectionTestUtils.setField(paper, "id", paperId);
@@ -480,7 +490,7 @@ class AsyncPaperExtractionWorkerTest {
         when(metadataRepository.findByIdAndTenantId(paperId, tenantId)).thenReturn(Optional.of(paper));
         when(metadataRepository.save(any(QuestionPaperMetadata.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(modelRouter.selectPaperExtractionModel(true)).thenReturn("gemini-2.5-pro");
-        when(paperFileStorageService.loadPdfBytes(eq(paperId), any())).thenReturn(pdfBytes);
+        when(assetServiceClient.downloadAssetBytes(eq(assetId), eq(tenantId))).thenReturn(pdfBytes);
         when(extractedQuestionRepository.findByPaperMetadataIdAndTenantIdOrderByQuestionNumberAsc(paperId, tenantId))
                 .thenReturn(Collections.emptyList());
         when(extractedQuestionRepository.save(any(ExtractedQuestion.class))).thenAnswer(invocation -> invocation.getArgument(0));

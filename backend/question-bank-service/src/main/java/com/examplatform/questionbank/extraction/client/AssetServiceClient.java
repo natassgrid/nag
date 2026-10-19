@@ -40,6 +40,9 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -249,6 +252,25 @@ public class AssetServiceClient {
             log.debug("Registered asset reference for assetId={} -> entityId={}", assetId, entityId);
         } catch (Exception ex) {
             log.warn("Non-critical: Failed to register asset reference for assetId={}: {}", assetId, ex.getMessage());
+        }
+    }
+
+    /**
+     * Computes the hexadecimal SHA-256 hash string for the provided byte buffer.
+     *
+     * @param bytes binary data
+     * @return 64-character lowercase hexadecimal hash
+     */
+    public String computeSha256(byte[] bytes) {
+        if (bytes == null || bytes.length == 0) {
+            return "";
+        }
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(bytes);
+            return HexFormat.of().formatHex(hash);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 message digest algorithm unavailable", e);
         }
     }
 

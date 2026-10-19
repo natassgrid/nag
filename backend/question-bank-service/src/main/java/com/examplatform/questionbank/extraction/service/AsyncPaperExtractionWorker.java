@@ -28,6 +28,7 @@ import com.examplatform.questionbank.extraction.ai.LiteLlmPageExtractionClient;
 import com.examplatform.questionbank.extraction.ai.LlmPageExtractionResult;
 import com.examplatform.questionbank.extraction.ai.PdfPageContent;
 import com.examplatform.questionbank.extraction.ai.QuestionPaperPdfParser;
+import com.examplatform.questionbank.extraction.client.AssetServiceClient;
 import com.examplatform.questionbank.extraction.domain.ExtractedQuestion;
 import com.examplatform.questionbank.extraction.domain.ExtractedQuestionStatus;
 import com.examplatform.questionbank.extraction.domain.PaperExtractionStatus;
@@ -66,7 +67,7 @@ public class AsyncPaperExtractionWorker {
 
     private final QuestionPaperMetadataRepository metadataRepository;
     private final ExtractedQuestionRepository extractedQuestionRepository;
-    private final PaperFileStorageService paperFileStorageService;
+    private final AssetServiceClient assetServiceClient;
     private final QuestionPaperPdfParser pdfParser;
     private final LiteLlmPageExtractionClient extractionClient;
     private final ModelRouter modelRouter;
@@ -113,7 +114,6 @@ public class AsyncPaperExtractionWorker {
             TenantContext.clear();
             activeJobIds.remove(paperId);
             cancelledJobIds.remove(paperId);
-            paperFileStorageService.evictMemoryCache(paperId);
         }
     }
 
@@ -131,7 +131,14 @@ public class AsyncPaperExtractionWorker {
         paper.setModelUsed(extractionModel);
         paper = metadataRepository.save(paper);
 
-        byte[] pdfBytes = paperFileStorageService.loadPdfBytes(paperId, paper.getFileStoragePath());
+        UUID assetId = paper.getFileAssetId();
+        if (assetId == null) {
+            throw new IllegalStateException("Paper " + paperId + " has no associated fileAssetId");
+        }
+        byte[] pdfBytes = assetServiceClient.downloadAssetBytes(assetId, tenantId);
+        if (pdfBytes == null || pdfBytes.length == 0) {
+            throw new IllegalStateException("Failed to download PDF bytes from asset-service for assetId: " + assetId);
+        }
 
         try (PDDocument document = Loader.loadPDF(pdfBytes)) {
             int totalPages = document.getNumberOfPages();

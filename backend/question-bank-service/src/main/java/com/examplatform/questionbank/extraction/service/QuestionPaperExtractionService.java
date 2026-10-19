@@ -59,7 +59,6 @@ public class QuestionPaperExtractionService {
 
     private final QuestionPaperMetadataRepository metadataRepository;
     private final ExtractedQuestionRepository extractedQuestionRepository;
-    private final PaperFileStorageService paperFileStorageService;
     private final AsyncPaperExtractionWorker asyncWorker;
     private final QuestionPaperPdfParser pdfParser;
     private final AssetServiceClient assetServiceClient;
@@ -104,7 +103,7 @@ public class QuestionPaperExtractionService {
 
         String sha256 = (assetMeta != null && assetMeta.getSha256Hash() != null && !assetMeta.getSha256Hash().isBlank())
                 ? assetMeta.getSha256Hash()
-                : paperFileStorageService.computeSha256(bytes);
+                : assetServiceClient.computeSha256(bytes);
 
         if (!request.isForceReExtract()) {
             Optional<QuestionPaperMetadata> existingOpt = metadataRepository
@@ -138,16 +137,13 @@ public class QuestionPaperExtractionService {
                 .maxMarks(request.getMaxMarks())
                 .negativeMarkingRatio(request.getNegativeMarkingRatio())
                 .fileAssetId(assetId)
+                .fileStoragePath("asset://" + assetId)
                 .originalFilename(filename)
                 .fileSha256(sha256)
                 .extractionStatus(PaperExtractionStatus.PENDING)
                 .uploadedBy(resolvedUploader)
                 .build();
         paper.setTenantId(tenantId);
-        paper = metadataRepository.save(paper);
-
-        String storagePath = paperFileStorageService.storePdf(paper.getId(), tenantId, filename, bytes);
-        paper.setFileStoragePath(storagePath);
         paper = metadataRepository.save(paper);
 
         // Register asset reference in asset-service

@@ -60,9 +60,6 @@ class QuestionPaperExtractionServiceTest {
     private ExtractedQuestionRepository extractedQuestionRepository;
 
     @Mock
-    private PaperFileStorageService paperFileStorageService;
-
-    @Mock
     private AsyncPaperExtractionWorker asyncWorker;
 
     @Mock
@@ -82,7 +79,6 @@ class QuestionPaperExtractionServiceTest {
         service = new QuestionPaperExtractionService(
                 metadataRepository,
                 extractedQuestionRepository,
-                paperFileStorageService,
                 asyncWorker,
                 pdfParser,
                 assetServiceClient
@@ -123,9 +119,6 @@ class QuestionPaperExtractionServiceTest {
             return m;
         });
 
-        when(paperFileStorageService.storePdf(eq(paperId), eq(tenantId), eq("upsc_2024.pdf"), any()))
-                .thenReturn("/storage/tenant-test/" + paperId + ".pdf");
-
         QuestionPaperMetadataResponse response = service.initiateExtraction(
                 request, UUID.randomUUID(), tenantId);
 
@@ -133,10 +126,10 @@ class QuestionPaperExtractionServiceTest {
         assertThat(response.getId()).isEqualTo(paperId);
         assertThat(response.getExaminationName()).isEqualTo("UPSC Prelims 2024");
         assertThat(response.getFileAssetId()).isEqualTo(assetId);
+        assertThat(response.getFileStoragePath()).isEqualTo("asset://" + assetId);
 
         verify(assetServiceClient).downloadAssetBytes(eq(assetId), eq(tenantId));
         verify(assetServiceClient).createReference(eq(assetId), eq("QUESTION_PAPER"), eq(paperId), eq(tenantId));
-        verify(paperFileStorageService).storePdf(eq(paperId), eq(tenantId), eq("upsc_2024.pdf"), any());
         verify(asyncWorker).processPaperExtractionJob(eq(paperId), eq(tenantId));
     }
 
