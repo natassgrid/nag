@@ -20,6 +20,8 @@
 package com.examplatform.questionbank.extraction.service;
 
 import com.examplatform.questionbank.extraction.ai.QuestionPaperPdfParser;
+import com.examplatform.questionbank.extraction.client.AssetMetadataDto;
+import com.examplatform.questionbank.extraction.client.AssetServiceClient;
 import com.examplatform.questionbank.extraction.domain.ExtractedQuestion;
 import com.examplatform.questionbank.extraction.domain.ExtractedQuestionStatus;
 import com.examplatform.questionbank.extraction.domain.PaperExtractionStatus;
@@ -36,13 +38,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.mock.web.MockMultipartFile;
 
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -66,10 +68,14 @@ class QuestionPaperExtractionServiceTest {
     @Mock
     private QuestionPaperPdfParser pdfParser;
 
+    @Mock
+    private AssetServiceClient assetServiceClient;
+
     private QuestionPaperExtractionService service;
 
     private final String tenantId = "tenant-test";
     private final UUID paperId = UUID.randomUUID();
+    private final UUID assetId = UUID.randomUUID();
 
     @BeforeEach
     void setUp() {
@@ -78,92 +84,197 @@ class QuestionPaperExtractionServiceTest {
                 extractedQuestionRepository,
                 paperFileStorageService,
                 asyncWorker,
-                pdfParser
+                pdfParser,
+                assetServiceClient
         );
+        lenient().when(pdfParser.normalizeMathAndFormatting(any())).thenAnswer(i -> i.getArgument(0));
     }
 
     @Test
-    @DisplayName("uploadAndStartExtraction stores file and triggers async extraction")
-    void testUploadAndStartExtraction() {
-        MockMultipartFile file = new MockMultipartFile(
-                "file", "exam.pdf", "application/pdf", "%PDF-1.4 sample content".getBytes());
+    @DisplayName("initiateExtraction fetches asset binary, registers paper and triggers async worker")
+    void testInitiateExtraction() {
+        byte[] pdfBytes = "%PDF-1.4 sample content".getBytes();
 
         PaperUploadRequest request = PaperUploadRequest.builder()
+                .fileAssetId(assetId)
                 .examinationName("UPSC Prelims 2024")
                 .examYear(2024)
+                .department("UPSC")
+                .paperCode("GS-1")
                 .build();
 
-        when(paperFileStorageService.computeSha256(any())).thenReturn("sha256-hash-123");
+        when(assetServiceClient.downloadAssetBytes(eq(assetId), eq(tenantId))).thenReturn(pdfBytes);
+        when(assetServiceClient.getAssetMetadata(eq(assetId), eq(tenantId)))
+                .thenReturn(AssetMetadataDto.builder()
+                        .id(assetId)
+                        .originalFilename("upsc_2024.pdf")
+                        .sha256Hash("sha256-hash-123")
+                        .fileSize((long) pdfBytes.length)
+                        .build());
+
         when(metadataRepository.findFirstByTenantIdAndFileSha256OrderByCreatedAtDesc(eq(tenantId), eq("sha256-hash-123")))
                 .thenReturn(Optional.empty());
 
         when(metadataRepository.save(any(QuestionPaperMetadata.class))).thenAnswer(invocation -> {
             QuestionPaperMetadata m = invocation.getArgument(0);
             if (m.getId() == null) {
-                // simulate JPA prePersist
                 org.springframework.test.util.ReflectionTestUtils.setField(m, "id", paperId);
             }
             return m;
         });
 
-        when(paperFileStorageService.storePdf(eq(paperId), eq(tenantId), eq("exam.pdf"), any()))
+        when(paperFileStorageService.storePdf(eq(paperId), eq(tenantId), eq("upsc_2024.pdf"), any()))
                 .thenReturn("/storage/tenant-test/" + paperId + ".pdf");
 
-        QuestionPaperMetadataResponse response = service.uploadAndStartExtraction(file, request, UUID.randomUUID(), tenantId);
+        QuestionPaperMetadataResponse response = service.initiateExtraction(
+                request, UUID.randomUUID(), tenantId);
 
         assertThat(response).isNotNull();
+        assertThat(response.getId()).isEqualTo(paperId);
         assertThat(response.getExaminationName()).isEqualTo("UPSC Prelims 2024");
+        assertThat(response.getFileAssetId()).isEqualTo(assetId);
+
+        verify(assetServiceClient).downloadAssetBytes(eq(assetId), eq(tenantId));
+        verify(assetServiceClient).createReference(eq(assetId), eq("QUESTION_PAPER"), eq(paperId), eq(tenantId));
+        verify(paperFileStorageService).storePdf(eq(paperId), eq(tenantId), eq("upsc_2024.pdf"), any());
         verify(asyncWorker).processPaperExtractionJob(eq(paperId), eq(tenantId));
     }
 
     @Test
-    @DisplayName("cancelExtractionJob cancels active extraction")
+    @DisplayName("initiateExtraction throws when fileAssetId is missing")
+    void testInitiateExtractionMissingFileAssetId() {
+        PaperUploadRequest request = PaperUploadRequest.builder()
+                .examinationName("UPSC Prelims 2024")
+                .examYear(2024)
+                .build();
+
+        assertThatThrownBy(() -> service.initiateExtraction(request, UUID.randomUUID(), tenantId))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("fileAssetId");
+    }
+
+    @Test
+    @DisplayName("initiateExtraction returns existing paper when SHA-256 matches and forceReExtract is false")
+    void testInitiateExtractionIdempotent() {
+        byte[] pdfBytes = "%PDF-1.4 sample content".getBytes();
+
+        PaperUploadRequest request = PaperUploadRequest.builder()
+                .fileAssetId(assetId)
+                .examinationName("UPSC Prelims 2024")
+                .examYear(2024)
+                .forceReExtract(false)
+                .build();
+
+        when(assetServiceClient.downloadAssetBytes(eq(assetId), eq(tenantId))).thenReturn(pdfBytes);
+        when(assetServiceClient.getAssetMetadata(eq(assetId), eq(tenantId)))
+                .thenReturn(AssetMetadataDto.builder()
+                        .id(assetId)
+                        .originalFilename("upsc_2024.pdf")
+                        .sha256Hash("sha256-existing-hash")
+                        .build());
+
+        QuestionPaperMetadata existing = QuestionPaperMetadata.builder()
+                .examinationName("UPSC Prelims 2024")
+                .examYear(2024)
+                .fileSha256("sha256-existing-hash")
+                .extractionStatus(PaperExtractionStatus.COMPLETED)
+                .build();
+        org.springframework.test.util.ReflectionTestUtils.setField(existing, "id", paperId);
+
+        when(metadataRepository.findFirstByTenantIdAndFileSha256OrderByCreatedAtDesc(eq(tenantId), eq("sha256-existing-hash")))
+                .thenReturn(Optional.of(existing));
+
+        QuestionPaperMetadataResponse response = service.initiateExtraction(
+                request, UUID.randomUUID(), tenantId);
+
+        assertThat(response.getId()).isEqualTo(paperId);
+        verify(asyncWorker, never()).processPaperExtractionJob(any(), any());
+    }
+
+    @Test
+    @DisplayName("applyBulkAnswerKey updates extracted questions and approves them")
+    void testApplyBulkAnswerKey() {
+        QuestionPaperMetadata paper = QuestionPaperMetadata.builder()
+                .examinationName("RRB NTPC")
+                .examYear(2024)
+                .questionsExtracted(2)
+                .questionsApproved(0)
+                .build();
+        org.springframework.test.util.ReflectionTestUtils.setField(paper, "id", paperId);
+
+        ExtractedQuestion q1 = ExtractedQuestion.builder()
+                .paperMetadataId(paperId)
+                .questionNumber(1)
+                .status(ExtractedQuestionStatus.EXTRACTED)
+                .build();
+
+        when(metadataRepository.findByIdAndTenantId(eq(paperId), eq(tenantId))).thenReturn(Optional.of(paper));
+        when(extractedQuestionRepository.findByPaperMetadataIdAndQuestionNumber(eq(paperId), eq(1)))
+                .thenReturn(Optional.of(q1));
+        when(extractedQuestionRepository.findByPaperMetadataIdAndQuestionNumber(eq(paperId), eq(2)))
+                .thenReturn(Optional.empty());
+        when(metadataRepository.save(any(QuestionPaperMetadata.class))).thenAnswer(i -> i.getArgument(0));
+
+        BulkAnswerKeyRequest req = BulkAnswerKeyRequest.builder()
+                .answersByQuestionNumber(Map.of(1, "B", 2, "C"))
+                .autoApproveMatched(true)
+                .build();
+
+        int result = service.applyBulkAnswerKey(
+                paperId, req, UUID.randomUUID(), tenantId);
+
+        assertThat(result).isEqualTo(1);
+        assertThat(q1.getAnswerKey()).isEqualTo("B");
+        assertThat(q1.getStatus()).isEqualTo(ExtractedQuestionStatus.APPROVED);
+        verify(extractedQuestionRepository).save(q1);
+    }
+
+    @Test
+    @DisplayName("updateExtractedQuestion updates question fields and review status")
+    void testUpdateExtractedQuestion() {
+        UUID qId = UUID.randomUUID();
+        ExtractedQuestion q = ExtractedQuestion.builder()
+                .paperMetadataId(paperId)
+                .questionNumber(5)
+                .content("Original content")
+                .status(ExtractedQuestionStatus.EXTRACTED)
+                .build();
+        org.springframework.test.util.ReflectionTestUtils.setField(q, "id", qId);
+
+        when(extractedQuestionRepository.findByIdAndPaperMetadataIdAndTenantId(eq(qId), eq(paperId), eq(tenantId)))
+                .thenReturn(Optional.of(q));
+        when(extractedQuestionRepository.save(any(ExtractedQuestion.class))).thenAnswer(i -> i.getArgument(0));
+
+        UpdateExtractedQuestionRequest req = UpdateExtractedQuestionRequest.builder()
+                .content("Corrected content with $$E = mc^2$$")
+                .answerKey("A")
+                .status(ExtractedQuestionStatus.APPROVED)
+                .reviewComments("Verified stem")
+                .build();
+
+        var result = service.updateExtractedQuestion(paperId, qId, req, UUID.randomUUID(), tenantId);
+
+        assertThat(result.getContent()).isEqualTo("Corrected content with $$E = mc^2$$");
+        assertThat(result.getAnswerKey()).isEqualTo("A");
+        assertThat(result.getStatus()).isEqualTo(ExtractedQuestionStatus.APPROVED);
+    }
+
+    @Test
+    @DisplayName("cancelExtractionJob delegates cancellation to async worker")
     void testCancelExtractionJob() {
         QuestionPaperMetadata paper = QuestionPaperMetadata.builder()
-                .examinationName("JEE Main 2024")
+                .examinationName("GATE")
                 .examYear(2024)
                 .extractionStatus(PaperExtractionStatus.PROCESSING)
                 .build();
         org.springframework.test.util.ReflectionTestUtils.setField(paper, "id", paperId);
 
-        when(metadataRepository.findByIdAndTenantId(paperId, tenantId)).thenReturn(Optional.of(paper));
-        when(metadataRepository.save(any(QuestionPaperMetadata.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(metadataRepository.findByIdAndTenantId(eq(paperId), eq(tenantId))).thenReturn(Optional.of(paper));
+        when(metadataRepository.save(any(QuestionPaperMetadata.class))).thenAnswer(i -> i.getArgument(0));
 
         QuestionPaperMetadataResponse response = service.cancelExtractionJob(paperId, tenantId);
 
         assertThat(response.getExtractionStatus()).isEqualTo(PaperExtractionStatus.CANCELLED);
         verify(asyncWorker).requestCancel(paperId);
-    }
-
-    @Test
-    @DisplayName("applyBulkAnswerKey updates keys and auto-approves questions")
-    void testApplyBulkAnswerKey() {
-        QuestionPaperMetadata paper = QuestionPaperMetadata.builder()
-                .examinationName("GATE 2024")
-                .examYear(2024)
-                .build();
-        when(metadataRepository.findByIdAndTenantId(paperId, tenantId)).thenReturn(Optional.of(paper));
-
-        ExtractedQuestion eq = ExtractedQuestion.builder()
-                .paperMetadataId(paperId)
-                .questionNumber(1)
-                .content("What is Newton's third law?")
-                .status(ExtractedQuestionStatus.EXTRACTED)
-                .build();
-
-        when(extractedQuestionRepository.findByPaperMetadataIdAndQuestionNumber(paperId, 1))
-                .thenReturn(Optional.of(eq));
-
-        BulkAnswerKeyRequest request = BulkAnswerKeyRequest.builder()
-                .answersByQuestionNumber(Map.of(1, "B"))
-                .autoApproveMatched(true)
-                .build();
-
-        int updated = service.applyBulkAnswerKey(paperId, request, UUID.randomUUID(), tenantId);
-
-        assertThat(updated).isEqualTo(1);
-        assertThat(eq.getAnswerKey()).isEqualTo("B");
-        assertThat(eq.getStatus()).isEqualTo(ExtractedQuestionStatus.APPROVED);
-        verify(extractedQuestionRepository).save(eq);
     }
 }

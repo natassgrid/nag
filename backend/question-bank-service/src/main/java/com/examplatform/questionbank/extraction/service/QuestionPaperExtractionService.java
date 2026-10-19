@@ -21,6 +21,8 @@ package com.examplatform.questionbank.extraction.service;
 
 import com.examplatform.questionbank.dto.QuestionOption;
 import com.examplatform.questionbank.extraction.ai.QuestionPaperPdfParser;
+import com.examplatform.questionbank.extraction.client.AssetMetadataDto;
+import com.examplatform.questionbank.extraction.client.AssetServiceClient;
 import com.examplatform.questionbank.extraction.domain.ExtractedQuestion;
 import com.examplatform.questionbank.extraction.domain.ExtractedQuestionStatus;
 import com.examplatform.questionbank.extraction.domain.PaperExtractionStatus;
@@ -38,7 +40,6 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -61,32 +62,27 @@ public class QuestionPaperExtractionService {
     private final PaperFileStorageService paperFileStorageService;
     private final AsyncPaperExtractionWorker asyncWorker;
     private final QuestionPaperPdfParser pdfParser;
+    private final AssetServiceClient assetServiceClient;
 
     /**
-     * Uploads a Question Paper PDF, verifies SHA-256 idempotency, creates metadata record,
-     * and triggers asynchronous page-by-page extraction.
+     * Initiates asynchronous question paper extraction for a PDF document pre-uploaded
+     * to asset-service.
      *
-     * @param file uploaded PDF binary file
-     * @param request paper metadata and extraction configurations
-     * @param uploadedBy user UUID initiating the upload
+     * @param request paper metadata and extraction configurations containing fileAssetId
+     * @param uploadedBy user UUID initiating the extraction
      * @param tenantId examination authority identifier
      * @return initialized QuestionPaperMetadataResponse
      */
-    public QuestionPaperMetadataResponse uploadAndStartExtraction(
-            MultipartFile file,
+    public QuestionPaperMetadataResponse initiateExtraction(
             PaperUploadRequest request,
             UUID uploadedBy,
             String tenantId) {
 
-        if (file == null || file.isEmpty()) {
-            throw new IllegalArgumentException("PDF file must not be null or empty");
-        }
-        String filename = file.getOriginalFilename();
-        if (filename == null || (!filename.toLowerCase().endsWith(".pdf") && !MediaType.APPLICATION_PDF_VALUE.equals(file.getContentType()))) {
-            throw new IllegalArgumentException("Uploaded file must be a valid PDF document");
-        }
         if (request == null) {
             throw new IllegalArgumentException("PaperUploadRequest must not be null");
+        }
+        if (request.getFileAssetId() == null) {
+            throw new IllegalArgumentException("fileAssetId from asset-service upload is required");
         }
         if (request.getExaminationName() == null || request.getExaminationName().isBlank()) {
             throw new IllegalArgumentException("examinationName is required");
@@ -95,60 +91,72 @@ public class QuestionPaperExtractionService {
             throw new IllegalArgumentException("examYear is required");
         }
 
-        try {
-            byte[] bytes = file.getBytes();
-            String sha256 = paperFileStorageService.computeSha256(bytes);
+        UUID assetId = request.getFileAssetId();
+        byte[] bytes = assetServiceClient.downloadAssetBytes(assetId, tenantId);
+        if (bytes == null || bytes.length == 0) {
+            throw new IllegalStateException("Failed to download PDF bytes for asset ID: " + assetId);
+        }
 
-            if (!request.isForceReExtract()) {
-                Optional<QuestionPaperMetadata> existingOpt = metadataRepository
-                        .findFirstByTenantIdAndFileSha256OrderByCreatedAtDesc(tenantId, sha256);
-                if (existingOpt.isPresent()) {
-                    QuestionPaperMetadata existing = existingOpt.get();
-                    if (existing.getExtractionStatus() == PaperExtractionStatus.COMPLETED
-                            || existing.getExtractionStatus() == PaperExtractionStatus.PROCESSING) {
-                        log.info("Identical PDF already exists (status={}) for tenantId={}. Returning existing record {}.",
-                                existing.getExtractionStatus(), tenantId, existing.getId());
-                        return QuestionPaperMetadataResponse.fromEntity(existing);
-                    }
+        AssetMetadataDto assetMeta = assetServiceClient.getAssetMetadata(assetId, tenantId);
+        String filename = (assetMeta != null && assetMeta.getOriginalFilename() != null && !assetMeta.getOriginalFilename().isBlank())
+                ? assetMeta.getOriginalFilename()
+                : (request.getPaperCode() != null && !request.getPaperCode().isBlank() ? request.getPaperCode() + ".pdf" : "paper-" + assetId + ".pdf");
+
+        String sha256 = (assetMeta != null && assetMeta.getSha256Hash() != null && !assetMeta.getSha256Hash().isBlank())
+                ? assetMeta.getSha256Hash()
+                : paperFileStorageService.computeSha256(bytes);
+
+        if (!request.isForceReExtract()) {
+            Optional<QuestionPaperMetadata> existingOpt = metadataRepository
+                    .findFirstByTenantIdAndFileSha256OrderByCreatedAtDesc(tenantId, sha256);
+            if (existingOpt.isPresent()) {
+                QuestionPaperMetadata existing = existingOpt.get();
+                if (existing.getExtractionStatus() == PaperExtractionStatus.COMPLETED
+                        || existing.getExtractionStatus() == PaperExtractionStatus.PROCESSING) {
+                    log.info("Identical PDF already exists (status={}) for tenantId={}. Returning existing record {}.",
+                            existing.getExtractionStatus(), tenantId, existing.getId());
+                    return QuestionPaperMetadataResponse.fromEntity(existing);
                 }
             }
-
-            UUID resolvedUploader = uploadedBy != null ? uploadedBy : SYSTEM_USER_ID;
-
-            QuestionPaperMetadata paper = QuestionPaperMetadata.builder()
-                    .examinationName(request.getExaminationName())
-                    .examYear(request.getExamYear())
-                    .department(request.getDepartment())
-                    .paperCode(request.getPaperCode())
-                    .bookletSerialNo(request.getBookletSerialNo())
-                    .subjectName(request.getSubjectName())
-                    .defaultSubjectId(request.getDefaultSubjectId())
-                    .defaultTopicId(request.getDefaultTopicId())
-                    .defaultSubtopicId(request.getDefaultSubtopicId())
-                    .languages(request.getLanguages() != null ? request.getLanguages() : List.of("en", "hi"))
-                    .totalQuestionsExpected(request.getTotalQuestionsExpected() != null ? request.getTotalQuestionsExpected() : 0)
-                    .durationMinutes(request.getDurationMinutes())
-                    .maxMarks(request.getMaxMarks())
-                    .negativeMarkingRatio(request.getNegativeMarkingRatio())
-                    .fileAssetId(request.getFileAssetId())
-                    .originalFilename(filename)
-                    .fileSha256(sha256)
-                    .extractionStatus(PaperExtractionStatus.PENDING)
-                    .uploadedBy(resolvedUploader)
-                    .build();
-            paper.setTenantId(tenantId);
-            paper = metadataRepository.save(paper);
-
-            String storagePath = paperFileStorageService.storePdf(paper.getId(), tenantId, filename, bytes);
-            paper.setFileStoragePath(storagePath);
-            paper = metadataRepository.save(paper);
-
-            asyncWorker.processPaperExtractionJob(paper.getId(), tenantId);
-
-            return QuestionPaperMetadataResponse.fromEntity(paper);
-        } catch (IOException e) {
-            throw new IllegalStateException("Failed to read uploaded PDF file bytes", e);
         }
+
+        UUID resolvedUploader = uploadedBy != null ? uploadedBy : SYSTEM_USER_ID;
+
+        QuestionPaperMetadata paper = QuestionPaperMetadata.builder()
+                .examinationName(request.getExaminationName().trim())
+                .examYear(request.getExamYear())
+                .department(request.getDepartment() != null ? request.getDepartment().trim() : null)
+                .paperCode(request.getPaperCode() != null ? request.getPaperCode().trim() : null)
+                .bookletSerialNo(request.getBookletSerialNo() != null ? request.getBookletSerialNo().trim() : null)
+                .subjectName(request.getSubjectName() != null ? request.getSubjectName().trim() : null)
+                .defaultSubjectId(request.getDefaultSubjectId())
+                .defaultTopicId(request.getDefaultTopicId())
+                .defaultSubtopicId(request.getDefaultSubtopicId())
+                .languages(request.getLanguages() != null && !request.getLanguages().isEmpty() ? request.getLanguages() : List.of("en", "hi"))
+                .totalQuestionsExpected(request.getTotalQuestionsExpected() != null ? request.getTotalQuestionsExpected() : 0)
+                .durationMinutes(request.getDurationMinutes())
+                .maxMarks(request.getMaxMarks())
+                .negativeMarkingRatio(request.getNegativeMarkingRatio())
+                .fileAssetId(assetId)
+                .originalFilename(filename)
+                .fileSha256(sha256)
+                .extractionStatus(PaperExtractionStatus.PENDING)
+                .uploadedBy(resolvedUploader)
+                .build();
+        paper.setTenantId(tenantId);
+        paper = metadataRepository.save(paper);
+
+        String storagePath = paperFileStorageService.storePdf(paper.getId(), tenantId, filename, bytes);
+        paper.setFileStoragePath(storagePath);
+        paper = metadataRepository.save(paper);
+
+        // Register asset reference in asset-service
+        assetServiceClient.createReference(assetId, "QUESTION_PAPER", paper.getId(), tenantId);
+
+        // Launch async extraction worker
+        asyncWorker.processPaperExtractionJob(paper.getId(), tenantId);
+
+        return QuestionPaperMetadataResponse.fromEntity(paper);
     }
 
     /**

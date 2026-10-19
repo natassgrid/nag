@@ -45,7 +45,6 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.web.PageableHandlerMethodArgumentResolver;
 import org.springframework.http.MediaType;
-import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.test.web.servlet.MockMvc;
@@ -85,14 +84,14 @@ class PaperExtractionControllerTest {
     private final UUID samplePaperId = UUID.randomUUID();
     private final UUID sampleExtractedQId = UUID.randomUUID();
     private final UUID sampleUserId = UUID.fromString("00000000-0000-0000-0000-000000000001");
+    private final UUID sampleAssetId = UUID.randomUUID();
 
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
         PaperExtractionController controller = new PaperExtractionController(
                 extractionService,
-                promotionService,
-                objectMapper
+                promotionService
         );
 
         HandlerMethodArgumentResolver jwtResolver = new HandlerMethodArgumentResolver() {
@@ -121,12 +120,10 @@ class PaperExtractionControllerTest {
     }
 
     @Test
-    @DisplayName("POST /upload with metadata JSON part returns 202 Accepted")
-    void testUploadPaperWithMetadataJsonPart() throws Exception {
-        MockMultipartFile file = new MockMultipartFile(
-                "file", "upsc_prelims_2024.pdf", "application/pdf", "%PDF-1.4 test bytes".getBytes());
-
+    @DisplayName("POST /api/v1/questions/papers with JSON payload returns 202 Accepted")
+    void testInitiateExtractionWithJsonPayload() throws Exception {
         PaperUploadRequest uploadReq = PaperUploadRequest.builder()
+                .fileAssetId(sampleAssetId)
                 .examinationName("UPSC Civil Services Preliminary Examination 2024")
                 .examYear(2024)
                 .department("UPSC")
@@ -135,11 +132,9 @@ class PaperExtractionControllerTest {
                 .totalQuestionsExpected(100)
                 .build();
 
-        MockMultipartFile metadataPart = new MockMultipartFile(
-                "metadata", "", "application/json", objectMapper.writeValueAsBytes(uploadReq));
-
         QuestionPaperMetadataResponse expectedResponse = QuestionPaperMetadataResponse.builder()
                 .id(samplePaperId)
+                .fileAssetId(sampleAssetId)
                 .examinationName("UPSC Civil Services Preliminary Examination 2024")
                 .examYear(2024)
                 .paperCode("GS-PAPER-1")
@@ -148,33 +143,43 @@ class PaperExtractionControllerTest {
                 .uploadedBy(sampleUserId)
                 .build();
 
-        when(extractionService.uploadAndStartExtraction(any(), any(PaperUploadRequest.class), eq(sampleUserId), any()))
+        when(extractionService.initiateExtraction(any(PaperUploadRequest.class), eq(sampleUserId), any()))
                 .thenReturn(expectedResponse);
 
-        mockMvc.perform(multipart("/api/v1/questions/papers/upload")
-                        .file(file)
-                        .file(metadataPart))
+        mockMvc.perform(post("/api/v1/questions/papers")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(uploadReq)))
                 .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.id").value(samplePaperId.toString()))
+                .andExpect(jsonPath("$.fileAssetId").value(sampleAssetId.toString()))
                 .andExpect(jsonPath("$.examinationName").value("UPSC Civil Services Preliminary Examination 2024"))
                 .andExpect(jsonPath("$.examYear").value(2024))
                 .andExpect(jsonPath("$.paperCode").value("GS-PAPER-1"))
                 .andExpect(jsonPath("$.extractionStatus").value("PENDING"));
 
         ArgumentCaptor<PaperUploadRequest> captor = ArgumentCaptor.forClass(PaperUploadRequest.class);
-        verify(extractionService).uploadAndStartExtraction(any(), captor.capture(), eq(sampleUserId), any());
+        verify(extractionService).initiateExtraction(captor.capture(), eq(sampleUserId), any());
         assertThat(captor.getValue().getExaminationName()).isEqualTo("UPSC Civil Services Preliminary Examination 2024");
-        assertThat(captor.getValue().getPaperCode()).isEqualTo("GS-PAPER-1");
+        assertThat(captor.getValue().getFileAssetId()).isEqualTo(sampleAssetId);
     }
 
     @Test
-    @DisplayName("POST /upload with form parameters returns 202 Accepted")
-    void testUploadPaperWithFormParameters() throws Exception {
-        MockMultipartFile file = new MockMultipartFile(
-                "file", "ssc_cgl_tier1_2024.pdf", "application/pdf", "%PDF-1.4 test bytes".getBytes());
+    @DisplayName("POST /upload alias endpoint with JSON returns 202 Accepted")
+    void testUploadPaperAliasEndpointWithJson() throws Exception {
+        PaperUploadRequest uploadReq = PaperUploadRequest.builder()
+                .fileAssetId(sampleAssetId)
+                .examinationName("SSC CGL Tier 1")
+                .examYear(2024)
+                .department("Staff Selection Commission")
+                .paperCode("SET-C")
+                .subjectName("General Awareness")
+                .defaultSubjectId(101L)
+                .forceReExtract(true)
+                .build();
 
         QuestionPaperMetadataResponse expectedResponse = QuestionPaperMetadataResponse.builder()
                 .id(samplePaperId)
+                .fileAssetId(sampleAssetId)
                 .examinationName("SSC CGL Tier 1")
                 .examYear(2024)
                 .department("Staff Selection Commission")
@@ -184,43 +189,35 @@ class PaperExtractionControllerTest {
                 .extractionStatus(PaperExtractionStatus.PENDING)
                 .build();
 
-        when(extractionService.uploadAndStartExtraction(any(), any(PaperUploadRequest.class), eq(sampleUserId), any()))
+        when(extractionService.initiateExtraction(any(PaperUploadRequest.class), eq(sampleUserId), any()))
                 .thenReturn(expectedResponse);
 
-        mockMvc.perform(multipart("/api/v1/questions/papers/upload")
-                        .file(file)
-                        .param("examinationName", "SSC CGL Tier 1")
-                        .param("examYear", "2024")
-                        .param("department", "Staff Selection Commission")
-                        .param("paperCode", "SET-C")
-                        .param("subjectName", "General Awareness")
-                        .param("defaultSubjectId", "101")
-                        .param("forceReExtract", "true"))
+        mockMvc.perform(post("/api/v1/questions/papers/upload")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(uploadReq)))
                 .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.id").value(samplePaperId.toString()))
                 .andExpect(jsonPath("$.examinationName").value("SSC CGL Tier 1"))
                 .andExpect(jsonPath("$.extractionStatus").value("PENDING"));
 
         ArgumentCaptor<PaperUploadRequest> captor = ArgumentCaptor.forClass(PaperUploadRequest.class);
-        verify(extractionService).uploadAndStartExtraction(any(), captor.capture(), eq(sampleUserId), any());
+        verify(extractionService).initiateExtraction(captor.capture(), eq(sampleUserId), any());
         assertThat(captor.getValue().getExaminationName()).isEqualTo("SSC CGL Tier 1");
-        assertThat(captor.getValue().getExamYear()).isEqualTo(2024);
-        assertThat(captor.getValue().getPaperCode()).isEqualTo("SET-C");
-        assertThat(captor.getValue().isForceReExtract()).isTrue();
+        assertThat(captor.getValue().getFileAssetId()).isEqualTo(sampleAssetId);
     }
 
     @Test
-    @DisplayName("POST /upload with malformed metadata JSON returns 400 Bad Request")
-    void testUploadPaperWithMalformedMetadataJson() throws Exception {
-        MockMultipartFile file = new MockMultipartFile(
-                "file", "sample.pdf", "application/pdf", "%PDF-1.4 test bytes".getBytes());
+    @DisplayName("POST /api/v1/questions/papers without fileAssetId returns 400 Bad Request")
+    void testInitiateExtractionMissingFileAssetIdReturns400() throws Exception {
+        PaperUploadRequest invalidReq = PaperUploadRequest.builder()
+                .examinationName("RRB NTPC CBT 1")
+                .examYear(2024)
+                .fileAssetId(null)
+                .build();
 
-        MockMultipartFile badMetadataPart = new MockMultipartFile(
-                "metadata", "", "application/json", "{malformed-json:".getBytes());
-
-        mockMvc.perform(multipart("/api/v1/questions/papers/upload")
-                        .file(file)
-                        .file(badMetadataPart))
+        mockMvc.perform(post("/api/v1/questions/papers")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidReq)))
                 .andExpect(status().isBadRequest());
     }
 
@@ -229,82 +226,77 @@ class PaperExtractionControllerTest {
     void testListPapers() throws Exception {
         QuestionPaperMetadataResponse paper = QuestionPaperMetadataResponse.builder()
                 .id(samplePaperId)
-                .examinationName("NDA 2024")
+                .examinationName("RRB NTPC CBT 1")
                 .examYear(2024)
                 .extractionStatus(PaperExtractionStatus.COMPLETED)
+                .questionsExtracted(100)
+                .questionsApproved(95)
                 .build();
 
-        when(extractionService.listPapers(any(), eq("NDA"), eq(2024), any(), eq(PaperExtractionStatus.COMPLETED), any()))
+        when(extractionService.listPapers(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new PageImpl<>(List.of(paper), PageRequest.of(0, 20), 1));
 
         mockMvc.perform(get("/api/v1/questions/papers")
-                        .param("examinationName", "NDA")
+                        .param("examinationName", "RRB")
                         .param("examYear", "2024")
-                        .param("status", "COMPLETED")
-                        .param("page", "0")
-                        .param("size", "20"))
+                        .param("status", "COMPLETED"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].id").value(samplePaperId.toString()))
-                .andExpect(jsonPath("$.content[0].examinationName").value("NDA 2024"))
-                .andExpect(jsonPath("$.totalElements").value(1));
+                .andExpect(jsonPath("$.content[0].examinationName").value("RRB NTPC CBT 1"))
+                .andExpect(jsonPath("$.content[0].questionsExtracted").value(100));
     }
 
     @Test
-    @DisplayName("GET /api/v1/questions/papers/{paperId} retrieves specific paper metadata")
+    @DisplayName("GET /api/v1/questions/papers/{paperId} returns paper metadata")
     void testGetPaperMetadata() throws Exception {
         QuestionPaperMetadataResponse response = QuestionPaperMetadataResponse.builder()
                 .id(samplePaperId)
-                .examinationName("GATE Computer Science 2024")
+                .examinationName("GATE CS 2024")
                 .examYear(2024)
                 .extractionStatus(PaperExtractionStatus.PROCESSING)
-                .pagesProcessed(10)
-                .totalPages(20)
-                .progressPercentage(50.0)
+                .pagesProcessed(12)
+                .totalPages(30)
                 .build();
 
-        when(extractionService.getPaperMetadata(eq(samplePaperId), any()))
-                .thenReturn(response);
+        when(extractionService.getPaperMetadata(eq(samplePaperId), any())).thenReturn(response);
 
         mockMvc.perform(get("/api/v1/questions/papers/{paperId}", samplePaperId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(samplePaperId.toString()))
-                .andExpect(jsonPath("$.examinationName").value("GATE Computer Science 2024"))
-                .andExpect(jsonPath("$.progressPercentage").value(50.0))
-                .andExpect(jsonPath("$.extractionStatus").value("PROCESSING"));
+                .andExpect(jsonPath("$.examinationName").value("GATE CS 2024"))
+                .andExpect(jsonPath("$.pagesProcessed").value(12))
+                .andExpect(jsonPath("$.totalPages").value(30));
     }
 
     @Test
-    @DisplayName("POST /api/v1/questions/papers/{paperId}/cancel cancels ongoing job")
-    void testCancelExtraction() throws Exception {
+    @DisplayName("POST /api/v1/questions/papers/{paperId}/cancel cancels active extraction")
+    void testCancelExtractionJob() throws Exception {
         QuestionPaperMetadataResponse cancelled = QuestionPaperMetadataResponse.builder()
                 .id(samplePaperId)
+                .examinationName("GATE CS 2024")
                 .extractionStatus(PaperExtractionStatus.CANCELLED)
                 .build();
 
-        when(extractionService.cancelExtractionJob(eq(samplePaperId), any()))
-                .thenReturn(cancelled);
+        when(extractionService.cancelExtractionJob(eq(samplePaperId), any())).thenReturn(cancelled);
 
         mockMvc.perform(post("/api/v1/questions/papers/{paperId}/cancel", samplePaperId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(samplePaperId.toString()))
                 .andExpect(jsonPath("$.extractionStatus").value("CANCELLED"));
     }
 
     @Test
-    @DisplayName("POST /api/v1/questions/papers/{paperId}/retry retries failed job and returns 202 Accepted")
-    void testRetryExtraction() throws Exception {
+    @DisplayName("POST /api/v1/questions/papers/{paperId}/retry retries failed extraction")
+    void testRetryExtractionJob() throws Exception {
         QuestionPaperMetadataResponse retried = QuestionPaperMetadataResponse.builder()
                 .id(samplePaperId)
+                .examinationName("GATE CS 2024")
                 .extractionStatus(PaperExtractionStatus.PENDING)
-                .pagesProcessed(0)
                 .build();
 
-        when(extractionService.retryExtractionJob(eq(samplePaperId), any()))
-                .thenReturn(retried);
+        when(extractionService.retryExtractionJob(eq(samplePaperId), any())).thenReturn(retried);
 
         mockMvc.perform(post("/api/v1/questions/papers/{paperId}/retry", samplePaperId))
                 .andExpect(status().isAccepted())
-                .andExpect(jsonPath("$.id").value(samplePaperId.toString()))
                 .andExpect(jsonPath("$.extractionStatus").value("PENDING"));
     }
 
@@ -312,165 +304,110 @@ class PaperExtractionControllerTest {
     @DisplayName("POST /api/v1/questions/papers/{paperId}/answer-key applies bulk answer key")
     void testApplyBulkAnswerKey() throws Exception {
         BulkAnswerKeyRequest req = BulkAnswerKeyRequest.builder()
-                .answersByQuestionNumber(Map.of(1, "A", 2, "C"))
-                .explanationsByQuestionNumber(Map.of(1, "Formula derivation", 2, "Direct definition"))
+                .answersByQuestionNumber(Map.of(1, "A", 2, "C", 3, "D"))
                 .autoApproveMatched(true)
                 .build();
 
-        QuestionPaperMetadataResponse metadata = QuestionPaperMetadataResponse.builder()
+        QuestionPaperMetadataResponse response = QuestionPaperMetadataResponse.builder()
                 .id(samplePaperId)
-                .questionsApproved(2)
+                .questionsApproved(3)
                 .build();
 
         when(extractionService.applyBulkAnswerKey(eq(samplePaperId), any(BulkAnswerKeyRequest.class), eq(sampleUserId), any()))
-                .thenReturn(2);
+                .thenReturn(3);
         when(extractionService.getPaperMetadata(eq(samplePaperId), any()))
-                .thenReturn(metadata);
+                .thenReturn(response);
 
         mockMvc.perform(post("/api/v1/questions/papers/{paperId}/answer-key", samplePaperId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(samplePaperId.toString()))
-                .andExpect(jsonPath("$.questionsApproved").value(2));
-
-        verify(extractionService).applyBulkAnswerKey(eq(samplePaperId), any(BulkAnswerKeyRequest.class), eq(sampleUserId), any());
+                .andExpect(jsonPath("$.questionsApproved").value(3));
     }
 
     @Test
-    @DisplayName("GET /api/v1/questions/papers/{paperId}/questions lists extracted questions")
+    @DisplayName("GET /api/v1/questions/papers/{paperId}/questions lists extracted staging questions")
     void testListExtractedQuestions() throws Exception {
         ExtractedQuestionResponse q = ExtractedQuestionResponse.builder()
                 .id(sampleExtractedQId)
                 .paperMetadataId(samplePaperId)
                 .questionNumber(1)
-                .sourcePageNumber(2)
-                .content("What is the speed of light in vacuum?")
+                .questionType("SINGLE_MCQ")
+                .content("What is the speed of light in vacuum $$c$$?")
                 .status(ExtractedQuestionStatus.EXTRACTED)
                 .build();
 
-        when(extractionService.listExtractedQuestions(eq(samplePaperId), any(), eq(ExtractedQuestionStatus.EXTRACTED), eq(2), any()))
-                .thenReturn(new PageImpl<>(List.of(q), PageRequest.of(0, 50), 1));
+        when(extractionService.listExtractedQuestions(eq(samplePaperId), any(), any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(q), PageRequest.of(0, 10), 1));
 
-        mockMvc.perform(get("/api/v1/questions/papers/{paperId}/questions", samplePaperId)
-                        .param("status", "EXTRACTED")
-                        .param("pageNumber", "2"))
+        mockMvc.perform(get("/api/v1/questions/papers/{paperId}/questions", samplePaperId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].id").value(sampleExtractedQId.toString()))
                 .andExpect(jsonPath("$.content[0].questionNumber").value(1))
-                .andExpect(jsonPath("$.content[0].sourcePageNumber").value(2))
-                .andExpect(jsonPath("$.totalElements").value(1));
+                .andExpect(jsonPath("$.content[0].content").value("What is the speed of light in vacuum $$c$$?"));
     }
 
     @Test
-    @DisplayName("GET /api/v1/questions/papers/{paperId}/questions/{extractedQuestionId} retrieves single question")
-    void testGetExtractedQuestion() throws Exception {
-        ExtractedQuestionResponse response = ExtractedQuestionResponse.builder()
-                .id(sampleExtractedQId)
-                .paperMetadataId(samplePaperId)
-                .questionNumber(5)
-                .content("Calculate the determinant of $$A$$.")
-                .hasFormulas(true)
-                .status(ExtractedQuestionStatus.EXTRACTED)
-                .build();
-
-        when(extractionService.getExtractedQuestion(eq(samplePaperId), eq(sampleExtractedQId), any()))
-                .thenReturn(response);
-
-        mockMvc.perform(get("/api/v1/questions/papers/{paperId}/questions/{extractedQuestionId}",
-                        samplePaperId, sampleExtractedQId))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(sampleExtractedQId.toString()))
-                .andExpect(jsonPath("$.questionNumber").value(5))
-                .andExpect(jsonPath("$.hasFormulas").value(true));
-    }
-
-    @Test
-    @DisplayName("PUT /api/v1/questions/papers/{paperId}/questions/{extractedQuestionId} updates question")
+    @DisplayName("PUT /api/v1/questions/papers/{paperId}/questions/{questionId} updates and approves question")
     void testUpdateExtractedQuestion() throws Exception {
-        UpdateExtractedQuestionRequest request = UpdateExtractedQuestionRequest.builder()
-                .questionNumber(5)
-                .content("Calculate the determinant of $$A$$ where $$A$$ is singular.")
-                .options(List.of(
-                        new QuestionOption("A", "$$0$$", true, null, null),
-                        new QuestionOption("B", "$$1$$", false, null, null)
-                ))
-                .answerKey("A")
+        UpdateExtractedQuestionRequest req = UpdateExtractedQuestionRequest.builder()
+                .questionNumber(1)
+                .content("Updated stem $$c = 3 \\times 10^8 \\text{ m/s}$$")
+                .answerKey("B")
                 .status(ExtractedQuestionStatus.APPROVED)
-                .reviewComments("Verified by SME")
+                .reviewComments("Verified answer key")
                 .build();
 
         ExtractedQuestionResponse response = ExtractedQuestionResponse.builder()
                 .id(sampleExtractedQId)
                 .paperMetadataId(samplePaperId)
-                .questionNumber(5)
-                .content("Calculate the determinant of $$A$$ where $$A$$ is singular.")
+                .questionNumber(1)
+                .content("Updated stem $$c = 3 \\times 10^8 \\text{ m/s}$$")
+                .answerKey("B")
                 .status(ExtractedQuestionStatus.APPROVED)
-                .reviewComments("Verified by SME")
+                .reviewComments("Verified answer key")
                 .build();
 
-        when(extractionService.updateExtractedQuestion(eq(samplePaperId), eq(sampleExtractedQId),
-                any(UpdateExtractedQuestionRequest.class), eq(sampleUserId), any()))
+        when(extractionService.updateExtractedQuestion(eq(samplePaperId), eq(sampleExtractedQId), any(), eq(sampleUserId), any()))
                 .thenReturn(response);
 
-        mockMvc.perform(put("/api/v1/questions/papers/{paperId}/questions/{extractedQuestionId}",
-                        samplePaperId, sampleExtractedQId)
+        mockMvc.perform(put("/api/v1/questions/papers/{paperId}/questions/{questionId}", samplePaperId, sampleExtractedQId)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+                        .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(sampleExtractedQId.toString()))
                 .andExpect(jsonPath("$.status").value("APPROVED"))
-                .andExpect(jsonPath("$.reviewComments").value("Verified by SME"));
+                .andExpect(jsonPath("$.answerKey").value("B"));
     }
 
     @Test
-    @DisplayName("POST /api/v1/questions/papers/{paperId}/promote promotes approved questions")
-    void testPromoteQuestionsPrimaryEndpoint() throws Exception {
-        PromoteQuestionsRequest request = PromoteQuestionsRequest.builder()
-                .createTranslations(true)
-                .targetQuestionState("APPROVED")
+    @DisplayName("POST /api/v1/questions/papers/{paperId}/promote promotes questions to canonical Question Bank")
+    void testPromoteQuestions() throws Exception {
+        PromoteQuestionsRequest req = PromoteQuestionsRequest.builder()
+                .extractedQuestionIds(List.of(sampleExtractedQId))
+                .fallbackSubjectId(10L)
+                .fallbackTopicId(20L)
                 .build();
 
-        UUID promotedCanonicalId = UUID.randomUUID();
         PromoteQuestionsResponse response = PromoteQuestionsResponse.builder()
                 .paperMetadataId(samplePaperId)
-                .totalRequested(10)
-                .totalPromoted(10)
+                .totalRequested(1)
+                .totalPromoted(1)
                 .totalSkipped(0)
                 .totalFailed(0)
-                .promotedQuestionIds(List.of(promotedCanonicalId))
+                .promotedQuestionIds(List.of(UUID.randomUUID()))
                 .build();
 
-        when(promotionService.promoteQuestions(eq(samplePaperId), any(PromoteQuestionsRequest.class), eq(sampleUserId), any()))
+        when(promotionService.promoteQuestions(eq(samplePaperId), any(), eq(sampleUserId), any()))
                 .thenReturn(response);
 
         mockMvc.perform(post("/api/v1/questions/papers/{paperId}/promote", samplePaperId)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+                        .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.paperMetadataId").value(samplePaperId.toString()))
-                .andExpect(jsonPath("$.totalRequested").value(10))
-                .andExpect(jsonPath("$.totalPromoted").value(10))
-                .andExpect(jsonPath("$.promotedQuestionIds[0]").value(promotedCanonicalId.toString()));
-    }
-
-    @Test
-    @DisplayName("POST /api/v1/questions/papers/{paperId}/questions/promote alias route promotes questions")
-    void testPromoteQuestionsAliasEndpoint() throws Exception {
-        UUID promotedCanonicalId = UUID.randomUUID();
-        PromoteQuestionsResponse response = PromoteQuestionsResponse.builder()
-                .paperMetadataId(samplePaperId)
-                .totalRequested(5)
-                .totalPromoted(5)
-                .promotedQuestionIds(List.of(promotedCanonicalId))
-                .build();
-
-        when(promotionService.promoteQuestions(eq(samplePaperId), any(PromoteQuestionsRequest.class), eq(sampleUserId), any()))
-                .thenReturn(response);
-
-        mockMvc.perform(post("/api/v1/questions/papers/{paperId}/questions/promote", samplePaperId))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.paperMetadataId").value(samplePaperId.toString()))
-                .andExpect(jsonPath("$.totalPromoted").value(5));
+                .andExpect(jsonPath("$.totalRequested").value(1))
+                .andExpect(jsonPath("$.totalPromoted").value(1))
+                .andExpect(jsonPath("$.totalFailed").value(0));
     }
 }

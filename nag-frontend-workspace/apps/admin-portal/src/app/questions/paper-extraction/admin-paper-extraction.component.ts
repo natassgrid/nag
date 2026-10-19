@@ -241,21 +241,35 @@ export class AdminPaperExtractionComponent implements OnInit {
   handleUpload(event: { file: File; metadata: Partial<PaperUploadRequest> }): void {
     this.uploading.set(true);
 
-    // 1. Upload PDF binary to asset-service first for centralized asset lifecycle & SHA-256 integrity
+    // 1. Upload PDF binary to asset-service for centralized asset management & SHA-256 integrity
     this.assetService.upload(event.file).subscribe({
       next: (asset) => {
-        const enrichedMetadata: Partial<PaperUploadRequest> = {
-          ...event.metadata,
-          fileAssetId: asset?.id,
+        const payload: PaperUploadRequest = {
+          examinationName: event.metadata.examinationName || 'Untitled Examination',
+          examYear: event.metadata.examYear || new Date().getFullYear(),
+          department: event.metadata.department,
+          paperCode: event.metadata.paperCode,
+          bookletSerialNo: event.metadata.bookletSerialNo,
+          subjectName: event.metadata.subjectName,
+          defaultSubjectId: event.metadata.defaultSubjectId,
+          defaultTopicId: event.metadata.defaultTopicId,
+          defaultSubtopicId: event.metadata.defaultSubtopicId,
+          languages: event.metadata.languages || ['en', 'hi'],
+          totalQuestionsExpected: event.metadata.totalQuestionsExpected,
+          durationMinutes: event.metadata.durationMinutes,
+          maxMarks: event.metadata.maxMarks,
+          negativeMarkingRatio: event.metadata.negativeMarkingRatio,
+          forceReExtract: !!event.metadata.forceReExtract,
+          fileAssetId: asset.id,
         };
 
-        // 2. Register Question Paper metadata and launch async extraction worker
-        this.paperService.uploadPaper(event.file, enrichedMetadata).subscribe({
+        // 2. Initiate async extraction via pure JSON payload to question-bank-service
+        this.paperService.initiateExtraction(payload).subscribe({
           next: (paper) => {
             this.uploading.set(false);
             this.uploadDialogOpen.set(false);
             this.notificationService.success(
-              `Question Paper "${paper.examinationName}" uploaded successfully (Asset #${(asset?.id || '').substring(0, 8)}). Extraction batch initiated.`
+              `Question Paper "${paper.examinationName}" initiated successfully via Asset #${(asset?.id || '').substring(0, 8)}. Extraction batch started.`
             );
             this.loadPapers();
           },
@@ -268,23 +282,10 @@ export class AdminPaperExtractionComponent implements OnInit {
         });
       },
       error: (assetErr) => {
-        // Fallback to direct extraction upload if asset-service is temporarily unreachable
-        this.paperService.uploadPaper(event.file, event.metadata).subscribe({
-          next: (paper) => {
-            this.uploading.set(false);
-            this.uploadDialogOpen.set(false);
-            this.notificationService.success(
-              `Question Paper "${paper.examinationName}" uploaded successfully. Extraction batch initiated.`
-            );
-            this.loadPapers();
-          },
-          error: (err) => {
-            this.uploading.set(false);
-            this.notificationService.error(
-              'Upload failed: ' + (err?.error?.message || err?.message || 'Server error')
-            );
-          },
-        });
+        this.uploading.set(false);
+        this.notificationService.error(
+          'Failed to upload PDF to asset-service: ' + (assetErr?.error?.message || assetErr?.message || 'Asset service unavailable')
+        );
       },
     });
   }

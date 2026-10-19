@@ -19,56 +19,28 @@ export class PaperExtractionService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = '/api/v1/questions/papers';
 
-  uploadPaper(
-    file: File,
-    metadata?: Partial<PaperUploadRequest>
+  /**
+   * Initiates asynchronous question paper extraction for a PDF document pre-uploaded
+   * to asset-service. Sends pure JSON payload with fileAssetId.
+   */
+  initiateExtraction(
+    request: PaperUploadRequest
   ): Observable<QuestionPaperMetadata> {
-    const formData = new FormData();
-    formData.append('file', file, file.name);
-
-    if (metadata) {
-      formData.append('metadata', JSON.stringify(metadata));
-      if (metadata.examinationName) {
-        formData.append('examinationName', metadata.examinationName);
-      }
-      if (metadata.examYear != null) {
-        formData.append('examYear', metadata.examYear.toString());
-      }
-      if (metadata.department) {
-        formData.append('department', metadata.department);
-      }
-      if (metadata.paperCode) {
-        formData.append('paperCode', metadata.paperCode);
-      }
-      if (metadata.bookletSerialNo) {
-        formData.append('bookletSerialNo', metadata.bookletSerialNo);
-      }
-      if (metadata.subjectName) {
-        formData.append('subjectName', metadata.subjectName);
-      }
-      if (metadata.defaultSubjectId != null) {
-        formData.append('defaultSubjectId', metadata.defaultSubjectId.toString());
-      }
-      if (metadata.defaultTopicId != null) {
-        formData.append('defaultTopicId', metadata.defaultTopicId.toString());
-      }
-      if (metadata.defaultSubtopicId != null) {
-        formData.append('defaultSubtopicId', metadata.defaultSubtopicId.toString());
-      }
-      if (metadata.forceReExtract != null) {
-        formData.append('forceReExtract', metadata.forceReExtract.toString());
-      }
-      if (metadata.fileAssetId) {
-        formData.append('fileAssetId', metadata.fileAssetId);
-      }
-    }
-
     return this.http
       .post<QuestionPaperMetadata | { data: QuestionPaperMetadata }>(
-        `${this.baseUrl}/upload`,
-        formData
+        this.baseUrl,
+        request
       )
       .pipe(map((res) => ((res as any)?.data ?? res) as QuestionPaperMetadata));
+  }
+
+  /**
+   * Backward-compatible alias for initiateExtraction.
+   */
+  uploadPaper(
+    request: PaperUploadRequest
+  ): Observable<QuestionPaperMetadata> {
+    return this.initiateExtraction(request);
   }
 
   listPapers(params?: {

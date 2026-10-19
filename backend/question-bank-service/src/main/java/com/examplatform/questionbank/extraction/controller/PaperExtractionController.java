@@ -32,7 +32,6 @@ import com.examplatform.questionbank.extraction.service.PaperQuestionPromotionSe
 import com.examplatform.questionbank.extraction.service.QuestionPaperExtractionService;
 import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.tenant.TenantContext;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -47,7 +46,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.util.UUID;
 
@@ -66,85 +64,43 @@ public class PaperExtractionController {
 
     private final QuestionPaperExtractionService questionPaperExtractionService;
     private final PaperQuestionPromotionService paperQuestionPromotionService;
-    private final ObjectMapper objectMapper;
 
     /**
-     * Uploads a Question Paper PDF and initiates asynchronous page-by-page extraction.
-     * Metadata can be provided either as a JSON part ("metadata") or via individual form parameters.
+     * Initiates asynchronous question paper extraction for a PDF document pre-uploaded
+     * to asset-service.
+     * Consumes application/json (requires valid fileAssetId from asset-service).
      *
-     * POST /api/v1/questions/papers/upload
+     * POST /api/v1/questions/papers
      */
-    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
-    public ResponseEntity<QuestionPaperMetadataResponse> uploadPaper(
-            @RequestPart("file") MultipartFile file,
-            @RequestPart(value = "metadata", required = false) String metadataJson,
-            @RequestParam(value = "examinationName", required = false) String examinationName,
-            @RequestParam(value = "examYear", required = false) Integer examYear,
-            @RequestParam(value = "department", required = false) String department,
-            @RequestParam(value = "paperCode", required = false) String paperCode,
-            @RequestParam(value = "bookletSerialNo", required = false) String bookletSerialNo,
-            @RequestParam(value = "subjectName", required = false) String subjectName,
-            @RequestParam(value = "defaultSubjectId", required = false) Long defaultSubjectId,
-            @RequestParam(value = "defaultTopicId", required = false) Long defaultTopicId,
-            @RequestParam(value = "defaultSubtopicId", required = false) Long defaultSubtopicId,
-            @RequestParam(value = "forceReExtract", required = false) Boolean forceReExtract,
-            @RequestParam(value = "fileAssetId", required = false) UUID fileAssetId,
+    public ResponseEntity<QuestionPaperMetadataResponse> initiateExtraction(
+            @Valid @RequestBody PaperUploadRequest request,
             @AuthenticationPrincipal Jwt jwt) {
-
-        PaperUploadRequest request;
-        if (metadataJson != null && !metadataJson.isBlank()) {
-            try {
-                request = objectMapper.readValue(metadataJson, PaperUploadRequest.class);
-            } catch (Exception e) {
-                log.warn("Failed to parse metadataJson: {}", e.getMessage());
-                throw new IllegalArgumentException("Invalid metadata JSON format: " + e.getMessage(), e);
-            }
-        } else {
-            request = new PaperUploadRequest();
-        }
-
-        if (examinationName != null && !examinationName.isBlank()) {
-            request.setExaminationName(examinationName);
-        }
-        if (examYear != null) {
-            request.setExamYear(examYear);
-        }
-        if (department != null && !department.isBlank()) {
-            request.setDepartment(department);
-        }
-        if (paperCode != null && !paperCode.isBlank()) {
-            request.setPaperCode(paperCode);
-        }
-        if (bookletSerialNo != null && !bookletSerialNo.isBlank()) {
-            request.setBookletSerialNo(bookletSerialNo);
-        }
-        if (subjectName != null && !subjectName.isBlank()) {
-            request.setSubjectName(subjectName);
-        }
-        if (defaultSubjectId != null) {
-            request.setDefaultSubjectId(defaultSubjectId);
-        }
-        if (defaultTopicId != null) {
-            request.setDefaultTopicId(defaultTopicId);
-        }
-        if (defaultSubtopicId != null) {
-            request.setDefaultSubtopicId(defaultSubtopicId);
-        }
-        if (forceReExtract != null) {
-            request.setForceReExtract(forceReExtract);
-        }
-        if (fileAssetId != null) {
-            request.setFileAssetId(fileAssetId);
-        }
 
         UUID uploaderId = extractUserId(jwt);
         String tenantId = tenantId();
+        log.info("Initiating question paper extraction for assetId={}, exam={}, year={}, tenantId={}",
+                request.getFileAssetId(), request.getExaminationName(), request.getExamYear(), tenantId);
 
         QuestionPaperMetadataResponse response = questionPaperExtractionService
-                .uploadAndStartExtraction(file, request, uploaderId, tenantId);
+                .initiateExtraction(request, uploaderId, tenantId);
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+    }
+
+    /**
+     * Uploads/initiates a Question Paper extraction using pre-uploaded asset-service asset ID.
+     * Consumes application/json.
+     *
+     * POST /api/v1/questions/papers/upload
+     */
+    @PostMapping(value = "/upload", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
+    public ResponseEntity<QuestionPaperMetadataResponse> uploadPaper(
+            @Valid @RequestBody PaperUploadRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+        return initiateExtraction(request, jwt);
     }
 
     /**

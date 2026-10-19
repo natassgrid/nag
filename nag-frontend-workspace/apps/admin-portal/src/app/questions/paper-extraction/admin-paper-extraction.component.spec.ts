@@ -71,6 +71,7 @@ describe('AdminPaperExtractionComponent', () => {
   beforeEach(async () => {
     mockPaperService = {
       uploadPaper: jest.fn().mockReturnValue(of(samplePaper)),
+      initiateExtraction: jest.fn().mockReturnValue(of(samplePaper)),
       listPapers: jest.fn().mockReturnValue(of({ content: [samplePaper], totalElements: 1 })),
       getPaper: jest.fn().mockReturnValue(of(samplePaper)),
       cancelJob: jest.fn().mockReturnValue(of(samplePaper)),
@@ -160,8 +161,12 @@ describe('AdminPaperExtractionComponent', () => {
     const dummyFile = new File(['dummy content'], 'paper.pdf', { type: 'application/pdf' });
     component.handleUpload({ file: dummyFile, metadata: { examinationName: 'UPSC Prelims GS-I', examYear: 2026 } });
 
-    expect(mockPaperService.uploadPaper).toHaveBeenCalledWith(dummyFile, expect.anything());
-    expect(mockNotificationService.success).toHaveBeenCalledWith(expect.stringContaining('uploaded successfully'));
+    expect(mockPaperService.initiateExtraction).toHaveBeenCalledWith(expect.objectContaining({
+      examinationName: 'UPSC Prelims GS-I',
+      examYear: 2026,
+      fileAssetId: 'asset-uuid-1',
+    }));
+    expect(mockNotificationService.success).toHaveBeenCalledWith(expect.stringContaining('initiated successfully'));
   });
 
   it('should handle paper cancellation', () => {

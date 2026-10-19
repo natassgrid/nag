@@ -143,6 +143,8 @@ app:
       sliding-window-size: ${AI_CIRCUIT_BREAKER_SLIDING_WINDOW_SIZE:10}
     agent:
       max-refinement-cycles: ${AI_AGENT_MAX_REFINEMENT_CYCLES:2}
+  asset-service:
+    url: ${ASSET_SERVICE_URL:http://localhost:8095}
 
 resilience4j:
   circuitbreaker:

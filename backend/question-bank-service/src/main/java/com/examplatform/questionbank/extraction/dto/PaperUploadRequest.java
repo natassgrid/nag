@@ -72,7 +72,8 @@ public class PaperUploadRequest {
     private boolean forceReExtract;
 
     /**
-     * Optional asset UUID if the file was pre-uploaded via asset-service.
+     * Required asset UUID from asset-service upload.
      */
+    @NotNull(message = "fileAssetId from asset-service upload is required")
     private java.util.UUID fileAssetId;
 }
