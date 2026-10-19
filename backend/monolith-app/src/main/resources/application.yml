@@ -8,6 +8,11 @@ spring:
   application:
     name: nag-monolith
 
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 110MB
+
   jackson:
     deserialization:
       fail-on-unknown-properties: false
