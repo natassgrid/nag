@@ -1,0 +1,85 @@
+<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+  <!-- 1. Total Question Papers -->
+  <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex flex-col justify-between hover:border-indigo-300 transition-colors">
+    <div class="flex items-center justify-between text-slate-500 mb-2">
+      <span class="text-[11px] font-bold tracking-wider uppercase text-slate-500">Papers</span>
+      <div class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+        <mat-icon class="!text-lg">picture_as_pdf</mat-icon>
+      </div>
+    </div>
+    <div>
+      <div class="text-2xl font-black text-slate-900 tracking-tight">{{ stats().totalPapers }}</div>
+      <div class="text-[11px] text-slate-500 mt-0.5">Uploaded test papers</div>
+    </div>
+  </div>
+
+  <!-- 2. Pages Processed -->
+  <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex flex-col justify-between hover:border-blue-300 transition-colors">
+    <div class="flex items-center justify-between text-slate-500 mb-2">
+      <span class="text-[11px] font-bold tracking-wider uppercase text-slate-500">Pages</span>
+      <div class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+        <mat-icon class="!text-lg">find_in_page</mat-icon>
+      </div>
+    </div>
+    <div>
+      <div class="text-2xl font-black text-slate-900 tracking-tight">{{ stats().pagesProcessed }}</div>
+      <div class="text-[11px] text-slate-500 mt-0.5">PDF pages OCR scanned</div>
+    </div>
+  </div>
+
+  <!-- 3. Questions Extracted -->
+  <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex flex-col justify-between hover:border-purple-300 transition-colors">
+    <div class="flex items-center justify-between text-slate-500 mb-2">
+      <span class="text-[11px] font-bold tracking-wider uppercase text-slate-500">Extracted</span>
+      <div class="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
+        <mat-icon class="!text-lg">psychology</mat-icon>
+      </div>
+    </div>
+    <div>
+      <div class="text-2xl font-black text-slate-900 tracking-tight">{{ stats().questionsExtracted }}</div>
+      <div class="text-[11px] text-slate-500 mt-0.5">Staging questions parsed</div>
+    </div>
+  </div>
+
+  <!-- 4. Questions Approved -->
+  <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex flex-col justify-between hover:border-emerald-300 transition-colors">
+    <div class="flex items-center justify-between text-slate-500 mb-2">
+      <span class="text-[11px] font-bold tracking-wider uppercase text-slate-500">Approved</span>
+      <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+        <mat-icon class="!text-lg">verified</mat-icon>
+      </div>
+    </div>
+    <div>
+      <div class="text-2xl font-black text-emerald-700 tracking-tight">{{ stats().questionsApproved }}</div>
+      <div class="text-[11px] text-slate-500 mt-0.5">SME verified &amp; ready</div>
+    </div>
+  </div>
+
+  <!-- 5. Questions Promoted -->
+  <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex flex-col justify-between hover:border-cyan-300 transition-colors">
+    <div class="flex items-center justify-between text-slate-500 mb-2">
+      <span class="text-[11px] font-bold tracking-wider uppercase text-slate-500">Promoted</span>
+      <div class="w-8 h-8 rounded-lg bg-cyan-50 text-cyan-600 flex items-center justify-center">
+        <mat-icon class="!text-lg">cloud_done</mat-icon>
+      </div>
+    </div>
+    <div>
+      <div class="text-2xl font-black text-cyan-800 tracking-tight">{{ stats().questionsPromoted }}</div>
+      <div class="text-[11px] text-slate-500 mt-0.5">Live in Question Bank</div>
+    </div>
+  </div>
+
+  <!-- 6. Active Processing / In Flight -->
+  <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex flex-col justify-between hover:border-amber-300 transition-colors">
+    <div class="flex items-center justify-between text-slate-500 mb-2">
+      <span class="text-[11px] font-bold tracking-wider uppercase text-slate-500">Processing</span>
+      <div class="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+        <mat-icon class="!text-lg" [class.animate-spin]="stats().processingPapers > 0">autorenew</mat-icon>
+      </div>
+    </div>
+    <div>
+      <div class="text-2xl font-black text-amber-700 tracking-tight">{{ stats().processingPapers }}</div>
+      <div class="text-[11px] text-slate-500 mt-0.5">Asynchronous jobs</div>
+    </div>
+  </div>
+</div>

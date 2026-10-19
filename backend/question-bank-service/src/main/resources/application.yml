@@ -11,6 +11,11 @@ spring:
   application:
     name: question-bank-service
 
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 110MB
+
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/exam_platform}
     username: ${SPRING_DATASOURCE_USERNAME:exam_admin}
@@ -128,6 +133,9 @@ app:
         easy: ${AI_MODEL_LOCAL_EASY:llama3.2:1b}
         medium: ${AI_MODEL_LOCAL_MEDIUM:qwen2.5:1.5b}
         hard: ${AI_MODEL_LOCAL_HARD:qwen2.5:1.5b}
+      extraction:
+        vision: ${AI_MODEL_EXTRACTION_VISION:paper-extract-vision}
+        text: ${AI_MODEL_EXTRACTION_TEXT:paper-extract-text}
     guardrails:
       enabled: ${AI_GUARDRAILS_ENABLED:true}
       strict-mode: ${AI_GUARDRAIL_STRICT_MODE:true}
@@ -140,6 +148,8 @@ app:
       sliding-window-size: ${AI_CIRCUIT_BREAKER_SLIDING_WINDOW_SIZE:10}
     agent:
       max-refinement-cycles: ${AI_AGENT_MAX_REFINEMENT_CYCLES:2}
+  asset-service:
+    url: ${ASSET_SERVICE_URL:http://localhost:${SERVER_PORT:9000}}
 
 resilience4j:
   circuitbreaker:

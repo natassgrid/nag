@@ -80,6 +80,13 @@
                   <span class="text-[10px] text-slate-500">Automated paper generation &amp; encrypted bundles</span>
                 </div>
               </a>
+              <a mat-menu-item routerLink="/questions/paper-extraction">
+                <mat-icon class="text-indigo-600">document_scanner</mat-icon>
+                <div class="inline-flex flex-col text-left">
+                  <span class="font-bold text-xs text-slate-900">Question Paper Extraction &amp; OCR</span>
+                  <span class="text-[10px] text-slate-500">PDF paper ingestion, LaTeX formula staging &amp; promotion</span>
+                </div>
+              </a>
               <a mat-menu-item routerLink="/evaluation/grading">
                 <mat-icon class="text-emerald-600">grading</mat-icon>
                 <div class="inline-flex flex-col text-left">
@@ -127,6 +134,13 @@
                 <div class="inline-flex flex-col text-left">
                   <span class="font-bold text-xs text-slate-900">Translation &amp; Indic AI</span>
                   <span class="text-[10px] text-slate-500">IndicTrans2 AI localization &amp; batch workers</span>
+                </div>
+              </a>
+              <a mat-menu-item routerLink="/questions/paper-extraction">
+                <mat-icon class="text-blue-600">document_scanner</mat-icon>
+                <div class="inline-flex flex-col text-left">
+                  <span class="font-bold text-xs text-slate-900">Question Paper Extraction &amp; OCR</span>
+                  <span class="text-[10px] text-slate-500">PDF paper ingestion, LaTeX formula staging &amp; promotion</span>
                 </div>
               </a>
             </mat-menu>
@@ -254,6 +268,16 @@
             <mat-icon class="!text-base text-slate-400">arrow_drop_down</mat-icon>
           </button>
 
+          <!-- Mobile Hamburger Toggle Button -->
+          <button
+            type="button"
+            (click)="toggleMobileMenu()"
+            class="md:hidden p-2 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 text-slate-300 hover:text-white transition-all cursor-pointer focus:outline-none"
+            aria-label="Toggle navigation menu"
+          >
+            <mat-icon>{{ mobileMenuOpen() ? 'close' : 'menu' }}</mat-icon>
+          </button>
+
           <!-- User Profile Dropdown Menu -->
           <mat-menu #userProfileMenu="matMenu" class="custom-nav-menu">
             <div class="px-4 py-2.5 border-b border-slate-100 flex flex-col">
@@ -275,6 +299,217 @@
           </mat-menu>
         </div>
       </div>
+
+      <!-- Mobile Navigation Drawer -->
+      @if (mobileMenuOpen()) {
+        <div class="md:hidden border-t border-slate-800 bg-slate-900 px-4 py-4 space-y-4 max-h-[calc(100vh-4rem)] overflow-y-auto">
+          <!-- Direct Dashboard Link -->
+          <a
+            routerLink="/dashboard"
+            (click)="closeMobileMenu()"
+            class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-200 hover:bg-slate-800"
+          >
+            <mat-icon class="!text-base text-indigo-400">dashboard</mat-icon>
+            <span>Dashboard</span>
+          </a>
+
+          <!-- Question Bank Category -->
+          <div class="space-y-1">
+            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 px-3 py-1">Question Bank</div>
+            <a
+              routerLink="/questions"
+              (click)="closeMobileMenu()"
+              class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white"
+            >
+              <mat-icon class="!text-base text-indigo-400">inventory_2</mat-icon>
+              <span>Question Repository</span>
+            </a>
+            <a
+              routerLink="/questions/authoring"
+              (click)="closeMobileMenu()"
+              class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white"
+            >
+              <mat-icon class="!text-base text-purple-400">edit_note</mat-icon>
+              <span>Author Question &amp; Passage</span>
+            </a>
+            <a
+              routerLink="/questions/ai-generate"
+              (click)="closeMobileMenu()"
+              class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white"
+            >
+              <mat-icon class="!text-base text-indigo-400">psychology</mat-icon>
+              <span>AI Question Generator</span>
+            </a>
+            <a
+              routerLink="/questions/translations"
+              (click)="closeMobileMenu()"
+              class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white"
+            >
+              <mat-icon class="!text-base text-emerald-400">translate</mat-icon>
+              <span>Translation &amp; Indic AI</span>
+            </a>
+            <a
+              routerLink="/questions/paper-extraction"
+              (click)="closeMobileMenu()"
+              class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-indigo-300 bg-indigo-950/40 border border-indigo-800/50 hover:bg-slate-800 hover:text-white"
+            >
+              <mat-icon class="!text-base text-blue-400">document_scanner</mat-icon>
+              <span>Question Paper Extraction &amp; OCR</span>
+            </a>
+          </div>
+
+          <!-- Curriculum Category -->
+          <div class="space-y-1">
+            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 px-3 py-1">Curriculum &amp; Exams</div>
+            <a
+              routerLink="/questions/taxonomy"
+              (click)="closeMobileMenu()"
+              class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white"
+            >
+              <mat-icon class="!text-base text-amber-400">account_tree</mat-icon>
+              <span>Taxonomy &amp; Hierarchy</span>
+            </a>
+            <a
+              routerLink="/questions/blueprints"
+              (click)="closeMobileMenu()"
+              class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white"
+            >
+              <mat-icon class="!text-base text-blue-400">rule</mat-icon>
+              <span>Rule Blueprints</span>
+            </a>
+            <a
+              routerLink="/examinations"
+              (click)="closeMobileMenu()"
+              class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white"
+            >
+              <mat-icon class="!text-base text-indigo-400">assignment</mat-icon>
+              <span>Examination Directory</span>
+            </a>
+            <a
+              routerLink="/examinations/scheduling"
+              (click)="closeMobileMenu()"
+              class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white"
+            >
+              <mat-icon class="!text-base text-purple-400">calendar_month</mat-icon>
+              <span>Scheduling &amp; Shifts</span>
+            </a>
+            <a
+              routerLink="/examinations/centres"
+              (click)="closeMobileMenu()"
+              class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white"
+            >
+              <mat-icon class="!text-base text-amber-400">domain</mat-icon>
+              <span>Test Centre Registry</span>
+            </a>
+            <a
+              routerLink="/examinations/paper-gen"
+              (click)="closeMobileMenu()"
+              class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white"
+            >
+              <mat-icon class="!text-base text-blue-400">auto_awesome</mat-icon>
+              <span>Paper Assembly Engine</span>
+            </a>
+            <a
+              routerLink="/questions/paper-extraction"
+              (click)="closeMobileMenu()"
+              class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-indigo-300 hover:bg-slate-800 hover:text-white"
+            >
+              <mat-icon class="!text-base text-indigo-400">document_scanner</mat-icon>
+              <span>Question Paper Extraction &amp; OCR</span>
+            </a>
+            <a
+              routerLink="/evaluation/grading"
+              (click)="closeMobileMenu()"
+              class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white"
+            >
+              <mat-icon class="!text-base text-emerald-400">grading</mat-icon>
+              <span>Evaluation &amp; Grading</span>
+            </a>
+          </div>
+
+          <!-- Learning Category -->
+          <div class="space-y-1">
+            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 px-3 py-1">Learning</div>
+            <a
+              routerLink="/learning"
+              (click)="closeMobileMenu()"
+              class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white"
+            >
+              <mat-icon class="!text-base text-indigo-400">book</mat-icon>
+              <span>Practice Sets</span>
+            </a>
+            <a
+              routerLink="/learning/micro-lessons"
+              (click)="closeMobileMenu()"
+              class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white"
+            >
+              <mat-icon class="!text-base text-purple-400">psychology</mat-icon>
+              <span>Micro-Lesson Review Desk</span>
+            </a>
+            <a
+              routerLink="/learning/micro-lessons/authoring"
+              (click)="closeMobileMenu()"
+              class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white"
+            >
+              <mat-icon class="!text-base text-emerald-400">post_add</mat-icon>
+              <span>Micro-Lesson Authoring Studio</span>
+            </a>
+          </div>
+
+          <!-- Administration Category -->
+          <div class="space-y-1">
+            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 px-3 py-1">Administration</div>
+            <a
+              routerLink="/users"
+              (click)="closeMobileMenu()"
+              class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white"
+            >
+              <mat-icon class="!text-base text-indigo-400">group</mat-icon>
+              <span>User Management</span>
+            </a>
+            <a
+              routerLink="/profile"
+              (click)="closeMobileMenu()"
+              class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white"
+            >
+              <mat-icon class="!text-base text-purple-400">account_circle</mat-icon>
+              <span>My Profile &amp; Security</span>
+            </a>
+            <a
+              routerLink="/assets"
+              (click)="closeMobileMenu()"
+              class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white"
+            >
+              <mat-icon class="!text-base text-blue-400">perm_media</mat-icon>
+              <span>Media Assets</span>
+            </a>
+            <a
+              routerLink="/reports"
+              (click)="closeMobileMenu()"
+              class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white"
+            >
+              <mat-icon class="!text-base text-emerald-400">analytics</mat-icon>
+              <span>Reports &amp; Analytics</span>
+            </a>
+            <a
+              routerLink="/audit"
+              (click)="closeMobileMenu()"
+              class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white"
+            >
+              <mat-icon class="!text-base text-amber-400">history</mat-icon>
+              <span>Audit Trail</span>
+            </a>
+            <a
+              routerLink="/settings"
+              (click)="closeMobileMenu()"
+              class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white"
+            >
+              <mat-icon class="!text-base text-slate-400">settings</mat-icon>
+              <span>System Settings</span>
+            </a>
+          </div>
+        </div>
+      }
     </header>
   }
 

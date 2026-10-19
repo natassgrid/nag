@@ -1,0 +1,230 @@
+@if (isOpen()) {
+  <div class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+      <!-- Header -->
+      <div class="p-6 border-b border-slate-100 bg-slate-900 text-white flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-300">
+            <mat-icon>document_scanner</mat-icon>
+          </div>
+          <div>
+            <h2 class="text-lg font-bold">Upload Question Paper PDF</h2>
+            <p class="text-xs text-slate-400">Automated page-by-page OCR extraction &amp; staging</p>
+          </div>
+        </div>
+        <button
+          mat-icon-button
+          (click)="handleClose()"
+          [disabled]="uploading()"
+          class="!text-slate-400 hover:!text-white cursor-pointer"
+        >
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+
+      <!-- Scrollable Form Body -->
+      <div class="p-6 space-y-5 text-xs overflow-y-auto flex-1">
+        <!-- PDF File Dropzone -->
+        <div>
+          <label class="block font-bold uppercase text-slate-700 mb-1.5">Question Paper PDF File *</label>
+          @if (!selectedFile()) {
+            <div
+              (dragover)="onDragOver($event)"
+              (dragleave)="onDragLeave($event)"
+              (drop)="onDrop($event)"
+              class="border-2 border-dashed rounded-2xl p-6 text-center transition-colors cursor-pointer"
+              [ngClass]="dragOver() ? 'border-indigo-500 bg-indigo-50/50' : 'border-slate-300 hover:border-indigo-400 bg-slate-50/50'"
+              (click)="fileInput.click()"
+            >
+              <input
+                #fileInput
+                type="file"
+                accept="application/pdf,.pdf"
+                class="hidden"
+                (change)="onFileSelected($event)"
+              />
+              <div class="w-12 h-12 mx-auto rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mb-2">
+                <mat-icon class="!text-2xl">cloud_upload</mat-icon>
+              </div>
+              <p class="font-bold text-slate-800 text-sm">Click to browse or drag and drop PDF paper</p>
+              <p class="text-[11px] text-slate-500 mt-1">Official question paper, booklet with bilingual content or LaTeX math formulas</p>
+            </div>
+          } @else {
+            <div class="flex items-center justify-between p-3.5 bg-indigo-50/70 border border-indigo-200 rounded-2xl">
+              <div class="flex items-center gap-3 min-w-0">
+                <div class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0">
+                  <mat-icon>picture_as_pdf</mat-icon>
+                </div>
+                <div class="min-w-0">
+                  <div class="font-bold text-slate-900 truncate text-xs">{{ selectedFile()?.name }}</div>
+                  <div class="text-[11px] text-indigo-700 font-medium">{{ formattedFileSize() }} &bull; Ready for upload</div>
+                </div>
+              </div>
+              <button
+                type="button"
+                mat-icon-button
+                (click)="removeFile()"
+                [disabled]="uploading()"
+                class="!text-slate-400 hover:!text-rose-600 cursor-pointer"
+              >
+                <mat-icon>delete_outline</mat-icon>
+              </button>
+            </div>
+          }
+        </div>
+
+        <!-- Examination Details Row 1 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block font-bold uppercase text-slate-700 mb-1">Examination Name *</label>
+            <input
+              type="text"
+              [ngModel]="examinationName()"
+              (ngModelChange)="examinationName.set($event)"
+              placeholder="e.g. UPSC Civil Services Prelims GS Paper I"
+              class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+
+          <div>
+            <label class="block font-bold uppercase text-slate-700 mb-1">Exam Year *</label>
+            <input
+              type="number"
+              [ngModel]="examYear()"
+              (ngModelChange)="examYear.set($event)"
+              placeholder="2026"
+              min="1990"
+              max="2099"
+              class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+        </div>
+
+        <!-- Row 2: Department & Subject -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block font-bold uppercase text-slate-700 mb-1">Department / Board</label>
+            <input
+              type="text"
+              [ngModel]="department()"
+              (ngModelChange)="department.set($event)"
+              placeholder="e.g. UPSC, SSC, NTA, GATE"
+              class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+
+          <div>
+            <label class="block font-bold uppercase text-slate-700 mb-1">Subject / Domain</label>
+            <input
+              type="text"
+              [ngModel]="subjectName()"
+              (ngModelChange)="subjectName.set($event)"
+              placeholder="e.g. General Studies, Physics, Mathematics"
+              class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+        </div>
+
+        <!-- Row 3: Paper Code & Booklet Serial No -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block font-bold uppercase text-slate-700 mb-1">Paper Code</label>
+            <input
+              type="text"
+              [ngModel]="paperCode()"
+              (ngModelChange)="paperCode.set($event)"
+              placeholder="e.g. GS-101-A, SET-C"
+              class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+
+          <div>
+            <label class="block font-bold uppercase text-slate-700 mb-1">Booklet Serial No / Set</label>
+            <input
+              type="text"
+              [ngModel]="bookletSerialNo()"
+              (ngModelChange)="bookletSerialNo.set($event)"
+              placeholder="e.g. 849204 / Set D"
+              class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+        </div>
+
+        <!-- Row 4: Total Expected Questions & Duration -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block font-bold uppercase text-slate-700 mb-1">Total Questions Expected</label>
+            <input
+              type="number"
+              [ngModel]="totalQuestionsExpected()"
+              (ngModelChange)="totalQuestionsExpected.set($event)"
+              placeholder="e.g. 100"
+              class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+
+          <div>
+            <label class="block font-bold uppercase text-slate-700 mb-1">Duration (Minutes)</label>
+            <input
+              type="number"
+              [ngModel]="durationMinutes()"
+              (ngModelChange)="durationMinutes.set($event)"
+              placeholder="e.g. 120"
+              class="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+        </div>
+
+        <!-- Force Re-Extract Option -->
+        <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center gap-3">
+          <input
+            type="checkbox"
+            id="forceReExtract"
+            [ngModel]="forceReExtract()"
+            (ngModelChange)="forceReExtract.set($event)"
+            class="w-4 h-4 rounded text-indigo-600 cursor-pointer"
+          />
+          <label for="forceReExtract" class="font-medium text-slate-700 cursor-pointer">
+            Force re-extraction (bypass hash-based duplicate check if re-uploading an existing paper)
+          </label>
+        </div>
+
+        <div class="text-[11px] text-slate-500 bg-blue-50/50 p-3 rounded-xl border border-blue-100 flex items-start gap-2">
+          <mat-icon class="!text-sm text-blue-600 shrink-0">info</mat-icon>
+          <span>
+            Upon upload, the background OCR extraction pipeline analyzes each page, identifies question boundaries, parses LaTeX equations, separates options, and saves them into the staging review workspace.
+          </span>
+        </div>
+      </div>
+
+      <!-- Footer Buttons -->
+      <div class="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-end gap-3">
+        <button
+          type="button"
+          mat-stroked-button
+          (click)="handleClose()"
+          [disabled]="uploading()"
+          class="!border-slate-300 cursor-pointer"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          mat-flat-button
+          color="primary"
+          [disabled]="!isFormValid() || uploading()"
+          (click)="onSubmit()"
+          class="!bg-indigo-600 !text-white !font-bold cursor-pointer"
+        >
+          @if (uploading()) {
+            <mat-spinner diameter="18" class="inline-block mr-2"></mat-spinner>
+            Uploading &amp; Extracting...
+          } @else {
+            <mat-icon>upload</mat-icon>
+            Start OCR Extraction
+          }
+        </button>
+      </div>
+    </div>
+  </div>
+}

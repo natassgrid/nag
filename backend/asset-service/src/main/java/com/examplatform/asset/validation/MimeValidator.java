@@ -49,7 +49,10 @@ public class MimeValidator {
             Map.entry("audio/x-wav", AssetType.AUDIO),
             Map.entry("audio/wave", AssetType.AUDIO),
             // Video
-            Map.entry("video/mp4", AssetType.VIDEO)
+            Map.entry("video/mp4", AssetType.VIDEO),
+
+            //PDF
+        Map.entry("application/pdf", AssetType.DOCUMENT)
     );
 
     private static final Set<String> BLOCKED_MIME_TYPES = Set.of(

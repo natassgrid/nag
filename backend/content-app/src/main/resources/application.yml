@@ -7,6 +7,11 @@ spring:
   application:
     name: content-app
 
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 110MB
+
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/exam_platform?currentSchema=question_service,examination_service,paper_generator,asset_service,public}
     username: ${SPRING_DATASOURCE_USERNAME:exam_admin}

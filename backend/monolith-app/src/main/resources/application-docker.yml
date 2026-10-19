@@ -5,6 +5,11 @@ server:
   port: ${SERVER_PORT:9000}
 
 spring:
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 110MB
+
   jackson:
     deserialization:
       fail-on-unknown-properties: false

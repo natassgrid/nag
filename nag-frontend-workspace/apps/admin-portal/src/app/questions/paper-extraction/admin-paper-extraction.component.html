@@ -1,0 +1,134 @@
+<div class="p-6 max-w-7xl mx-auto space-y-6">
+  <!-- Navigation Breadcrumbs -->
+  <div class="flex items-center gap-2 text-xs text-slate-500 font-medium">
+    <a routerLink="/dashboard" class="hover:text-indigo-600 flex items-center gap-1 transition-colors">
+      <mat-icon class="!text-sm">dashboard</mat-icon> Dashboard
+    </a>
+    <span>/</span>
+    <a routerLink="/questions" class="hover:text-indigo-600 transition-colors">Question Bank</a>
+    <span>/</span>
+    <span class="text-slate-900 font-bold">Question Paper Extraction &amp; OCR</span>
+  </div>
+
+  <!-- Header Bar -->
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-5">
+    <div>
+      <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 mb-2">
+        <mat-icon class="!text-sm">document_scanner</mat-icon> AI Document Intelligence &bull; Question Paper OCR
+      </div>
+      <h1 class="text-2xl font-black text-slate-900 tracking-tight">Question Paper Extraction &amp; Staging</h1>
+      <p class="text-sm text-slate-500 mt-1">
+        Upload past examination papers (PDF), execute neural page-by-page OCR parsing, review LaTeX formulas &amp; Hindi translations, apply bulk answer keys, and promote to the canonical Question Bank.
+      </p>
+    </div>
+
+    <div class="flex items-center gap-3">
+      @if (viewMode() === 'detail') {
+        <button
+          mat-stroked-button
+          (click)="handleBackToList()"
+          class="!border-slate-300 !text-slate-700 cursor-pointer text-xs"
+        >
+          <mat-icon>arrow_back</mat-icon> Back to Papers
+        </button>
+      }
+      <button
+        mat-flat-button
+        color="primary"
+        (click)="openUploadDialog()"
+        class="!bg-indigo-600 !text-white !font-bold cursor-pointer text-xs"
+      >
+        <mat-icon>upload_file</mat-icon> Upload Question Paper PDF
+      </button>
+    </div>
+  </div>
+
+  <!-- Sub-Menu Navigation Tabs -->
+  <div class="flex items-center gap-2 bg-slate-100 p-1 rounded-2xl border border-slate-200 w-fit">
+    <button
+      type="button"
+      (click)="switchToTab('list')"
+      class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer"
+      [ngClass]="viewMode() === 'list' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'"
+    >
+      <mat-icon class="!text-sm">picture_as_pdf</mat-icon> Question Papers ({{ papersTotalElements() }})
+    </button>
+    <button
+      type="button"
+      (click)="switchToTab('detail')"
+      class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer"
+      [disabled]="papers().length === 0"
+      [ngClass]="viewMode() === 'detail' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'"
+    >
+      <mat-icon class="!text-sm">rule</mat-icon> Staging Review Workspace
+      @if (selectedPaper()) {
+        <span class="text-[10px] bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded font-mono">
+          {{ selectedPaper()?.paperCode || selectedPaper()?.examinationName }}
+        </span>
+      }
+    </button>
+  </div>
+
+  <!-- Metric KPI Ribbon -->
+  <nag-paper-kpi-ribbon [stats]="kpiStats()"></nag-paper-kpi-ribbon>
+
+  <!-- VIEW 1: QUESTION PAPERS DIRECTORY -->
+  @if (viewMode() === 'list') {
+    <nag-paper-list-table
+      [papers]="papers()"
+      [loading]="loadingPapers()"
+      [totalElements]="papersTotalElements()"
+      [page]="papersPage()"
+      [pageSize]="papersPageSize()"
+      [searchQuery]="searchQuery()"
+      [statusFilter]="statusFilter()"
+      (searchChange)="onSearchChange($event)"
+      (statusChange)="onStatusChange($event)"
+      (pageChange)="onPapersPageChange($event)"
+      (selectPaper)="handleSelectPaper($event)"
+      (applyAnswerKey)="openAnswerKeyDialog($event)"
+      (retryExtraction)="handleRetryJob($event)"
+      (cancelExtraction)="handleCancelJob($event)"
+      (refresh)="loadPapers()"
+    ></nag-paper-list-table>
+  }
+
+  <!-- VIEW 2: EXTRACTED STAGING QUESTIONS REVIEW -->
+  @if (viewMode() === 'detail' && selectedPaper()) {
+    <nag-extracted-questions-panel
+      [paper]="selectedPaper()!"
+      [questions]="extractedQuestions()"
+      [loading]="loadingQuestions()"
+      [totalQuestions]="questionsTotalElements()"
+      [page]="questionsPage()"
+      [pageSize]="questionsPageSize()"
+      [promoting]="promotingQuestions()"
+      [updating]="updatingQuestion()"
+      (backToList)="handleBackToList()"
+      (refresh)="loadExtractedQuestions(selectedPaper()!.id)"
+      (statusFilterChange)="onQuestionsStatusFilterChange($event)"
+      (pageChange)="onQuestionsPageChange($event)"
+      (updateQuestion)="handleUpdateQuestion($event)"
+      (promoteApproved)="handlePromoteApproved($event)"
+      (openAnswerKeyDialog)="openAnswerKeyDialog($event)"
+    ></nag-extracted-questions-panel>
+  }
+
+  <!-- MODAL: UPLOAD QUESTION PAPER PDF -->
+  <nag-paper-upload-dialog
+    [isOpen]="uploadDialogOpen()"
+    [uploading]="uploading()"
+    [availableSubjects]="availableSubjects()"
+    (closeModal)="closeUploadDialog()"
+    (upload)="handleUpload($event)"
+  ></nag-paper-upload-dialog>
+
+  <!-- MODAL: APPLY BULK ANSWER KEYS -->
+  <nag-bulk-answer-key-dialog
+    [isOpen]="answerKeyDialogOpen()"
+    [paper]="activePaperForAnswerKey()"
+    [applying]="applyingAnswerKey()"
+    (closeModal)="closeAnswerKeyDialog()"
+    (apply)="handleApplyAnswerKey($event)"
+  ></nag-bulk-answer-key-dialog>
+</div>

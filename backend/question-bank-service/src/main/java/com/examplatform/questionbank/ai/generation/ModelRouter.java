@@ -95,6 +95,12 @@ public class ModelRouter {
     @Value("${app.ai.models.local.hard:qwen2.5:1.5b}")
     private String localHardModel = "qwen2.5:1.5b";
 
+    @Value("${app.ai.models.extraction.vision:paper-extract-vision}")
+    private String paperExtractionVisionModel = "paper-extract-vision";
+
+    @Value("${app.ai.models.extraction.text:paper-extract-text}")
+    private String paperExtractionTextModel = "paper-extract-text";
+
     public String getProvider() {
         return provider;
     }
@@ -175,6 +181,22 @@ public class ModelRouter {
         this.localHardModel = localHardModel;
     }
 
+    public String getPaperExtractionVisionModel() {
+        return paperExtractionVisionModel;
+    }
+
+    public void setPaperExtractionVisionModel(String paperExtractionVisionModel) {
+        this.paperExtractionVisionModel = paperExtractionVisionModel;
+    }
+
+    public String getPaperExtractionTextModel() {
+        return paperExtractionTextModel;
+    }
+
+    public void setPaperExtractionTextModel(String paperExtractionTextModel) {
+        this.paperExtractionTextModel = paperExtractionTextModel;
+    }
+
     /**
      * Resolves the active AI provider based on configuration.
      *
@@ -220,6 +242,16 @@ public class ModelRouter {
                 default -> mediumModel;
             };
         };
+    }
+
+    /**
+     * Selects the LiteLLM route alias for question paper PDF extraction.
+     *
+     * @param requiresVision true if the page is scanned or contains visual diagrams/tables
+     * @return the LiteLLM model alias to use
+     */
+    public String selectPaperExtractionModel(boolean requiresVision) {
+        return requiresVision ? paperExtractionVisionModel : paperExtractionTextModel;
     }
 
     /**
