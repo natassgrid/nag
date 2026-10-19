@@ -19,9 +19,15 @@
 
 package com.examplatform.questionbank.extraction.client;
 
+import com.examplatform.asset.domain.enums.ReferenceType;
+import com.examplatform.asset.dto.AssetReferenceRequest;
+import com.examplatform.asset.service.AssetService;
+import com.examplatform.asset.service.ReferenceService;
 import com.examplatform.shared.api.ApiResponse;
 import com.examplatform.shared.constants.SharedConstants;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
@@ -30,15 +36,19 @@ import org.springframework.web.client.RestClient;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
  * Client service to interact with asset-service for retrieving uploaded question paper
  * binaries, querying asset metadata, and creating entity references.
+ * Automatically utilizes in-memory AssetService beans when running inside monolith/content apps,
+ * and seamlessly falls back to local disk storage and REST endpoints in distributed setups.
  */
 @Slf4j
 @Service
@@ -46,15 +56,29 @@ public class AssetServiceClient {
 
     private final RestClient restClient;
     private final String assetStorageBasePath;
+    private final ObjectProvider<AssetService> assetServiceProvider;
+    private final ObjectProvider<ReferenceService> referenceServiceProvider;
 
     public AssetServiceClient(
-            @Value("${app.asset-service.url:http://localhost:8095}") String assetServiceUrl,
+            @Value("${app.asset-service.url:http://localhost:${SERVER_PORT:9000}}") String assetServiceUrl,
             @Value("${asset.storage.filesystem.base-path:./asset-storage}") String assetStorageBasePath,
             RestClient.Builder restClientBuilder) {
+        this(assetServiceUrl, assetStorageBasePath, restClientBuilder, null, null);
+    }
+
+    @Autowired
+    public AssetServiceClient(
+            @Value("${app.asset-service.url:http://localhost:${SERVER_PORT:9000}}") String assetServiceUrl,
+            @Value("${asset.storage.filesystem.base-path:./asset-storage}") String assetStorageBasePath,
+            RestClient.Builder restClientBuilder,
+            ObjectProvider<AssetService> assetServiceProvider,
+            ObjectProvider<ReferenceService> referenceServiceProvider) {
         this.restClient = restClientBuilder
                 .baseUrl(assetServiceUrl)
                 .build();
         this.assetStorageBasePath = assetStorageBasePath;
+        this.assetServiceProvider = assetServiceProvider;
+        this.referenceServiceProvider = referenceServiceProvider;
     }
 
     /**
@@ -68,6 +92,29 @@ public class AssetServiceClient {
         if (assetId == null) {
             return null;
         }
+
+        // 1. Direct in-memory bean check (monolith mode)
+        if (assetServiceProvider != null) {
+            AssetService directAssetService = assetServiceProvider.getIfAvailable();
+            if (directAssetService != null) {
+                try {
+                    var asset = directAssetService.getAsset(assetId);
+                    if (asset != null) {
+                        return AssetMetadataDto.builder()
+                                .id(asset.getId())
+                                .originalFilename(asset.getOriginalFilename())
+                                .contentType(asset.getContentType())
+                                .fileSize(asset.getFileSize())
+                                .sha256Hash(asset.getSha256Hash())
+                                .build();
+                    }
+                } catch (Exception ex) {
+                    log.warn("Direct in-memory AssetService getAsset failed for assetId={}: {}", assetId, ex.getMessage());
+                }
+            }
+        }
+
+        // 2. REST fallback
         try {
             ApiResponse<AssetMetadataDto> response = restClient.get()
                     .uri("/api/v1/assets/{id}", assetId)
@@ -90,8 +137,8 @@ public class AssetServiceClient {
 
     /**
      * Downloads the binary content of the pre-uploaded question paper PDF.
-     * Checks local asset storage directory first (zero-network path), then falls back
-     * to the HTTP download endpoint of asset-service.
+     * Checks in-memory AssetService first, then local asset storage directory (zero-network path),
+     * and falls back to the HTTP download endpoint of asset-service.
      *
      * @param assetId UUID of the uploaded asset
      * @param tenantId current tenant identifier
@@ -102,14 +149,36 @@ public class AssetServiceClient {
             throw new IllegalArgumentException("assetId must not be null");
         }
 
-        // 1. Direct local filesystem check if running co-located or sharing storage volume
+        // 1. Direct in-memory bean check (monolith mode)
+        if (assetServiceProvider != null) {
+            AssetService directAssetService = assetServiceProvider.getIfAvailable();
+            if (directAssetService != null) {
+                try {
+                    Optional<InputStream> isOpt = directAssetService.downloadAsset(assetId);
+                    if (isOpt.isPresent()) {
+                        try (InputStream is = isOpt.get()) {
+                            byte[] inMemoryBytes = is.readAllBytes();
+                            if (inMemoryBytes != null && inMemoryBytes.length > 0) {
+                                log.info("Successfully fetched {} bytes for assetId={} directly via in-memory AssetService",
+                                        inMemoryBytes.length, assetId);
+                                return inMemoryBytes;
+                            }
+                        }
+                    }
+                } catch (Exception ex) {
+                    log.warn("Direct in-memory AssetService download failed for assetId={}: {}", assetId, ex.getMessage());
+                }
+            }
+        }
+
+        // 2. Direct local filesystem check if running co-located or sharing storage volume
         byte[] localBytes = tryReadFromLocalStorage(assetId);
         if (localBytes != null && localBytes.length > 0) {
             log.debug("Successfully resolved assetId={} from local storage path ({})", assetId, assetStorageBasePath);
             return localBytes;
         }
 
-        // 2. Fetch via asset-service REST endpoint
+        // 3. Fetch via asset-service REST endpoint
         try {
             log.info("Fetching binary stream for assetId={} from asset-service", assetId);
             byte[] remoteBytes = restClient.get()
@@ -141,6 +210,28 @@ public class AssetServiceClient {
         if (assetId == null || entityId == null) {
             return;
         }
+
+        // 1. In-memory ReferenceService check (monolith mode)
+        if (referenceServiceProvider != null) {
+            ReferenceService directRefService = referenceServiceProvider.getIfAvailable();
+            if (directRefService != null) {
+                try {
+                    ReferenceType refType = ReferenceType.INSTRUCTION;
+                    AssetReferenceRequest refReq = AssetReferenceRequest.builder()
+                            .assetId(assetId)
+                            .referenceType(refType)
+                            .referenceId(entityId)
+                            .build();
+                    directRefService.addReference(refReq, null, tenantId);
+                    log.debug("Registered asset reference in-memory for assetId={} -> entityId={}", assetId, entityId);
+                    return;
+                } catch (Exception ex) {
+                    log.warn("In-memory asset reference registration skipped for assetId={}: {}", assetId, ex.getMessage());
+                }
+            }
+        }
+
+        // 2. REST fallback
         try {
             Map<String, Object> payload = Map.of(
                     "assetId", assetId.toString(),

@@ -149,7 +149,7 @@ app:
     agent:
       max-refinement-cycles: ${AI_AGENT_MAX_REFINEMENT_CYCLES:2}
   asset-service:
-    url: ${ASSET_SERVICE_URL:http://localhost:8095}
+    url: ${ASSET_SERVICE_URL:http://localhost:${SERVER_PORT:9000}}
 
 resilience4j:
   circuitbreaker:

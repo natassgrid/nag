@@ -120,6 +120,7 @@ services:
       DIGILOCKER_API_URL: ${DIGILOCKER_API_URL:-http://mock-server:8099/digilocker/v1/verify}
       DIGILOCKER_PUSH_URL: ${DIGILOCKER_PUSH_URL:-http://mock-server:8099/digilocker/v1/credential/push}
       AADHAAR_API_URL: ${AADHAAR_API_URL:-http://mock-server:8099/aadhaar}
+      ASSET_SERVICE_URL: http://localhost:${MONOLITH_PORT:-9000}
       ASSET_STORAGE_PATH: /data/asset-storage
       SCORECARD_STORAGE_MODE: ${SCORECARD_STORAGE_MODE:-local}
       SCORECARD_STORAGE_PATH: ${SCORECARD_STORAGE_PATH:-/data/scorecards}

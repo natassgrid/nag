@@ -31,6 +31,8 @@ dependencyManagement {
 
 dependencies {
     implementation project(':backend:shared-lib')
+    compileOnly project(':backend:asset-service')
+    testImplementation project(':backend:asset-service')
 
     // Web
     implementation libs.spring.boot.starter.web
