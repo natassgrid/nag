@@ -132,6 +132,8 @@ services:
       # Shared JWT signing secret for dev mode
       APP_JWT_SECRET: dev-jwt-secret-key-for-local-testing-minimum-32-chars
       INDICTRANS2_URL: ${INDICTRANS2_URL:-http://indictrans2:7860}
+      AI_MODEL_EXTRACTION_VISION: ${AI_MODEL_EXTRACTION_VISION:-paper-extract-vision}
+      AI_MODEL_EXTRACTION_TEXT: ${AI_MODEL_EXTRACTION_TEXT:-paper-extract-text}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
       AWS_REGION_NAME: ${AWS_REGION_NAME:-us-east-1}

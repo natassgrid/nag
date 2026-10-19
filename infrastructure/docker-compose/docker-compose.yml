@@ -386,6 +386,12 @@ services:
         else
           echo "llama3.2:1b already present, skipping."
         fi
+        if ! curl -sf http://ollama:11434/api/tags | grep -q "qwen3:8b"; then
+          echo "Pulling qwen3:8b for extraction..."
+          curl -sf http://ollama:11434/api/pull -d '{"name":"qwen3:8b"}'
+        else
+          echo "qwen3:8b already present, skipping."
+        fi
         echo "Done."
     networks:
       - exam-network
