@@ -51,6 +51,19 @@ model_list:
       model: ollama/qwen2-math:1.5b
       api_base: http://ollama:11434
 
+  # ─── Question Paper PDF Extraction Models (Dev/Testing & Cloud) ────────────
+  # Vision/Multimodal route for scanned PDF pages, formulas, diagrams & tables
+  - model_name: paper-extract-vision
+    litellm_params:
+      model: ollama/qwen2.5:1.5b
+      api_base: http://ollama:11434
+
+  # Text/Math route for digital PDF streams and LaTeX/JSON normalization
+  - model_name: paper-extract-text
+    litellm_params:
+      model: ollama/qwen2-math:1.5b
+      api_base: http://ollama:11434
+
   # ─── AWS Bedrock Models (question generation in cloud/staging) ─────────────
   # Uses service account credentials (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY)
   # passed via environment variables to the LiteLLM container.
@@ -128,6 +141,8 @@ router_settings:
     "medium": "nova-lite"
     "hard": "nova-lite"
   fallbacks:
+    - "paper-extract-vision": ["gemini-flash-lite", "nova-lite", "qwen2.5:1.5b"]
+    - "paper-extract-text": ["qwen2.5:1.5b", "gemini-flash-lite", "nova-micro"]
     - "gemini-pro": ["nova-lite", "qwen2-math:1.5b", "qwen2.5:1.5b"]
     - "gemini-flash": ["nova-lite", "qwen2.5:1.5b"]
     - "gemini-flash-lite": ["nova-micro", "llama3.2:1b"]

@@ -1,4 +1,4 @@
-import { Component, inject, computed } from '@angular/core';
+import { Component, inject, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
@@ -28,6 +28,16 @@ import { GlobalNotificationComponent } from '@nag-frontend-workspace/shared-ui-c
 export class App {
   private readonly router = inject(Router);
   readonly authService = inject(AuthService);
+
+  readonly mobileMenuOpen = signal<boolean>(false);
+
+  toggleMobileMenu(): void {
+    this.mobileMenuOpen.set(!this.mobileMenuOpen());
+  }
+
+  closeMobileMenu(): void {
+    this.mobileMenuOpen.set(false);
+  }
 
   readonly userInitials = computed(() => {
     const name = this.authService.userName();

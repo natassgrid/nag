@@ -90,6 +90,14 @@ export const appRoutes: Route[] = [
       ),
   },
   {
+    path: 'questions/paper-extraction',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./questions/paper-extraction/admin-paper-extraction.component').then(
+        (m) => m.AdminPaperExtractionComponent
+      ),
+  },
+  {
     path: 'assets',
     canActivate: [authGuard],
     loadComponent: () =>

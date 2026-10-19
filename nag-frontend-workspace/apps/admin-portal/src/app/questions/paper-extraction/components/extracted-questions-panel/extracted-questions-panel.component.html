@@ -1,0 +1,519 @@
+<div class="space-y-5">
+  <!-- Top Header Navigation & Paper Summary -->
+  <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+    <div class="flex items-start sm:items-center gap-3">
+      <button
+        mat-stroked-button
+        (click)="backToList.emit()"
+        class="!border-slate-300 !text-slate-700 cursor-pointer !rounded-xl !p-2 shrink-0"
+      >
+        <mat-icon>arrow_back</mat-icon>
+        <span class="hidden sm:inline font-semibold">Back to Papers</span>
+      </button>
+
+      <div>
+        <div class="flex flex-wrap items-center gap-2">
+          <h2 class="text-lg font-black text-slate-900 tracking-tight">{{ paper().examinationName }}</h2>
+          <span class="text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200">
+            Year {{ paper().examYear }}
+          </span>
+          @if (paper().department) {
+            <span class="text-xs font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
+              {{ paper().department }}
+            </span>
+          }
+          @if (paper().paperCode) {
+            <span class="text-xs font-mono text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
+              {{ paper().paperCode }}
+            </span>
+          }
+        </div>
+        <p class="text-xs text-slate-500 mt-1 flex flex-wrap items-center gap-2">
+          <span>Staging Verification Workspace &bull; {{ paper().questionsExtracted }} Extracted</span>
+          <span class="text-emerald-700 font-bold">&bull; {{ paper().questionsApproved }} Approved</span>
+          <span class="text-cyan-800 font-bold">&bull; {{ paper().questionsPromoted }} Promoted</span>
+        </p>
+      </div>
+    </div>
+
+    <!-- Action Bar -->
+    <div class="flex flex-wrap items-center gap-2.5">
+      <!-- Bilingual Hindi Toggle -->
+      <button
+        mat-stroked-button
+        (click)="bilingualMode.set(!bilingualMode())"
+        class="!border-slate-300 cursor-pointer text-xs"
+        [ngClass]="bilingualMode() ? '!bg-indigo-50 !border-indigo-400 !text-indigo-700 font-bold' : '!text-slate-700'"
+      >
+        <mat-icon class="!text-sm">translate</mat-icon>
+        Bilingual (English / Hindi)
+      </button>
+
+      <!-- Apply Answer Key Dialog Trigger -->
+      <button
+        mat-stroked-button
+        (click)="openAnswerKeyDialog.emit(paper())"
+        class="!border-amber-300 !text-amber-800 !bg-amber-50/50 hover:!bg-amber-100/50 cursor-pointer text-xs font-bold"
+      >
+        <mat-icon class="!text-sm text-amber-600">key</mat-icon>
+        Apply Answer Key
+      </button>
+
+      <!-- Bulk Promote Button -->
+      <button
+        mat-flat-button
+        color="primary"
+        [disabled]="promoting() || (approvedCount() === 0 && selectedQuestionIds().size === 0)"
+        (click)="triggerPromotion()"
+        class="!bg-emerald-600 !text-white !font-bold cursor-pointer text-xs"
+      >
+        @if (promoting()) {
+          <mat-spinner diameter="16" class="inline-block mr-1.5"></mat-spinner>
+          Promoting...
+        } @else {
+          <mat-icon class="!text-sm">cloud_upload</mat-icon>
+          @if (selectedQuestionIds().size > 0) {
+            Promote Selected ({{ selectedQuestionIds().size }})
+          } @else {
+            Promote Approved ({{ approvedCount() }})
+          }
+        }
+      </button>
+    </div>
+  </div>
+
+  <!-- Filter & Selection Bar -->
+  <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+    <div class="flex flex-col sm:flex-row sm:items-center gap-3 flex-1">
+      <!-- Search Input -->
+      <div class="relative flex-1 max-w-md">
+        <mat-icon class="!text-lg text-slate-400 absolute left-3 top-1/2 -translate-y-1/2">search</mat-icon>
+        <input
+          type="text"
+          [ngModel]="searchQuery()"
+          (ngModelChange)="searchQuery.set($event)"
+          placeholder="Search question text, Q#, section..."
+          class="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500"
+        />
+        @if (searchQuery()) {
+          <button
+            type="button"
+            (click)="searchQuery.set('')"
+            class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+          >
+            <mat-icon class="!text-sm">close</mat-icon>
+          </button>
+        }
+      </div>
+
+      <!-- Status Filter -->
+      <div class="w-full sm:w-64">
+        <select
+          [ngModel]="selectedStatusFilter()"
+          (ngModelChange)="onFilterStatus($event)"
+          class="w-full py-2 px-3 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500 cursor-pointer"
+        >
+          @for (opt of statusFilterOptions; track opt.value) {
+            <option [value]="opt.value">{{ opt.label }}</option>
+          }
+        </select>
+      </div>
+    </div>
+
+    <!-- Multi-Select Toolbar & Refresh -->
+    <div class="flex items-center gap-2">
+      <!-- Select All Checkbox -->
+      <label class="flex items-center gap-1.5 text-xs font-semibold text-slate-700 cursor-pointer px-2 py-1 bg-slate-50 rounded-lg border border-slate-200">
+        <input
+          type="checkbox"
+          [checked]="allVisibleSelected()"
+          (change)="toggleSelectAll()"
+          class="w-4 h-4 rounded text-indigo-600 cursor-pointer"
+        />
+        <span>Select All</span>
+      </label>
+
+      <!-- Bulk Approve Selected -->
+      @if (selectedQuestionIds().size > 0) {
+        <button
+          mat-stroked-button
+          (click)="bulkApproveSelected()"
+          class="!border-emerald-300 !text-emerald-700 !bg-emerald-50 cursor-pointer text-xs font-bold"
+        >
+          <mat-icon class="!text-sm">done_all</mat-icon>
+          Approve ({{ selectedQuestionIds().size }})
+        </button>
+      }
+
+      <button
+        mat-stroked-button
+        (click)="refresh.emit()"
+        [disabled]="loading()"
+        class="!border-slate-300 !text-slate-700 cursor-pointer text-xs"
+      >
+        <mat-icon class="!text-sm" [class.animate-spin]="loading()">refresh</mat-icon>
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading Indicator -->
+  @if (loading()) {
+    <div class="p-12 text-center flex flex-col items-center justify-center space-y-3 bg-white rounded-2xl border border-slate-200">
+      <mat-spinner diameter="32"></mat-spinner>
+      <span class="text-xs text-slate-500 font-medium">Loading extracted staging questions...</span>
+    </div>
+  } @else if (filteredQuestions().length === 0) {
+    <!-- Empty State -->
+    <div class="p-12 text-center bg-white rounded-2xl border border-slate-200">
+      <div class="w-16 h-16 rounded-2xl bg-slate-100 text-slate-400 mx-auto flex items-center justify-center mb-3">
+        <mat-icon class="!text-3xl">quiz</mat-icon>
+      </div>
+      <h3 class="text-sm font-bold text-slate-800">No Extracted Questions Found</h3>
+      <p class="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+        @if (searchQuery() || selectedStatusFilter() !== 'ALL') {
+          No questions matched your search query or status filter.
+        } @else {
+          Questions are currently being processed or none were found in this paper.
+        }
+      </p>
+    </div>
+  } @else {
+    <!-- Questions List Cards -->
+    <div class="space-y-4">
+      @for (q of filteredQuestions(); track q.id) {
+        <div
+          class="bg-white rounded-2xl border transition-all duration-200 overflow-hidden shadow-xs"
+          [ngClass]="isQuestionSelected(q.id) ? 'border-indigo-400 ring-2 ring-indigo-100' : 'border-slate-200 hover:border-slate-300'"
+        >
+          <!-- Card Header Bar -->
+          <div class="p-4 border-b border-slate-100 bg-slate-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+              <!-- Selection Checkbox -->
+              <input
+                type="checkbox"
+                [checked]="isQuestionSelected(q.id)"
+                (change)="toggleSelectQuestion(q.id)"
+                class="w-4 h-4 rounded text-indigo-600 cursor-pointer"
+              />
+
+              <!-- Question Number Badge -->
+              <div class="w-8 h-8 rounded-xl bg-indigo-600 text-white font-black text-xs flex items-center justify-center shadow-xs">
+                Q{{ q.questionNumber || '?' }}
+              </div>
+
+              <!-- Metadata Pills -->
+              <div class="flex flex-wrap items-center gap-1.5 text-[11px]">
+                @if (q.sourcePageNumber) {
+                  <span class="bg-slate-200/80 text-slate-700 px-2 py-0.5 rounded-md font-mono font-semibold">
+                    Page {{ q.sourcePageNumber }}
+                  </span>
+                }
+                @if (q.sectionName) {
+                  <span class="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md font-semibold">
+                    {{ q.sectionName }}
+                  </span>
+                }
+                <span class="bg-purple-50 text-purple-700 px-2 py-0.5 rounded-md font-semibold">
+                  {{ q.questionType }}
+                </span>
+                @if (q.extractionConfidence != null) {
+                  <span
+                    class="px-2 py-0.5 rounded-md font-semibold"
+                    [ngClass]="q.extractionConfidence >= 0.85 ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'"
+                  >
+                    OCR {{ Math.round(q.extractionConfidence * 100) }}%
+                  </span>
+                }
+              </div>
+            </div>
+
+            <!-- Status Badge & Quick Actions -->
+            <div class="flex items-center gap-2">
+              <span
+                class="px-2.5 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-wider"
+                [ngClass]="getStatusClass(q.status)"
+              >
+                {{ q.status }}
+              </span>
+
+              <!-- Quick Status Buttons -->
+              @if (editingQuestionId() !== q.id) {
+                <div class="flex items-center gap-1">
+                  @if (q.status !== 'APPROVED') {
+                    <button
+                      mat-stroked-button
+                      (click)="onQuickStatusChange(q, 'APPROVED')"
+                      matTooltip="Approve question"
+                      class="!border-emerald-300 !text-emerald-700 !text-xs !py-1 !px-2 !min-h-0 !h-7 !rounded-lg cursor-pointer hover:!bg-emerald-50 font-bold"
+                    >
+                      <mat-icon class="!text-sm text-emerald-600">check</mat-icon>
+                      Approve
+                    </button>
+                  }
+                  @if (q.status !== 'NEEDS_REVIEW') {
+                    <button
+                      mat-icon-button
+                      (click)="onQuickStatusChange(q, 'NEEDS_REVIEW')"
+                      matTooltip="Flag for review"
+                      class="!w-7 !h-7 !text-amber-600 cursor-pointer"
+                    >
+                      <mat-icon class="!text-base">flag</mat-icon>
+                    </button>
+                  }
+                  <button
+                    mat-icon-button
+                    (click)="startEditing(q)"
+                    matTooltip="Edit question text, options, answer key"
+                    class="!w-7 !h-7 !text-slate-500 hover:!text-indigo-600 cursor-pointer"
+                  >
+                    <mat-icon class="!text-base">edit</mat-icon>
+                  </button>
+                </div>
+              }
+            </div>
+          </div>
+
+          <!-- Card Body: VIEW MODE -->
+          @if (editingQuestionId() !== q.id) {
+            <div class="p-5 space-y-4">
+              <!-- Passage if applicable -->
+              @if (q.passageText) {
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-700">
+                  <div class="font-bold text-slate-500 uppercase tracking-wider text-[10px] mb-1">Comprehension Passage</div>
+                  <nag-math-renderer [content]="q.passageText"></nag-math-renderer>
+                </div>
+              }
+
+              <!-- Question Stem (English / Primary) -->
+              <div class="text-xs text-slate-900 leading-relaxed font-medium">
+                <nag-math-renderer [content]="q.content"></nag-math-renderer>
+              </div>
+
+              <!-- Bilingual Hindi Stem (if active) -->
+              @if (bilingualMode() && getHindiTranslation(q)?.content) {
+                <div class="p-3 bg-amber-50/50 rounded-xl border border-amber-200/70 text-xs text-slate-800">
+                  <div class="font-bold text-amber-800 uppercase tracking-wider text-[10px] mb-1 flex items-center gap-1">
+                    <mat-icon class="!text-xs">translate</mat-icon> Hindi Translation
+                  </div>
+                  <nag-math-renderer [content]="getHindiTranslation(q)?.content"></nag-math-renderer>
+                </div>
+              }
+
+              <!-- Options Grid -->
+              @if (q.options && q.options.length > 0) {
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5 pt-1">
+                  @for (opt of q.options; track opt.id) {
+                    <div
+                      class="p-3 rounded-xl border text-xs flex items-start gap-2.5 transition-colors"
+                      [ngClass]="isOptionCorrect(q, opt) ? 'bg-emerald-50/80 border-emerald-300 text-emerald-950 font-medium' : 'bg-slate-50/60 border-slate-200 text-slate-800'"
+                    >
+                      <div
+                        class="w-6 h-6 rounded-lg text-xs font-bold flex items-center justify-center shrink-0"
+                        [ngClass]="isOptionCorrect(q, opt) ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-700'"
+                      >
+                        {{ opt.id }}
+                      </div>
+                      <div class="flex-1 min-w-0">
+                        <nag-math-renderer [content]="opt.text"></nag-math-renderer>
+                      </div>
+                      @if (isOptionCorrect(q, opt)) {
+                        <mat-icon class="!text-base text-emerald-600 shrink-0">check_circle</mat-icon>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+
+              <!-- Explanation & Metadata Footer -->
+              <div class="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
+                <div class="flex items-center gap-3">
+                  @if (q.answerKey) {
+                    <span class="font-semibold text-slate-700 flex items-center gap-1">
+                      <mat-icon class="!text-xs text-amber-600">vpn_key</mat-icon>
+                      Key: <strong class="text-indigo-700">{{ q.answerKey }}</strong>
+                    </span>
+                  }
+                  @if (q.hasFormulas) {
+                    <span class="text-purple-600 flex items-center gap-0.5">
+                      <mat-icon class="!text-xs">functions</mat-icon> Formulas
+                    </span>
+                  }
+                  @if (q.hasImages) {
+                    <span class="text-blue-600 flex items-center gap-0.5">
+                      <mat-icon class="!text-xs">image</mat-icon> Diagram/Figure
+                    </span>
+                  }
+                </div>
+
+                @if (q.reviewComments) {
+                  <span class="italic text-slate-400">Note: {{ q.reviewComments }}</span>
+                }
+              </div>
+
+              <!-- Detailed Explanation Accordion (if present) -->
+              @if (q.explanation) {
+                <div class="p-3 bg-indigo-50/40 rounded-xl border border-indigo-100 text-xs text-slate-700">
+                  <div class="font-bold text-indigo-900 uppercase tracking-wider text-[10px] mb-1">Step-by-Step Solution / Derivation</div>
+                  <nag-math-renderer [content]="q.explanation"></nag-math-renderer>
+                </div>
+              }
+            </div>
+          } @else {
+            <!-- Card Body: INLINE EDIT MODE -->
+            <div class="p-5 space-y-4 bg-indigo-50/20">
+              <div>
+                <label class="block font-bold uppercase text-slate-700 text-xs mb-1">Question Content (LaTeX $$...$$ supported)</label>
+                <textarea
+                  rows="4"
+                  [ngModel]="editContent()"
+                  (ngModelChange)="editContent.set($event)"
+                  class="w-full p-3 bg-white border border-slate-300 rounded-xl text-xs font-mono focus:outline-none focus:border-indigo-500"
+                ></textarea>
+              </div>
+
+              <!-- Options Editor -->
+              <div>
+                <label class="block font-bold uppercase text-slate-700 text-xs mb-1.5">Options &amp; Correct Answer Key</label>
+                <div class="space-y-2">
+                  @for (opt of editOptions(); track opt.id; let i = $index) {
+                    <div class="flex items-center gap-2">
+                      <button
+                        type="button"
+                        (click)="toggleEditOptionCorrect(i)"
+                        class="w-8 h-8 rounded-lg font-bold text-xs flex items-center justify-center cursor-pointer transition-colors"
+                        [ngClass]="opt.correct ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'"
+                      >
+                        {{ opt.id }}
+                      </button>
+                      <input
+                        type="text"
+                        [ngModel]="opt.text"
+                        (ngModelChange)="updateEditOptionText(i, $event)"
+                        class="flex-1 p-2 bg-white border border-slate-300 rounded-xl text-xs font-mono focus:outline-none focus:border-indigo-500"
+                      />
+                      <button
+                        type="button"
+                        mat-icon-button
+                        (click)="toggleEditOptionCorrect(i)"
+                        [matTooltip]="opt.correct ? 'Marked Correct' : 'Mark Correct'"
+                        class="cursor-pointer"
+                        [ngClass]="opt.correct ? '!text-emerald-600' : '!text-slate-400'"
+                      >
+                        <mat-icon>{{ opt.correct ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
+                      </button>
+                    </div>
+                  }
+                </div>
+              </div>
+
+              <!-- Answer Key & Status Row -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="block font-bold uppercase text-slate-700 text-xs mb-1">Official Answer Key</label>
+                  <input
+                    type="text"
+                    [ngModel]="editAnswerKey()"
+                    (ngModelChange)="editAnswerKey.set($event)"
+                    placeholder="e.g. A, B, C, D"
+                    class="w-full p-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold font-mono focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+
+                <div>
+                  <label class="block font-bold uppercase text-slate-700 text-xs mb-1">Staging Verification Status</label>
+                  <select
+                    [ngModel]="editStatus()"
+                    (ngModelChange)="editStatus.set($event)"
+                    class="w-full p-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold focus:outline-none focus:border-indigo-500 cursor-pointer"
+                  >
+                    <option value="EXTRACTED">EXTRACTED</option>
+                    <option value="NEEDS_REVIEW">NEEDS_REVIEW</option>
+                    <option value="APPROVED">APPROVED</option>
+                    <option value="REJECTED">REJECTED</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Explanation Field -->
+              <div>
+                <label class="block font-bold uppercase text-slate-700 text-xs mb-1">Explanation / Derivation</label>
+                <textarea
+                  rows="2"
+                  [ngModel]="editExplanation()"
+                  (ngModelChange)="editExplanation.set($event)"
+                  placeholder="Step-by-step derivation..."
+                  class="w-full p-3 bg-white border border-slate-300 rounded-xl text-xs font-mono focus:outline-none focus:border-indigo-500"
+                ></textarea>
+              </div>
+
+              <!-- Review Comments Field -->
+              <div>
+                <label class="block font-bold uppercase text-slate-700 text-xs mb-1">Reviewer Note / Comments</label>
+                <input
+                  type="text"
+                  [ngModel]="editReviewComments()"
+                  (ngModelChange)="editReviewComments.set($event)"
+                  placeholder="Optional note about corrections made..."
+                  class="w-full p-2.5 bg-white border border-slate-300 rounded-xl text-xs focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <!-- Edit Action Buttons -->
+              <div class="flex items-center justify-end gap-2 pt-2 border-t border-indigo-100">
+                <button
+                  mat-stroked-button
+                  (click)="cancelEditing()"
+                  class="!border-slate-300 !text-slate-700 cursor-pointer text-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  mat-flat-button
+                  color="primary"
+                  (click)="saveEditing(q)"
+                  class="!bg-indigo-600 !text-white !font-bold cursor-pointer text-xs"
+                >
+                  <mat-icon class="!text-sm">save</mat-icon>
+                  Save Verification Changes
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+
+    <!-- Pagination Footer -->
+    <div class="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+      <div>
+        <span>Showing </span>
+        <span class="font-bold text-slate-800">{{ page() * pageSize() + 1 }}</span>
+        <span>to</span>
+        <span class="font-bold text-slate-800">{{ Math.min((page() + 1) * pageSize(), totalQuestions()) }}</span>
+        <span>of</span>
+        <span class="font-bold text-slate-800">{{ totalQuestions() }}</span>
+        <span>extracted questions</span>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button
+          mat-icon-button
+          [disabled]="page() === 0"
+          (click)="onPrevPage()"
+          class="!w-7 !h-7 !rounded-lg cursor-pointer"
+        >
+          <mat-icon class="!text-base">chevron_left</mat-icon>
+        </button>
+        <span class="font-bold text-slate-800 px-1">Page {{ page() + 1 }} of {{ totalPages() }}</span>
+        <button
+          mat-icon-button
+          [disabled]="page() >= totalPages() - 1"
+          (click)="onNextPage()"
+          class="!w-7 !h-7 !rounded-lg cursor-pointer"
+        >
+          <mat-icon class="!text-base">chevron_right</mat-icon>
+        </button>
+      </div>
+    </div>
+  }
+</div>

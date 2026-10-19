@@ -128,6 +128,9 @@ app:
         easy: ${AI_MODEL_LOCAL_EASY:llama3.2:1b}
         medium: ${AI_MODEL_LOCAL_MEDIUM:qwen2.5:1.5b}
         hard: ${AI_MODEL_LOCAL_HARD:qwen2.5:1.5b}
+      extraction:
+        vision: ${AI_MODEL_EXTRACTION_VISION:paper-extract-vision}
+        text: ${AI_MODEL_EXTRACTION_TEXT:paper-extract-text}
     guardrails:
       enabled: ${AI_GUARDRAILS_ENABLED:true}
       strict-mode: ${AI_GUARDRAIL_STRICT_MODE:true}

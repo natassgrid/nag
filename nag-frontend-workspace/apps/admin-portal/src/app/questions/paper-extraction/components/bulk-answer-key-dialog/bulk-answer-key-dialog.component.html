@@ -1,0 +1,129 @@
+@if (isOpen()) {
+  <div class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+      <!-- Header -->
+      <div class="p-6 border-b border-slate-100 bg-slate-900 text-white flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-400/30 flex items-center justify-center text-amber-300">
+            <mat-icon>vpn_key</mat-icon>
+          </div>
+          <div>
+            <h2 class="text-lg font-bold">Apply Bulk Answer Keys</h2>
+            <p class="text-xs text-slate-400">
+              {{ paper()?.examinationName }} &bull; Year {{ paper()?.examYear }}
+            </p>
+          </div>
+        </div>
+        <button
+          mat-icon-button
+          (click)="handleClose()"
+          [disabled]="applying()"
+          class="!text-slate-400 hover:!text-white cursor-pointer"
+        >
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+
+      <!-- Body -->
+      <div class="p-6 space-y-4 text-xs overflow-y-auto flex-1">
+        <div class="flex items-center justify-between">
+          <label class="block font-bold uppercase text-slate-700">
+            Paste Answer Keys (e.g. "1: A, 2: B" or one per line)
+          </label>
+          <button
+            type="button"
+            (click)="loadSampleTemplate()"
+            class="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 cursor-pointer underline"
+          >
+            Load Sample Template
+          </button>
+        </div>
+
+        <textarea
+          rows="6"
+          [ngModel]="rawInputText()"
+          (ngModelChange)="rawInputText.set($event)"
+          placeholder="1: A&#10;2: C&#10;3: B&#10;4: D&#10;5: A"
+          class="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono focus:outline-none focus:border-indigo-500"
+        ></textarea>
+
+        <!-- Live Parsed Preview -->
+        <div class="p-3 bg-slate-50 rounded-xl border border-slate-200">
+          <div class="flex items-center justify-between mb-2">
+            <span class="font-bold text-slate-700 uppercase text-[10px]">
+              Live Parsed Preview ({{ parsedCount() }} Keys Detected)
+            </span>
+            @if (parsedCount() > 0) {
+              <span class="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                Ready to Apply
+              </span>
+            }
+          </div>
+
+          @if (parsedCount() === 0) {
+            <p class="text-[11px] text-slate-400 italic">No keys parsed yet. Enter pairs like "1: A" above.</p>
+          } @else {
+            <div class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-1">
+              @for (item of parsedPreviewList(); track item.qNum) {
+                <div class="inline-flex items-center gap-1 px-2 py-0.5 bg-white border border-slate-200 rounded-lg text-slate-800 text-[11px] font-mono shadow-2xs">
+                  <span class="font-bold text-indigo-600">Q{{ item.qNum }}:</span>
+                  <span class="font-black text-slate-900 bg-amber-50 px-1 rounded text-amber-900">{{ item.answer }}</span>
+                </div>
+              }
+            </div>
+          }
+        </div>
+
+        <!-- Auto-Approve Checkbox -->
+        <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center gap-3">
+          <input
+            type="checkbox"
+            id="autoApprove"
+            [ngModel]="autoApprove()"
+            (ngModelChange)="autoApprove.set($event)"
+            class="w-4 h-4 rounded text-indigo-600 cursor-pointer"
+          />
+          <label for="autoApprove" class="font-medium text-slate-700 cursor-pointer">
+            Automatically set matched questions to <strong>APPROVED</strong> status for promotion
+          </label>
+        </div>
+
+        <div class="text-[11px] text-slate-500 bg-blue-50/50 p-3 rounded-xl border border-blue-100 flex items-start gap-2">
+          <mat-icon class="!text-sm text-blue-600 shrink-0">info</mat-icon>
+          <span>
+            Applying the official answer key will update the answerKey field on matching staging questions and optionally mark the option with that letter as correct.
+          </span>
+        </div>
+      </div>
+
+      <!-- Footer Buttons -->
+      <div class="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-end gap-3">
+        <button
+          type="button"
+          mat-stroked-button
+          (click)="handleClose()"
+          [disabled]="applying()"
+          class="!border-slate-300 cursor-pointer text-xs"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          mat-flat-button
+          color="primary"
+          [disabled]="parsedCount() === 0 || applying()"
+          (click)="onSubmit()"
+          class="!bg-amber-600 !text-white !font-bold cursor-pointer text-xs"
+        >
+          @if (applying()) {
+            <mat-spinner diameter="16" class="inline-block mr-2"></mat-spinner>
+            Applying Answer Keys...
+          } @else {
+            <mat-icon class="!text-sm">done_all</mat-icon>
+            Apply {{ parsedCount() }} Answer Keys
+          }
+        </button>
+      </div>
+    </div>
+  </div>
+}

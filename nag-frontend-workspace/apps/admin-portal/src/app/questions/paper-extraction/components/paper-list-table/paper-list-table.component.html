@@ -1,0 +1,282 @@
+<div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+  <!-- Table Filter & Toolbar -->
+  <div class="p-4 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-50/50">
+    <div class="flex flex-col sm:flex-row sm:items-center gap-3 flex-1">
+      <!-- Search Input -->
+      <div class="relative flex-1 max-w-md">
+        <mat-icon class="!text-lg text-slate-400 absolute left-3 top-1/2 -translate-y-1/2">search</mat-icon>
+        <input
+          type="text"
+          [ngModel]="searchQuery()"
+          (ngModelChange)="searchChange.emit($event)"
+          placeholder="Filter by examination, department, or paper code..."
+          class="w-full pl-9 pr-4 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500"
+        />
+        @if (searchQuery()) {
+          <button
+            type="button"
+            (click)="searchChange.emit('')"
+            class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+          >
+            <mat-icon class="!text-sm">close</mat-icon>
+          </button>
+        }
+      </div>
+
+      <!-- Status Filter Dropdown -->
+      <div class="w-full sm:w-56">
+        <select
+          [ngModel]="statusFilter()"
+          (ngModelChange)="statusChange.emit($event)"
+          class="w-full py-2 px-3 bg-white border border-slate-300 rounded-xl text-xs font-semibold focus:outline-none focus:border-indigo-500 cursor-pointer"
+        >
+          @for (opt of statusOptions; track opt.value) {
+            <option [value]="opt.value">{{ opt.label }}</option>
+          }
+        </select>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="flex items-center gap-2">
+      <button
+        mat-stroked-button
+        (click)="refresh.emit()"
+        [disabled]="loading()"
+        class="!border-slate-300 !text-slate-700 cursor-pointer text-xs"
+      >
+        <mat-icon class="!text-sm" [class.animate-spin]="loading()">refresh</mat-icon>
+        Refresh
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading Indicator -->
+  @if (loading()) {
+    <div class="p-8 text-center flex flex-col items-center justify-center space-y-3">
+      <mat-spinner diameter="32"></mat-spinner>
+      <span class="text-xs text-slate-500 font-medium">Fetching question papers &amp; telemetry...</span>
+    </div>
+  } @else if (papers().length === 0) {
+    <!-- Empty State -->
+    <div class="p-12 text-center">
+      <div class="w-16 h-16 rounded-2xl bg-slate-100 text-slate-400 mx-auto flex items-center justify-center mb-3">
+        <mat-icon class="!text-3xl">picture_as_pdf</mat-icon>
+      </div>
+      <h3 class="text-sm font-bold text-slate-800">No Question Papers Found</h3>
+      <p class="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+        @if (searchQuery() || statusFilter() !== 'ALL') {
+          No question papers matched your search or status criteria. Try adjusting the filters.
+        } @else {
+          No question papers have been uploaded yet. Upload a PDF paper to begin AI OCR extraction.
+        }
+      </p>
+    </div>
+  } @else {
+    <!-- Papers Table -->
+    <div class="overflow-x-auto">
+      <table class="w-full text-left text-xs text-slate-600">
+        <thead class="bg-slate-50/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+          <tr>
+            <th class="py-3 px-4">Examination / Paper</th>
+            <th class="py-3 px-4">Department &amp; Code</th>
+            <th class="py-3 px-4">Status &amp; Progress</th>
+            <th class="py-3 px-4 text-center">Pages</th>
+            <th class="py-3 px-4 text-center">Extracted</th>
+            <th class="py-3 px-4 text-center">Approved</th>
+            <th class="py-3 px-4 text-center">Promoted</th>
+            <th class="py-3 px-4 text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          @for (paper of papers(); track paper.id) {
+            <tr class="hover:bg-slate-50/70 transition-colors">
+              <!-- Examination Name & Year -->
+              <td class="py-3 px-4">
+                <div class="font-bold text-slate-900 flex items-center gap-2">
+                  <mat-icon class="!text-base text-indigo-600 shrink-0">description</mat-icon>
+                  <span class="truncate max-w-xs" [matTooltip]="paper.examinationName">{{ paper.examinationName }}</span>
+                </div>
+                <div class="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5">
+                  <span class="font-semibold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">Year {{ paper.examYear }}</span>
+                  @if (paper.subjectName) {
+                    <span>&bull; {{ paper.subjectName }}</span>
+                  }
+                </div>
+              </td>
+
+              <!-- Department & Paper Code -->
+              <td class="py-3 px-4">
+                <div class="font-medium text-slate-800">{{ paper.department || 'General' }}</div>
+                <div class="text-[11px] text-slate-500 font-mono mt-0.5">
+                  {{ paper.paperCode || 'No Code' }}
+                  @if (paper.bookletSerialNo) {
+                    <span>({{ paper.bookletSerialNo }})</span>
+                  }
+                </div>
+              </td>
+
+              <!-- Status & Progress -->
+              <td class="py-3 px-4 min-w-[180px]">
+                <div class="flex items-center gap-1.5 mb-1.5">
+                  <span
+                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border"
+                    [ngClass]="getStatusClass(paper.extractionStatus)"
+                  >
+                    <mat-icon
+                      class="!text-xs"
+                      [class.animate-spin]="paper.extractionStatus === 'PROCESSING'"
+                    >{{ getStatusIcon(paper.extractionStatus) }}</mat-icon>
+                    {{ paper.extractionStatus }}
+                  </span>
+                  @if (paper.extractionStatus === 'PROCESSING') {
+                    <span class="text-[10px] font-bold text-amber-600">{{ calculateProgress(paper) }}%</span>
+                  }
+                </div>
+                <!-- Progress Bar -->
+                @if (paper.extractionStatus === 'PROCESSING' || paper.extractionStatus === 'PARTIAL_FAILED') {
+                  <div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                    <div
+                      class="bg-indigo-600 h-1.5 rounded-full transition-all duration-300"
+                      [style.width.%]="calculateProgress(paper)"
+                    ></div>
+                  </div>
+                }
+                @if (paper.errorMessage) {
+                  <div class="text-[10px] text-rose-600 truncate max-w-xs mt-1" [matTooltip]="paper.errorMessage">
+                    {{ paper.errorMessage }}
+                  </div>
+                }
+              </td>
+
+              <!-- Pages -->
+              <td class="py-3 px-4 text-center font-mono">
+                <span class="font-bold text-slate-800">{{ paper.pagesProcessed }}</span>
+                <span class="text-slate-400">/{{ paper.totalPages || '?' }}</span>
+              </td>
+
+              <!-- Extracted -->
+              <td class="py-3 px-4 text-center">
+                <span class="font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full text-[11px]">
+                  {{ paper.questionsExtracted }}
+                </span>
+              </td>
+
+              <!-- Approved -->
+              <td class="py-3 px-4 text-center">
+                <span class="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full text-[11px]">
+                  {{ paper.questionsApproved }}
+                </span>
+              </td>
+
+              <!-- Promoted -->
+              <td class="py-3 px-4 text-center">
+                <span class="font-bold text-cyan-800 bg-cyan-50 px-2 py-0.5 rounded-full text-[11px]">
+                  {{ paper.questionsPromoted }}
+                </span>
+              </td>
+
+              <!-- Actions -->
+              <td class="py-3 px-4 text-right whitespace-nowrap">
+                <div class="flex items-center justify-end gap-1">
+                  <!-- View & Review Questions Button -->
+                  <button
+                    mat-flat-button
+                    color="primary"
+                    (click)="selectPaper.emit(paper)"
+                    class="!bg-indigo-600 !text-white !text-xs !py-1 !px-2.5 !min-h-0 !h-7 !rounded-lg cursor-pointer font-bold"
+                  >
+                    <mat-icon class="!text-sm">visibility</mat-icon>
+                    Review Questions
+                  </button>
+
+                  <!-- Apply Answer Key Button -->
+                  <button
+                    mat-stroked-button
+                    (click)="applyAnswerKey.emit(paper)"
+                    matTooltip="Apply bulk answer keys"
+                    class="!border-slate-300 !text-slate-700 !text-xs !py-1 !px-2 !min-h-0 !h-7 !rounded-lg cursor-pointer"
+                  >
+                    <mat-icon class="!text-sm text-amber-600">key</mat-icon>
+                  </button>
+
+                  <!-- Retry Button -->
+                  @if (isRetryable(paper)) {
+                    <button
+                      mat-stroked-button
+                      (click)="retryExtraction.emit(paper)"
+                      matTooltip="Retry extraction on failed pages"
+                      class="!border-amber-300 !text-amber-700 !text-xs !py-1 !px-2 !min-h-0 !h-7 !rounded-lg cursor-pointer hover:!bg-amber-50"
+                    >
+                      <mat-icon class="!text-sm">refresh</mat-icon>
+                    </button>
+                  }
+
+                  <!-- Cancel Button -->
+                  @if (isCancelable(paper)) {
+                    <button
+                      mat-stroked-button
+                      (click)="cancelExtraction.emit(paper)"
+                      matTooltip="Cancel extraction batch job"
+                      class="!border-rose-300 !text-rose-700 !text-xs !py-1 !px-2 !min-h-0 !h-7 !rounded-lg cursor-pointer hover:!bg-rose-50"
+                    >
+                      <mat-icon class="!text-sm">cancel</mat-icon>
+                    </button>
+                  }
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Table Pagination Footer -->
+    <div class="p-3 border-t border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+      <div class="flex items-center gap-2">
+        <span>Showing </span>
+        <span class="font-bold text-slate-800">{{ page() * pageSize() + 1 }}</span>
+        <span>to</span>
+        <span class="font-bold text-slate-800">{{ Math.min((page() + 1) * pageSize(), totalElements()) }}</span>
+        <span>of</span>
+        <span class="font-bold text-slate-800">{{ totalElements() }}</span>
+        <span>papers</span>
+      </div>
+
+      <div class="flex items-center gap-4">
+        <div class="flex items-center gap-1.5">
+          <span>Rows per page:</span>
+          <select
+            [ngModel]="pageSize()"
+            (change)="onPageSizeChange($event)"
+            class="bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs font-semibold cursor-pointer"
+          >
+            @for (sz of pageSizeOptions(); track sz) {
+              <option [value]="sz">{{ sz }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="flex items-center gap-1">
+          <button
+            mat-icon-button
+            [disabled]="page() === 0"
+            (click)="onPrevPage()"
+            class="!w-7 !h-7 !rounded-lg cursor-pointer"
+          >
+            <mat-icon class="!text-base">chevron_left</mat-icon>
+          </button>
+          <span class="font-bold text-slate-800 px-1">Page {{ page() + 1 }} of {{ totalPages() }}</span>
+          <button
+            mat-icon-button
+            [disabled]="page() >= totalPages() - 1"
+            (click)="onNextPage()"
+            class="!w-7 !h-7 !rounded-lg cursor-pointer"
+          >
+            <mat-icon class="!text-base">chevron_right</mat-icon>
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>
