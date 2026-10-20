@@ -259,3 +259,18 @@ II. System $$\Psi$$ is not capable of executing Shor's algorithm for large integ
      # Build service or monolith container
      docker build --no-cache -f backend/Dockerfile -t exam-monolith:latest ./backend
      ```
+
+---
+
+## IntelliJ IDEA Tool Prioritization Directive
+
+Whenever the IntelliJ IDEA MCP server (`idea`) is active, ALWAYS prioritize using IntelliJ IDEA tools over generic shell commands or plain text file manipulations for any relevant task:
+
+1. **Compilation & Builds**: Use `idea:build_project` as the primary build mechanism for immediate compilation feedback and IDE index sync.
+2. **Error & Diagnostic Checks**: Use `idea:get_file_problems` and `idea:lint_files` after modifying files to identify compilation errors, unresolved imports, or lint issues.
+3. **Code Navigation & Search**: Prefer `idea:search_symbol`, `idea:get_symbol_info`, and `idea:analyze_calls` for finding types, methods, usages, and call hierarchies rather than raw regex/text grep.
+4. **Refactoring & Formatting**: Use `idea:rename_refactoring` for symbol renames across the project and `idea:reformat_file` to keep code styles aligned with IDE settings.
+5. **Execution & Run Configurations**: Inspect available configurations via `idea:get_run_configurations` and launch them with `idea:execute_run_configuration`.
+6. **Debugging**: Use `idea:xdebug_*` tools (breakpoints, frame values, evaluate expression, run to line) for debugging sessions.
+7. **Database Operations**: Use `idea:execute_sql_query`, `idea:preview_table_data`, `idea:list_database_connections`, `idea:introspect_schema` for database workflows.
+8. **IDE Context Sync**: Use `idea:open_file_in_editor` to focus the user on files being modified or discussed.
