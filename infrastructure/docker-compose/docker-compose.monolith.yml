@@ -53,6 +53,30 @@ services:
       - exam-network
 
   # ===========================================================================
+  # OCR Service — High-Speed Local Tesseract OCR (English + Hindi)
+  # Port 5005 — REST API at http://localhost:5005
+  # ===========================================================================
+  ocr-service:
+    build:
+      context: ../ocr-service
+      dockerfile: Dockerfile
+    image: exam-ocr:latest
+    container_name: exam-ocr
+    restart: unless-stopped
+    ports:
+      - "${OCR_PORT:-5005}:5005"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:5005/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      exam-network:
+        aliases:
+          - ocr-service
+
+  # ===========================================================================
   # Single JVM Monolith Application (All 14 Modules + Audit Embedded)
   # ===========================================================================
   monolith-app:
@@ -157,6 +181,8 @@ services:
         condition: service_healthy
       mock-server:
         condition: service_healthy
+      ocr-service:
+        condition: service_healthy
     volumes:
       - asset_storage:/data/asset-storage
       - scorecard_storage:/data/scorecards
@@ -240,3 +266,7 @@ volumes:
   asset_storage:
   scorecard_storage:
   rabbitmq_data:
+
+networks:
+  exam-network:
+    name: exam-network

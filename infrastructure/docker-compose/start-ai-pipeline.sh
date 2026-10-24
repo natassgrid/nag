@@ -38,7 +38,7 @@ cd "$SCRIPT_DIR"
 
 COMPOSE="docker compose --profile ai -f docker-compose.yml"
 COMPOSE_SERVICES="docker compose --profile ai -f docker-compose.yml -f docker-compose.services.yml"
-INFRA_SERVICES="postgres redis vault vault-init kafka keycloak ollama ollama-pull litellm indictrans2"
+INFRA_SERVICES="postgres redis vault vault-init kafka keycloak ollama ollama-pull litellm indictrans2 ocr-service"
 APP_SERVICES="identity-service question-bank-service api-gateway frontend"
 
 ACTION="start"
@@ -72,7 +72,7 @@ case $ACTION in
     echo "▶ Pipeline service status:"
     echo ""
     echo "--- Infrastructure ---"
-    $COMPOSE ps postgres redis vault kafka keycloak ollama litellm indictrans2 2>/dev/null || $COMPOSE ps
+    $COMPOSE ps postgres redis vault kafka keycloak ollama litellm indictrans2 ocr-service 2>/dev/null || $COMPOSE ps
     echo ""
     echo "--- Application ---"
     $COMPOSE_SERVICES ps identity-service question-bank-service api-gateway frontend 2>/dev/null || true
@@ -121,7 +121,7 @@ case $ACTION in
 
   start)\
     echo "▶ Starting pipeline infrastructure..."
-    echo "  Infra: postgres, redis, vault, kafka, keycloak, ollama, litellm, indictrans2"
+    echo "  Infra: postgres, redis, vault, kafka, keycloak, ollama, litellm, indictrans2, ocr-service"
     echo "  Apps:  identity-service, question-bank-service, api-gateway, frontend"
     echo ""
     $COMPOSE up -d $INFRA_SERVICES
