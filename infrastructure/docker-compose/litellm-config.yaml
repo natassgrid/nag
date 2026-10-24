@@ -155,7 +155,10 @@ router_settings:
     "medium": "nova-lite"
     "hard": "nova-lite"
   fallbacks:
-    - "paper-extract-vision": ["gemini-2.5-flash", "gemini-flash", "nova-lite", "qwen3:8b"]
+    # Vision fallback route: ONLY multimodal models supporting image inputs.
+    # Text-only models like qwen3:8b are strictly excluded from this list.
+    # Cloud fallbacks (gemini-2.5-flash, gemini-flash) only kick in when GEMINI_API_KEY is configured.
+    - "paper-extract-vision": ["gemini-2.5-flash", "gemini-flash", "nova-lite"]
     - "paper-extract-text": ["qwen3:8b", "qwen2.5:1.5b", "gemini-flash-lite", "nova-micro"]
     - "gemini-pro": ["nova-lite", "qwen2-math:1.5b", "qwen2.5:1.5b"]
     - "gemini-flash": ["nova-lite", "qwen2.5:1.5b"]

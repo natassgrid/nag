@@ -1,0 +1,72 @@
+{
+  "coverPage": false,
+  "detectedPaperCode": "UPSC-CS-2025",
+  "detectedExamYear": 2025,
+  "detectedSubjectName": "Physical Chemistry and Thermodynamics",
+  "questions": [
+    {
+      "questionNumber": 1,
+      "sectionName": "Chemistry",
+      "questionType": "SINGLE_MCQ",
+      "passageText": "**Directions for Questions 1 to 2:** Read the following experimental thermodynamic data before answering questions 1 and 2.\n\nAn industrial reactor synthesizes sulfuric acid precursor according to the exothermic gaseous equilibrium: $$\\ce{2SO2 + O2 <=> 2SO3}$$ with standard enthalpy change $$\\Delta H^\\circ = -198\\text{ kJ}$$. A secondary sensor cell measures an electrode potential $$E^\\circ = \\pu{1.10 V}$$.",
+      "passageRangeStart": 1,
+      "passageRangeEnd": 2,
+      "content": "For the exothermic reversible reaction $$\\ce{2SO2(g) + O2(g) <=> 2SO3(g)}$$ with $$\\Delta H^\\circ = -198\\text{ kJ}$$, what is the thermodynamic effect of increasing temperature at constant volume?",
+      "hindiContent": "ऊष्माक्षेपी उत्क्रमणीय अभिक्रिया $$\\ce{2SO2(g) + O2(g) <=> 2SO3(g)}$$ के लिए, जहाँ $$\\Delta H^\\circ = -198\\text{ kJ}$$ है, स्थिर आयतन पर तापमान में वृद्धि करने का ऊष्मागतिक प्रभाव क्या होगा?",
+      "options": [
+        {"id": "A", "text": "Equilibrium shifts towards reactants, reducing yield of $$\\ce{SO3}$$", "isCorrect": true},
+        {"id": "B", "text": "Equilibrium shifts towards products, increasing yield of $$\\ce{SO3}$$", "isCorrect": false},
+        {"id": "C", "text": "Equilibrium constant $$K_p$$ remains unchanged", "isCorrect": false},
+        {"id": "D", "text": "Enthalpy of reaction drops to zero", "isCorrect": false}
+      ],
+      "hindiOptions": [
+        {"id": "A", "text": "साम्यावस्था अभिकारकों की ओर विस्थापित होती है, जिससे $$\\ce{SO3}$$ का उत्पादन घटता है", "isCorrect": true},
+        {"id": "B", "text": "साम्यावस्था उत्पादों की ओर विस्थापित होती है, जिससे $$\\ce{SO3}$$ का उत्पादन बढ़ता है", "isCorrect": false},
+        {"id": "C", "text": "साम्य स्थिरांक $$K_p$$ अपरिवर्तित रहता है", "isCorrect": false},
+        {"id": "D", "text": "अभिक्रिया की एन्थैल्पी घटकर शून्य हो जाती है", "isCorrect": false}
+      ],
+      "answerKey": "A",
+      "explanation": "According to Le Chatelier's principle, for an exothermic reaction ($$\\Delta H^\\circ < 0$$), increasing the temperature shifts the equilibrium in the endothermic reverse direction, favouring the reactants.",
+      "hasFormulas": true,
+      "hasTables": false,
+      "hasDiagram": true,
+      "diagramBoundingBoxes": [
+        [0.10, 0.15, 0.45, 0.40]
+      ],
+      "suggestedDifficulty": "MEDIUM",
+      "suggestedCognitiveLevel": "APPLY",
+      "confidence": 0.98
+    },
+    {
+      "questionNumber": 2,
+      "sectionName": "Chemistry",
+      "questionType": "SINGLE_MCQ",
+      "passageText": "**Directions for Questions 1 to 2:** Read the following experimental thermodynamic data before answering questions 1 and 2.\n\nAn industrial reactor synthesizes sulfuric acid precursor according to the exothermic gaseous equilibrium: $$\\ce{2SO2 + O2 <=> 2SO3}$$ with standard enthalpy change $$\\Delta H^\\circ = -198\\text{ kJ}$$. A secondary sensor cell measures an electrode potential $$E^\\circ = \\pu{1.10 V}$$.",
+      "passageRangeStart": 1,
+      "passageRangeEnd": 2,
+      "content": "Using the relation $$\\Delta G^\\circ = -n F E^\\circ$$, calculate the standard Gibbs free energy change for the monitoring cell with $$n = 2$$ electrons, potential $$E^\\circ = \\pu{1.10 V}$$, and Faraday constant $$F = \\pu{96500 C mol-1}$$.",
+      "hindiContent": "संबंध $$\\Delta G^\\circ = -n F E^\\circ$$ का उपयोग करते हुए, निगरानी सेल के लिए मानक गिब्स मुक्त ऊर्जा परिवर्तन की गणना करें जिसमें $$n = 2$$ इलेक्ट्रॉन, विभव $$E^\\circ = \\pu{1.10 V}$$, तथा फैराडे नियतांक $$F = \\pu{96500 C mol-1}$$ है।",
+      "options": [
+        {"id": "A", "text": "$$\\Delta G^\\circ = -212.3\\text{ kJ mol}^{-1}$$", "isCorrect": true},
+        {"id": "B", "text": "$$\\Delta G^\\circ = +212.3\\text{ kJ mol}^{-1}$$", "isCorrect": false},
+        {"id": "C", "text": "$$\\Delta G^\\circ = -106.15\\text{ kJ mol}^{-1}$$", "isCorrect": false},
+        {"id": "D", "text": "$$\\Delta G^\\circ = +424.6\\text{ kJ mol}^{-1}$$", "isCorrect": false}
+      ],
+      "hindiOptions": [
+        {"id": "A", "text": "$$\\Delta G^\\circ = -212.3\\text{ kJ mol}^{-1}$$", "isCorrect": true},
+        {"id": "B", "text": "$$\\Delta G^\\circ = +212.3\\text{ kJ mol}^{-1}$$", "isCorrect": false},
+        {"id": "C", "text": "$$\\Delta G^\\circ = -106.15\\text{ kJ mol}^{-1}$$", "isCorrect": false},
+        {"id": "D", "text": "$$\\Delta G^\\circ = +424.6\\text{ kJ mol}^{-1}$$", "isCorrect": false}
+      ],
+      "answerKey": "A",
+      "explanation": "$$\\Delta G^\\circ = -nFE^\\circ = -2 \\times \\pu{96500 C mol-1} \\times \\pu{1.10 V} = -212300\\text{ J mol}^{-1} = -212.3\\text{ kJ mol}^{-1}$$.",
+      "hasFormulas": true,
+      "hasTables": false,
+      "hasDiagram": false,
+      "diagramBoundingBoxes": [],
+      "suggestedDifficulty": "MEDIUM",
+      "suggestedCognitiveLevel": "APPLY",
+      "confidence": 0.99
+    }
+  ]
+}

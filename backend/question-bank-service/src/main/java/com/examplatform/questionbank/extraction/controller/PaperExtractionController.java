@@ -23,10 +23,13 @@ import com.examplatform.questionbank.extraction.domain.ExtractedQuestionStatus;
 import com.examplatform.questionbank.extraction.domain.PaperExtractionStatus;
 import com.examplatform.questionbank.extraction.dto.BulkAnswerKeyRequest;
 import com.examplatform.questionbank.extraction.dto.ExtractedQuestionResponse;
+import com.examplatform.questionbank.extraction.dto.MergeQuestionsRequest;
 import com.examplatform.questionbank.extraction.dto.PaperUploadRequest;
 import com.examplatform.questionbank.extraction.dto.PromoteQuestionsRequest;
 import com.examplatform.questionbank.extraction.dto.PromoteQuestionsResponse;
 import com.examplatform.questionbank.extraction.dto.QuestionPaperMetadataResponse;
+import com.examplatform.questionbank.extraction.dto.ResequenceQuestionsRequest;
+import com.examplatform.questionbank.extraction.dto.SplitQuestionRequest;
 import com.examplatform.questionbank.extraction.dto.UpdateExtractedQuestionRequest;
 import com.examplatform.questionbank.extraction.service.PaperQuestionPromotionService;
 import com.examplatform.questionbank.extraction.service.QuestionPaperExtractionService;
@@ -48,6 +51,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -166,6 +170,38 @@ public class PaperExtractionController {
     }
 
     /**
+     * Resumes extraction on a failed, partially failed, quota-exhausted, or cancelled Question Paper.
+     * Re-processes only unextracted or failed pages.
+     *
+     * POST /api/v1/questions/papers/{paperId}/resume
+     */
+    @PostMapping("/{paperId}/resume")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
+    public ResponseEntity<QuestionPaperMetadataResponse> resumeExtraction(
+            @PathVariable UUID paperId) {
+
+        QuestionPaperMetadataResponse response = questionPaperExtractionService.resumeExtractionJob(paperId, tenantId());
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Renders a specific page of the question paper PDF as a JPEG image (150 DPI).
+     *
+     * GET /api/v1/questions/papers/{paperId}/pages/{pageNumber}/image
+     */
+    @GetMapping(value = "/{paperId}/pages/{pageNumber}/image", produces = MediaType.IMAGE_JPEG_VALUE)
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
+    public ResponseEntity<byte[]> getPageImage(
+            @PathVariable UUID paperId,
+            @PathVariable int pageNumber) {
+
+        byte[] imageBytes = questionPaperExtractionService.renderPageImage(paperId, pageNumber, tenantId());
+        return ResponseEntity.ok()
+                .contentType(MediaType.IMAGE_JPEG)
+                .body(imageBytes);
+    }
+
+    /**
      * Applies official or provisional answer keys in bulk by question number.
      *
      * POST /api/v1/questions/papers/{paperId}/answer-key
@@ -234,6 +270,61 @@ public class PaperExtractionController {
         UUID reviewerId = extractUserId(jwt);
         ExtractedQuestionResponse response = questionPaperExtractionService.updateExtractedQuestion(
                 paperId, extractedQuestionId, request, reviewerId, tenantId());
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Merges multiple extracted staging questions in the given order into the first question.
+     *
+     * POST /api/v1/questions/papers/{paperId}/questions/merge
+     */
+    @PostMapping("/{paperId}/questions/merge")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
+    public ResponseEntity<ExtractedQuestionResponse> mergeQuestions(
+            @PathVariable UUID paperId,
+            @Valid @RequestBody MergeQuestionsRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+
+        UUID reviewerId = extractUserId(jwt);
+        ExtractedQuestionResponse response = questionPaperExtractionService.mergeQuestions(
+                paperId, request, reviewerId, tenantId());
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Splits an extracted staging question into two questions.
+     *
+     * POST /api/v1/questions/papers/{paperId}/questions/{extractedQuestionId}/split
+     */
+    @PostMapping("/{paperId}/questions/{extractedQuestionId}/split")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
+    public ResponseEntity<List<ExtractedQuestionResponse>> splitQuestion(
+            @PathVariable UUID paperId,
+            @PathVariable UUID extractedQuestionId,
+            @Valid @RequestBody SplitQuestionRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+
+        UUID reviewerId = extractUserId(jwt);
+        List<ExtractedQuestionResponse> response = questionPaperExtractionService.splitQuestion(
+                paperId, extractedQuestionId, request, reviewerId, tenantId());
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Resequences extracted staging questions in specified order.
+     *
+     * POST /api/v1/questions/papers/{paperId}/questions/resequence
+     */
+    @PostMapping("/{paperId}/questions/resequence")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
+    public ResponseEntity<List<ExtractedQuestionResponse>> resequenceQuestions(
+            @PathVariable UUID paperId,
+            @Valid @RequestBody ResequenceQuestionsRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+
+        UUID reviewerId = extractUserId(jwt);
+        List<ExtractedQuestionResponse> response = questionPaperExtractionService.resequenceQuestions(
+                paperId, request, reviewerId, tenantId());
         return ResponseEntity.ok(response);
     }
 

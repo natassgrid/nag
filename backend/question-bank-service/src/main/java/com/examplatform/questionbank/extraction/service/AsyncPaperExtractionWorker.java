@@ -26,6 +26,7 @@ import com.examplatform.questionbank.domain.Topic;
 import com.examplatform.questionbank.dto.QuestionOption;
 import com.examplatform.questionbank.extraction.ai.LiteLlmPageExtractionClient;
 import com.examplatform.questionbank.extraction.ai.LlmPageExtractionResult;
+import com.examplatform.questionbank.extraction.ai.LlmQuotaExhaustedException;
 import com.examplatform.questionbank.extraction.ai.PdfPageContent;
 import com.examplatform.questionbank.extraction.ai.QuestionPaperPdfParser;
 import com.examplatform.questionbank.extraction.client.AssetServiceClient;
@@ -150,8 +151,27 @@ public class AsyncPaperExtractionWorker {
 
             int nextSequentialQuestionNumber = calculateNextSequentialNumber(paperId, tenantId);
             boolean cancelled = false;
+            boolean quotaExhausted = false;
+            ActivePassage activePassage = null;
 
-            for (int page = 1; page <= totalPages; page++) {
+            List<Integer> selectedPages = QuestionPaperExtractionService.parsePageSelection(paper.getPageSelection(), totalPages);
+            List<ExtractedQuestion> existingQuestions = extractedQuestionRepository
+                    .findByPaperMetadataIdAndTenantIdOrderByQuestionNumberAsc(paperId, tenantId);
+            Set<Integer> pagesWithQuestions = existingQuestions.stream()
+                    .map(ExtractedQuestion::getSourcePageNumber)
+                    .filter(Objects::nonNull)
+                    .collect(java.util.stream.Collectors.toSet());
+
+            Set<Integer> failedPagesSet = paper.getFailedPages().stream()
+                    .map(m -> (Number) m.get("pageNumber"))
+                    .filter(Objects::nonNull)
+                    .map(Number::intValue)
+                    .collect(java.util.stream.Collectors.toSet());
+
+            List<Integer> pagesToProcess = QuestionPaperExtractionService.computeResumePages(
+                    selectedPages, pagesWithQuestions, failedPagesSet);
+
+            for (int page : pagesToProcess) {
                 if (cancelledJobIds.contains(paperId)) {
                     log.info("Extraction job {} detected cancellation flag at page {}/{}", paperId, page, totalPages);
                     markPaperCancelled(paper);
@@ -165,6 +185,9 @@ public class AsyncPaperExtractionWorker {
                     cancelled = true;
                     break;
                 }
+
+                removeFailedPage(paper, page);
+                extractedQuestionRepository.deleteByPaperMetadataIdAndSourcePageNumber(paperId, page);
 
                 try {
                     PdfPageContent pageContent = pdfParser.extractSinglePage(document, page);
@@ -187,13 +210,41 @@ public class AsyncPaperExtractionWorker {
                             } else {
                                 qNum = nextSequentialQuestionNumber++;
                             }
+
+                            if (activePassage != null && qNum > activePassage.getRangeEnd()) {
+                                activePassage = null;
+                            }
+
+                            if (item.getPassageText() != null && !item.getPassageText().isBlank()
+                                    && item.getPassageRangeEnd() != null && item.getPassageRangeEnd() >= qNum) {
+                                String hindiPassage = null;
+                                if (item.getHindiContent() != null && !item.getHindiContent().isBlank()
+                                        && item.getPassageRangeStart() != null) {
+                                    hindiPassage = item.getHindiContent();
+                                }
+                                activePassage = new ActivePassage(item.getPassageText(), hindiPassage, item.getPassageRangeEnd());
+                            } else if ((item.getPassageText() == null || item.getPassageText().isBlank())
+                                    && activePassage != null && qNum <= activePassage.getRangeEnd()) {
+                                item.setPassageText(activePassage.getPassageText());
+                            }
+
                             upsertExtractedQuestion(paper, page, pageContent, item, qNum, tenantId);
                         }
                     }
 
+                    paper.setLastCompletedPage(page);
                     paper.setPagesProcessed(page);
                     paper.setQuestionsExtracted((int) extractedQuestionRepository.countByPaperMetadataIdAndTenantId(paperId, tenantId));
                     paper = metadataRepository.save(paper);
+                } catch (LlmQuotaExhaustedException qex) {
+                    log.warn("LLM quota exhausted on page {} for paperId={}: {}",
+                            qex.getPageNumber(), paperId, qex.getMessage());
+                    paper.setExtractionStatus(PaperExtractionStatus.QUOTA_EXHAUSTED);
+                    paper.setErrorMessage("Upstream LLM quota exhausted on page " + qex.getPageNumber() + ". Extraction paused and can be resumed.");
+                    paper.setCompletedAt(Instant.now());
+                    paper = metadataRepository.save(paper);
+                    quotaExhausted = true;
+                    break;
                 } catch (Exception ex) {
                     log.warn("Failed to extract page {}/{} for paperId={}: {}", page, totalPages, paperId, ex.getMessage(), ex);
                     Map<String, Object> errorRecord = new HashMap<>();
@@ -206,17 +257,18 @@ public class AsyncPaperExtractionWorker {
                 }
             }
 
-            if (!cancelled) {
-                finalizeJobStatus(paper, totalPages);
+            if (!cancelled && !quotaExhausted) {
+                finalizeJobStatus(paper, totalPages, selectedPages);
             }
         }
     }
 
-    private void finalizeJobStatus(QuestionPaperMetadata paper, int totalPages) {
+    private void finalizeJobStatus(QuestionPaperMetadata paper, int totalPages, List<Integer> selectedPages) {
         List<Map<String, Object>> failedPages = paper.getFailedPages();
+        int targetTotal = (selectedPages != null && !selectedPages.isEmpty()) ? selectedPages.size() : totalPages;
         if (failedPages == null || failedPages.isEmpty()) {
             paper.setExtractionStatus(PaperExtractionStatus.COMPLETED);
-        } else if (failedPages.size() < totalPages) {
+        } else if (failedPages.size() < targetTotal) {
             paper.setExtractionStatus(PaperExtractionStatus.PARTIAL_FAILED);
         } else {
             paper.setExtractionStatus(PaperExtractionStatus.FAILED);
@@ -225,6 +277,15 @@ public class AsyncPaperExtractionWorker {
         paper.setCompletedAt(Instant.now());
         metadataRepository.save(paper);
         log.info("Finished extraction job for paperId={}, finalStatus={}", paper.getId(), paper.getExtractionStatus());
+    }
+
+    private void removeFailedPage(QuestionPaperMetadata paper, int pageNumber) {
+        if (paper.getFailedPages() != null) {
+            paper.getFailedPages().removeIf(m -> {
+                Object p = m.get("pageNumber");
+                return p instanceof Number && ((Number) p).intValue() == pageNumber;
+            });
+        }
     }
 
     private void markPaperCancelled(QuestionPaperMetadata paper) {
@@ -375,15 +436,22 @@ public class AsyncPaperExtractionWorker {
         }
         eq.setTranslations(translations);
 
-        eq.setHasImages(item.isHasDiagram() || (pageContent.getEmbeddedDiagramDataUris() != null && !pageContent.getEmbeddedDiagramDataUris().isEmpty()));
-        eq.setHasTables(item.isHasTables());
-        eq.setHasFormulas(item.isHasFormulas());
-
         List<String> mediaUrls = new ArrayList<>();
         if (item.isHasDiagram() && pageContent.getEmbeddedDiagramDataUris() != null) {
             mediaUrls.addAll(pageContent.getEmbeddedDiagramDataUris());
         }
+        if (item.getCroppedDiagramDataUris() != null && !item.getCroppedDiagramDataUris().isEmpty()) {
+            mediaUrls.addAll(item.getCroppedDiagramDataUris());
+        }
         eq.setMediaUrls(mediaUrls);
+
+        boolean hasImages = item.isHasDiagram()
+                || (pageContent.getEmbeddedDiagramDataUris() != null && !pageContent.getEmbeddedDiagramDataUris().isEmpty())
+                || (item.getCroppedDiagramDataUris() != null && !item.getCroppedDiagramDataUris().isEmpty())
+                || !mediaUrls.isEmpty();
+        eq.setHasImages(hasImages);
+        eq.setHasTables(item.isHasTables());
+        eq.setHasFormulas(item.isHasFormulas());
 
         // Resolve taxonomy defaults
         Long initialSubjectId = paper.getDefaultSubjectId();
@@ -444,5 +512,13 @@ public class AsyncPaperExtractionWorker {
                 .or(() -> subjectRepository.findByNameAndTenantIdIsNull(name.trim()))
                 .map(Subject::getId)
                 .orElse(null);
+    }
+
+    @lombok.Data
+    @lombok.AllArgsConstructor
+    private static class ActivePassage {
+        private String passageText;
+        private String hindiPassageText;
+        private int rangeEnd;
     }
 }

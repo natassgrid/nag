@@ -26,6 +26,7 @@ import com.examplatform.questionbank.domain.Topic;
 import com.examplatform.questionbank.dto.QuestionOption;
 import com.examplatform.questionbank.extraction.ai.LiteLlmPageExtractionClient;
 import com.examplatform.questionbank.extraction.ai.LlmPageExtractionResult;
+import com.examplatform.questionbank.extraction.ai.LlmQuotaExhaustedException;
 import com.examplatform.questionbank.extraction.ai.PdfPageContent;
 import com.examplatform.questionbank.extraction.ai.QuestionPaperPdfParser;
 import com.examplatform.questionbank.extraction.client.AssetServiceClient;
@@ -526,5 +527,136 @@ class AsyncPaperExtractionWorkerTest {
         assertThat(saved.getSuggestedSubjectId()).isEqualTo(555L);
         assertThat(saved.getSuggestedTopicId()).isEqualTo(777L);
         assertThat(saved.getSuggestedSubtopicId()).isEqualTo(888L);
+    }
+
+    @Test
+    @DisplayName("LlmQuotaExhaustedException pauses job in QUOTA_EXHAUSTED status without marking page failed")
+    void testQuotaExhaustedExceptionTransitionsToQuotaExhausted() throws IOException {
+        byte[] pdfBytes = createTestPdf(2);
+
+        QuestionPaperMetadata paper = QuestionPaperMetadata.builder()
+                .examinationName("UPSC Prelims")
+                .examYear(2024)
+                .fileAssetId(assetId)
+                .extractionStatus(PaperExtractionStatus.PENDING)
+                .build();
+        ReflectionTestUtils.setField(paper, "id", paperId);
+        paper.setTenantId(tenantId);
+
+        when(metadataRepository.findByIdAndTenantId(paperId, tenantId)).thenReturn(Optional.of(paper));
+        when(metadataRepository.save(any(QuestionPaperMetadata.class))).thenAnswer(i -> i.getArgument(0));
+        when(modelRouter.selectPaperExtractionModel(true)).thenReturn("gemini-2.5-flash");
+        when(assetServiceClient.downloadAssetBytes(eq(assetId), eq(tenantId))).thenReturn(pdfBytes);
+        when(extractedQuestionRepository.findByPaperMetadataIdAndTenantIdOrderByQuestionNumberAsc(paperId, tenantId))
+                .thenReturn(Collections.emptyList());
+
+        when(extractionClient.extractPage(any(PdfPageContent.class), anyString()))
+                .thenThrow(new LlmQuotaExhaustedException(1, "Rate limit reached 429", null));
+
+        worker.processPaperExtractionJob(paperId, tenantId);
+
+        assertThat(paper.getExtractionStatus()).isEqualTo(PaperExtractionStatus.QUOTA_EXHAUSTED);
+        assertThat(paper.getErrorMessage()).contains("LLM quota exhausted on page 1");
+        assertThat(paper.getFailedPages()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Active passage propagates to subsequent questions in range across pages")
+    void testPassagePropagationAcrossPages() throws IOException {
+        byte[] pdfBytes = createTestPdf(3);
+
+        QuestionPaperMetadata paper = QuestionPaperMetadata.builder()
+                .examinationName("English Comprehension")
+                .examYear(2024)
+                .fileAssetId(assetId)
+                .extractionStatus(PaperExtractionStatus.PENDING)
+                .build();
+        ReflectionTestUtils.setField(paper, "id", paperId);
+        paper.setTenantId(tenantId);
+
+        when(metadataRepository.findByIdAndTenantId(paperId, tenantId)).thenReturn(Optional.of(paper));
+        when(metadataRepository.save(any(QuestionPaperMetadata.class))).thenAnswer(i -> i.getArgument(0));
+        when(modelRouter.selectPaperExtractionModel(true)).thenReturn("mock-model");
+        when(assetServiceClient.downloadAssetBytes(eq(assetId), eq(tenantId))).thenReturn(pdfBytes);
+        when(extractedQuestionRepository.findByPaperMetadataIdAndTenantIdOrderByQuestionNumberAsc(paperId, tenantId))
+                .thenReturn(Collections.emptyList());
+
+        // Page 1: Q1 with passage range 1..2
+        LlmPageExtractionResult.ExtractedItemPayload q1 = LlmPageExtractionResult.ExtractedItemPayload.builder()
+                .questionNumber(1)
+                .content("What is the central theme?")
+                .passageText("Artificial Intelligence is evolving rapidly.")
+                .passageRangeStart(1)
+                .passageRangeEnd(2)
+                .build();
+
+        // Page 2: Q2 without passage
+        LlmPageExtractionResult.ExtractedItemPayload q2 = LlmPageExtractionResult.ExtractedItemPayload.builder()
+                .questionNumber(2)
+                .content("According to the author, what is key?")
+                .passageText(null)
+                .build();
+
+        // Page 3: Q3 outside range without passage
+        LlmPageExtractionResult.ExtractedItemPayload q3 = LlmPageExtractionResult.ExtractedItemPayload.builder()
+                .questionNumber(3)
+                .content("Standalone question.")
+                .passageText(null)
+                .build();
+
+        when(extractionClient.extractPage(any(PdfPageContent.class), anyString()))
+                .thenReturn(LlmPageExtractionResult.builder().questions(List.of(q1)).build())
+                .thenReturn(LlmPageExtractionResult.builder().questions(List.of(q2)).build())
+                .thenReturn(LlmPageExtractionResult.builder().questions(List.of(q3)).build());
+
+        worker.processPaperExtractionJob(paperId, tenantId);
+
+        ArgumentCaptor<ExtractedQuestion> captor = ArgumentCaptor.forClass(ExtractedQuestion.class);
+        verify(extractedQuestionRepository, times(3)).save(captor.capture());
+        List<ExtractedQuestion> saved = captor.getAllValues();
+
+        assertThat(saved.get(0).getPassageText()).isEqualTo("Artificial Intelligence is evolving rapidly.");
+        assertThat(saved.get(1).getPassageText()).isEqualTo("Artificial Intelligence is evolving rapidly.");
+        assertThat(saved.get(2).getPassageText()).isNull();
+    }
+
+    @Test
+    @DisplayName("Cropped diagram data URIs are attached to question mediaUrls and flag hasImages")
+    void testCroppedDiagramDataUrisAddedToMediaUrls() throws IOException {
+        byte[] pdfBytes = createTestPdf(1);
+
+        QuestionPaperMetadata paper = QuestionPaperMetadata.builder()
+                .examinationName("Physics")
+                .examYear(2024)
+                .fileAssetId(assetId)
+                .extractionStatus(PaperExtractionStatus.PENDING)
+                .build();
+        ReflectionTestUtils.setField(paper, "id", paperId);
+        paper.setTenantId(tenantId);
+
+        when(metadataRepository.findByIdAndTenantId(paperId, tenantId)).thenReturn(Optional.of(paper));
+        when(metadataRepository.save(any(QuestionPaperMetadata.class))).thenAnswer(i -> i.getArgument(0));
+        when(modelRouter.selectPaperExtractionModel(true)).thenReturn("mock-model");
+        when(assetServiceClient.downloadAssetBytes(eq(assetId), eq(tenantId))).thenReturn(pdfBytes);
+        when(extractedQuestionRepository.findByPaperMetadataIdAndTenantIdOrderByQuestionNumberAsc(paperId, tenantId))
+                .thenReturn(Collections.emptyList());
+
+        LlmPageExtractionResult.ExtractedItemPayload q = LlmPageExtractionResult.ExtractedItemPayload.builder()
+                .questionNumber(1)
+                .content("Refer to the figure below:")
+                .croppedDiagramDataUris(List.of("data:image/jpeg;base64,sampleCrop"))
+                .build();
+
+        when(extractionClient.extractPage(any(PdfPageContent.class), anyString()))
+                .thenReturn(LlmPageExtractionResult.builder().questions(List.of(q)).build());
+
+        worker.processPaperExtractionJob(paperId, tenantId);
+
+        ArgumentCaptor<ExtractedQuestion> captor = ArgumentCaptor.forClass(ExtractedQuestion.class);
+        verify(extractedQuestionRepository).save(captor.capture());
+        ExtractedQuestion saved = captor.getValue();
+
+        assertThat(saved.isHasImages()).isTrue();
+        assertThat(saved.getMediaUrls()).contains("data:image/jpeg;base64,sampleCrop");
     }
 }

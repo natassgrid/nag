@@ -84,6 +84,9 @@ export class AdminPaperExtractionComponent implements OnInit {
   readonly questionsStatusFilter = signal<string>('ALL');
   readonly promotingQuestions = signal<boolean>(false);
   readonly updatingQuestion = signal<boolean>(false);
+  readonly mergingQuestions = signal<boolean>(false);
+  readonly splittingQuestion = signal<boolean>(false);
+  readonly resequencingQuestions = signal<boolean>(false);
 
   // Computed KPIs
   readonly kpiStats = computed<PaperKpiStats>(() => {
@@ -260,6 +263,7 @@ export class AdminPaperExtractionComponent implements OnInit {
           maxMarks: event.metadata.maxMarks,
           negativeMarkingRatio: event.metadata.negativeMarkingRatio,
           forceReExtract: !!event.metadata.forceReExtract,
+          pageSelection: event.metadata.pageSelection,
           fileAssetId: asset.id,
         };
 
@@ -315,6 +319,22 @@ export class AdminPaperExtractionComponent implements OnInit {
       error: (err) => {
         this.notificationService.error(
           'Failed to retry extraction: ' + (err?.error?.message || err?.message || 'Server error')
+        );
+      },
+    });
+  }
+
+  handleResumeJob(paper: QuestionPaperMetadata): void {
+    this.paperService.resumeExtraction(paper.id).subscribe({
+      next: () => {
+        this.notificationService.success(
+          `Extraction job for "${paper.examinationName}" resumed.`
+        );
+        this.loadPapers();
+      },
+      error: (err) => {
+        this.notificationService.error(
+          'Failed to resume extraction: ' + (err?.error?.message || err?.message || 'Server error')
         );
       },
     });
@@ -418,6 +438,72 @@ export class AdminPaperExtractionComponent implements OnInit {
           this.promotingQuestions.set(false);
           this.notificationService.error(
             'Promotion failed: ' + (err?.error?.message || err?.message || 'Server error')
+          );
+        },
+      });
+  }
+
+  handleMergeQuestions(event: { paperId: string; questionIds: string[] }): void {
+    this.mergingQuestions.set(true);
+    this.paperService.mergeQuestions(event.paperId, event.questionIds).subscribe({
+      next: (merged) => {
+        this.mergingQuestions.set(false);
+        this.notificationService.success(
+          `Successfully merged ${event.questionIds.length} questions into Q${merged.questionNumber}.`
+        );
+        this.loadExtractedQuestions(event.paperId);
+      },
+      error: (err) => {
+        this.mergingQuestions.set(false);
+        this.notificationService.error(
+          'Failed to merge questions: ' + (err?.error?.message || err?.message || 'Server error')
+        );
+      },
+    });
+  }
+
+  handleSplitQuestion(event: {
+    paperId: string;
+    questionId: string;
+    firstContent: string;
+    secondContent: string;
+  }): void {
+    this.splittingQuestion.set(true);
+    this.paperService
+      .splitQuestion(event.paperId, event.questionId, event.firstContent, event.secondContent)
+      .subscribe({
+        next: () => {
+          this.splittingQuestion.set(false);
+          this.notificationService.success('Successfully split question into 2 questions.');
+          this.loadExtractedQuestions(event.paperId);
+        },
+        error: (err) => {
+          this.splittingQuestion.set(false);
+          this.notificationService.error(
+            'Failed to split question: ' + (err?.error?.message || err?.message || 'Server error')
+          );
+        },
+      });
+  }
+
+  handleResequenceQuestions(event: {
+    paperId: string;
+    orderedQuestionIds: string[];
+    startNumber?: number;
+  }): void {
+    this.resequencingQuestions.set(true);
+    this.paperService
+      .resequenceQuestions(event.paperId, event.orderedQuestionIds, event.startNumber || 1)
+      .subscribe({
+        next: () => {
+          this.resequencingQuestions.set(false);
+          this.notificationService.success('Successfully renumbered questions sequentially.');
+          this.loadExtractedQuestions(event.paperId);
+        },
+        error: (err) => {
+          this.resequencingQuestions.set(false);
+          this.notificationService.error(
+            'Failed to re-sequence questions: ' + (err?.error?.message || err?.message || 'Server error')
           );
         },
       });

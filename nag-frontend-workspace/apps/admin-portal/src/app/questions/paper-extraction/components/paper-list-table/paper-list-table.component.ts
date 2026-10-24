@@ -49,6 +49,7 @@ export class PaperListTableComponent {
   applyAnswerKey = output<QuestionPaperMetadata>();
   retryExtraction = output<QuestionPaperMetadata>();
   cancelExtraction = output<QuestionPaperMetadata>();
+  resumeExtraction = output<QuestionPaperMetadata>();
   refresh = output<void>();
 
   readonly totalPages = computed(() => {
@@ -62,6 +63,7 @@ export class PaperListTableComponent {
     { value: 'PENDING', label: 'Pending' },
     { value: 'PROCESSING', label: 'Processing' },
     { value: 'COMPLETED', label: 'Completed' },
+    { value: 'QUOTA_EXHAUSTED', label: 'Quota Exhausted' },
     { value: 'PARTIAL_FAILED', label: 'Partially Failed' },
     { value: 'FAILED', label: 'Failed' },
     { value: 'CANCELLED', label: 'Cancelled' },
@@ -73,6 +75,8 @@ export class PaperListTableComponent {
         return 'bg-emerald-50 text-emerald-700 border-emerald-200';
       case 'PROCESSING':
         return 'bg-amber-50 text-amber-700 border-amber-200';
+      case 'QUOTA_EXHAUSTED':
+        return 'bg-amber-100 text-amber-900 border-amber-300';
       case 'PENDING':
         return 'bg-blue-50 text-blue-700 border-blue-200';
       case 'PARTIAL_FAILED':
@@ -92,6 +96,8 @@ export class PaperListTableComponent {
         return 'check_circle';
       case 'PROCESSING':
         return 'autorenew';
+      case 'QUOTA_EXHAUSTED':
+        return 'hourglass_top';
       case 'PENDING':
         return 'hourglass_empty';
       case 'PARTIAL_FAILED':
@@ -125,6 +131,10 @@ export class PaperListTableComponent {
       paper.extractionStatus === 'PARTIAL_FAILED' ||
       paper.extractionStatus === 'CANCELLED'
     );
+  }
+
+  isResumable(paper: QuestionPaperMetadata): boolean {
+    return !!paper.resumable;
   }
 
   onPrevPage(): void {

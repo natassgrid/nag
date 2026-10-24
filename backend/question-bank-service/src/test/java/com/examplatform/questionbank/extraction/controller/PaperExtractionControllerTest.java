@@ -25,10 +25,13 @@ import com.examplatform.questionbank.extraction.domain.ExtractedQuestionStatus;
 import com.examplatform.questionbank.extraction.domain.PaperExtractionStatus;
 import com.examplatform.questionbank.extraction.dto.BulkAnswerKeyRequest;
 import com.examplatform.questionbank.extraction.dto.ExtractedQuestionResponse;
+import com.examplatform.questionbank.extraction.dto.MergeQuestionsRequest;
 import com.examplatform.questionbank.extraction.dto.PaperUploadRequest;
 import com.examplatform.questionbank.extraction.dto.PromoteQuestionsRequest;
 import com.examplatform.questionbank.extraction.dto.PromoteQuestionsResponse;
 import com.examplatform.questionbank.extraction.dto.QuestionPaperMetadataResponse;
+import com.examplatform.questionbank.extraction.dto.ResequenceQuestionsRequest;
+import com.examplatform.questionbank.extraction.dto.SplitQuestionRequest;
 import com.examplatform.questionbank.extraction.dto.UpdateExtractedQuestionRequest;
 import com.examplatform.questionbank.extraction.service.PaperQuestionPromotionService;
 import com.examplatform.questionbank.extraction.service.QuestionPaperExtractionService;
@@ -409,5 +412,129 @@ class PaperExtractionControllerTest {
                 .andExpect(jsonPath("$.totalRequested").value(1))
                 .andExpect(jsonPath("$.totalPromoted").value(1))
                 .andExpect(jsonPath("$.totalFailed").value(0));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/questions/papers/{paperId}/resume resumes extraction")
+    void testResumeExtraction() throws Exception {
+        QuestionPaperMetadataResponse response = QuestionPaperMetadataResponse.builder()
+                .id(samplePaperId)
+                .examinationName("UPSC Prelims")
+                .extractionStatus(PaperExtractionStatus.PROCESSING)
+                .resumable(false)
+                .build();
+
+        when(extractionService.resumeExtractionJob(eq(samplePaperId), any()))
+                .thenReturn(response);
+
+        mockMvc.perform(post("/api/v1/questions/papers/{paperId}/resume", samplePaperId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(samplePaperId.toString()))
+                .andExpect(jsonPath("$.extractionStatus").value("PROCESSING"))
+                .andExpect(jsonPath("$.resumable").value(false));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/questions/papers/{paperId}/pages/{pageNumber}/image renders JPEG image")
+    void testGetPageImage() throws Exception {
+        byte[] fakeJpeg = new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0};
+
+        when(extractionService.renderPageImage(eq(samplePaperId), eq(1), any()))
+                .thenReturn(fakeJpeg);
+
+        mockMvc.perform(get("/api/v1/questions/papers/{paperId}/pages/{pageNumber}/image", samplePaperId, 1))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.IMAGE_JPEG))
+                .andExpect(content().bytes(fakeJpeg));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/questions/papers/{paperId}/questions/merge merges questions")
+    void testMergeQuestions() throws Exception {
+        UUID q1 = UUID.randomUUID();
+        UUID q2 = UUID.randomUUID();
+        MergeQuestionsRequest req = MergeQuestionsRequest.builder()
+                .questionIds(List.of(q1, q2))
+                .build();
+
+        ExtractedQuestionResponse response = ExtractedQuestionResponse.builder()
+                .id(q1)
+                .paperMetadataId(samplePaperId)
+                .questionNumber(1)
+                .content("Merged content")
+                .build();
+
+        when(extractionService.mergeQuestions(eq(samplePaperId), any(), eq(sampleUserId), any()))
+                .thenReturn(response);
+
+        mockMvc.perform(post("/api/v1/questions/papers/{paperId}/questions/merge", samplePaperId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(q1.toString()))
+                .andExpect(jsonPath("$.content").value("Merged content"));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/questions/papers/{paperId}/questions/{id}/split splits a question")
+    void testSplitQuestion() throws Exception {
+        UUID q1 = UUID.randomUUID();
+        SplitQuestionRequest req = SplitQuestionRequest.builder()
+                .firstContent("Part 1")
+                .secondContent("Part 2")
+                .build();
+
+        ExtractedQuestionResponse r1 = ExtractedQuestionResponse.builder()
+                .id(q1)
+                .questionNumber(1)
+                .content("Part 1")
+                .build();
+        ExtractedQuestionResponse r2 = ExtractedQuestionResponse.builder()
+                .id(UUID.randomUUID())
+                .questionNumber(2)
+                .content("Part 2")
+                .build();
+
+        when(extractionService.splitQuestion(eq(samplePaperId), eq(q1), any(), eq(sampleUserId), any()))
+                .thenReturn(List.of(r1, r2));
+
+        mockMvc.perform(post("/api/v1/questions/papers/{paperId}/questions/{id}/split", samplePaperId, q1)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].content").value("Part 1"))
+                .andExpect(jsonPath("$[1].content").value("Part 2"));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/questions/papers/{paperId}/questions/resequence resequences questions")
+    void testResequenceQuestions() throws Exception {
+        UUID q1 = UUID.randomUUID();
+        UUID q2 = UUID.randomUUID();
+        ResequenceQuestionsRequest req = ResequenceQuestionsRequest.builder()
+                .orderedQuestionIds(List.of(q2, q1))
+                .startNumber(1)
+                .build();
+
+        ExtractedQuestionResponse r1 = ExtractedQuestionResponse.builder()
+                .id(q2)
+                .questionNumber(1)
+                .build();
+        ExtractedQuestionResponse r2 = ExtractedQuestionResponse.builder()
+                .id(q1)
+                .questionNumber(2)
+                .build();
+
+        when(extractionService.resequenceQuestions(eq(samplePaperId), any(), eq(sampleUserId), any()))
+                .thenReturn(List.of(r1, r2));
+
+        mockMvc.perform(post("/api/v1/questions/papers/{paperId}/questions/resequence", samplePaperId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].questionNumber").value(1))
+                .andExpect(jsonPath("$[1].questionNumber").value(2));
     }
 }

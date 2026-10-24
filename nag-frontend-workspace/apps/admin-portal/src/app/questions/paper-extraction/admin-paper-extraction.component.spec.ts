@@ -76,6 +76,11 @@ describe('AdminPaperExtractionComponent', () => {
       getPaper: jest.fn().mockReturnValue(of(samplePaper)),
       cancelJob: jest.fn().mockReturnValue(of(samplePaper)),
       retryJob: jest.fn().mockReturnValue(of(samplePaper)),
+      resumeExtraction: jest.fn().mockReturnValue(of(samplePaper)),
+      getPageImage: jest.fn().mockReturnValue(of(new Blob(['fake'], { type: 'image/jpeg' }))),
+      mergeQuestions: jest.fn().mockReturnValue(of(sampleExtractedQuestion)),
+      splitQuestion: jest.fn().mockReturnValue(of([sampleExtractedQuestion])),
+      resequenceQuestions: jest.fn().mockReturnValue(of([sampleExtractedQuestion])),
       applyAnswerKey: jest.fn().mockReturnValue(of(samplePaper)),
       listExtractedQuestions: jest.fn().mockReturnValue(of({ content: [sampleExtractedQuestion], totalElements: 1 })),
       updateExtractedQuestion: jest.fn().mockReturnValue(of(sampleExtractedQuestion)),
@@ -181,11 +186,50 @@ describe('AdminPaperExtractionComponent', () => {
     expect(mockNotificationService.success).toHaveBeenCalledWith(expect.stringContaining('restarted'));
   });
 
+  it('should handle paper resume', () => {
+    component.handleResumeJob(samplePaper);
+    expect(mockPaperService.resumeExtraction).toHaveBeenCalledWith('paper-1');
+    expect(mockNotificationService.success).toHaveBeenCalledWith(expect.stringContaining('resumed'));
+  });
+
   it('should promote questions and report outcome', () => {
     component.handleSelectPaper(samplePaper);
     component.handlePromoteApproved({ paperId: 'paper-1' });
 
     expect(mockPaperService.promoteQuestions).toHaveBeenCalledWith('paper-1', expect.anything());
     expect(mockNotificationService.success).toHaveBeenCalledWith(expect.stringContaining('Promotion Complete: 1 questions promoted'));
+  });
+
+  it('should handle merge questions and refresh', () => {
+    component.handleSelectPaper(samplePaper);
+    component.handleMergeQuestions({ paperId: 'paper-1', questionIds: ['eq-1', 'eq-2'] });
+
+    expect(mockPaperService.mergeQuestions).toHaveBeenCalledWith('paper-1', ['eq-1', 'eq-2']);
+    expect(mockNotificationService.success).toHaveBeenCalledWith(expect.stringContaining('Successfully merged'));
+  });
+
+  it('should handle split question and refresh', () => {
+    component.handleSelectPaper(samplePaper);
+    component.handleSplitQuestion({
+      paperId: 'paper-1',
+      questionId: 'eq-1',
+      firstContent: 'Part 1',
+      secondContent: 'Part 2',
+    });
+
+    expect(mockPaperService.splitQuestion).toHaveBeenCalledWith('paper-1', 'eq-1', 'Part 1', 'Part 2');
+    expect(mockNotificationService.success).toHaveBeenCalledWith(expect.stringContaining('Successfully split'));
+  });
+
+  it('should handle resequence questions and refresh', () => {
+    component.handleSelectPaper(samplePaper);
+    component.handleResequenceQuestions({
+      paperId: 'paper-1',
+      orderedQuestionIds: ['eq-1', 'eq-2'],
+      startNumber: 1,
+    });
+
+    expect(mockPaperService.resequenceQuestions).toHaveBeenCalledWith('paper-1', ['eq-1', 'eq-2'], 1);
+    expect(mockNotificationService.success).toHaveBeenCalledWith(expect.stringContaining('Successfully renumbered'));
   });
 });

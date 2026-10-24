@@ -1,0 +1,237 @@
+<div
+  class="bg-white rounded-2xl border transition-all duration-200 overflow-hidden shadow-xs"
+  [ngClass]="isSelected() ? 'border-indigo-400 ring-2 ring-indigo-100' : 'border-slate-200 hover:border-slate-300'"
+>
+  <!-- Card Header Bar -->
+  <div class="p-4 border-b border-slate-100 bg-slate-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div class="flex items-center gap-3">
+      <!-- Selection Checkbox -->
+      <input
+        type="checkbox"
+        [checked]="isSelected()"
+        (change)="toggleSelect.emit(question().id)"
+        class="w-4 h-4 rounded text-indigo-600 cursor-pointer"
+      />
+
+      <!-- Question Number Badge / Quick Editor -->
+      @if (editingNumber()) {
+        <div class="flex items-center gap-1 bg-white p-1 rounded-xl border border-indigo-300 shadow-xs">
+          <span class="text-xs font-bold text-indigo-700 pl-1">Q</span>
+          <input
+            type="number"
+            min="1"
+            max="999"
+            [ngModel]="tempQuestionNumber()"
+            (ngModelChange)="tempQuestionNumber.set($event)"
+            (keydown.enter)="saveQuickNumberEdit()"
+            (keydown.escape)="cancelQuickNumberEdit()"
+            class="w-12 text-xs font-black text-indigo-900 border-none outline-none text-center"
+          />
+          <button
+            type="button"
+            mat-icon-button
+            (click)="saveQuickNumberEdit()"
+            class="!w-6 !h-6 !text-emerald-600 cursor-pointer"
+            matTooltip="Save question number"
+          >
+            <mat-icon class="!text-sm">check</mat-icon>
+          </button>
+          <button
+            type="button"
+            mat-icon-button
+            (click)="cancelQuickNumberEdit()"
+            class="!w-6 !h-6 !text-slate-400 cursor-pointer"
+            matTooltip="Cancel"
+          >
+            <mat-icon class="!text-sm">close</mat-icon>
+          </button>
+        </div>
+      } @else {
+        <div
+          class="group flex items-center gap-1 w-fit rounded-xl bg-indigo-600 text-white font-black text-xs px-2.5 py-1.5 shadow-xs"
+          [class.cursor-pointer]="question().status !== 'PROMOTED'"
+          (click)="startQuickNumberEdit()"
+          matTooltip="Click to edit question number"
+        >
+          <span>Q{{ question().questionNumber || '?' }}</span>
+          @if (question().status !== 'PROMOTED') {
+            <mat-icon class="!text-[12px] opacity-70 group-hover:opacity-100">edit</mat-icon>
+          }
+        </div>
+      }
+
+      <!-- Metadata Pills -->
+      <div class="flex flex-wrap items-center gap-1.5 text-[11px]">
+        @if (question().sourcePageNumber) {
+          <button
+            type="button"
+            (click)="inspectPage.emit(question().sourcePageNumber!)"
+            matTooltip="Click to inspect this page in the PDF viewer"
+            class="bg-slate-200/80 hover:bg-indigo-100 hover:text-indigo-800 text-slate-700 px-2 py-0.5 rounded-md font-mono font-semibold transition-colors cursor-pointer flex items-center gap-1"
+          >
+            <mat-icon class="!text-xs">picture_as_pdf</mat-icon>
+            Page {{ question().sourcePageNumber }}
+          </button>
+        }
+        @if (question().sectionName) {
+          <span class="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md font-semibold">
+            {{ question().sectionName }}
+          </span>
+        }
+        <span class="bg-purple-50 text-purple-700 px-2 py-0.5 rounded-md font-semibold">
+          {{ question().questionType }}
+        </span>
+        @if (question().extractionConfidence != null) {
+          <span
+            class="px-2 py-0.5 rounded-md font-semibold"
+            [ngClass]="question().extractionConfidence! >= 0.85 ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'"
+          >
+            OCR {{ Math.round(question().extractionConfidence! * 100) }}%
+          </span>
+        }
+      </div>
+    </div>
+
+    <!-- Status Badge & Action Toolbar -->
+    <div class="flex items-center gap-2">
+      <span
+        class="px-2.5 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-wider"
+        [ngClass]="getStatusClass(question().status)"
+      >
+        {{ question().status }}
+      </span>
+
+      <div class="flex items-center gap-1">
+        <!-- Split Question Action -->
+        @if (question().status !== 'PROMOTED') {
+          <button mat-icon-button (click)="splitQuestion.emit(question())" matTooltip="Split question into two" class="!w-7 !h-7 !text-indigo-600 hover:!bg-indigo-50 cursor-pointer">
+            <mat-icon class="!text-base">call_split</mat-icon>
+          </button>
+        }
+
+        <!-- Quick Status Actions -->
+        @if (question().status !== 'APPROVED' && question().status !== 'PROMOTED') {
+          <button mat-stroked-button (click)="quickStatusChange.emit({ question: question(), status: 'APPROVED' })" matTooltip="Approve question" class="!border-emerald-300 !text-emerald-700 !text-xs !py-1 !px-2 !min-h-0 !h-7 !rounded-lg cursor-pointer hover:!bg-emerald-50 font-bold">
+            <mat-icon class="!text-sm text-emerald-600">check</mat-icon> Approve
+          </button>
+        }
+        @if (question().status !== 'NEEDS_REVIEW' && question().status !== 'PROMOTED') {
+          <button mat-icon-button (click)="quickStatusChange.emit({ question: question(), status: 'NEEDS_REVIEW' })" matTooltip="Flag for review" class="!w-7 !h-7 !text-amber-600 cursor-pointer">
+            <mat-icon class="!text-base">flag</mat-icon>
+          </button>
+        }
+        @if (question().status !== 'PROMOTED') {
+          <button mat-icon-button (click)="openEdit.emit(question())" matTooltip="Edit question text, options, answer key" class="!w-7 !h-7 !text-slate-500 hover:!text-indigo-600 cursor-pointer">
+            <mat-icon class="!text-base">edit</mat-icon>
+          </button>
+        }
+      </div>
+    </div>
+  </div>
+
+  <!-- Card Body -->
+  <div class="p-5 space-y-4">
+    @if (question().passageText) {
+      <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-700">
+        <div class="font-bold text-slate-500 uppercase tracking-wider text-[10px] mb-1">Comprehension Passage</div>
+        <nag-math-renderer [content]="question().passageText!"></nag-math-renderer>
+      </div>
+    }
+
+    <!-- Question Stem -->
+    <div class="text-xs text-slate-900 leading-relaxed font-medium">
+      <nag-math-renderer [content]="question().content"></nag-math-renderer>
+    </div>
+
+    <!-- Bilingual Hindi Stem -->
+    @if (bilingualMode() && getHindiTranslation()?.content) {
+      <div class="p-3 bg-amber-50/50 rounded-xl border border-amber-200/70 text-xs text-slate-800">
+        <div class="font-bold text-amber-800 uppercase tracking-wider text-[10px] mb-1 flex items-center gap-1">
+          <mat-icon class="!text-xs">translate</mat-icon> Hindi Translation
+        </div>
+        <nag-math-renderer [content]="getHindiTranslation()!.content!"></nag-math-renderer>
+      </div>
+    }
+
+    <!-- Cropped Diagrams / Media Figures -->
+    @if (question().mediaUrls && question().mediaUrls!.length > 0) {
+      <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 flex flex-wrap gap-3">
+        @for (mediaUrl of question().mediaUrls!; track mediaUrl) {
+          <div class="border border-slate-300 rounded-lg overflow-hidden bg-white shadow-xs max-w-xs">
+            <img [src]="mediaUrl" class="max-h-48 object-contain" alt="Question Diagram" />
+          </div>
+        }
+      </div>
+    }
+
+    <!-- Options Grid -->
+    @if (question().options && question().options.length > 0) {
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5 pt-1">
+        @for (opt of question().options; track opt.id) {
+          <div
+            class="p-3 rounded-xl border text-xs flex items-start gap-2.5 transition-colors"
+            [ngClass]="isOptionCorrect(opt) ? 'bg-emerald-50/80 border-emerald-300 text-emerald-950 font-medium' : 'bg-slate-50/60 border-slate-200 text-slate-800'"
+          >
+            <div
+              class="w-6 h-6 rounded-lg text-xs font-bold flex items-center justify-center shrink-0"
+              [ngClass]="isOptionCorrect(opt) ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-700'"
+            >
+              {{ opt.id }}
+            </div>
+            <div class="flex-1 min-w-0">
+              <nag-math-renderer [content]="opt.text"></nag-math-renderer>
+              @if (bilingualMode() && getHindiOptionText(opt.id)) {
+                <div class="mt-1.5 pt-1.5 border-t border-slate-200/60 text-amber-950 font-normal">
+                  <nag-math-renderer [content]="getHindiOptionText(opt.id)!"></nag-math-renderer>
+                </div>
+              }
+            </div>
+            @if (isOptionCorrect(opt)) {
+              <mat-icon class="!text-base text-emerald-600 shrink-0">check_circle</mat-icon>
+            }
+          </div>
+        }
+      </div>
+    }
+
+    <!-- Explanation & Metadata Footer -->
+    <div class="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
+      <div class="flex items-center gap-3">
+        @if (question().answerKey) {
+          <span class="font-semibold text-slate-700 flex items-center gap-1">
+            <mat-icon class="!text-xs text-amber-600">vpn_key</mat-icon>
+            Key: <strong class="text-indigo-700">{{ question().answerKey }}</strong>
+          </span>
+        }
+        @if (question().hasFormulas) {
+          <span class="text-purple-600 flex items-center gap-0.5">
+            <mat-icon class="!text-xs">functions</mat-icon> Formulas
+          </span>
+        }
+        @if (question().hasImages || (question().mediaUrls && question().mediaUrls!.length > 0)) {
+          <span class="text-blue-600 flex items-center gap-0.5">
+            <mat-icon class="!text-xs">image</mat-icon> Diagram/Figure
+          </span>
+        }
+      </div>
+
+      @if (question().reviewComments) {
+        <span class="italic text-slate-400">Note: {{ question().reviewComments }}</span>
+      }
+    </div>
+
+    <!-- Explanation Blocks -->
+    @if (question().explanation) {
+      <div class="p-3 bg-indigo-50/40 rounded-xl border border-indigo-100 text-xs text-slate-700">
+        <div class="font-bold text-indigo-900 uppercase tracking-wider text-[10px] mb-1">Step-by-Step Solution / Derivation</div>
+        <nag-math-renderer [content]="question().explanation!"></nag-math-renderer>
+      </div>
+    }
+    @if (bilingualMode() && getHindiTranslation()?.explanation) {
+      <div class="p-3 bg-amber-50/40 rounded-xl border border-amber-100 text-xs text-slate-700">
+        <div class="font-bold text-amber-900 uppercase tracking-wider text-[10px] mb-1">हल / व्याख्या (Hindi Explanation)</div>
+        <nag-math-renderer [content]="getHindiTranslation()!.explanation!"></nag-math-renderer>
+      </div>
+    }
+  </div>
+</div>

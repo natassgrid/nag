@@ -61,6 +61,9 @@ public class QuestionPaperMetadataResponse {
     private List<String> languages = new ArrayList<>();
 
     private int totalPages;
+    private String pageSelection;
+    private int lastCompletedPage;
+    private boolean resumable;
     private int totalQuestionsExpected;
     private Integer durationMinutes;
     private Double maxMarks;
@@ -105,6 +108,13 @@ public class QuestionPaperMetadataResponse {
             progress = 100.0;
         }
 
+        boolean resumable = entity.getExtractionStatus() != null && (
+                entity.getExtractionStatus() == PaperExtractionStatus.QUOTA_EXHAUSTED
+                || entity.getExtractionStatus() == PaperExtractionStatus.CANCELLED
+                || entity.getExtractionStatus() == PaperExtractionStatus.PARTIAL_FAILED
+                || entity.getExtractionStatus() == PaperExtractionStatus.FAILED
+        );
+
         return QuestionPaperMetadataResponse.builder()
                 .id(entity.getId())
                 .createdAt(entity.getCreatedAt())
@@ -122,6 +132,9 @@ public class QuestionPaperMetadataResponse {
                 .defaultSubtopicId(entity.getDefaultSubtopicId())
                 .languages(entity.getLanguages() != null ? new ArrayList<>(entity.getLanguages()) : new ArrayList<>())
                 .totalPages(entity.getTotalPages())
+                .pageSelection(entity.getPageSelection())
+                .lastCompletedPage(entity.getLastCompletedPage())
+                .resumable(resumable)
                 .totalQuestionsExpected(entity.getTotalQuestionsExpected())
                 .durationMinutes(entity.getDurationMinutes())
                 .maxMarks(entity.getMaxMarks())

@@ -184,4 +184,56 @@ export class PaperExtractionService {
       )
       .pipe(map((res) => ((res as any)?.data ?? res) as PromoteQuestionsResponse));
   }
+
+  resumeExtraction(paperId: string): Observable<QuestionPaperMetadata> {
+    return this.http
+      .post<QuestionPaperMetadata | { data: QuestionPaperMetadata }>(
+        `${this.baseUrl}/${paperId}/resume`,
+        {}
+      )
+      .pipe(map((res) => ((res as any)?.data ?? res) as QuestionPaperMetadata));
+  }
+
+  getPageImage(paperId: string, pageNumber: number): Observable<Blob> {
+    return this.http.get(
+      `${this.baseUrl}/${paperId}/pages/${pageNumber}/image`,
+      { responseType: 'blob' }
+    );
+  }
+
+  mergeQuestions(paperId: string, ids: string[]): Observable<ExtractedQuestion> {
+    return this.http
+      .post<ExtractedQuestion | { data: ExtractedQuestion }>(
+        `${this.baseUrl}/${paperId}/questions/merge`,
+        { questionIds: ids }
+      )
+      .pipe(map((res) => ((res as any)?.data ?? res) as ExtractedQuestion));
+  }
+
+  splitQuestion(
+    paperId: string,
+    id: string,
+    firstContent: string,
+    secondContent: string
+  ): Observable<ExtractedQuestion[]> {
+    return this.http
+      .post<ExtractedQuestion[] | { data: ExtractedQuestion[] }>(
+        `${this.baseUrl}/${paperId}/questions/${id}/split`,
+        { firstContent, secondContent }
+      )
+      .pipe(map((res) => ((res as any)?.data ?? res) as ExtractedQuestion[]));
+  }
+
+  resequenceQuestions(
+    paperId: string,
+    orderedIds: string[],
+    startNumber: number = 1
+  ): Observable<ExtractedQuestion[]> {
+    return this.http
+      .post<ExtractedQuestion[] | { data: ExtractedQuestion[] }>(
+        `${this.baseUrl}/${paperId}/questions/resequence`,
+        { orderedQuestionIds: orderedIds, startNumber }
+      )
+      .pipe(map((res) => ((res as any)?.data ?? res) as ExtractedQuestion[]));
+  }
 }

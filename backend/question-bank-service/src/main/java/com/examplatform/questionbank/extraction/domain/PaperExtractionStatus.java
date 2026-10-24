@@ -28,5 +28,7 @@ public enum PaperExtractionStatus {
     COMPLETED,
     PARTIAL_FAILED,
     FAILED,
-    CANCELLED
+    CANCELLED,
+    /** Upstream LLM quota / rate limit exhausted; job is checkpointed and can be resumed. */
+    QUOTA_EXHAUSTED
 }

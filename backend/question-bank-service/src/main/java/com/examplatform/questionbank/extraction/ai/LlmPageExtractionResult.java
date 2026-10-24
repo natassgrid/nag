@@ -134,5 +134,28 @@ public class LlmPageExtractionResult {
 
         /** Confidence score (0.0 to 1.0) of the extraction. */
         private Double confidence;
+
+        /**
+         * First printed question number covered by {@link #passageText} (e.g. "Directions for Questions 15 to 18" -> 15).
+         * Null when the passage applies only to this question or no passage is present.
+         */
+        private Integer passageRangeStart;
+
+        /** Last printed question number covered by {@link #passageText} (e.g. 18). */
+        private Integer passageRangeEnd;
+
+        /**
+         * Normalized diagram bounding boxes on the rendered page image, each as [x0, y0, x1, y1] in the 0.0-1.0 range
+         * (origin top-left). Emitted by the vision model for figures embedded in scanned page bitmaps.
+         */
+        @Builder.Default
+        private List<List<Double>> diagramBoundingBoxes = new ArrayList<>();
+
+        /**
+         * Cropped diagram images (base64 JPEG data URIs) derived from {@link #diagramBoundingBoxes}.
+         * Populated server-side by the extraction client, never by the model.
+         */
+        @Builder.Default
+        private List<String> croppedDiagramDataUris = new ArrayList<>();
     }
 }

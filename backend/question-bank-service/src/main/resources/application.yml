@@ -150,6 +150,14 @@ app:
       max-refinement-cycles: ${AI_AGENT_MAX_REFINEMENT_CYCLES:2}
   asset-service:
     url: ${ASSET_SERVICE_URL:http://localhost:${SERVER_PORT:9000}}
+  extraction:
+    mode: ${EXTRACTION_MODE:llm}
+    deterministic-fallback-enabled: ${EXTRACTION_DETERMINISTIC_FALLBACK_ENABLED:true}
+    auto-resume-on-startup: ${EXTRACTION_AUTO_RESUME_ON_STARTUP:true}
+    retry:
+      max-attempts: ${EXTRACTION_RETRY_MAX_ATTEMPTS:4}
+      initial-backoff-ms: ${EXTRACTION_RETRY_INITIAL_BACKOFF_MS:2000}
+      max-backoff-ms: ${EXTRACTION_RETRY_MAX_BACKOFF_MS:30000}
 
 resilience4j:
   circuitbreaker:

@@ -3,3 +3,7 @@ export * from './paper-upload-dialog/paper-upload-dialog.component';
 export * from './paper-list-table/paper-list-table.component';
 export * from './extracted-questions-panel/extracted-questions-panel.component';
 export * from './bulk-answer-key-dialog/bulk-answer-key-dialog.component';
+export * from './paper-page-viewer/paper-page-viewer.component';
+export * from './split-question-dialog/split-question-dialog.component';
+export * from './extracted-question-card/extracted-question-card.component';
+export * from './extracted-question-edit-dialog/extracted-question-edit-dialog.component';
