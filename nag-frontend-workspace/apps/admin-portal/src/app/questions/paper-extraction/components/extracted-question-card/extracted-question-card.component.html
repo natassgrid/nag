@@ -124,6 +124,9 @@
           <button mat-icon-button (click)="openEdit.emit(question())" matTooltip="Edit question text, options, answer key" class="!w-7 !h-7 !text-slate-500 hover:!text-indigo-600 cursor-pointer">
             <mat-icon class="!text-base">edit</mat-icon>
           </button>
+          <button mat-icon-button (click)="onDelete()" matTooltip="Delete question from staging" class="!w-7 !h-7 !text-rose-500 hover:!text-rose-700 hover:!bg-rose-50 cursor-pointer">
+            <mat-icon class="!text-base">delete_outline</mat-icon>
+          </button>
         }
       </div>
     </div>

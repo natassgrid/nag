@@ -251,6 +251,16 @@
                       <mat-icon class="!text-sm">cancel</mat-icon>
                     </button>
                   }
+
+                  <!-- Delete Button -->
+                  <button
+                    mat-stroked-button
+                    (click)="onDeletePaper(paper)"
+                    matTooltip="Delete question paper and staging data"
+                    class="!border-rose-200 !text-rose-600 hover:!bg-rose-50 hover:!border-rose-400 !text-xs !py-1 !px-2 !min-h-0 !h-7 !rounded-lg cursor-pointer"
+                  >
+                    <mat-icon class="!text-sm">delete_outline</mat-icon>
+                  </button>
                 </div>
               </td>
             </tr>

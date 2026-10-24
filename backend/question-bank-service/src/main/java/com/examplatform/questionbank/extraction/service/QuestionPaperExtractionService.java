@@ -1007,12 +1007,96 @@ public class QuestionPaperExtractionService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Deletes a question paper and all associated staging extracted questions.
+     *
+     * @param paperId  unique question paper identifier
+     * @param tenantId tenant identifier
+     */
+    @Transactional
+    public void deletePaper(UUID paperId, String tenantId) {
+        QuestionPaperMetadata paper = metadataRepository.findByIdAndTenantId(paperId, tenantId)
+                .orElseThrow(() -> new EntityNotFoundException("Question paper not found: " + paperId));
+
+        if (paper.getExtractionStatus() == PaperExtractionStatus.PROCESSING) {
+            paper.setExtractionStatus(PaperExtractionStatus.CANCELLED);
+            paper.setCompletedAt(Instant.now());
+            metadataRepository.save(paper);
+        }
+
+        extractedQuestionRepository.deleteByPaperMetadataIdAndTenantId(paperId, tenantId);
+        metadataRepository.delete(paper);
+        log.info("Deleted question paper metadata and staging questions for paperId={}, tenantId={}", paperId, tenantId);
+    }
+
+    /**
+     * Deletes an individual extracted question from staging.
+     *
+     * @param paperId    unique question paper identifier
+     * @param questionId extracted question identifier
+     * @param tenantId   tenant identifier
+     */
+    @Transactional
+    public void deleteExtractedQuestion(UUID paperId, UUID questionId, String tenantId) {
+        ExtractedQuestion question = extractedQuestionRepository
+                .findByIdAndPaperMetadataIdAndTenantId(questionId, paperId, tenantId)
+                .orElseThrow(() -> new EntityNotFoundException("Extracted question not found: " + questionId));
+
+        if (question.getStatus() == ExtractedQuestionStatus.PROMOTED || question.getPromotedQuestionId() != null) {
+            throw new IllegalStateException("Cannot delete a question that has already been promoted to the Question Bank");
+        }
+
+        extractedQuestionRepository.delete(question);
+        refreshPaperQuestionCounts(paperId, tenantId);
+        log.info("Deleted extracted question id={} from paperId={}, tenantId={}", questionId, paperId, tenantId);
+    }
+
+    /**
+     * Deletes a batch of extracted questions from staging.
+     *
+     * @param paperId     unique question paper identifier
+     * @param questionIds list of extracted question identifiers
+     * @param tenantId    tenant identifier
+     */
+    @Transactional
+    public void batchDeleteExtractedQuestions(UUID paperId, List<UUID> questionIds, String tenantId) {
+        if (questionIds == null || questionIds.isEmpty()) {
+            return;
+        }
+
+        List<ExtractedQuestion> questions = extractedQuestionRepository
+                .findByIdInAndPaperMetadataIdAndTenantIdOrderByQuestionNumberAsc(questionIds, paperId, tenantId);
+
+        if (questions.isEmpty()) {
+            return;
+        }
+
+        for (ExtractedQuestion q : questions) {
+            if (q.getStatus() == ExtractedQuestionStatus.PROMOTED || q.getPromotedQuestionId() != null) {
+                throw new IllegalStateException("Cannot delete promoted question id: " + q.getId());
+            }
+        }
+
+        extractedQuestionRepository.deleteAll(questions);
+        refreshPaperQuestionCounts(paperId, tenantId);
+        log.info("Batch deleted {} extracted questions from paperId={}, tenantId={}", questions.size(), paperId, tenantId);
+    }
+
     private void refreshPaperApprovedCount(UUID paperId, String tenantId) {
+        refreshPaperQuestionCounts(paperId, tenantId);
+    }
+
+    private void refreshPaperQuestionCounts(UUID paperId, String tenantId) {
         QuestionPaperMetadata paper = metadataRepository.findByIdAndTenantId(paperId, tenantId).orElse(null);
         if (paper != null) {
+            int extractedCount = (int) extractedQuestionRepository.countByPaperMetadataIdAndTenantId(paperId, tenantId);
             int approvedCount = (int) extractedQuestionRepository.countByPaperMetadataIdAndStatusAndTenantId(
                     paperId, ExtractedQuestionStatus.APPROVED, tenantId);
+            int promotedCount = (int) extractedQuestionRepository.countByPaperMetadataIdAndStatusAndTenantId(
+                    paperId, ExtractedQuestionStatus.PROMOTED, tenantId);
+            paper.setQuestionsExtracted(extractedCount);
             paper.setQuestionsApproved(approvedCount);
+            paper.setQuestionsPromoted(promotedCount);
             metadataRepository.save(paper);
         }
     }

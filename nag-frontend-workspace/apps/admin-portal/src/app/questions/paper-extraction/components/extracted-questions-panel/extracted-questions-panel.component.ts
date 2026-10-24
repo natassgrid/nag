@@ -66,6 +66,8 @@ export class ExtractedQuestionsPanelComponent {
   mergeQuestions = output<{ paperId: string; questionIds: string[] }>();
   splitQuestion = output<{ paperId: string; questionId: string; firstContent: string; secondContent: string }>();
   resequenceQuestions = output<{ paperId: string; orderedQuestionIds: string[]; startNumber?: number }>();
+  deleteQuestion = output<{ paperId: string; questionId: string }>();
+  batchDeleteQuestions = output<{ paperId: string; questionIds: string[] }>();
 
   readonly Math = Math;
 
@@ -134,6 +136,14 @@ export class ExtractedQuestionsPanelComponent {
     const list = this.questions() || [];
     const selectedItems = list.filter((q) => selected.has(q.id));
     return selectedItems.length >= 2 && selectedItems.every((q) => q && q.status !== 'PROMOTED');
+  });
+
+  readonly canDeleteSelected = computed(() => {
+    const selected = this.selectedQuestionIds();
+    if (selected.size === 0) return false;
+    const list = this.questions() || [];
+    const selectedItems = list.filter((q) => selected.has(q.id));
+    return selectedItems.length > 0 && selectedItems.every((q) => q && q.status !== 'PROMOTED');
   });
 
   readonly canResequence = computed(() => {
@@ -268,5 +278,18 @@ export class ExtractedQuestionsPanelComponent {
   onNextPage(): void {
     const current = this.page();
     if (current < this.totalPages() - 1) this.pageChange.emit({ pageIndex: current + 1, pageSize: this.pageSize() });
+  }
+
+  onDeleteQuestion(questionId: string): void {
+    this.deleteQuestion.emit({ paperId: this.paper().id, questionId });
+  }
+
+  onBulkDeleteSelected(): void {
+    const selected = Array.from(this.selectedQuestionIds());
+    if (selected.length === 0 || !this.canDeleteSelected()) return;
+    if (window.confirm(`Delete ${selected.length} selected questions from staging? This cannot be undone.`)) {
+      this.batchDeleteQuestions.emit({ paperId: this.paper().id, questionIds: selected });
+      this.selectedQuestionIds.set(new Set());
+    }
   }
 }

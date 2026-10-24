@@ -90,6 +90,7 @@
       (retryExtraction)="handleRetryJob($event)"
       (cancelExtraction)="handleCancelJob($event)"
       (resumeExtraction)="handleResumeJob($event)"
+      (deletePaper)="handleDeletePaper($event)"
       (refresh)="loadPapers()"
     ></nag-paper-list-table>
   }
@@ -118,6 +119,8 @@
       (mergeQuestions)="handleMergeQuestions($event)"
       (splitQuestion)="handleSplitQuestion($event)"
       (resequenceQuestions)="handleResequenceQuestions($event)"
+      (deleteQuestion)="handleDeleteQuestion($event)"
+      (batchDeleteQuestions)="handleBatchDeleteQuestions($event)"
     ></nag-extracted-questions-panel>
   }
 

@@ -15,14 +15,23 @@ describe('AdminPaperExtractionComponent', () => {
 
   let mockPaperService: {
     uploadPaper: jest.Mock;
+    initiateExtraction: jest.Mock;
     listPapers: jest.Mock;
     getPaper: jest.Mock;
     cancelJob: jest.Mock;
     retryJob: jest.Mock;
+    resumeExtraction: jest.Mock;
+    getPageImage: jest.Mock;
+    mergeQuestions: jest.Mock;
+    splitQuestion: jest.Mock;
+    resequenceQuestions: jest.Mock;
     applyAnswerKey: jest.Mock;
     listExtractedQuestions: jest.Mock;
     updateExtractedQuestion: jest.Mock;
     promoteQuestions: jest.Mock;
+    deletePaper: jest.Mock;
+    deleteQuestion: jest.Mock;
+    batchDeleteQuestions: jest.Mock;
   };
 
   let mockNotificationService: {
@@ -92,6 +101,9 @@ describe('AdminPaperExtractionComponent', () => {
         totalFailed: 0,
         promotedQuestionIds: ['eq-1'],
       })),
+      deletePaper: jest.fn().mockReturnValue(of(undefined)),
+      deleteQuestion: jest.fn().mockReturnValue(of(undefined)),
+      batchDeleteQuestions: jest.fn().mockReturnValue(of(undefined)),
     };
 
     mockNotificationService = {
@@ -231,5 +243,28 @@ describe('AdminPaperExtractionComponent', () => {
 
     expect(mockPaperService.resequenceQuestions).toHaveBeenCalledWith('paper-1', ['eq-1', 'eq-2'], 1);
     expect(mockNotificationService.success).toHaveBeenCalledWith(expect.stringContaining('Successfully renumbered'));
+  });
+
+  it('should handle delete paper and refresh papers list', () => {
+    component.handleDeletePaper(samplePaper);
+
+    expect(mockPaperService.deletePaper).toHaveBeenCalledWith('paper-1');
+    expect(mockNotificationService.success).toHaveBeenCalledWith(expect.stringContaining('deleted successfully'));
+  });
+
+  it('should handle delete individual question and refresh questions', () => {
+    component.handleSelectPaper(samplePaper);
+    component.handleDeleteQuestion({ paperId: 'paper-1', questionId: 'eq-1' });
+
+    expect(mockPaperService.deleteQuestion).toHaveBeenCalledWith('paper-1', 'eq-1');
+    expect(mockNotificationService.success).toHaveBeenCalledWith(expect.stringContaining('deleted successfully'));
+  });
+
+  it('should handle batch delete questions and refresh questions', () => {
+    component.handleSelectPaper(samplePaper);
+    component.handleBatchDeleteQuestions({ paperId: 'paper-1', questionIds: ['eq-1', 'eq-2'] });
+
+    expect(mockPaperService.batchDeleteQuestions).toHaveBeenCalledWith('paper-1', ['eq-1', 'eq-2']);
+    expect(mockNotificationService.success).toHaveBeenCalledWith(expect.stringContaining('Deleted 2 questions'));
   });
 });

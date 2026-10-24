@@ -182,6 +182,18 @@
         </button>
       }
 
+      <!-- Bulk Delete Selected -->
+      @if (selectedQuestionIds().size > 0 && canDeleteSelected()) {
+        <button
+          mat-stroked-button
+          (click)="onBulkDeleteSelected()"
+          class="!border-rose-300 !text-rose-700 !bg-rose-50 hover:!bg-rose-100 cursor-pointer text-xs font-bold"
+        >
+          <mat-icon class="!text-sm">delete_sweep</mat-icon>
+          Delete ({{ selectedQuestionIds().size }})
+        </button>
+      }
+
       <button
         mat-icon-button
         (click)="refresh.emit()"
@@ -242,6 +254,7 @@
             (splitQuestion)="onOpenSplitDialog($event)"
             (inspectPage)="onInspectPage($event)"
             (updateQuestionNumber)="onUpdateQuestionNumber($event)"
+            (delete)="onDeleteQuestion($event)"
           ></nag-extracted-question-card>
         }
       </div>

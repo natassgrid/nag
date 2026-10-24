@@ -65,6 +65,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -536,5 +537,45 @@ class PaperExtractionControllerTest {
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].questionNumber").value(1))
                 .andExpect(jsonPath("$[1].questionNumber").value(2));
+    }
+
+    @Test
+    @DisplayName("DELETE /api/v1/questions/papers/{paperId} deletes paper and returns 204 No Content")
+    void testDeletePaperEndpoint() throws Exception {
+        doNothing().when(extractionService).deletePaper(eq(samplePaperId), any());
+
+        mockMvc.perform(delete("/api/v1/questions/papers/{paperId}", samplePaperId))
+                .andExpect(status().isNoContent());
+
+        verify(extractionService).deletePaper(eq(samplePaperId), any());
+    }
+
+    @Test
+    @DisplayName("DELETE /api/v1/questions/papers/{paperId}/questions/{id} deletes question and returns 204 No Content")
+    void testDeleteExtractedQuestionEndpoint() throws Exception {
+        doNothing().when(extractionService).deleteExtractedQuestion(eq(samplePaperId), eq(sampleExtractedQId), any());
+
+        mockMvc.perform(delete("/api/v1/questions/papers/{paperId}/questions/{id}", samplePaperId, sampleExtractedQId))
+                .andExpect(status().isNoContent());
+
+        verify(extractionService).deleteExtractedQuestion(eq(samplePaperId), eq(sampleExtractedQId), any());
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/questions/papers/{paperId}/questions/batch-delete deletes batch and returns 204")
+    void testBatchDeleteQuestionsEndpoint() throws Exception {
+        com.examplatform.questionbank.extraction.dto.BatchDeleteQuestionsRequest req =
+                com.examplatform.questionbank.extraction.dto.BatchDeleteQuestionsRequest.builder()
+                        .questionIds(List.of(sampleExtractedQId))
+                        .build();
+
+        doNothing().when(extractionService).batchDeleteExtractedQuestions(eq(samplePaperId), eq(List.of(sampleExtractedQId)), any());
+
+        mockMvc.perform(post("/api/v1/questions/papers/{paperId}/questions/batch-delete", samplePaperId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isNoContent());
+
+        verify(extractionService).batchDeleteExtractedQuestions(eq(samplePaperId), eq(List.of(sampleExtractedQId)), any());
     }
 }

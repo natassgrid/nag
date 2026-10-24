@@ -21,6 +21,7 @@ package com.examplatform.questionbank.extraction.controller;
 
 import com.examplatform.questionbank.extraction.domain.ExtractedQuestionStatus;
 import com.examplatform.questionbank.extraction.domain.PaperExtractionStatus;
+import com.examplatform.questionbank.extraction.dto.BatchDeleteQuestionsRequest;
 import com.examplatform.questionbank.extraction.dto.BulkAnswerKeyRequest;
 import com.examplatform.questionbank.extraction.dto.ExtractedQuestionResponse;
 import com.examplatform.questionbank.extraction.dto.MergeQuestionsRequest;
@@ -185,6 +186,18 @@ public class PaperExtractionController {
     }
 
     /**
+     * Deletes a question paper and all associated staging extracted questions.
+     *
+     * DELETE /api/v1/questions/papers/{paperId}
+     */
+    @DeleteMapping("/{paperId}")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
+    public ResponseEntity<Void> deletePaper(@PathVariable UUID paperId) {
+        questionPaperExtractionService.deletePaper(paperId, tenantId());
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
      * Renders a specific page of the question paper PDF as a JPEG image (150 DPI).
      *
      * GET /api/v1/questions/papers/{paperId}/pages/{pageNumber}/image
@@ -271,6 +284,36 @@ public class PaperExtractionController {
         ExtractedQuestionResponse response = questionPaperExtractionService.updateExtractedQuestion(
                 paperId, extractedQuestionId, request, reviewerId, tenantId());
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Deletes an individual extracted staging question.
+     *
+     * DELETE /api/v1/questions/papers/{paperId}/questions/{extractedQuestionId}
+     */
+    @DeleteMapping("/{paperId}/questions/{extractedQuestionId}")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
+    public ResponseEntity<Void> deleteExtractedQuestion(
+            @PathVariable UUID paperId,
+            @PathVariable UUID extractedQuestionId) {
+
+        questionPaperExtractionService.deleteExtractedQuestion(paperId, extractedQuestionId, tenantId());
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Deletes a batch of extracted staging questions.
+     *
+     * POST /api/v1/questions/papers/{paperId}/questions/batch-delete
+     */
+    @PostMapping("/{paperId}/questions/batch-delete")
+    @PreAuthorize("hasAnyRole('QUESTION_AUTHOR', 'REVIEWER', 'EXAM_CONTROLLER', 'SUPER_ADMIN')")
+    public ResponseEntity<Void> batchDeleteQuestions(
+            @PathVariable UUID paperId,
+            @Valid @RequestBody BatchDeleteQuestionsRequest request) {
+
+        questionPaperExtractionService.batchDeleteExtractedQuestions(paperId, request.getQuestionIds(), tenantId());
+        return ResponseEntity.noContent().build();
     }
 
     /**

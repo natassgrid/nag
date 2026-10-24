@@ -50,6 +50,7 @@ export class PaperListTableComponent {
   retryExtraction = output<QuestionPaperMetadata>();
   cancelExtraction = output<QuestionPaperMetadata>();
   resumeExtraction = output<QuestionPaperMetadata>();
+  deletePaper = output<QuestionPaperMetadata>();
   refresh = output<void>();
 
   readonly totalPages = computed(() => {
@@ -155,5 +156,11 @@ export class PaperListTableComponent {
     const target = event.target as HTMLSelectElement;
     const newSize = parseInt(target.value, 10);
     this.pageChange.emit({ pageIndex: 0, pageSize: newSize });
+  }
+
+  onDeletePaper(paper: QuestionPaperMetadata): void {
+    if (window.confirm(`Are you sure you want to delete "${paper.examinationName}" and all its staging questions? This cannot be undone.`)) {
+      this.deletePaper.emit(paper);
+    }
   }
 }

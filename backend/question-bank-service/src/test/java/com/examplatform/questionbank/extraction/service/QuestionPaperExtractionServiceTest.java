@@ -642,4 +642,111 @@ class QuestionPaperExtractionServiceTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("already in use");
     }
+
+    @Test
+    @DisplayName("deletePaper deletes metadata and cascades deletion of extracted questions")
+    void testDeletePaperSuccess() {
+        QuestionPaperMetadata paper = QuestionPaperMetadata.builder()
+                .examinationName("UPSC Prelims")
+                .extractionStatus(PaperExtractionStatus.PROCESSING)
+                .build();
+        when(metadataRepository.findByIdAndTenantId(paperId, tenantId)).thenReturn(Optional.of(paper));
+
+        service.deletePaper(paperId, tenantId);
+
+        assertThat(paper.getExtractionStatus()).isEqualTo(PaperExtractionStatus.CANCELLED);
+        verify(extractedQuestionRepository).deleteByPaperMetadataIdAndTenantId(paperId, tenantId);
+        verify(metadataRepository).delete(paper);
+    }
+
+    @Test
+    @DisplayName("deletePaper throws EntityNotFoundException when paper does not exist")
+    void testDeletePaperNotFoundThrows() {
+        when(metadataRepository.findByIdAndTenantId(paperId, tenantId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.deletePaper(paperId, tenantId))
+                .isInstanceOf(jakarta.persistence.EntityNotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("deleteExtractedQuestion deletes staging item and refreshes counters")
+    void testDeleteExtractedQuestionSuccess() {
+        UUID qId = UUID.randomUUID();
+        ExtractedQuestion q = ExtractedQuestion.builder()
+                .paperMetadataId(paperId)
+                .questionNumber(1)
+                .status(ExtractedQuestionStatus.EXTRACTED)
+                .build();
+        QuestionPaperMetadata paper = QuestionPaperMetadata.builder()
+                .questionsExtracted(5)
+                .build();
+
+        when(extractedQuestionRepository.findByIdAndPaperMetadataIdAndTenantId(qId, paperId, tenantId))
+                .thenReturn(Optional.of(q));
+        when(metadataRepository.findByIdAndTenantId(paperId, tenantId)).thenReturn(Optional.of(paper));
+        when(extractedQuestionRepository.countByPaperMetadataIdAndTenantId(paperId, tenantId)).thenReturn(4L);
+        when(extractedQuestionRepository.countByPaperMetadataIdAndStatusAndTenantId(paperId, ExtractedQuestionStatus.APPROVED, tenantId)).thenReturn(0L);
+        when(extractedQuestionRepository.countByPaperMetadataIdAndStatusAndTenantId(paperId, ExtractedQuestionStatus.PROMOTED, tenantId)).thenReturn(0L);
+
+        service.deleteExtractedQuestion(paperId, qId, tenantId);
+
+        verify(extractedQuestionRepository).delete(q);
+        assertThat(paper.getQuestionsExtracted()).isEqualTo(4);
+        verify(metadataRepository).save(paper);
+    }
+
+    @Test
+    @DisplayName("deleteExtractedQuestion refuses to delete PROMOTED question")
+    void testDeleteExtractedQuestionPromotedThrows() {
+        UUID qId = UUID.randomUUID();
+        ExtractedQuestion q = ExtractedQuestion.builder()
+                .paperMetadataId(paperId)
+                .questionNumber(1)
+                .status(ExtractedQuestionStatus.PROMOTED)
+                .build();
+
+        when(extractedQuestionRepository.findByIdAndPaperMetadataIdAndTenantId(qId, paperId, tenantId))
+                .thenReturn(Optional.of(q));
+
+        assertThatThrownBy(() -> service.deleteExtractedQuestion(paperId, qId, tenantId))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("already been promoted");
+    }
+
+    @Test
+    @DisplayName("batchDeleteExtractedQuestions deletes multiple questions and updates counters")
+    void testBatchDeleteExtractedQuestionsSuccess() {
+        UUID q1Id = UUID.randomUUID();
+        UUID q2Id = UUID.randomUUID();
+        ExtractedQuestion q1 = ExtractedQuestion.builder().paperMetadataId(paperId).questionNumber(1).status(ExtractedQuestionStatus.EXTRACTED).build();
+        ExtractedQuestion q2 = ExtractedQuestion.builder().paperMetadataId(paperId).questionNumber(2).status(ExtractedQuestionStatus.EXTRACTED).build();
+        QuestionPaperMetadata paper = QuestionPaperMetadata.builder().questionsExtracted(10).build();
+
+        when(extractedQuestionRepository.findByIdInAndPaperMetadataIdAndTenantIdOrderByQuestionNumberAsc(List.of(q1Id, q2Id), paperId, tenantId))
+                .thenReturn(List.of(q1, q2));
+        when(metadataRepository.findByIdAndTenantId(paperId, tenantId)).thenReturn(Optional.of(paper));
+        when(extractedQuestionRepository.countByPaperMetadataIdAndTenantId(paperId, tenantId)).thenReturn(8L);
+
+        service.batchDeleteExtractedQuestions(paperId, List.of(q1Id, q2Id), tenantId);
+
+        verify(extractedQuestionRepository).deleteAll(List.of(q1, q2));
+        assertThat(paper.getQuestionsExtracted()).isEqualTo(8);
+    }
+
+    @Test
+    @DisplayName("batchDeleteExtractedQuestions throws when any question is PROMOTED")
+    void testBatchDeleteExtractedQuestionsPromotedThrows() {
+        UUID q1Id = UUID.randomUUID();
+        UUID q2Id = UUID.randomUUID();
+        ExtractedQuestion q1 = ExtractedQuestion.builder().paperMetadataId(paperId).questionNumber(1).status(ExtractedQuestionStatus.EXTRACTED).build();
+        ExtractedQuestion q2 = ExtractedQuestion.builder().paperMetadataId(paperId).questionNumber(2).status(ExtractedQuestionStatus.PROMOTED).build();
+        org.springframework.test.util.ReflectionTestUtils.setField(q2, "id", q2Id);
+
+        when(extractedQuestionRepository.findByIdInAndPaperMetadataIdAndTenantIdOrderByQuestionNumberAsc(List.of(q1Id, q2Id), paperId, tenantId))
+                .thenReturn(List.of(q1, q2));
+
+        assertThatThrownBy(() -> service.batchDeleteExtractedQuestions(paperId, List.of(q1Id, q2Id), tenantId))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("promoted question");
+    }
 }

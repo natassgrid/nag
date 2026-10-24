@@ -45,6 +45,7 @@ export class ExtractedQuestionCardComponent {
   splitQuestion = output<ExtractedQuestion>();
   inspectPage = output<number>();
   updateQuestionNumber = output<{ question: ExtractedQuestion; questionNumber: number }>();
+  delete = output<string>();
 
   // Inline Quick Number Edit State
   editingNumber = signal<boolean>(false);
@@ -117,5 +118,11 @@ export class ExtractedQuestionCardComponent {
 
   cancelQuickNumberEdit(): void {
     this.editingNumber.set(false);
+  }
+
+  onDelete(): void {
+    if (window.confirm('Delete this extracted question from staging? This cannot be undone.')) {
+      this.delete.emit(this.question().id);
+    }
   }
 }

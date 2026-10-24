@@ -508,4 +508,56 @@ export class AdminPaperExtractionComponent implements OnInit {
         },
       });
   }
+
+  handleDeletePaper(paper: QuestionPaperMetadata): void {
+    this.paperService.deletePaper(paper.id).subscribe({
+      next: () => {
+        this.notificationService.success(`Question paper "${paper.examinationName}" deleted successfully.`);
+        if (this.selectedPaper()?.id === paper.id) {
+          this.handleBackToList();
+        } else {
+          this.loadPapers();
+        }
+      },
+      error: (err) => {
+        this.notificationService.error(
+          'Failed to delete question paper: ' + (err?.error?.message || err?.message || 'Server error')
+        );
+      },
+    });
+  }
+
+  handleDeleteQuestion(event: { paperId: string; questionId: string }): void {
+    this.paperService.deleteQuestion(event.paperId, event.questionId).subscribe({
+      next: () => {
+        this.notificationService.success('Extracted question deleted successfully.');
+        this.loadExtractedQuestions(event.paperId);
+        this.paperService.getPaper(event.paperId).subscribe({
+          next: (p) => this.selectedPaper.set(p),
+        });
+      },
+      error: (err) => {
+        this.notificationService.error(
+          'Failed to delete question: ' + (err?.error?.message || err?.message || 'Server error')
+        );
+      },
+    });
+  }
+
+  handleBatchDeleteQuestions(event: { paperId: string; questionIds: string[] }): void {
+    this.paperService.batchDeleteQuestions(event.paperId, event.questionIds).subscribe({
+      next: () => {
+        this.notificationService.success(`Deleted ${event.questionIds.length} questions from staging.`);
+        this.loadExtractedQuestions(event.paperId);
+        this.paperService.getPaper(event.paperId).subscribe({
+          next: (p) => this.selectedPaper.set(p),
+        });
+      },
+      error: (err) => {
+        this.notificationService.error(
+          'Failed to delete questions: ' + (err?.error?.message || err?.message || 'Server error')
+        );
+      },
+    });
+  }
 }

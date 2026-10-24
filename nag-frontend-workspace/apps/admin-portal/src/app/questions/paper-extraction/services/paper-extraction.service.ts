@@ -236,4 +236,21 @@ export class PaperExtractionService {
       )
       .pipe(map((res) => ((res as any)?.data ?? res) as ExtractedQuestion[]));
   }
+
+  deletePaper(paperId: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/${paperId}`);
+  }
+
+  deleteQuestion(paperId: string, questionId: string): Observable<void> {
+    return this.http.delete<void>(
+      `${this.baseUrl}/${paperId}/questions/${questionId}`
+    );
+  }
+
+  batchDeleteQuestions(paperId: string, questionIds: string[]): Observable<void> {
+    return this.http.post<void>(
+      `${this.baseUrl}/${paperId}/questions/batch-delete`,
+      { questionIds }
+    );
+  }
 }
