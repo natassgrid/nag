@@ -7,6 +7,7 @@ import com.examplatform.questionbank.microlesson.service.MicroLessonService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import com.examplatform.shared.security.UserContext;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -142,14 +143,14 @@ public class AdminMicroLessonController {
     }
 
     private UUID extractUserId(Jwt jwt) {
-        if (jwt == null || jwt.getSubject() == null || jwt.getSubject().isBlank()) {
-            return null;
+        UUID userId = UserContext.resolveUserId(jwt);
+        if (userId != null) {
+            return userId;
         }
-        try {
-            return UUID.fromString(jwt.getSubject());
-        } catch (IllegalArgumentException e) {
+        if (jwt != null && jwt.getSubject() != null && !jwt.getSubject().isBlank()) {
             return UUID.nameUUIDFromBytes(jwt.getSubject().getBytes(StandardCharsets.UTF_8));
         }
+        return null;
     }
 
     /**

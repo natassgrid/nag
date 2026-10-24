@@ -87,7 +87,7 @@ public class EvaluationController {
         UUID sessionId = UUID.fromString(body.get("sessionId"));
         UUID candidateId = UUID.fromString(body.get("candidateId"));
         UUID examId = body.containsKey("examId") && body.get("examId") != null ? UUID.fromString(body.get("examId")) : null;
-        String tenantId = TenantContext.get() != null ? TenantContext.get() : SharedConstants.DEFAULT_TENANT;
+        String tenantId = TenantContext.getTenantIdOrDefault();
 
         log.info("Score aggregation requested for session={}, candidate={}, exam={}", sessionId, candidateId, examId);
 
@@ -106,11 +106,12 @@ public class EvaluationController {
     public ResponseEntity<List<Evaluation>> getCandidateEvaluations(
             @PathVariable UUID candidateId,
             @RequestParam(required = false) UUID sessionId,
-            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, required = false) String tenantId) {
 
-        log.info("Fetching evaluations for candidate={}, sessionId={}, tenant={}", candidateId, sessionId, tenantId);
+        String effectiveTenant = TenantContext.resolveTenant(tenantId);
+        log.info("Fetching evaluations for candidate={}, sessionId={}, tenant={}", candidateId, sessionId, effectiveTenant);
 
-        List<Evaluation> evaluations = manualEvaluationService.getEvaluations(candidateId, sessionId, tenantId);
+        List<Evaluation> evaluations = manualEvaluationService.getEvaluations(candidateId, sessionId, effectiveTenant);
         return ResponseEntity.ok(evaluations);
     }
 }

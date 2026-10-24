@@ -162,6 +162,10 @@ public class ResultController {
     }
 
     private UUID extractCandidateId(Authentication auth) {
+        UUID contextUserId = com.examplatform.shared.security.UserContext.getUserId();
+        if (contextUserId != null) {
+            return contextUserId;
+        }
         if (auth != null && auth.getPrincipal() instanceof Jwt jwt) {
             String sub = jwt.getSubject();
             if (sub != null) {

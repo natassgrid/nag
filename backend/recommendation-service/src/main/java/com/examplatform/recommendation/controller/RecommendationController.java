@@ -6,17 +6,14 @@ import com.examplatform.recommendation.dto.*;
 import com.examplatform.recommendation.service.LearnerProfileService;
 import com.examplatform.recommendation.service.LearningPathGeneratorService;
 import com.examplatform.recommendation.service.RecommendationService;
+import com.examplatform.shared.security.UserContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Objects;
 import java.util.UUID;
 
 @RestController
@@ -29,8 +26,8 @@ public class RecommendationController {
 
     @GetMapping("/latest")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<RecommendationDto> getLatest(@AuthenticationPrincipal Jwt jwt) {
-        UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
+    public ResponseEntity<RecommendationDto> getLatest() {
+        UUID candidateId = UserContext.getRequiredUserId();
         return recommendationService.getLatest(candidateId)
             .map(ResponseEntity::ok)
             .orElse(ResponseEntity.noContent().build());
@@ -39,29 +36,24 @@ public class RecommendationController {
     @PostMapping("/generate")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<RecommendationDto> generateRecommendations(
-            @AuthenticationPrincipal Jwt jwt,
             @RequestParam(required = false, defaultValue = "JEE_MAIN") String examTarget) {
-        if (jwt == null || jwt.getSubject() == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-        UUID candidateId = UUID.fromString(jwt.getSubject());
+        UUID candidateId = UserContext.getRequiredUserId();
         return ResponseEntity.ok(recommendationService.generateOrRefresh(candidateId, examTarget));
     }
 
     @GetMapping("/history")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Page<RecommendationDto>> getHistory(
-            @AuthenticationPrincipal Jwt jwt,
             @RequestParam(defaultValue="0") int page,
             @RequestParam(defaultValue="10") int size) {
-        UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
+        UUID candidateId = UserContext.getRequiredUserId();
         return ResponseEntity.ok(recommendationService.getHistory(candidateId, PageRequest.of(page, size)));
     }
 
     @PostMapping("/{id}/dismiss")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Void> dismiss(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
-        UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
+    public ResponseEntity<Void> dismiss(@PathVariable UUID id) {
+        UUID candidateId = UserContext.getRequiredUserId();
         recommendationService.dismiss(id, candidateId);
         return ResponseEntity.noContent().build();
     }
@@ -69,26 +61,25 @@ public class RecommendationController {
     @PatchMapping("/study-plan/days/{dayNumber}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<RecommendationResponse> updateStudyPlanDay(
-            @AuthenticationPrincipal Jwt jwt,
             @PathVariable int dayNumber,
             @RequestParam(defaultValue = "true") boolean completed) {
-        UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
+        UUID candidateId = UserContext.getRequiredUserId();
         RecommendationResponse response = recommendationService.updateStudyPlanDay(candidateId, dayNumber, completed);
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/learner-profile")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<LearnerProfileDto> getLearnerProfile(@AuthenticationPrincipal Jwt jwt) {
-        UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
+    public ResponseEntity<LearnerProfileDto> getLearnerProfile() {
+        UUID candidateId = UserContext.getRequiredUserId();
         return ResponseEntity.ok(learnerProfileService.getProfile(candidateId));
     }
 
     // Dynamic Learning Path (DLP) endpoints exposed alongside legacy recommendations
     @GetMapping("/learning-path/current")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<DynamicLearningPathResponse> getCurrentLearningPath(@AuthenticationPrincipal Jwt jwt) {
-        UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
+    public ResponseEntity<DynamicLearningPathResponse> getCurrentLearningPath() {
+        UUID candidateId = UserContext.getRequiredUserId();
         return learningPathGeneratorService.getCurrentActivePath(candidateId)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> {
@@ -100,9 +91,8 @@ public class RecommendationController {
     @PostMapping("/learning-path/recalculate")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<DynamicLearningPathResponse> recalculateLearningPath(
-            @AuthenticationPrincipal Jwt jwt,
             @RequestBody(required = false) RecalculateLearningPathRequest request) {
-        UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
+        UUID candidateId = UserContext.getRequiredUserId();
         UUID sourceSessionId = request != null ? request.sourceSessionId() : null;
         String examTarget = request != null ? request.examTarget() : null;
         DynamicLearningPath path = learningPathGeneratorService.generateOrRecalculate(candidateId, sourceSessionId, examTarget);
@@ -111,8 +101,8 @@ public class RecommendationController {
 
     @GetMapping("/learning-path/summary")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<LearningPathSummaryResponse> getLearningPathSummary(@AuthenticationPrincipal Jwt jwt) {
-        UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
+    public ResponseEntity<LearningPathSummaryResponse> getLearningPathSummary() {
+        UUID candidateId = UserContext.getRequiredUserId();
         return ResponseEntity.ok(learningPathGeneratorService.getSummary(candidateId));
     }
 }

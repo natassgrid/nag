@@ -24,6 +24,7 @@ import com.examplatform.questionbank.microlesson.translation.dto.*;
 import com.examplatform.questionbank.microlesson.translation.service.MicroLessonBatchTranslationService;
 import com.examplatform.questionbank.microlesson.translation.service.MicroLessonTranslationWorkflowService;
 import com.examplatform.shared.constants.SharedConstants;
+import com.examplatform.shared.security.UserContext;
 import com.examplatform.shared.tenant.TenantContext;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -186,17 +187,10 @@ public class MicroLessonTranslationController {
     }
 
     private String tenantId() {
-        String t = TenantContext.get();
-        return t != null ? t : SharedConstants.DEFAULT_TENANT;
+        return TenantContext.getTenantIdOrDefault();
     }
 
     private UUID extractUserId(Jwt jwt) {
-        if (jwt != null && jwt.getSubject() != null) {
-            try {
-                return UUID.fromString(jwt.getSubject());
-            } catch (IllegalArgumentException ignored) {
-            }
-        }
-        return UUID.fromString("00000000-0000-0000-0000-000000000001");
+        return UserContext.resolveUserIdOrDefault(jwt);
     }
 }

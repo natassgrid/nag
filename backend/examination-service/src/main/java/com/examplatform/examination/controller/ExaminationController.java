@@ -24,6 +24,8 @@ import com.examplatform.examination.dto.ExaminationResponse;
 import com.examplatform.examination.service.ExaminationService;
 import com.examplatform.shared.api.ApiResponse;
 import com.examplatform.shared.constants.SharedConstants;
+import com.examplatform.shared.security.UserContext;
+import com.examplatform.shared.tenant.TenantContext;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -55,15 +57,16 @@ public class ExaminationController {
     @GetMapping
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER', 'SUPER_ADMIN', 'QUESTION_AUTHOR', 'REVIEWER')")
     public ResponseEntity<ApiResponse<org.springframework.data.domain.Page<ExaminationResponse>>> list(
-            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, required = false) String tenantId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String sort,
             @RequestParam(defaultValue = "desc") String order,
             @AuthenticationPrincipal Jwt jwt) {
+        String effectiveTenant = TenantContext.resolveRequiredTenant(tenantId);
         org.springframework.data.domain.Page<ExaminationResponse> responses =
-                examinationService.listByTenantPaged(tenantId, search, sort, order, page, size);
+                examinationService.listByTenantPaged(effectiveTenant, search, sort, order, page, size);
         return ResponseEntity.ok(ApiResponse.success(responses, "Examinations retrieved successfully"));
     }
 
@@ -73,10 +76,11 @@ public class ExaminationController {
     @PostMapping
     @PreAuthorize("hasRole('EXAM_CONTROLLER')")
     public ResponseEntity<ApiResponse<ExaminationResponse>> create(
-            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, required = false) String tenantId,
             @Valid @RequestBody CreateExaminationRequest request,
             @AuthenticationPrincipal Jwt jwt) {
-        ExaminationResponse response = examinationService.create(request, tenantId);
+        String effectiveTenant = TenantContext.resolveRequiredTenant(tenantId);
+        ExaminationResponse response = examinationService.create(request, effectiveTenant);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(response, "Examination created successfully"));
     }
@@ -88,10 +92,11 @@ public class ExaminationController {
     @PreAuthorize("hasRole('EXAM_CONTROLLER')")
     public ResponseEntity<ApiResponse<ExaminationResponse>> update(
             @PathVariable UUID examId,
-            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, required = false) String tenantId,
             @Valid @RequestBody CreateExaminationRequest request,
             @AuthenticationPrincipal Jwt jwt) {
-        ExaminationResponse response = examinationService.update(examId, request, tenantId);
+        String effectiveTenant = TenantContext.resolveRequiredTenant(tenantId);
+        ExaminationResponse response = examinationService.update(examId, request, effectiveTenant);
         return ResponseEntity.ok(ApiResponse.success(response, "Examination updated successfully"));
     }
 
@@ -103,9 +108,10 @@ public class ExaminationController {
     @PreAuthorize("hasRole('EXAM_CONTROLLER')")
     public ResponseEntity<ApiResponse<ExaminationResponse>> publish(
             @PathVariable UUID examId,
-            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, required = false) String tenantId,
             @AuthenticationPrincipal Jwt jwt) {
-        ExaminationResponse response = examinationService.publish(examId, tenantId);
+        String effectiveTenant = TenantContext.resolveRequiredTenant(tenantId);
+        ExaminationResponse response = examinationService.publish(examId, effectiveTenant);
         return ResponseEntity.ok(ApiResponse.success(response, "Examination published successfully"));
     }
 
@@ -130,7 +136,7 @@ public class ExaminationController {
             @PathVariable UUID examId,
             @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, required = false) String tenantId,
             @AuthenticationPrincipal Jwt jwt) {
-        String effectiveTenant = (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
+        String effectiveTenant = TenantContext.resolveTenant(tenantId);
         com.examplatform.examination.dto.ExamSyllabusResponse response =
                 examinationService.getSyllabus(examId, effectiveTenant);
         return ResponseEntity.ok(ApiResponse.success(response, "Examination syllabus retrieved successfully"));
@@ -143,11 +149,12 @@ public class ExaminationController {
     @PreAuthorize("hasRole('EXAM_CONTROLLER')")
     public ResponseEntity<ApiResponse<com.examplatform.examination.dto.ExamSyllabusResponse>> updateSyllabus(
             @PathVariable UUID examId,
-            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, required = false) String tenantId,
             @Valid @RequestBody com.examplatform.examination.dto.ExamSyllabusRequest request,
             @AuthenticationPrincipal Jwt jwt) {
+        String effectiveTenant = TenantContext.resolveRequiredTenant(tenantId);
         com.examplatform.examination.dto.ExamSyllabusResponse response =
-                examinationService.updateSyllabus(examId, request.getNodes(), tenantId);
+                examinationService.updateSyllabus(examId, request.getNodes(), effectiveTenant);
         return ResponseEntity.ok(ApiResponse.success(response, "Examination syllabus updated successfully"));
     }
 

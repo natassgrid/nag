@@ -31,6 +31,7 @@ import com.examplatform.questionbank.extraction.dto.UpdateExtractedQuestionReque
 import com.examplatform.questionbank.extraction.service.PaperQuestionPromotionService;
 import com.examplatform.questionbank.extraction.service.QuestionPaperExtractionService;
 import com.examplatform.shared.constants.SharedConstants;
+import com.examplatform.shared.security.UserContext;
 import com.examplatform.shared.tenant.TenantContext;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -258,21 +259,10 @@ public class PaperExtractionController {
     }
 
     private String tenantId() {
-        String t = TenantContext.getTenantId();
-        if (t == null || t.isBlank()) {
-            t = TenantContext.get();
-        }
-        return (t != null && !t.isBlank()) ? t : SharedConstants.DEFAULT_TENANT;
+        return TenantContext.getTenantIdOrDefault();
     }
 
     private UUID extractUserId(Jwt jwt) {
-        if (jwt != null && jwt.getSubject() != null) {
-            try {
-                return UUID.fromString(jwt.getSubject());
-            } catch (IllegalArgumentException ignored) {
-                log.debug("Could not parse JWT subject as UUID: {}", jwt.getSubject());
-            }
-        }
-        return UUID.fromString(DEFAULT_USER_ID);
+        return UserContext.resolveUserIdOrDefault(jwt);
     }
 }

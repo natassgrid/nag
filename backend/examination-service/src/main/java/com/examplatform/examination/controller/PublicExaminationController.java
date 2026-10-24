@@ -12,6 +12,7 @@ import com.examplatform.examination.service.ExamApplicationService;
 import com.examplatform.examination.service.ExaminationService;
 import com.examplatform.shared.api.ApiResponse;
 import com.examplatform.shared.constants.SharedConstants;
+import com.examplatform.shared.security.UserContext;
 import com.examplatform.shared.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -62,7 +63,7 @@ public class PublicExaminationController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
 
-        String tenantId = TenantContext.get() != null ? TenantContext.get() : SharedConstants.DEFAULT_TENANT;
+        String tenantId = TenantContext.getTenantIdOrDefault();
 
         log.debug("Public exam listing request: search={}, category={}, page={}, size={}, tenant={}",
                 search, category, page, size, tenantId);
@@ -93,7 +94,7 @@ public class PublicExaminationController {
             @RequestParam(required = false) String state,
             @RequestParam(required = false) String city) {
 
-        String tenantId = TenantContext.get() != null ? TenantContext.get() : SharedConstants.DEFAULT_TENANT;
+        String tenantId = TenantContext.getTenantIdOrDefault();
         List<PublicCentreResponse> centres = examApplicationService.listPublicCentres(tenantId, state, city);
         return ResponseEntity.ok(ApiResponse.success(centres, "Examination centres retrieved successfully"));
     }
@@ -109,8 +110,11 @@ public class PublicExaminationController {
             @RequestBody(required = false) ExamApplicationRequest request,
             @AuthenticationPrincipal Jwt jwt) {
 
-        UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
-        String tenantId = TenantContext.get() != null ? TenantContext.get() : SharedConstants.DEFAULT_TENANT;
+        UUID candidateId = UserContext.resolveUserId(jwt);
+        if (candidateId == null) {
+            throw new IllegalStateException("Unable to resolve user ID from UserContext or JWT");
+        }
+        String tenantId = TenantContext.getTenantIdOrDefault();
 
         log.info("Candidate {} applying for exam {} with center preferences", candidateId, examId);
 
@@ -137,8 +141,11 @@ public class PublicExaminationController {
     public ResponseEntity<ApiResponse<List<ExamApplicationResponse>>> getMyApplications(
             @AuthenticationPrincipal Jwt jwt) {
 
-        UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
-        String tenantId = TenantContext.get() != null ? TenantContext.get() : SharedConstants.DEFAULT_TENANT;
+        UUID candidateId = UserContext.resolveUserId(jwt);
+        if (candidateId == null) {
+            throw new IllegalStateException("Unable to resolve user ID from UserContext or JWT");
+        }
+        String tenantId = TenantContext.getTenantIdOrDefault();
 
         List<ExamApplicationResponse> responses = examApplicationService.getMyApplications(candidateId, tenantId);
         return ResponseEntity.ok(ApiResponse.success(responses, "Candidate applications retrieved successfully"));
@@ -153,8 +160,11 @@ public class PublicExaminationController {
             @PathVariable UUID examId,
             @AuthenticationPrincipal Jwt jwt) {
 
-        UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
-        String tenantId = TenantContext.get() != null ? TenantContext.get() : SharedConstants.DEFAULT_TENANT;
+        UUID candidateId = UserContext.resolveUserId(jwt);
+        if (candidateId == null) {
+            throw new IllegalStateException("Unable to resolve user ID from UserContext or JWT");
+        }
+        String tenantId = TenantContext.getTenantIdOrDefault();
 
         ExamApplicationResponse response = examApplicationService.getMyApplication(examId, candidateId, tenantId);
         if (response == null) {
@@ -172,8 +182,11 @@ public class PublicExaminationController {
             @PathVariable UUID examId,
             @AuthenticationPrincipal Jwt jwt) {
 
-        UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
-        String tenantId = TenantContext.get() != null ? TenantContext.get() : SharedConstants.DEFAULT_TENANT;
+        UUID candidateId = UserContext.resolveUserId(jwt);
+        if (candidateId == null) {
+            throw new IllegalStateException("Unable to resolve user ID from UserContext or JWT");
+        }
+        String tenantId = TenantContext.getTenantIdOrDefault();
 
         log.info("Candidate {} requesting admit card for exam {}", candidateId, examId);
 
@@ -190,8 +203,11 @@ public class PublicExaminationController {
             @PathVariable UUID applicationId,
             @AuthenticationPrincipal Jwt jwt) {
 
-        UUID userId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
-        String tenantId = TenantContext.get() != null ? TenantContext.get() : SharedConstants.DEFAULT_TENANT;
+        UUID userId = UserContext.resolveUserId(jwt);
+        if (userId == null) {
+            throw new IllegalStateException("Unable to resolve user ID from UserContext or JWT");
+        }
+        String tenantId = TenantContext.getTenantIdOrDefault();
 
         log.info("User {} requesting admit card for application {}", userId, applicationId);
 

@@ -22,8 +22,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -46,8 +44,8 @@ public class LearnerProfileController {
      */
     @GetMapping("/profile")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<LearnerProfileDto> getProfile(@AuthenticationPrincipal Jwt jwt) {
-        UUID candidateId = resolveCandidateId(jwt);
+    public ResponseEntity<LearnerProfileDto> getProfile() {
+        UUID candidateId = resolveCandidateId();
         String tenantId = getTenantId();
         return ResponseEntity.ok(learnerService.getProfile(candidateId, tenantId));
     }
@@ -58,9 +56,8 @@ public class LearnerProfileController {
     @PutMapping("/profile")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<LearnerProfileDto> updateProfile(
-            @AuthenticationPrincipal Jwt jwt,
             @RequestBody UpdateLearnerProfileRequest request) {
-        UUID candidateId = resolveCandidateId(jwt);
+        UUID candidateId = resolveCandidateId();
         String tenantId = getTenantId();
         return ResponseEntity.ok(learnerService.updateProfile(candidateId, request, tenantId));
     }
@@ -81,9 +78,8 @@ public class LearnerProfileController {
     @PostMapping("/enrollments")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<LearnerEnrollmentResponse> createEnrollment(
-            @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody CreateEnrollmentRequest request) {
-        UUID candidateId = resolveCandidateId(jwt);
+        UUID candidateId = resolveCandidateId();
         String tenantId = getTenantId();
         LearnerEnrollmentResponse response = learnerService.createEnrollment(candidateId, request, tenantId);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -94,8 +90,8 @@ public class LearnerProfileController {
      */
     @GetMapping("/enrollments/active")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<LearnerEnrollmentResponse> getActiveEnrollment(@AuthenticationPrincipal Jwt jwt) {
-        UUID candidateId = resolveCandidateId(jwt);
+    public ResponseEntity<LearnerEnrollmentResponse> getActiveEnrollment() {
+        UUID candidateId = resolveCandidateId();
         return learnerService.getActiveEnrollment(candidateId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.noContent().build());
@@ -106,8 +102,8 @@ public class LearnerProfileController {
      */
     @GetMapping("/enrollments")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<List<LearnerEnrollmentResponse>> getEnrollments(@AuthenticationPrincipal Jwt jwt) {
-        UUID candidateId = resolveCandidateId(jwt);
+    public ResponseEntity<List<LearnerEnrollmentResponse>> getEnrollments() {
+        UUID candidateId = resolveCandidateId();
         return ResponseEntity.ok(learnerService.getEnrollments(candidateId));
     }
 
@@ -117,9 +113,8 @@ public class LearnerProfileController {
     @PostMapping("/enrollments/{id}/diagnostic")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<DiagnosticSessionResponse> startDiagnostic(
-            @AuthenticationPrincipal Jwt jwt,
             @PathVariable UUID id) {
-        UUID candidateId = resolveCandidateId(jwt);
+        UUID candidateId = resolveCandidateId();
         String tenantId = getTenantId();
         DiagnosticSessionResponse response = learnerService.startDiagnostic(candidateId, id, tenantId);
         return ResponseEntity.ok(response);
@@ -131,10 +126,9 @@ public class LearnerProfileController {
     @PostMapping("/enrollments/{id}/diagnostic/submit")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<DiagnosticResultResponse> submitDiagnostic(
-            @AuthenticationPrincipal Jwt jwt,
             @PathVariable UUID id,
             @RequestBody(required = false) SubmitDiagnosticRequest request) {
-        UUID candidateId = resolveCandidateId(jwt);
+        UUID candidateId = resolveCandidateId();
         String tenantId = getTenantId();
         DiagnosticResultResponse response = learnerService.submitDiagnostic(candidateId, id, request, tenantId);
         return ResponseEntity.ok(response);
@@ -142,21 +136,11 @@ public class LearnerProfileController {
 
     // ── Context Resolvers ────────────────────────────────────────────────
 
-    private UUID resolveCandidateId(Jwt jwt) {
-        if (jwt != null && jwt.getSubject() != null) {
-            try {
-                return UUID.fromString(jwt.getSubject());
-            } catch (IllegalArgumentException ignored) {}
-        }
-        UUID contextId = UserContext.getUserId();
-        if (contextId != null) {
-            return contextId;
-        }
-        // Fallback default ID for mock authentication in unit/integration tests
-        return UUID.fromString("00000000-0000-0000-0000-000000000001");
+    private UUID resolveCandidateId() {
+        return UserContext.resolveUserIdOrDefault(null);
     }
 
     private String getTenantId() {
-        return TenantContext.get() != null ? TenantContext.get() : SharedConstants.DEFAULT_TENANT;
+        return TenantContext.getTenantIdOrDefault();
     }
 }

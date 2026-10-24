@@ -25,6 +25,7 @@ import com.examplatform.candidate.service.CandidateProfileService;
 import com.examplatform.candidate.service.DigiLockerService;
 import com.examplatform.candidate.service.FaceVerificationService;
 import com.examplatform.shared.constants.SharedConstants;
+import com.examplatform.shared.security.UserContext;
 import com.examplatform.shared.tenant.TenantContext;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -33,8 +34,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -63,9 +62,8 @@ public class CandidateProfileController {
     @PostMapping
     @PreAuthorize("hasRole('CANDIDATE')")
     public ResponseEntity<CandidateProfileResponse> create(
-            @Valid @RequestBody CreateCandidateProfileRequest request,
-            @AuthenticationPrincipal Jwt jwt) {
-        enforceOwnership(request.getUserId(), jwt);
+            @Valid @RequestBody CreateCandidateProfileRequest request) {
+        enforceOwnership(request.getUserId());
         String tenantId = getTenantId();
         CandidateProfileResponse response = candidateProfileService.create(request, tenantId);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -77,10 +75,9 @@ public class CandidateProfileController {
     @GetMapping("/{userId}")
     @PreAuthorize("hasAnyRole('CANDIDATE', 'SUPER_ADMIN')")
     public ResponseEntity<CandidateProfileResponse> getByUserId(
-            @PathVariable(required = false) UUID userId,
-            @AuthenticationPrincipal Jwt jwt) {
-        UUID effectiveUserId = resolveEffectiveUserId(userId, jwt);
-        enforceOwnershipOrAdmin(effectiveUserId, jwt);
+            @PathVariable(required = false) UUID userId) {
+        UUID effectiveUserId = resolveEffectiveUserId(userId);
+        enforceOwnershipOrAdmin(effectiveUserId);
         String tenantId = getTenantId();
         CandidateProfileResponse response = candidateProfileService.getByUserId(effectiveUserId, tenantId);
         return ResponseEntity.ok(response);
@@ -93,10 +90,9 @@ public class CandidateProfileController {
     @PreAuthorize("hasRole('CANDIDATE')")
     public ResponseEntity<CandidateProfileResponse> update(
             @PathVariable(required = false) UUID userId,
-            @RequestBody UpdateCandidateProfileRequest request,
-            @AuthenticationPrincipal Jwt jwt) {
-        UUID effectiveUserId = resolveEffectiveUserId(userId, jwt);
-        enforceOwnership(effectiveUserId, jwt);
+            @RequestBody UpdateCandidateProfileRequest request) {
+        UUID effectiveUserId = resolveEffectiveUserId(userId);
+        enforceOwnership(effectiveUserId);
         String tenantId = getTenantId();
         CandidateProfileResponse response = candidateProfileService.update(effectiveUserId, request, tenantId);
         return ResponseEntity.ok(response);
@@ -108,9 +104,8 @@ public class CandidateProfileController {
     @DeleteMapping("/{userId}/pii")
     @PreAuthorize("hasAnyRole('CANDIDATE', 'SUPER_ADMIN')")
     public ResponseEntity<Void> erasePii(
-            @PathVariable UUID userId,
-            @AuthenticationPrincipal Jwt jwt) {
-        enforceOwnershipOrAdmin(userId, jwt);
+            @PathVariable UUID userId) {
+        enforceOwnershipOrAdmin(userId);
         String tenantId = getTenantId();
         candidateProfileService.erasePii(userId, tenantId);
         return ResponseEntity.noContent().build();
@@ -122,9 +117,8 @@ public class CandidateProfileController {
     @GetMapping("/{userId}/education")
     @PreAuthorize("hasAnyRole('CANDIDATE', 'SUPER_ADMIN')")
     public ResponseEntity<List<CandidateEducationResponse>> getEducation(
-            @PathVariable UUID userId,
-            @AuthenticationPrincipal Jwt jwt) {
-        enforceOwnershipOrAdmin(userId, jwt);
+            @PathVariable UUID userId) {
+        enforceOwnershipOrAdmin(userId);
         String tenantId = getTenantId();
         List<CandidateEducationResponse> response = candidateEducationService.getEducationByUserId(userId, tenantId);
         return ResponseEntity.ok(response);
@@ -137,9 +131,8 @@ public class CandidateProfileController {
     @PreAuthorize("hasRole('CANDIDATE')")
     public ResponseEntity<CandidateEducationResponse> addEducation(
             @PathVariable UUID userId,
-            @Valid @RequestBody CandidateEducationRequest request,
-            @AuthenticationPrincipal Jwt jwt) {
-        enforceOwnership(userId, jwt);
+            @Valid @RequestBody CandidateEducationRequest request) {
+        enforceOwnership(userId);
         String tenantId = getTenantId();
         CandidateEducationResponse response = candidateEducationService.addEducation(userId, request, tenantId);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -153,9 +146,8 @@ public class CandidateProfileController {
     public ResponseEntity<CandidateEducationResponse> updateEducation(
             @PathVariable UUID userId,
             @PathVariable UUID educationId,
-            @Valid @RequestBody CandidateEducationRequest request,
-            @AuthenticationPrincipal Jwt jwt) {
-        enforceOwnership(userId, jwt);
+            @Valid @RequestBody CandidateEducationRequest request) {
+        enforceOwnership(userId);
         String tenantId = getTenantId();
         CandidateEducationResponse response = candidateEducationService.updateEducation(userId, educationId, request, tenantId);
         return ResponseEntity.ok(response);
@@ -168,9 +160,8 @@ public class CandidateProfileController {
     @PreAuthorize("hasRole('CANDIDATE')")
     public ResponseEntity<Void> deleteEducation(
             @PathVariable UUID userId,
-            @PathVariable UUID educationId,
-            @AuthenticationPrincipal Jwt jwt) {
-        enforceOwnership(userId, jwt);
+            @PathVariable UUID educationId) {
+        enforceOwnership(userId);
         String tenantId = getTenantId();
         candidateEducationService.deleteEducation(userId, educationId, tenantId);
         return ResponseEntity.noContent().build();
@@ -185,12 +176,11 @@ public class CandidateProfileController {
     @PreAuthorize("hasRole('CANDIDATE')")
     public ResponseEntity<Void> recordConsent(
             @PathVariable UUID userId,
-            @Valid @RequestBody ConsentRequest request,
-            @AuthenticationPrincipal Jwt jwt) {
+            @Valid @RequestBody ConsentRequest request) {
         if (!request.isConsentGiven()) {
             return ResponseEntity.badRequest().build();
         }
-        enforceOwnership(userId, jwt);
+        enforceOwnership(userId);
         String tenantId = getTenantId();
         candidateProfileService.recordConsent(userId, tenantId);
         return ResponseEntity.ok().build();
@@ -206,10 +196,9 @@ public class CandidateProfileController {
     @PreAuthorize("hasRole('CANDIDATE')")
     public ResponseEntity<Map<String, String>> initiateDigiLockerAuth(
             @PathVariable(required = false) UUID userId,
-            @RequestParam(required = false) String redirectUri,
-            @AuthenticationPrincipal Jwt jwt) {
-        UUID effectiveUserId = resolveEffectiveUserId(userId, jwt);
-        enforceOwnership(effectiveUserId, jwt);
+            @RequestParam(required = false) String redirectUri) {
+        UUID effectiveUserId = resolveEffectiveUserId(userId);
+        enforceOwnership(effectiveUserId);
         String tenantId = getTenantId();
         Map<String, String> authInfo = digiLockerService.initiateAuth(effectiveUserId, tenantId, redirectUri);
         return ResponseEntity.ok(authInfo);
@@ -253,9 +242,8 @@ public class CandidateProfileController {
     @PreAuthorize("hasRole('CANDIDATE')")
     public ResponseEntity<Map<String, String>> verifyDigiLocker(
             @PathVariable UUID userId,
-            @RequestBody(required = false) Map<String, String> body,
-            @AuthenticationPrincipal Jwt jwt) {
-        enforceOwnership(userId, jwt);
+            @RequestBody(required = false) Map<String, String> body) {
+        enforceOwnership(userId);
         String tenantId = getTenantId();
         String token = (body != null && body.containsKey("token")) ? body.get("token") : null;
         String status = digiLockerService.verifyDocument(userId, token, tenantId);
@@ -271,54 +259,48 @@ public class CandidateProfileController {
     @PreAuthorize("hasRole('CANDIDATE')")
     public ResponseEntity<Map<String, String>> verifyFace(
             @PathVariable UUID userId,
-            @Valid @RequestBody FaceVerificationRequest request,
-            @AuthenticationPrincipal Jwt jwt) {
-        enforceOwnership(userId, jwt);
+            @Valid @RequestBody FaceVerificationRequest request) {
+        enforceOwnership(userId);
         String tenantId = getTenantId();
         String status = faceVerificationService.verifyFace(userId, request, tenantId);
         return ResponseEntity.ok(Map.of(SharedConstants.STATUS, status));
     }
 
     private String getTenantId() {
-        return TenantContext.get() != null ? TenantContext.get() : SharedConstants.DEFAULT_TENANT;
+        return TenantContext.getTenantIdOrDefault();
     }
 
     // ── Private helpers ──────────────────────────────────────────────────
 
-    private UUID resolveEffectiveUserId(UUID userId, Jwt jwt) {
+    private UUID resolveEffectiveUserId(UUID userId) {
         if (userId != null) {
             return userId;
         }
-        if (jwt != null && jwt.getSubject() != null) {
-            try {
-                return UUID.fromString(jwt.getSubject());
-            } catch (IllegalArgumentException ignored) {
-            }
+        UUID current = UserContext.getUserId();
+        if (current != null) {
+            return current;
         }
         throw new AccessDeniedException("User ID is required");
     }
 
-    private void enforceOwnership(UUID userId, Jwt jwt) {
-        if (jwt == null) return;
-        String sub = jwt.getSubject();
-        if (sub != null && !userId.toString().equals(sub)) {
-            var authorities = jwt.getClaimAsStringList("realm_access.roles");
-            if (authorities != null && authorities.contains("SUPER_ADMIN")) {
+    private void enforceOwnership(UUID userId) {
+        UUID current = UserContext.getUserId();
+        if (current == null) return;
+        if (!current.equals(userId)) {
+            if (UserContext.hasRole("SUPER_ADMIN")) {
                 return;
             }
             throw new AccessDeniedException("You can only access your own profile");
         }
     }
 
-    private void enforceOwnershipOrAdmin(UUID userId, Jwt jwt) {
-        if (jwt == null) return;
-        String sub = jwt.getSubject();
-        if (userId.toString().equals(sub)) {
+    private void enforceOwnershipOrAdmin(UUID userId) {
+        UUID current = UserContext.getUserId();
+        if (current == null) return;
+        if (current.equals(userId)) {
             return; // Owner access
         }
-        // Check if user has SUPER_ADMIN role
-        var authorities = jwt.getClaimAsStringList("realm_access.roles");
-        if (authorities != null && authorities.contains("SUPER_ADMIN")) {
+        if (UserContext.hasRole("SUPER_ADMIN")) {
             return;
         }
         throw new AccessDeniedException("You can only access your own profile");

@@ -25,6 +25,7 @@ import com.examplatform.papergenerator.domain.Paper;
 import com.examplatform.papergenerator.dto.*;
 import com.examplatform.papergenerator.service.*;
 import com.examplatform.shared.constants.SharedConstants;
+import com.examplatform.shared.security.UserContext;
 import com.examplatform.shared.tenant.TenantContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -37,8 +38,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
@@ -83,7 +82,7 @@ public class PaperController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
 
-        String tenantId = getEffectiveTenantId();
+        String tenantId = TenantContext.getTenantIdOrDefault();
         log.info("Listing papers: examId={}, status={}, page={}, size={}, tenant={}",
                 examId, status, page, size, tenantId);
 
@@ -120,7 +119,7 @@ public class PaperController {
     @GetMapping("/{paperId}")
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN')")
     public ResponseEntity<PaperResponse> getPaper(@PathVariable UUID paperId) {
-        String tenantId = getEffectiveTenantId();
+        String tenantId = TenantContext.getTenantIdOrDefault();
         log.info("Retrieving paper: paperId={}, tenant={}", paperId, tenantId);
 
         Paper paper = paperAssemblyService.getPaperById(paperId, tenantId)
@@ -208,7 +207,7 @@ public class PaperController {
     public ResponseEntity<BlueprintFeasibilityResponse> checkBlueprintSufficiency(
             @Valid @RequestBody BlueprintFeasibilityRequest request) {
 
-        String tenantId = getEffectiveTenantId();
+        String tenantId = TenantContext.getTenantIdOrDefault();
         boolean notifyAdmin = Boolean.TRUE.equals(request.getNotifyAdminOnDeficit());
 
         log.info("Blueprint sufficiency check requested: rulesCount={}, examId={}, shiftId={}, notifyAdmin={}, tenant={}",
@@ -236,11 +235,10 @@ public class PaperController {
     @PostMapping("/generate")
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN')")
     public ResponseEntity<PaperAcceptedResponse> generatePaper(
-            @Valid @RequestBody PaperGenerationRequest request,
-            @AuthenticationPrincipal Jwt jwt) {
+            @Valid @RequestBody PaperGenerationRequest request) {
 
-        UUID generatedBy = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
-        String tenantId = getEffectiveTenantId();
+        UUID generatedBy = UserContext.resolveUserIdOrDefault(null);
+        String tenantId = TenantContext.getTenantIdOrDefault();
 
         log.info("Paper generation requested by user={}, examId={}, shiftId={}, isPractice={}",
                 generatedBy, request.getExamId(), request.getShiftId(), request.getIsPractice());
@@ -293,7 +291,7 @@ public class PaperController {
     @PostMapping("/{paperId}/approve")
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN')")
     public ResponseEntity<PaperApprovalResponse> approvePaper(@PathVariable UUID paperId) {
-        String tenantId = getEffectiveTenantId();
+        String tenantId = TenantContext.getTenantIdOrDefault();
         log.info("Paper approval requested for paperId={}", paperId);
 
         Paper paper = paperApprovalService.approvePaper(paperId, tenantId);
@@ -322,7 +320,7 @@ public class PaperController {
     @GetMapping("/{paperId}/tamper-check")
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN')")
     public ResponseEntity<Map<String, Object>> checkPaperTampering(@PathVariable UUID paperId) {
-        String tenantId = getEffectiveTenantId();
+        String tenantId = TenantContext.getTenantIdOrDefault();
         log.info("Paper tamper verification requested for paperId={}", paperId);
 
         Map<String, Object> verification = paperAnchoringService.verifyPaperAuthenticity(paperId, tenantId);
@@ -343,7 +341,7 @@ public class PaperController {
         log.info("Public paper verification requested: examId={}, paperId={}, hash={}", examId, paperId, hash);
 
         if (paperId != null) {
-            String tenantId = getEffectiveTenantId();
+            String tenantId = TenantContext.getTenantIdOrDefault();
             Map<String, Object> result = paperAnchoringService.verifyPaperAuthenticity(paperId, tenantId);
             return ResponseEntity.ok(result);
         }
@@ -404,11 +402,10 @@ public class PaperController {
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN')")
     public ResponseEntity<PaperTranslateResponse> translatePaper(
             @PathVariable UUID paperId,
-            @Valid @RequestBody(required = false) PaperTranslateRequest request,
-            @AuthenticationPrincipal Jwt jwt) {
+            @Valid @RequestBody(required = false) PaperTranslateRequest request) {
 
-        UUID initiatedBy = extractUserId(jwt);
-        String tenantId = getEffectiveTenantId();
+        UUID initiatedBy = UserContext.resolveUserIdOrDefault(null);
+        String tenantId = TenantContext.getTenantIdOrDefault();
         log.info("Paper batch translation requested for paperId={}, user={}, tenant={}", paperId, initiatedBy, tenantId);
 
         PaperTranslateResponse response = paperTranslationService.translatePaper(
@@ -430,7 +427,7 @@ public class PaperController {
             @PathVariable UUID paperId,
             @PathVariable UUID jobId) {
 
-        String tenantId = getEffectiveTenantId();
+        String tenantId = TenantContext.getTenantIdOrDefault();
         PaperTranslateResponse response = paperTranslationService.getTranslationStatus(paperId, jobId, tenantId);
         return ResponseEntity.ok(response);
     }
@@ -443,7 +440,7 @@ public class PaperController {
     public ResponseEntity<PaperTranslateResponse> getLatestPaperTranslationStatus(
             @PathVariable UUID paperId) {
 
-        String tenantId = getEffectiveTenantId();
+        String tenantId = TenantContext.getTenantIdOrDefault();
         PaperTranslateResponse response = paperTranslationService.getLatestTranslationStatus(paperId, tenantId);
         return ResponseEntity.ok(response);
     }
@@ -457,7 +454,7 @@ public class PaperController {
     @GetMapping("/public/practice")
     public ResponseEntity<List<PaperSummaryResponse>> getPracticePapers(
             @RequestParam UUID examId) {
-        String tenantId = getEffectiveTenantId();
+        String tenantId = TenantContext.getTenantIdOrDefault();
         log.info("Fetching public practice papers for examId={}, tenant={}", examId, tenantId);
 
         List<Paper> papers = paperAssemblyService.findPracticePapers(examId, tenantId);
@@ -491,21 +488,5 @@ public class PaperController {
             return resolvedName;
         }
         return PaperAssemblyService.formatPaperTitle(p.isPractice(), examName, shiftName, p.getShiftId());
-    }
-
-    private String getEffectiveTenantId() {
-        String tenantId = TenantContext.get();
-        return (tenantId != null && !tenantId.isBlank()) ? tenantId : SharedConstants.DEFAULT_TENANT;
-    }
-
-    private UUID extractUserId(Jwt jwt) {
-        if (jwt != null && jwt.getSubject() != null) {
-            try {
-                return UUID.fromString(jwt.getSubject());
-            } catch (IllegalArgumentException _) {
-                // ignored
-            }
-        }
-        return UUID.fromString("00000000-0000-0000-0000-000000000001");
     }
 }

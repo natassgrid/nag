@@ -19,6 +19,9 @@
 
 package com.examplatform.shared.auth;
 
+import com.examplatform.shared.constants.SharedConstants;
+import com.examplatform.shared.tenant.TenantContext;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -31,12 +34,13 @@ import org.springframework.http.client.ClientHttpResponse;
 
 import java.io.IOException;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
  * Unit tests for {@link ServiceAuthInterceptor}.
- * Validates that the interceptor attaches a Bearer token to outgoing requests.
+ * Validates that the interceptor attaches a Bearer token and tenant header to outgoing requests.
  */
 @ExtendWith(MockitoExtension.class)
 class ServiceAuthInterceptorTest {
@@ -56,6 +60,11 @@ class ServiceAuthInterceptorTest {
     @InjectMocks
     private ServiceAuthInterceptor interceptor;
 
+    @AfterEach
+    void tearDown() {
+        TenantContext.clear();
+    }
+
     @Test
     void intercept_addsAuthorizationHeader() throws IOException {
         HttpHeaders headers = new HttpHeaders();
@@ -68,6 +77,21 @@ class ServiceAuthInterceptorTest {
 
         verify(tokenProvider).getServiceToken("platform-service");
         verify(execution).execute(request, body);
-        assert headers.getFirst(HttpHeaders.AUTHORIZATION).equals("Bearer service-jwt-token");
+        assertThat(headers.getFirst(HttpHeaders.AUTHORIZATION)).isEqualTo("Bearer service-jwt-token");
+    }
+
+    @Test
+    void intercept_propagatesTenantHeaderFromTenantContext() throws IOException {
+        TenantContext.set("tenant-upsc");
+        HttpHeaders headers = new HttpHeaders();
+        when(request.getHeaders()).thenReturn(headers);
+        when(tokenProvider.getServiceToken("platform-service")).thenReturn("service-jwt-token");
+        byte[] body = new byte[0];
+        when(execution.execute(request, body)).thenReturn(response);
+
+        interceptor.intercept(request, body, execution);
+
+        assertThat(headers.getFirst(SharedConstants.HEADER_TENANT_ID)).isEqualTo("tenant-upsc");
+        assertThat(headers.getFirst(HttpHeaders.AUTHORIZATION)).isEqualTo("Bearer service-jwt-token");
     }
 }

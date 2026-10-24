@@ -20,6 +20,7 @@
 package com.examplatform.shared.auth;
 
 import com.examplatform.shared.constants.SharedConstants;
+import com.examplatform.shared.tenant.TenantContext;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -36,7 +37,9 @@ import java.util.Base64;
 import java.util.List;
 
 /**
- * Shared utility for inter-service REST clients to resolve authorization headers.
+ * Shared utility for inter-service REST clients to resolve authorization headers
+ * and propagate caller tenancy automatically.
+ *
  * Implements standard 4-step token resolution hierarchy:
  * 1. Propagated Authorization header from incoming HTTP request.
  * 2. SecurityContextHolder authentication (JWT or credentials).
@@ -51,7 +54,7 @@ public final class ClientAuthTokenResolver {
     }
 
     /**
-     * Attaches Authorization header to a RestClient request spec using default roles.
+     * Attaches Authorization header and tenant header to a RestClient request spec using default roles.
      */
     public static void attachAuthHeader(RestClient.RequestHeadersSpec<?> spec, String serviceName,
                                         ServiceAccountTokenProvider tokenProvider, String jwtSecret) {
@@ -59,7 +62,7 @@ public final class ClientAuthTokenResolver {
     }
 
     /**
-     * Attaches Authorization header to a RestClient request spec with custom roles for dev JWT fallback.
+     * Attaches Authorization header and tenant header to a RestClient request spec with custom roles for dev JWT fallback.
      */
     public static void attachAuthHeader(RestClient.RequestHeadersSpec<?> spec, String serviceName,
                                         ServiceAccountTokenProvider tokenProvider, String jwtSecret, List<String> roles) {
@@ -67,6 +70,33 @@ public final class ClientAuthTokenResolver {
         if (token != null && !token.isBlank()) {
             spec.header(HttpHeaders.AUTHORIZATION, token);
         }
+        attachTenantHeader(spec);
+    }
+
+    /**
+     * Attaches the tenant header (X-Tenant-Id) from {@link TenantContext} to a RestClient request spec if present.
+     */
+    public static void attachTenantHeader(RestClient.RequestHeadersSpec<?> spec) {
+        String tenantId = TenantContext.getTenantId();
+        if (tenantId != null && !tenantId.isBlank()) {
+            spec.header(SharedConstants.HEADER_TENANT_ID, tenantId);
+        }
+    }
+
+    /**
+     * Attaches both auth and tenant headers to a RestClient request spec.
+     */
+    public static void attachContextHeaders(RestClient.RequestHeadersSpec<?> spec, String serviceName,
+                                            ServiceAccountTokenProvider tokenProvider, String jwtSecret) {
+        attachAuthHeader(spec, serviceName, tokenProvider, jwtSecret);
+    }
+
+    /**
+     * Attaches both auth and tenant headers to a RestClient request spec with custom roles.
+     */
+    public static void attachContextHeaders(RestClient.RequestHeadersSpec<?> spec, String serviceName,
+                                            ServiceAccountTokenProvider tokenProvider, String jwtSecret, List<String> roles) {
+        attachAuthHeader(spec, serviceName, tokenProvider, jwtSecret, roles);
     }
 
     /**

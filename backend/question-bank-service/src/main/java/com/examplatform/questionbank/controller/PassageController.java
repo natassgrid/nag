@@ -18,6 +18,8 @@ import com.examplatform.questionbank.service.PassageLifecycleService;
 import com.examplatform.questionbank.service.PassageService;
 import com.examplatform.shared.api.ApiResponse;
 import com.examplatform.shared.constants.SharedConstants;
+import com.examplatform.shared.security.UserContext;
+import com.examplatform.shared.tenant.TenantContext;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -160,6 +162,6 @@ public class PassageController {
     }
 
     private UUID getPrincipalId(Jwt jwt) {
-        return UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
+        return UserContext.resolveUserIdOrDefault(jwt);
     }
 }

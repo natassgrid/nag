@@ -27,11 +27,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
+
+import static com.examplatform.admin.controller.AdminControllerHelper.extractActorId;
+import static com.examplatform.admin.controller.AdminControllerHelper.resolveTenant;
 
 /**
  * Controller for security and MFA policy management in Admin Portal.
@@ -80,9 +81,8 @@ public class AdminSecuritySettingsController {
     @PutMapping
     public ResponseEntity<MfaPolicySettingsResponse> updateMfaSecurityPolicy(
             @Valid @RequestBody MfaPolicySettingsRequest request,
-            @RequestParam(required = false) String tenantId,
-            @AuthenticationPrincipal Jwt jwt) {
-        UUID actorId = extractActorId(jwt);
+            @RequestParam(required = false) String tenantId) {
+        UUID actorId = extractActorId();
         String effectiveTenant = resolveTenant(tenantId);
 
         Map<String, String> updates = new HashMap<>();
@@ -101,13 +101,5 @@ public class AdminSecuritySettingsController {
 
         configChangeService.updateBulkConfigs(updates, actorId, effectiveTenant);
         return getMfaSecurityPolicy(effectiveTenant);
-    }
-
-    private String resolveTenant(String paramTenant) {
-        return AdminControllerHelper.resolveTenant(paramTenant);
-    }
-
-    private UUID extractActorId(Jwt jwt) {
-        return AdminControllerHelper.extractActorId(jwt);
     }
 }
