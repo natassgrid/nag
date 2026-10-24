@@ -392,16 +392,18 @@ services:
         else
           echo "qwen2.5vl:7b already present, skipping."
         fi
-        if ! curl -sf http://ollama:11434/api/tags | grep -q "qwen2.5-vl:7b"; then
-          echo "Creating alias qwen2.5-vl:7b for qwen2.5vl:7b..."
-          curl -sf http://ollama:11434/api/copy -d '{"source":"qwen2.5vl:7b","destination":"qwen2.5-vl:7b"}'
-        fi
+        echo "Configuring 32k context window for qwen2.5vl:7b..."
+        curl -sf http://ollama:11434/api/create -d '{"model":"qwen2.5vl:7b","from":"qwen2.5vl:7b","parameters":{"num_ctx":32768},"stream":false}'
+        echo "Updating alias qwen2.5-vl:7b..."
+        curl -sf http://ollama:11434/api/copy -d '{"source":"qwen2.5vl:7b","destination":"qwen2.5-vl:7b"}'
         if ! curl -sf http://ollama:11434/api/tags | grep -q "qwen3:8b"; then
           echo "Pulling qwen3:8b for extraction..."
           curl -sf http://ollama:11434/api/pull -d '{"name":"qwen3:8b"}'
         else
           echo "qwen3:8b already present, skipping."
         fi
+        echo "Configuring 32k context window for qwen3:8b..."
+        curl -sf http://ollama:11434/api/create -d '{"model":"qwen3:8b","from":"qwen3:8b","parameters":{"num_ctx":32768},"stream":false}'
         echo "Done."
     networks:
       - exam-network
