@@ -20,6 +20,7 @@
 package com.examplatform.asset.metadata;
 
 import com.examplatform.asset.domain.enums.AssetType;
+import com.examplatform.shared.constants.SharedConstants;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.metadata.HttpHeaders;
@@ -83,10 +84,10 @@ public class ImageMetadataExtractor implements MetadataExtractor {
         if (value == null || value.isBlank()) return null;
         try {
             // Handle values like "72.0" or "72 dpi"
-            String cleaned = value.replaceAll("[^0-9.]", "");
+            String cleaned = value.replaceAll(SharedConstants.NUM_REGEX, "");
             if (cleaned.isEmpty()) return null;
             return (int) Double.parseDouble(cleaned);
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException _) {
             return null;
         }
     }

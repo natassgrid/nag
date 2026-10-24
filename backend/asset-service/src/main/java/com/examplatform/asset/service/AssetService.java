@@ -39,6 +39,8 @@ import com.examplatform.shared.tenant.TenantContext;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -48,8 +50,11 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -70,6 +75,7 @@ public class AssetService {
     private final MetadataExtractionService metadataExtractionService;
     private final StorageProviderRegistry storageProviderRegistry;
     private final StorageProperties storageProperties;
+    @Qualifier("eventPublisher")
     private final EventPublisher eventPublisher;
 
     /**
@@ -319,7 +325,7 @@ public class AssetService {
      * @return the InputStream, or empty if the storage file is missing
      */
     @Transactional(readOnly = true)
-    public Optional<java.io.InputStream> downloadAsset(UUID assetId) {
+    public Optional<InputStream> downloadAsset(UUID assetId) {
         MediaAsset asset = findAssetOrThrow(assetId);
         StorageProvider provider = storageProviderRegistry.requireProvider(asset.getStorageProvider());
         return provider.download(asset.getStorageLocation());
@@ -371,12 +377,12 @@ public class AssetService {
 
     private void publishAuditEvent(String eventType, UUID assetId, UUID userId, String tenantId) {
         try {
-            var event = java.util.Map.of(
+            var event = Map.of(
                 SharedConstants.EVENT_TYPE, eventType,
                     "assetId", assetId.toString(),
                     "userId", userId.toString(),
                 SharedConstants.TENANT_ID, tenantId,
-                    "timestamp", java.time.Instant.now().toString()
+                    "timestamp", Instant.now().toString()
             );
             eventPublisher.publish(AUDIT_EVENTS_TOPIC, assetId.toString(), event);
         } catch (Exception e) {
@@ -389,7 +395,7 @@ public class AssetService {
     }
     private void applyMediaMetadata(MediaAsset asset, MediaMetadata metadata) {
         if (metadata != null) {
-            org.springframework.beans.BeanUtils.copyProperties(metadata, asset);
+            BeanUtils.copyProperties(metadata, asset);
         }
     }
 }

@@ -70,8 +70,6 @@ public class AudioMetadataExtractor implements MetadataExtractor {
             }
             builder.channels(mapChannels(channels));
 
-            // Bitrate
-            String bitrateStr = metadata.get("xmpDM:audioSampleRate");
             // Try alternate metadata keys for bitrate
             if (metadata.get("bitrate") != null) {
                 builder.bitrate(TikaMetadataUtils.parseInteger(metadata.get("bitrate")));

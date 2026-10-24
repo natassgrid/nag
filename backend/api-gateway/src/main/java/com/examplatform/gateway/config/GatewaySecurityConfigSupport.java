@@ -35,7 +35,7 @@ public final class GatewaySecurityConfigSupport {
     private GatewaySecurityConfigSupport() {
     }
 
-    public static final String[] PUBLIC_AUTH_PATH_PATTERNS = {
+    protected static final String[] PUBLIC_AUTH_PATH_PATTERNS = {
             "/api/v1/identity/register",
             "/api/v1/identity/auth/**",
             "/api/v1/identity/otp/**",
@@ -50,12 +50,12 @@ public final class GatewaySecurityConfigSupport {
             "/api/v1/delivery/paper/**"
     };
 
-    public static final String[] PUBLIC_GENERAL_PATH_PATTERNS = {
+    protected static final String[] PUBLIC_GENERAL_PATH_PATTERNS = {
             "/api/v1/geo/**",
             "/api/v1/public/**"
     };
 
-    public static final String[] ACTUATOR_PATH_PATTERNS = {
+    protected static final String[] ACTUATOR_PATH_PATTERNS = {
             "/actuator/health",
             "/actuator/info",
             "/actuator/prometheus"

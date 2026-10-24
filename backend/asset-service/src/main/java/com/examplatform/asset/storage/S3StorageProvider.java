@@ -91,7 +91,7 @@ public class S3StorageProvider implements StorageProvider {
         try {
             ResponseInputStream<GetObjectResponse> responseStream = getS3Client().getObject(getRequest);
             return Optional.of(responseStream);
-        } catch (NoSuchKeyException e) {
+        } catch (NoSuchKeyException _) {
             log.debug("S3 object not found: bucket={}, key={}", bucket, storageLocation);
             return Optional.empty();
         } catch (S3Exception e) {
@@ -137,7 +137,7 @@ public class S3StorageProvider implements StorageProvider {
         String bucket = properties.getS3().getBucket();
         try {
             return getS3Client().utilities().getUrl(b -> b.bucket(bucket).key(storageLocation)).toExternalForm();
-        } catch (Exception e) {
+        } catch (Exception _) {
             return "s3://" + bucket + "/" + storageLocation;
         }
     }

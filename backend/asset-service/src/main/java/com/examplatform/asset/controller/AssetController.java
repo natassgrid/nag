@@ -204,11 +204,11 @@ public class AssetController {
      * can stream media without custom auth headers.
      */
     @GetMapping("/{id}/download")
-    public ResponseEntity<?> downloadAsset(@PathVariable UUID id) {
+    public ResponseEntity<InputStreamResource> downloadAsset(@PathVariable UUID id) {
         MediaAsset asset;
         try {
             asset = assetService.getAssetEntity(id);
-        } catch (EntityNotFoundException e) {
+        } catch (EntityNotFoundException _) {
             log.debug("Asset not found for download: {}", id);
             return ResponseEntity.notFound().build();
         }
@@ -230,7 +230,7 @@ public class AssetController {
             mediaType = (asset.getContentType() != null && !asset.getContentType().isBlank())
                     ? MediaType.parseMediaType(asset.getContentType())
                     : MediaType.APPLICATION_OCTET_STREAM;
-        } catch (Exception e) {
+        } catch (Exception _) {
             mediaType = MediaType.APPLICATION_OCTET_STREAM;
         }
 

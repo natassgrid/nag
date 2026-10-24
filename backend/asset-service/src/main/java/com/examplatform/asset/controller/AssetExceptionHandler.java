@@ -70,7 +70,7 @@ public class AssetExceptionHandler {
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<ApiResponse<Void>> handleMaxUploadSize(MaxUploadSizeExceededException ex, HttpServletResponse response) {
         log.warn("Upload size exceeded: {}", ex.getMessage());
-        return errorResponse(HttpStatus.PAYLOAD_TOO_LARGE, "File size exceeds maximum allowed upload size", response);
+        return errorResponse(HttpStatus.CONTENT_TOO_LARGE, "File size exceeds maximum allowed upload size", response);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

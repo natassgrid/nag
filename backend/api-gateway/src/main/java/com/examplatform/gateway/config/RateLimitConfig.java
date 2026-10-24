@@ -24,6 +24,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import reactor.core.publisher.Mono;
 
+import java.security.Principal;
+
 /**
  * Rate limiting configuration using Redis token-bucket algorithm.
  * Default: 1,000 requests per minute per client (replenishRate=17 tokens/sec, burstCapacity=1000).
@@ -39,7 +41,7 @@ public class RateLimitConfig {
     @Bean
     public KeyResolver clientKeyResolver() {
         return exchange -> exchange.getPrincipal()
-                .map(principal -> principal.getName())
+                .map(Principal::getName)
                 .switchIfEmpty(Mono.justOrEmpty(
                         exchange.getRequest().getRemoteAddress() != null
                                 ? exchange.getRequest().getRemoteAddress().getAddress().getHostAddress()
