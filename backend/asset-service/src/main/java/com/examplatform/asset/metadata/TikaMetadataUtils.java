@@ -19,6 +19,7 @@
 
 package com.examplatform.asset.metadata;
 
+import com.examplatform.shared.constants.SharedConstants;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.XMPDM;
 
@@ -50,9 +51,9 @@ public final class TikaMetadataUtils {
         }
         if (duration != null) {
             try {
-                double val = Double.parseDouble(duration.replaceAll("[^0-9.]", ""));
+                double val = Double.parseDouble(duration.replaceAll(SharedConstants.NUM_REGEX, ""));
                 return val > 100000 ? val / 1000.0 : val;
-            } catch (NumberFormatException e) {
+            } catch (NumberFormatException _) {
                 // ignore
             }
         }
@@ -64,12 +65,12 @@ public final class TikaMetadataUtils {
             return null;
         }
         try {
-            String cleaned = value.replaceAll("[^0-9.]", "");
+            String cleaned = value.replaceAll(SharedConstants.NUM_REGEX, "");
             if (cleaned.isEmpty()) {
                 return null;
             }
             return (int) Double.parseDouble(cleaned);
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException _) {
             return null;
         }
     }
@@ -79,12 +80,12 @@ public final class TikaMetadataUtils {
             return null;
         }
         try {
-            String cleaned = value.replaceAll("[^0-9.]", "");
+            String cleaned = value.replaceAll(SharedConstants.NUM_REGEX, "");
             if (cleaned.isEmpty()) {
                 return null;
             }
             return Double.parseDouble(cleaned);
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException _) {
             return null;
         }
     }

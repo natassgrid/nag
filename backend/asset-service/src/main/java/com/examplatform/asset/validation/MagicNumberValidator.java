@@ -49,9 +49,9 @@ public class MagicNumberValidator {
      */
     public String validateAndDetect(InputStream content, String declaredMimeType, String filename) {
         try {
-            BufferedInputStream buffered = content instanceof BufferedInputStream
-                    ? (BufferedInputStream) content
-                    : new BufferedInputStream(content);
+            BufferedInputStream buffered = (content instanceof BufferedInputStream)
+                ? (BufferedInputStream) content
+                : new BufferedInputStream(content);
             buffered.mark(65536);
 
             String detectedType = tika.detect(buffered, filename);

@@ -33,7 +33,7 @@ public class ServiceAccountConfig {
 
     @Bean
     public ServiceAccountTokenClient serviceAccountTokenClient() {
-        return serviceId -> TokenResponse.builder()
+        return _ -> TokenResponse.builder()
                 .accessToken("dev-service-token")
                 .expiresIn(3600)
                 .tokenType("Bearer")

@@ -112,7 +112,7 @@ public class AnalyticsService {
                                                     Instant evaluatedAt) {
         log.info("Processing evaluation completed event for candidate={}, exam={}", candidateId, examId);
 
-        Object examLock = examLocks.computeIfAbsent(examId, k -> new Object());
+        Object examLock = examLocks.computeIfAbsent(examId, _ -> new Object());
         synchronized (examLock) {
             // 1. Idempotently persist / update candidate evaluation record
             Optional<CandidateAnalyticsResult> existingResult =
@@ -266,7 +266,7 @@ public class AnalyticsService {
             if (score == null) continue;
             int bucket = Math.clamp((int) (score / 10.0), 0, 9);
             String key = (bucket * 10) + "-" + ((bucket + 1) * 10);
-            distribution.compute(key, (k, v) -> (v != null ? v : 0L) + 1L);
+            distribution.compute(key, (_, v) -> (v != null ? v : 0L) + 1L);
         }
 
         return distribution;
@@ -327,16 +327,6 @@ public class AnalyticsService {
         } catch (Exception e) {
             log.error("Failed to serialize object to JSON: {}", obj, e);
             return "{}";
-        }
-    }
-
-    private double toDouble(Object value) {
-        if (value == null) return 0.0;
-        if (value instanceof Number n) return n.doubleValue();
-        try {
-            return Double.parseDouble(value.toString());
-        } catch (NumberFormatException e) {
-            return 0.0;
         }
     }
 }

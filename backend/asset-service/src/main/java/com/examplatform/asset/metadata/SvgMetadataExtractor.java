@@ -92,7 +92,7 @@ public class SvgMetadataExtractor implements MetadataExtractor {
         if (val == null || val.isBlank()) return null;
         try {
             return (int) Math.round(Double.parseDouble(val));
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException _) {
             return null;
         }
     }

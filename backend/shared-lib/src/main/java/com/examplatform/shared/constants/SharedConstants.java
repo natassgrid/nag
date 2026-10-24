@@ -70,4 +70,7 @@ public final class SharedConstants {
     // Database & System Types
     public static final String JSONB = "jsonb";
     public static final String SHA_256 = "SHA-256";
+
+    // Regex related
+    public static final String NUM_REGEX = "[^0-9.]";
 }

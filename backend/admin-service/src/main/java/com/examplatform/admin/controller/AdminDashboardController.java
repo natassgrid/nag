@@ -53,21 +53,10 @@ public class AdminDashboardController {
     @GetMapping("/summary")
     public ResponseEntity<DashboardSummaryResponse> getDashboardSummary(
             @RequestParam(required = false) String tenantId) {
-        String effectiveTenant = resolveTenant(tenantId);
+        String effectiveTenant = AdminControllerHelper.resolveTenant(tenantId);
         log.info("Fetching operational dashboard summary for tenant=[{}]", effectiveTenant);
 
         DashboardSummaryResponse response = adminDashboardService.getDashboardSummary(effectiveTenant);
         return ResponseEntity.ok(response);
-    }
-
-    private String resolveTenant(String paramTenant) {
-        if (paramTenant != null && !paramTenant.isBlank()) {
-            return paramTenant;
-        }
-        String contextTenant = TenantContext.get();
-        if (contextTenant != null && !contextTenant.isBlank()) {
-            return contextTenant;
-        }
-        return SharedConstants.DEFAULT_TENANT;
     }
 }

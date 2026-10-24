@@ -40,7 +40,9 @@ import java.util.UUID;
 public class AssetUploadResponse {
 
     private UUID id;
-    private String originalFilename, contentType, extension;
+    private String originalFilename;
+    private String contentType;
+    private String extension;
     private Long fileSize;
     private String sha256Hash;
     private AssetType assetType;
@@ -50,22 +52,32 @@ public class AssetUploadResponse {
     private String publicUrl;
 
     // Media metadata
-    private Integer width, height, dpi;
+    private Integer width;
+    private Integer height;
+    private Integer dpi;
     private String orientation;
     private Double durationSeconds;
     private String codec;
-    private Integer bitrate, sampleRate, channels;
+    private Integer bitrate;
+    private Integer sampleRate;
+    private Integer channels;
     private Double frameRate;
 
     // User metadata
-    private String title, description, altText, tags, language;
+    private String title;
+    private String description;
+    private String altText;
+    private String tags;
+    private String language;
 
     // Storage
-    private String storageProvider, storageLocation;
+    private String storageProvider;
+    private String storageLocation;
 
     // Audit
     private UUID createdBy;
-    private Instant createdAt, updatedAt;
+    private Instant createdAt;
+    private Instant updatedAt;
     private String tenantId;
 
     public static AssetUploadResponse fromEntity(MediaAsset asset, String publicUrl) {
