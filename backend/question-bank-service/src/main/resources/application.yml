@@ -152,6 +152,9 @@ app:
     url: ${ASSET_SERVICE_URL:http://localhost:${SERVER_PORT:9000}}
   extraction:
     mode: ${EXTRACTION_MODE:llm}
+    vision-strategy: ${EXTRACTION_VISION_STRATEGY:local-ocr}
+    ocr-service-url: ${OCR_SERVICE_URL:http://localhost:5005}
+    ocr-enabled: ${OCR_ENABLED:true}
     deterministic-fallback-enabled: ${EXTRACTION_DETERMINISTIC_FALLBACK_ENABLED:true}
     auto-resume-on-startup: ${EXTRACTION_AUTO_RESUME_ON_STARTUP:true}
     retry:
