@@ -23,6 +23,8 @@ import com.examplatform.identity.dto.*;
 import com.examplatform.identity.service.*;
 import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.response.ApiResponse;
+import com.examplatform.shared.security.UserContext;
+import com.examplatform.shared.tenant.TenantContext;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -281,7 +283,7 @@ public class AdminProfileController {
     }
 
     private String extractUserId(Jwt jwt) {
-        return jwt != null ? jwt.getSubject() : "user-unknown";
+        return UserContext.resolveUserIdStr(jwt);
     }
 
     private UUID resolveUserUuid(Jwt jwt, String tenantId) {

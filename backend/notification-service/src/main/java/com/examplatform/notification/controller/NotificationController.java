@@ -29,6 +29,7 @@ import com.examplatform.notification.service.DeviceTokenService;
 import com.examplatform.notification.service.NotificationPreferenceService;
 import com.examplatform.notification.service.NotificationProcessingService;
 import com.examplatform.shared.constants.SharedConstants;
+import com.examplatform.shared.security.UserContext;
 import com.examplatform.shared.tenant.TenantContext;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -36,8 +37,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -62,17 +61,13 @@ public class NotificationController {
     @PostMapping("/send")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Notification> sendNotification(
-            @Valid @RequestBody NotificationSendRequest request,
-            @AuthenticationPrincipal Jwt jwt) {
-        String tenantId = TenantContext.get() != null ? TenantContext.get() : SharedConstants.DEFAULT_TENANT;
+            @Valid @RequestBody NotificationSendRequest request) {
+        String tenantId = TenantContext.getTenantIdOrDefault();
         if (request.getTenantId() == null) {
             request.setTenantId(tenantId);
         }
-        if (request.getUserId() == null && jwt != null && jwt.getSubject() != null) {
-            try {
-                request.setUserId(UUID.fromString(jwt.getSubject()));
-            } catch (Exception ignored) {
-            }
+        if (request.getUserId() == null) {
+            request.setUserId(UserContext.getUserId());
         }
 
         Notification notification = notificationProcessingService.sendNotification(request);
@@ -85,13 +80,9 @@ public class NotificationController {
     @PostMapping("/push/register-token")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<DeviceToken> registerDeviceToken(
-            @Valid @RequestBody DeviceTokenRequest request,
-            @AuthenticationPrincipal Jwt jwt) {
-        UUID userId = request.getUserId();
-        if (userId == null && jwt != null && jwt.getSubject() != null) {
-            userId = UUID.fromString(jwt.getSubject());
-        }
-        String tenantId = TenantContext.get() != null ? TenantContext.get() : SharedConstants.DEFAULT_TENANT;
+            @Valid @RequestBody DeviceTokenRequest request) {
+        UUID userId = request.getUserId() != null ? request.getUserId() : UserContext.getUserId();
+        String tenantId = TenantContext.getTenantIdOrDefault();
 
         DeviceToken registered = deviceTokenService.registerToken(
                 userId != null ? userId : UUID.randomUUID(),
@@ -107,9 +98,8 @@ public class NotificationController {
     @GetMapping("/preferences/{userId}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<NotificationPreference> getPreferences(
-            @PathVariable UUID userId,
-            @AuthenticationPrincipal Jwt jwt) {
-        String tenantId = TenantContext.get() != null ? TenantContext.get() : SharedConstants.DEFAULT_TENANT;
+            @PathVariable UUID userId) {
+        String tenantId = TenantContext.getTenantIdOrDefault();
         NotificationPreference preference = preferenceService.getPreferences(userId, tenantId);
         return ResponseEntity.ok(preference);
     }
@@ -121,9 +111,8 @@ public class NotificationController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<NotificationPreference> updatePreferences(
             @PathVariable UUID userId,
-            @RequestBody NotificationPreferenceRequest request,
-            @AuthenticationPrincipal Jwt jwt) {
-        String tenantId = TenantContext.get() != null ? TenantContext.get() : SharedConstants.DEFAULT_TENANT;
+            @RequestBody NotificationPreferenceRequest request) {
+        String tenantId = TenantContext.getTenantIdOrDefault();
         NotificationPreference updated = preferenceService.updatePreferences(userId, tenantId, request);
         return ResponseEntity.ok(updated);
     }

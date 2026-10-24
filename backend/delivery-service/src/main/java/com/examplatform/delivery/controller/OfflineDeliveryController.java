@@ -21,12 +21,11 @@ package com.examplatform.delivery.controller;
 
 import com.examplatform.delivery.service.OfflineDeliveryService;
 import com.examplatform.shared.constants.SharedConstants;
+import com.examplatform.shared.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -58,10 +57,9 @@ public class OfflineDeliveryController {
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER', 'SUPER_ADMIN')")
     public ResponseEntity<Map<String, String>> preloadExamPackage(
             @PathVariable UUID sessionId,
-            @RequestParam String centerId,
-            @AuthenticationPrincipal Jwt jwt) {
+            @RequestParam String centerId) {
 
-        String tenantId = extractTenantId(jwt);
+        String tenantId = getEffectiveTenantId();
         log.info("POST preload offline package for session={}, center={}, tenant={}",
                 sessionId, centerId, tenantId);
 
@@ -78,16 +76,14 @@ public class OfflineDeliveryController {
      * Reconciles offline data when connectivity is restored.
      *
      * @param sessionId the exam session UUID
-     * @param jwt       the authenticated user's JWT
      * @return confirmation of reconciliation
      */
     @PostMapping("/reconcile")
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER', 'SUPER_ADMIN')")
     public ResponseEntity<Map<String, String>> reconcileOnReconnect(
-            @PathVariable UUID sessionId,
-            @AuthenticationPrincipal Jwt jwt) {
+            @PathVariable UUID sessionId) {
 
-        String tenantId = extractTenantId(jwt);
+        String tenantId = getEffectiveTenantId();
         log.info("POST reconcile offline data for session={}, tenant={}", sessionId, tenantId);
 
         offlineDeliveryService.reconcileOnReconnect(sessionId, tenantId);
@@ -98,8 +94,8 @@ public class OfflineDeliveryController {
         ));
     }
 
-    private String extractTenantId(Jwt jwt) {
-        String tenantId = jwt.getClaimAsString("tenant_id");
+    private String getEffectiveTenantId() {
+        String tenantId = TenantContext.getTenantId();
         return tenantId != null ? tenantId : SharedConstants.DEFAULT_TENANT;
     }
 }

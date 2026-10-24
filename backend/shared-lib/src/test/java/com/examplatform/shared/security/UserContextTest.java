@@ -50,6 +50,7 @@ class UserContextTest {
             assertThat(UserContext.getUserId()).isNull();
             assertThat(UserContext.getEmail()).isNull();
             assertThat(UserContext.getTenantId()).isNull();
+            assertThat(UserContext.getPreferredLanguage()).isNull();
             assertThat(UserContext.getRoles()).isEmpty();
             assertThat(UserContext.isAuthenticated()).isFalse();
             assertThat(UserContext.hasRole("ROLE_ADMIN")).isFalse();
@@ -60,13 +61,14 @@ class UserContextTest {
         @DisplayName("Stores and retrieves CurrentUser record accurately")
         void storeAndRetrieve() {
             UUID userId = UUID.randomUUID();
-            UserContext.set(userId, "admin@exam.gov.in", "tenant-nta", Set.of("ROLE_SUPER_ADMIN", "ROLE_ADMIN"));
+            UserContext.set(userId, "admin@exam.gov.in", "tenant-nta", Set.of("ROLE_SUPER_ADMIN", "ROLE_ADMIN"), "hi");
 
             assertThat(UserContext.isAuthenticated()).isTrue();
             assertThat(UserContext.getUserId()).isEqualTo(userId);
             assertThat(UserContext.getRequiredUserId()).isEqualTo(userId);
             assertThat(UserContext.getEmail()).isEqualTo("admin@exam.gov.in");
             assertThat(UserContext.getTenantId()).isEqualTo("tenant-nta");
+            assertThat(UserContext.getPreferredLanguage()).isEqualTo("hi");
             assertThat(UserContext.getRoles()).containsExactlyInAnyOrder("ROLE_SUPER_ADMIN", "ROLE_ADMIN");
             assertThat(UserContext.hasRole("SUPER_ADMIN")).isTrue();
             assertThat(UserContext.hasRole("ROLE_SUPER_ADMIN")).isTrue();
@@ -114,6 +116,29 @@ class UserContextTest {
 
             assertThat(childObservedId.get()).isEqualTo(parentUserId);
             assertThat(childObservedTenant.get()).isEqualTo("tenant-1");
+        }
+    }
+
+    @Nested
+    @DisplayName("resolution helpers")
+    class ResolutionHelpers {
+
+        @Test
+        @DisplayName("resolveUserId returns context user ID when present")
+        void resolveUserIdFromContext() {
+            UUID userId = UUID.randomUUID();
+            UserContext.set(userId, "test@exam.gov.in", "default", Set.of("ROLE_USER"));
+            assertThat(UserContext.resolveUserId(null)).isEqualTo(userId);
+            assertThat(UserContext.resolveUserIdStr(null)).isEqualTo(userId.toString());
+        }
+
+        @Test
+        @DisplayName("resolveUserId falls back to default fallback when unauthenticated")
+        void resolveUserIdFallback() {
+            UUID fallback = UUID.randomUUID();
+            assertThat(UserContext.resolveUserId(null, fallback)).isEqualTo(fallback);
+            assertThat(UserContext.resolveUserIdOrDefault(null)).isEqualTo(UserContext.DEFAULT_SYSTEM_USER_ID);
+            assertThat(UserContext.resolveUserIdStr(null)).isEqualTo("user-unknown");
         }
     }
 }

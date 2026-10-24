@@ -20,6 +20,7 @@
 package com.examplatform.admin.controller;
 
 import com.examplatform.shared.constants.SharedConstants;
+import com.examplatform.shared.security.UserContext;
 import com.examplatform.shared.tenant.TenantContext;
 import org.springframework.security.oauth2.jwt.Jwt;
 
@@ -37,28 +38,10 @@ public final class AdminControllerHelper {
     }
 
     public static String resolveTenant(String paramTenant) {
-        if (paramTenant != null && !paramTenant.isBlank()) {
-            return paramTenant;
-        }
-        String contextTenant = TenantContext.get();
-        if (contextTenant != null && !contextTenant.isBlank()) {
-            return contextTenant;
-        }
-        return SharedConstants.DEFAULT_TENANT;
+        return TenantContext.resolveTenant(paramTenant);
     }
 
-    public static UUID extractActorId(Jwt jwt) {
-        if (jwt == null) {
-            return DEFAULT_ANONYMOUS_ACTOR;
-        }
-        String subject = jwt.getSubject();
-        if (subject == null) {
-            return DEFAULT_ANONYMOUS_ACTOR;
-        }
-        try {
-            return UUID.fromString(subject);
-        } catch (IllegalArgumentException _) {
-            return UUID.nameUUIDFromBytes(subject.getBytes(StandardCharsets.UTF_8));
-        }
+    public static UUID extractActorId() {
+        return UserContext.resolveUserId(null, DEFAULT_ANONYMOUS_ACTOR);
     }
 }

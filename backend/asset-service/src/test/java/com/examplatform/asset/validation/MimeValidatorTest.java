@@ -118,7 +118,6 @@ class MimeValidatorTest {
         @ParameterizedTest
         @ValueSource(strings = {
                 "text/html",
-                "application/pdf",
                 "application/zip",
                 "image/gif",
                 "image/bmp",

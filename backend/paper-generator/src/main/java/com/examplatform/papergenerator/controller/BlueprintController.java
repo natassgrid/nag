@@ -26,6 +26,7 @@ import com.examplatform.papergenerator.dto.BlueprintResponse;
 import com.examplatform.papergenerator.service.BlueprintService;
 import com.examplatform.papergenerator.service.PaperAssemblyService;
 import com.examplatform.shared.constants.SharedConstants;
+import com.examplatform.shared.security.UserContext;
 import com.examplatform.shared.tenant.TenantContext;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -33,8 +34,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -99,10 +98,9 @@ public class BlueprintController {
     @PostMapping
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN')")
     public ResponseEntity<BlueprintResponse> create(
-            @Valid @RequestBody BlueprintRequest request,
-            @AuthenticationPrincipal Jwt jwt) {
+            @Valid @RequestBody BlueprintRequest request) {
 
-        UUID createdBy = extractUserId(jwt);
+        UUID createdBy = UserContext.getUserId();
         BlueprintResponse created = service.create(request, createdBy, tenantId());
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
@@ -132,16 +130,5 @@ public class BlueprintController {
     private String tenantId() {
         String t = TenantContext.getTenantId();
         return (t != null && !t.isBlank()) ? t : SharedConstants.DEFAULT_TENANT;
-    }
-
-    private UUID extractUserId(Jwt jwt) {
-        if (jwt == null) return null;
-        try {
-            String sub = jwt.getSubject();
-            return sub != null ? UUID.fromString(sub) : null;
-        } catch (IllegalArgumentException _) {
-            log.debug("JWT subject is not a UUID: {}", jwt.getSubject());
-            return null;
-        }
     }
 }

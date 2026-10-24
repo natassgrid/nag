@@ -28,13 +28,14 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+
+import static com.examplatform.admin.controller.AdminControllerHelper.extractActorId;
+import static com.examplatform.admin.controller.AdminControllerHelper.resolveTenant;
 
 /**
  * Controller for system configuration management.
@@ -80,9 +81,8 @@ public class AdminConfigController {
     @PutMapping
     public ResponseEntity<SystemConfigResponse> updateConfig(
             @Valid @RequestBody SingleConfigUpdateRequest request,
-            @RequestParam(required = false) String tenantId,
-            @AuthenticationPrincipal Jwt jwt) {
-        UUID actorId = extractActorId(jwt);
+            @RequestParam(required = false) String tenantId) {
+        UUID actorId = extractActorId();
         String effectiveTenant = resolveTenant(tenantId);
         SystemConfig updated = configChangeService.updateConfig(
                 request.paramName(), request.paramValue(), actorId, effectiveTenant);
@@ -95,9 +95,8 @@ public class AdminConfigController {
     @PutMapping("/bulk")
     public ResponseEntity<Map<String, String>> updateBulkConfig(
             @Valid @RequestBody BulkConfigUpdateRequest request,
-            @RequestParam(required = false) String tenantId,
-            @AuthenticationPrincipal Jwt jwt) {
-        UUID actorId = extractActorId(jwt);
+            @RequestParam(required = false) String tenantId) {
+        UUID actorId = extractActorId();
         String effectiveTenant = resolveTenant(tenantId);
         Map<String, String> updatedMap = configChangeService.updateBulkConfigs(
                 request.configs(), actorId, effectiveTenant);
@@ -109,19 +108,10 @@ public class AdminConfigController {
      */
     @PostMapping("/reset")
     public ResponseEntity<Map<String, String>> resetConfigToDefaults(
-            @RequestParam(required = false) String tenantId,
-            @AuthenticationPrincipal Jwt jwt) {
-        UUID actorId = extractActorId(jwt);
+            @RequestParam(required = false) String tenantId) {
+        UUID actorId = extractActorId();
         String effectiveTenant = resolveTenant(tenantId);
         Map<String, String> defaults = configChangeService.resetToDefaults(actorId, effectiveTenant);
         return ResponseEntity.ok(defaults);
-    }
-
-    private String resolveTenant(String paramTenant) {
-        return AdminControllerHelper.resolveTenant(paramTenant);
-    }
-
-    private UUID extractActorId(Jwt jwt) {
-        return AdminControllerHelper.extractActorId(jwt);
     }
 }

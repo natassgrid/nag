@@ -24,6 +24,8 @@ import com.examplatform.identity.exception.AccountNotFoundException;
 import com.examplatform.identity.service.*;
 import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.response.ApiResponse;
+import com.examplatform.shared.security.UserContext;
+import com.examplatform.shared.tenant.TenantContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -75,9 +77,10 @@ public class IdentityController {
     public ResponseEntity<ApiResponse<UserAccountResponse>> getCurrentUserProfile(
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
-        String userIdStr = jwt != null ? jwt.getSubject() : "user-unknown";
-        log.debug("Get current user profile request for userId [{}], tenant [{}]", userIdStr, tenantId);
-        UserAccountResponse profile = roleManagementService.getUserProfile(userIdStr, tenantId);
+        String effectiveTenantId = TenantContext.resolveTenant(tenantId);
+        String userIdStr = UserContext.resolveUserIdStr(jwt);
+        log.debug("Get current user profile request for userId [{}], tenant [{}]", userIdStr, effectiveTenantId);
+        UserAccountResponse profile = roleManagementService.getUserProfile(userIdStr, effectiveTenantId);
         return ResponseEntity.ok(ApiResponse.success(profile, "User profile retrieved successfully."));
     }
 
@@ -90,9 +93,10 @@ public class IdentityController {
             @Valid @RequestBody AdminUpdateUserRequest request,
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
-        String userIdStr = jwt != null ? jwt.getSubject() : "user-unknown";
-        log.debug("Update current user profile request for userId [{}], tenant [{}]", userIdStr, tenantId);
-        UserAccountResponse updated = roleManagementService.updateUserProfile(userIdStr, request, tenantId);
+        String effectiveTenantId = TenantContext.resolveTenant(tenantId);
+        String userIdStr = UserContext.resolveUserIdStr(jwt);
+        log.debug("Update current user profile request for userId [{}], tenant [{}]", userIdStr, effectiveTenantId);
+        UserAccountResponse updated = roleManagementService.updateUserProfile(userIdStr, request, effectiveTenantId);
         return ResponseEntity.ok(ApiResponse.success(updated, "Profile updated successfully."));
     }
 
@@ -104,9 +108,10 @@ public class IdentityController {
     public ResponseEntity<ApiResponse<List<ActiveSessionResponse>>> getActiveSessions(
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
-        String userIdStr = jwt != null ? jwt.getSubject() : "user-unknown";
-        log.debug("Get active sessions request for userId [{}], tenant [{}]", userIdStr, tenantId);
-        List<ActiveSessionResponse> sessions = roleManagementService.getActiveSessions(userIdStr, tenantId);
+        String effectiveTenantId = TenantContext.resolveTenant(tenantId);
+        String userIdStr = UserContext.resolveUserIdStr(jwt);
+        log.debug("Get active sessions request for userId [{}], tenant [{}]", userIdStr, effectiveTenantId);
+        List<ActiveSessionResponse> sessions = roleManagementService.getActiveSessions(userIdStr, effectiveTenantId);
         return ResponseEntity.ok(ApiResponse.success(sessions, "Active sessions retrieved successfully."));
     }
 
@@ -118,9 +123,10 @@ public class IdentityController {
     public ResponseEntity<ApiResponse<Void>> revokeOtherSessions(
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
-        String userIdStr = jwt != null ? jwt.getSubject() : "user-unknown";
-        log.debug("Revoke other sessions request for userId [{}], tenant [{}]", userIdStr, tenantId);
-        roleManagementService.revokeOtherSessions(userIdStr, tenantId);
+        String effectiveTenantId = TenantContext.resolveTenant(tenantId);
+        String userIdStr = UserContext.resolveUserIdStr(jwt);
+        log.debug("Revoke other sessions request for userId [{}], tenant [{}]", userIdStr, effectiveTenantId);
+        roleManagementService.revokeOtherSessions(userIdStr, effectiveTenantId);
         return ResponseEntity.ok(ApiResponse.success(null, "Other active sessions terminated successfully."));
     }
 
@@ -313,9 +319,12 @@ public class IdentityController {
     public ResponseEntity<ApiResponse<TotpSetupResponse>> setup2fa(
             @RequestParam(required = false) String username,
             @AuthenticationPrincipal Jwt jwt) {
-        String targetUsername = (jwt != null) ? jwt.getClaimAsString("preferred_username") : username;
+        String targetUsername = UserContext.getEmail();
         if (targetUsername == null || targetUsername.isBlank()) {
-            targetUsername = (jwt != null) ? jwt.getSubject() : "user";
+            targetUsername = (jwt != null) ? jwt.getClaimAsString("preferred_username") : username;
+        }
+        if (targetUsername == null || targetUsername.isBlank()) {
+            targetUsername = UserContext.resolveUserIdStr(jwt);
         }
         TotpSetupResponse setup = adminInvitationService.generateTotpSetup(targetUsername);
         return ResponseEntity.ok(ApiResponse.success(setup, "TOTP 2FA setup credentials generated."));
@@ -328,8 +337,8 @@ public class IdentityController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> get2faStatus(
             @RequestParam(required = false) String userId,
             @AuthenticationPrincipal Jwt jwt) {
-        String targetUserId = (jwt != null && jwt.getSubject() != null) ? jwt.getSubject() : userId;
-        if (targetUserId == null || targetUserId.isBlank()) {
+        String targetUserId = userId != null && !userId.isBlank() ? userId : UserContext.resolveUserIdStr(jwt);
+        if (targetUserId == null || targetUserId.isBlank() || "user-unknown".equals(targetUserId)) {
             throw new AccountNotFoundException("User ID is required.");
         }
         UUID id = UUID.fromString(targetUserId.trim());
@@ -345,12 +354,13 @@ public class IdentityController {
             @Valid @RequestBody TotpVerifySetupRequest request,
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
-        String userIdStr = (jwt != null) ? jwt.getSubject() : request.getUserId();
-        if (userIdStr == null || userIdStr.isBlank()) {
+        String effectiveTenantId = TenantContext.resolveTenant(tenantId);
+        String userIdStr = request.getUserId() != null && !request.getUserId().isBlank() ? request.getUserId() : UserContext.resolveUserIdStr(jwt);
+        if (userIdStr == null || userIdStr.isBlank() || "user-unknown".equals(userIdStr)) {
             throw new AccountNotFoundException("User ID is required to enable 2FA.");
         }
         UUID userId = UUID.fromString(userIdStr.trim());
-        adminInvitationService.verifyAndEnableTotp(userId, request, tenantId);
+        adminInvitationService.verifyAndEnableTotp(userId, request, effectiveTenantId);
         return ResponseEntity.ok(ApiResponse.success(null, "2FA TOTP configured and activated successfully."));
     }
 
@@ -362,12 +372,13 @@ public class IdentityController {
             @RequestParam(required = false) String userId,
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
-        String targetUserId = (jwt != null && jwt.getSubject() != null) ? jwt.getSubject() : userId;
-        if (targetUserId == null || targetUserId.isBlank()) {
+        String effectiveTenantId = TenantContext.resolveTenant(tenantId);
+        String targetUserId = userId != null && !userId.isBlank() ? userId : UserContext.resolveUserIdStr(jwt);
+        if (targetUserId == null || targetUserId.isBlank() || "user-unknown".equals(targetUserId)) {
             throw new AccountNotFoundException("User ID is required to disable 2FA.");
         }
         UUID id = UUID.fromString(targetUserId.trim());
-        adminInvitationService.disableTotp(id, tenantId);
+        adminInvitationService.disableTotp(id, effectiveTenantId);
         return ResponseEntity.ok(ApiResponse.success(null, "2FA TOTP has been disabled."));
     }
 
@@ -384,10 +395,11 @@ public class IdentityController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
 
-        String userId = jwt.getSubject();
-        log.info("Change password request for user [{}], tenant [{}]", userId, tenantId);
+        String effectiveTenantId = TenantContext.resolveTenant(tenantId);
+        String userId = UserContext.resolveUserIdStr(jwt);
+        log.info("Change password request for user [{}], tenant [{}]", userId, effectiveTenantId);
 
-        authenticationService.changePassword(userId, request.getNewPassword(), tenantId);
+        authenticationService.changePassword(userId, request.getNewPassword(), effectiveTenantId);
 
         return ResponseEntity.ok(ApiResponse.success(null, "Password changed successfully."));
     }
@@ -401,10 +413,11 @@ public class IdentityController {
             @AuthenticationPrincipal Jwt jwt,
             @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, defaultValue = SharedConstants.DEFAULT_TENANT) String tenantId) {
 
-        String userId = jwt.getSubject();
-        log.info("Logout request for user [{}], tenant [{}]", userId, tenantId);
+        String effectiveTenantId = TenantContext.resolveTenant(tenantId);
+        String userId = UserContext.resolveUserIdStr(jwt);
+        log.info("Logout request for user [{}], tenant [{}]", userId, effectiveTenantId);
 
-        authenticationService.logout(userId, tenantId);
+        authenticationService.logout(userId, effectiveTenantId);
 
         return ResponseEntity.ok(ApiResponse.success(null, "Logged out successfully."));
     }

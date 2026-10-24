@@ -23,6 +23,8 @@ import com.examplatform.examination.dto.schedule.*;
 import com.examplatform.examination.service.ExaminationScheduleService;
 import com.examplatform.shared.api.ApiResponse;
 import com.examplatform.shared.constants.SharedConstants;
+import com.examplatform.shared.security.UserContext;
+import com.examplatform.shared.tenant.TenantContext;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -58,12 +60,13 @@ public class ExaminationScheduleController {
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<ScheduleResponse>> create(
             @PathVariable UUID examId,
-            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, required = false) String tenantId,
             @Valid @RequestBody CreateScheduleRequest request,
             @AuthenticationPrincipal Jwt jwt) {
 
-        UUID actorId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
-        ScheduleResponse response = scheduleService.createSchedule(examId, request, actorId, tenantId);
+        String effectiveTenant = TenantContext.resolveTenant(tenantId);
+        UUID actorId = UserContext.resolveUserIdOrDefault(jwt);
+        ScheduleResponse response = scheduleService.createSchedule(examId, request, actorId, effectiveTenant);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(response, "Schedule created successfully"));
     }
@@ -72,13 +75,14 @@ public class ExaminationScheduleController {
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN','SECURITY_ADMIN')")
     public ResponseEntity<ApiResponse<org.springframework.data.domain.Page<ScheduleResponse>>> list(
             @PathVariable UUID examId,
-            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, required = false) String tenantId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @AuthenticationPrincipal Jwt jwt) {
 
+        String effectiveTenant = TenantContext.resolveTenant(tenantId);
         org.springframework.data.domain.Page<ScheduleResponse> responses =
-                scheduleService.listSchedulesPaged(examId, tenantId, page, size);
+                scheduleService.listSchedulesPaged(examId, effectiveTenant, page, size);
         return ResponseEntity.ok(ApiResponse.success(responses, "Schedules retrieved successfully"));
     }
 
@@ -87,30 +91,32 @@ public class ExaminationScheduleController {
     public ResponseEntity<ApiResponse<ScheduleResponse>> getById(
             @PathVariable UUID examId,
             @PathVariable UUID scheduleId,
-            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, required = false) String tenantId,
             @AuthenticationPrincipal Jwt jwt) {
 
-        ScheduleResponse response = scheduleService.getSchedule(scheduleId, tenantId);
+        String effectiveTenant = TenantContext.resolveTenant(tenantId);
+        ScheduleResponse response = scheduleService.getSchedule(scheduleId, effectiveTenant);
         return ResponseEntity.ok(ApiResponse.success(response, "Schedule retrieved successfully"));
     }
 
     /**
      * Transition through the approval workflow (Req 7b.7).
-     * Actor roles are extracted from the JWT realm_access.roles claim.
+     * Actor roles are extracted from UserContext or JWT realm_access.roles claim.
      */
     @PutMapping("/{scheduleId}/transition")
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN','SECURITY_ADMIN')")
     public ResponseEntity<ApiResponse<ScheduleResponse>> transition(
             @PathVariable UUID examId,
             @PathVariable UUID scheduleId,
-            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, required = false) String tenantId,
             @Valid @RequestBody ScheduleTransitionRequest request,
             @AuthenticationPrincipal Jwt jwt) {
 
-        UUID actorId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
-        Set<String> actorRoles = extractRoles(jwt);
+        String effectiveTenant = TenantContext.resolveTenant(tenantId);
+        UUID actorId = UserContext.resolveUserIdOrDefault(jwt);
+        Set<String> actorRoles = UserContext.resolveRoles(jwt);
         ScheduleResponse response = scheduleService.transitionSchedule(
-                scheduleId, request, actorId, actorRoles, tenantId);
+                scheduleId, request, actorId, actorRoles, effectiveTenant);
         return ResponseEntity.ok(ApiResponse.success(response, "Schedule transitioned to " + request.getTargetStatus()));
     }
 
@@ -122,12 +128,13 @@ public class ExaminationScheduleController {
     public ResponseEntity<ApiResponse<ScheduleResponse>> amend(
             @PathVariable UUID examId,
             @PathVariable UUID scheduleId,
-            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, required = false) String tenantId,
             @Valid @RequestBody AmendScheduleRequest request,
             @AuthenticationPrincipal Jwt jwt) {
 
-        UUID actorId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
-        ScheduleResponse response = scheduleService.amendSchedule(scheduleId, request, actorId, tenantId);
+        String effectiveTenant = TenantContext.resolveTenant(tenantId);
+        UUID actorId = UserContext.resolveUserIdOrDefault(jwt);
+        ScheduleResponse response = scheduleService.amendSchedule(scheduleId, request, actorId, effectiveTenant);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(response, "Schedule amendment created as version " + response.getScheduleVersion()));
     }
@@ -139,12 +146,13 @@ public class ExaminationScheduleController {
     public ResponseEntity<ApiResponse<ShiftResponse>> addShift(
             @PathVariable UUID examId,
             @PathVariable UUID scheduleId,
-            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, required = false) String tenantId,
             @Valid @RequestBody CreateShiftRequest request,
             @AuthenticationPrincipal Jwt jwt) {
 
+        String effectiveTenant = TenantContext.resolveTenant(tenantId);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(
-                scheduleService.addShift(scheduleId, request, UUID.fromString(Objects.requireNonNull(jwt.getSubject())), tenantId),
+                scheduleService.addShift(scheduleId, request, UserContext.resolveUserIdOrDefault(jwt), effectiveTenant),
                 "Shift created successfully"));
     }
 
@@ -154,12 +162,13 @@ public class ExaminationScheduleController {
             @PathVariable UUID examId,
             @PathVariable UUID scheduleId,
             @PathVariable UUID shiftId,
-            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, required = false) String tenantId,
             @Valid @RequestBody CreateShiftRequest request,
             @AuthenticationPrincipal Jwt jwt) {
 
+        String effectiveTenant = TenantContext.resolveTenant(tenantId);
         return ResponseEntity.ok(ApiResponse.success(
-                scheduleService.updateShift(scheduleId, shiftId, request, UUID.fromString(Objects.requireNonNull(jwt.getSubject())), tenantId),
+                scheduleService.updateShift(scheduleId, shiftId, request, UserContext.resolveUserIdOrDefault(jwt), effectiveTenant),
                 "Shift updated successfully"));
     }
 
@@ -168,26 +177,11 @@ public class ExaminationScheduleController {
     public ResponseEntity<ApiResponse<List<ShiftResponse>>> listShifts(
             @PathVariable UUID examId,
             @PathVariable UUID scheduleId,
-            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, required = false) String tenantId,
             @AuthenticationPrincipal Jwt jwt) {
 
-        List<ShiftResponse> shifts = scheduleService.listShifts(scheduleId, tenantId);
+        String effectiveTenant = TenantContext.resolveTenant(tenantId);
+        List<ShiftResponse> shifts = scheduleService.listShifts(scheduleId, effectiveTenant);
         return ResponseEntity.ok(ApiResponse.success(shifts, "Shifts retrieved successfully"));
-    }
-
-    // ── Helper ───────────────────────────────────────────────────────────
-
-    @SuppressWarnings("unchecked")
-    private Set<String> extractRoles(Jwt jwt) {
-        try {
-            java.util.Map<String, Object> realmAccess =
-                jwt.getClaim("realm_access");
-            if (realmAccess == null) return Set.of();
-            java.util.Collection<String> roles =
-                    (java.util.Collection<String>) realmAccess.get("roles");
-            return roles == null ? Set.of() : Set.copyOf(roles);
-        } catch (Exception e) {
-            return Set.of();
-        }
     }
 }

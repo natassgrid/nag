@@ -22,16 +22,16 @@ package com.examplatform.delivery.controller;
 import com.examplatform.delivery.dto.NavigationRequest;
 import com.examplatform.delivery.dto.NavigationResponse;
 import com.examplatform.delivery.service.NavigationService;
+import com.examplatform.shared.constants.SharedConstants;
+import com.examplatform.shared.security.UserContext;
+import com.examplatform.shared.tenant.TenantContext;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -56,18 +56,16 @@ public class NavigationController {
      *
      * @param sessionId the session to navigate within
      * @param request   the navigation request with target indices
-     * @param jwt       the authenticated candidate's JWT
      * @return navigation response with new position and allowed actions
      */
     @PostMapping("/{sessionId}/navigate")
     @PreAuthorize("hasRole('CANDIDATE')")
     public ResponseEntity<NavigationResponse> navigate(
             @PathVariable UUID sessionId,
-            @Valid @RequestBody NavigationRequest request,
-            @AuthenticationPrincipal Jwt jwt) {
+            @Valid @RequestBody NavigationRequest request) {
 
-        UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
-        String tenantId = jwt.getClaimAsString("tenant_id");
+        UUID candidateId = UserContext.getRequiredUserId();
+        String tenantId = TenantContext.getTenantIdOrDefault();
 
         // Ensure path variable matches request body
         request.setSessionId(sessionId);

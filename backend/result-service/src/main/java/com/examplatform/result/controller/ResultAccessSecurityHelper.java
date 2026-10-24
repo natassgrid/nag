@@ -20,6 +20,8 @@
 package com.examplatform.result.controller;
 
 import com.examplatform.shared.constants.SharedConstants;
+import com.examplatform.shared.security.UserContext;
+import com.examplatform.shared.tenant.TenantContext;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -40,13 +42,29 @@ public final class ResultAccessSecurityHelper {
     private ResultAccessSecurityHelper() {}
 
     public static void validateCandidateAccess(UUID candidateId, Authentication auth, String denialMessage) {
-        if (auth == null || candidateId == null) {
+        if (candidateId == null) {
             return;
         }
-        boolean isElevated = auth.getAuthorities().stream()
-                .anyMatch(a -> ELEVATED_ROLES.contains(a.getAuthority()));
+        if (UserContext.hasAnyRole("SUPER_ADMIN", "EXAM_CONTROLLER")) {
+            return;
+        }
+        if (auth != null) {
+            boolean isElevated = auth.getAuthorities().stream()
+                    .anyMatch(a -> ELEVATED_ROLES.contains(a.getAuthority()));
+            if (isElevated) {
+                return;
+            }
+        }
 
-        if (!isElevated && auth.getPrincipal() instanceof Jwt jwt) {
+        UUID currentUserId = UserContext.getUserId();
+        if (currentUserId != null) {
+            if (!currentUserId.equals(candidateId)) {
+                throw new AccessDeniedException(denialMessage);
+            }
+            return;
+        }
+
+        if (auth != null && auth.getPrincipal() instanceof Jwt jwt) {
             String userId = jwt.getSubject();
             if (userId != null && !userId.equals(candidateId.toString())) {
                 throw new AccessDeniedException(denialMessage);
@@ -55,6 +73,10 @@ public final class ResultAccessSecurityHelper {
     }
 
     public static String extractTenantId(Authentication auth) {
+        String tenantId = TenantContext.getTenantId();
+        if (tenantId != null && !tenantId.isBlank()) {
+            return tenantId;
+        }
         return Optional.ofNullable(auth)
                 .map(Authentication::getDetails)
                 .filter(Map.class::isInstance)

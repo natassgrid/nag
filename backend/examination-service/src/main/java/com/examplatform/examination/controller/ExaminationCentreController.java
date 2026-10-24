@@ -26,6 +26,8 @@ import com.examplatform.examination.dto.schedule.SeatAllocationResponse;
 import com.examplatform.examination.service.ExaminationCentreService;
 import com.examplatform.shared.api.ApiResponse;
 import com.examplatform.shared.constants.SharedConstants;
+import com.examplatform.shared.security.UserContext;
+import com.examplatform.shared.tenant.TenantContext;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -116,12 +118,13 @@ public class ExaminationCentreController {
             @PathVariable UUID examId,
             @PathVariable UUID scheduleId,
             @PathVariable UUID shiftId,
-            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, required = false) String tenantId,
             @Valid @RequestBody SeatAllocationRequest request,
             @AuthenticationPrincipal Jwt jwt) {
 
+        String effectiveTenant = TenantContext.resolveTenant(tenantId);
         return ResponseEntity.ok(ApiResponse.success(
-                centreService.upsertAllocation(shiftId, request, UUID.fromString(Objects.requireNonNull(jwt.getSubject())), tenantId),
+                centreService.upsertAllocation(shiftId, request, UserContext.resolveUserIdOrDefault(jwt), effectiveTenant),
                 "Seat allocation updated successfully"));
     }
 
@@ -131,11 +134,12 @@ public class ExaminationCentreController {
             @PathVariable UUID examId,
             @PathVariable UUID scheduleId,
             @PathVariable UUID shiftId,
-            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, required = false) String tenantId,
             @AuthenticationPrincipal Jwt jwt) {
 
+        String effectiveTenant = TenantContext.resolveTenant(tenantId);
         return ResponseEntity.ok(ApiResponse.success(
-                centreService.listAllocations(shiftId, tenantId),
+                centreService.listAllocations(shiftId, effectiveTenant),
                 "Allocations retrieved successfully"));
     }
 }

@@ -22,6 +22,8 @@ package com.examplatform.shared.security;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.task.SimpleAsyncTaskExecutorCustomizer;
+import org.springframework.boot.task.ThreadPoolTaskExecutorCustomizer;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.Ordered;
@@ -29,7 +31,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
- * Auto-configuration for registering the {@link UserContextFilter}.
+ * Auto-configuration for registering the {@link UserContextFilter} and
+ * asynchronous {@link ContextPropagatingTaskDecorator}.
  */
 @AutoConfiguration
 @ConditionalOnClass({OncePerRequestFilter.class, SecurityContextHolder.class})
@@ -47,5 +50,25 @@ public class UserContextAutoConfiguration {
         FilterRegistrationBean<UserContextFilter> registration = new FilterRegistrationBean<>(filter);
         registration.setOrder(Ordered.LOWEST_PRECEDENCE - 100);
         return registration;
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(ContextPropagatingTaskDecorator.class)
+    public ContextPropagatingTaskDecorator contextPropagatingTaskDecorator() {
+        return new ContextPropagatingTaskDecorator();
+    }
+
+    @Bean
+    @ConditionalOnClass(ThreadPoolTaskExecutorCustomizer.class)
+    @ConditionalOnMissingBean(name = "contextPropagatingThreadPoolCustomizer")
+    public ThreadPoolTaskExecutorCustomizer contextPropagatingThreadPoolCustomizer(ContextPropagatingTaskDecorator decorator) {
+        return executor -> executor.setTaskDecorator(decorator);
+    }
+
+    @Bean
+    @ConditionalOnClass(SimpleAsyncTaskExecutorCustomizer.class)
+    @ConditionalOnMissingBean(name = "contextPropagatingSimpleAsyncCustomizer")
+    public SimpleAsyncTaskExecutorCustomizer contextPropagatingSimpleAsyncCustomizer(ContextPropagatingTaskDecorator decorator) {
+        return executor -> executor.setTaskDecorator(decorator);
     }
 }

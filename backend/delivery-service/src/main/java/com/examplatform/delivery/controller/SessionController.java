@@ -25,20 +25,19 @@ import com.examplatform.delivery.dto.SessionStartResponse;
 import com.examplatform.delivery.service.ExamQuestionDeliveryService;
 import com.examplatform.delivery.service.SessionStartService;
 import com.examplatform.shared.constants.SharedConstants;
+import com.examplatform.shared.security.UserContext;
+import com.examplatform.shared.tenant.TenantContext;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -67,14 +66,13 @@ public class SessionController {
     @PostMapping("/start")
     @PreAuthorize("hasRole('CANDIDATE')")
     public ResponseEntity<SessionStartResponse> startSession(
-            @Valid @RequestBody SessionStartRequest request,
-            @AuthenticationPrincipal Jwt jwt) {
+            @Valid @RequestBody SessionStartRequest request) {
 
         Instant startTime = Instant.now();
 
-        UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
-        String tenantId = jwt.getClaimAsString("tenant_id");
-        String preferredLanguage = jwt.getClaimAsString("preferred_language");
+        UUID candidateId = UserContext.getRequiredUserId();
+        String tenantId = TenantContext.getTenantIdOrDefault();
+        String preferredLanguage = UserContext.getPreferredLanguage();
         if ((request.getLanguageCode() == null || "en".equals(request.getLanguageCode()))
                 && preferredLanguage != null && !preferredLanguage.isBlank()) {
             request.setLanguageCode(preferredLanguage);
@@ -99,10 +97,9 @@ public class SessionController {
      */
     @GetMapping("/paper/{paperId}/questions")
     public ResponseEntity<List<QuestionDeliveryDto>> getPaperQuestions(
-            @PathVariable UUID paperId,
-            @AuthenticationPrincipal Jwt jwt) {
-        String tenantId = jwt != null ? jwt.getClaimAsString("tenant_id") : SharedConstants.DEFAULT_TENANT;
-        String preferredLanguage = jwt != null ? jwt.getClaimAsString("preferred_language") : null;
+            @PathVariable UUID paperId) {
+        String tenantId = TenantContext.getTenantIdOrDefault();
+        String preferredLanguage = UserContext.getPreferredLanguage();
         List<QuestionDeliveryDto> questions = (preferredLanguage != null && !preferredLanguage.isBlank())
                 ? examQuestionDeliveryService.getQuestionsForPaper(paperId, tenantId, preferredLanguage)
                 : examQuestionDeliveryService.getQuestionsForPaper(paperId, tenantId);
@@ -115,10 +112,9 @@ public class SessionController {
      */
     @PostMapping("/terminate-active")
     @PreAuthorize("hasRole('CANDIDATE')")
-    public ResponseEntity<Map<String, Object>> terminateActiveSessions(
-            @AuthenticationPrincipal Jwt jwt) {
-        UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
-        String tenantId = jwt.getClaimAsString("tenant_id");
+    public ResponseEntity<Map<String, Object>> terminateActiveSessions() {
+        UUID candidateId = UserContext.getRequiredUserId();
+        String tenantId = TenantContext.getTenantIdOrDefault();
         int count = sessionStartService.terminateActiveSessionsForCandidate(candidateId, tenantId);
         return ResponseEntity.ok(Map.of(
             SharedConstants.STATUS, "success",
@@ -130,11 +126,10 @@ public class SessionController {
     @PostMapping("/{sessionId}/resume")
     @PreAuthorize("hasRole('CANDIDATE')")
     public ResponseEntity<SessionStartResponse> resumeSession(
-            @PathVariable UUID sessionId,
-            @AuthenticationPrincipal Jwt jwt) {
+            @PathVariable UUID sessionId) {
 
-        UUID candidateId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
-        String tenantId = jwt.getClaimAsString("tenant_id");
+        UUID candidateId = UserContext.getRequiredUserId();
+        String tenantId = TenantContext.getTenantIdOrDefault();
 
         SessionStartResponse response = sessionStartService.resumeSessionById(sessionId, candidateId, tenantId);
         return ResponseEntity.ok(response);
@@ -144,17 +139,15 @@ public class SessionController {
      * Retrieve question list for an ongoing active exam session.
      *
      * @param sessionId the session identifier
-     * @param jwt       the authenticated candidate's JWT
      * @return 200 OK with list of questions
      */
     @GetMapping("/{sessionId}/questions")
     @PreAuthorize("hasRole('CANDIDATE')")
     public ResponseEntity<List<QuestionDeliveryDto>> getSessionQuestions(
-            @PathVariable UUID sessionId,
-            @AuthenticationPrincipal Jwt jwt) {
+            @PathVariable UUID sessionId) {
 
-        String tenantId = jwt.getClaimAsString("tenant_id");
-        String preferredLanguage = jwt.getClaimAsString("preferred_language");
+        String tenantId = TenantContext.getTenantIdOrDefault();
+        String preferredLanguage = UserContext.getPreferredLanguage();
         List<QuestionDeliveryDto> questions = (preferredLanguage != null && !preferredLanguage.isBlank())
                 ? examQuestionDeliveryService.getQuestionsForSession(sessionId, tenantId, preferredLanguage)
                 : examQuestionDeliveryService.getQuestionsForSession(sessionId, tenantId);
@@ -167,18 +160,16 @@ public class SessionController {
      *
      * @param sessionId      the session identifier
      * @param sequenceNumber the 1-based sequence index
-     * @param jwt            the authenticated candidate's JWT
      * @return 200 OK with the question
      */
     @GetMapping("/{sessionId}/questions/{sequenceNumber}")
     @PreAuthorize("hasRole('CANDIDATE')")
     public ResponseEntity<QuestionDeliveryDto> getSessionQuestion(
             @PathVariable UUID sessionId,
-            @PathVariable int sequenceNumber,
-            @AuthenticationPrincipal Jwt jwt) {
+            @PathVariable int sequenceNumber) {
 
-        String tenantId = jwt.getClaimAsString("tenant_id");
-        String preferredLanguage = jwt.getClaimAsString("preferred_language");
+        String tenantId = TenantContext.getTenantIdOrDefault();
+        String preferredLanguage = UserContext.getPreferredLanguage();
         List<QuestionDeliveryDto> questions = (preferredLanguage != null && !preferredLanguage.isBlank())
                 ? examQuestionDeliveryService.getQuestionsForSession(sessionId, tenantId, preferredLanguage)
                 : examQuestionDeliveryService.getQuestionsForSession(sessionId, tenantId);

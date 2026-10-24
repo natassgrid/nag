@@ -21,6 +21,8 @@ package com.examplatform.questionbank.controller;
 import com.examplatform.questionbank.ai.batch.*;
 import com.examplatform.shared.api.ApiResponse;
 import com.examplatform.shared.constants.SharedConstants;
+import com.examplatform.shared.security.UserContext;
+import com.examplatform.shared.tenant.TenantContext;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -65,14 +67,15 @@ public class BatchGenerationController {
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'QUESTION_AUTHOR')")
     public ResponseEntity<ApiResponse<BatchJobResponse>> submitBatchJob(
             @Valid @RequestBody BatchGenerationRequest request,
-            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, required = false) String tenantId,
             @AuthenticationPrincipal Jwt jwt) {
 
-        UUID authorId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
+        String effectiveTenant = TenantContext.resolveTenant(tenantId);
+        UUID authorId = UserContext.resolveUserIdOrDefault(jwt);
         log.info("Batch generation job submitted: items={}, tenant={}",
-                request.getItems().size(), tenantId);
+                request.getItems().size(), effectiveTenant);
 
-        BatchJobResponse response = bedrockBatchService.submitBatchJob(request, authorId, tenantId);
+        BatchJobResponse response = bedrockBatchService.submitBatchJob(request, authorId, effectiveTenant);
 
         return ResponseEntity.accepted().body(
                 ApiResponse.success(response, "Batch generation job submitted. Use the job ID to track progress."));

@@ -24,6 +24,8 @@ import com.examplatform.questionbank.io.QuestionExportService;
 import com.examplatform.questionbank.io.QuestionImportService;
 import com.examplatform.shared.api.ApiResponse;
 import com.examplatform.shared.constants.SharedConstants;
+import com.examplatform.shared.security.UserContext;
+import com.examplatform.shared.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
@@ -119,7 +121,7 @@ public class QuestionIOController {
     public ResponseEntity<ApiResponse<ImportResult>> importQuestions(
             @RequestParam("file") MultipartFile file,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId) throws IOException {
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, required = false) String tenantId) throws IOException {
 
         if (file == null || file.isEmpty()) {
             return ResponseEntity.badRequest()
@@ -130,11 +132,12 @@ public class QuestionIOController {
                     .body(ApiResponse.error("Upload exceeds the 50 MB limit"));
         }
 
-        UUID authorId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
+        UUID authorId = UserContext.resolveUserIdOrDefault(jwt);
+        String effectiveTenant = TenantContext.resolveTenant(tenantId);
         log.info("Importing questions: file={}, size={} bytes, author={}, tenant={}",
-                file.getOriginalFilename(), file.getSize(), authorId, tenantId);
+                file.getOriginalFilename(), file.getSize(), authorId, effectiveTenant);
 
-        ImportResult result = importService.importFromZip(file.getBytes(), authorId, tenantId);
+        ImportResult result = importService.importFromZip(file.getBytes(), authorId, effectiveTenant);
         return ResponseEntity.ok(ApiResponse.success(result,
                 "Import completed: " + result.getImported() + " imported, " + result.getFailed() + " failed"));
     }

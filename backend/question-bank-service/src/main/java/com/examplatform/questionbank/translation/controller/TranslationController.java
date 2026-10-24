@@ -29,6 +29,7 @@ import com.examplatform.questionbank.translation.service.*;
 import com.examplatform.shared.api.ApiResponse;
 import com.examplatform.shared.constants.QuestionStateConstants;
 import com.examplatform.shared.constants.SharedConstants;
+import com.examplatform.shared.security.UserContext;
 import com.examplatform.shared.tenant.TenantContext;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -366,17 +367,10 @@ public class TranslationController {
     // -------------------------------------------------------------------------
 
     private String tenantId() {
-        String t = TenantContext.get();
-        return t != null ? t : SharedConstants.DEFAULT_TENANT;
+        return TenantContext.getTenantIdOrDefault();
     }
 
     private UUID extractUserId(Jwt jwt) {
-        if (jwt != null && jwt.getSubject() != null) {
-            try {
-                return UUID.fromString(jwt.getSubject());
-            } catch (IllegalArgumentException ignored) {
-            }
-        }
-        return UUID.fromString("00000000-0000-0000-0000-000000000001");
+        return UserContext.resolveUserIdOrDefault(jwt);
     }
 }

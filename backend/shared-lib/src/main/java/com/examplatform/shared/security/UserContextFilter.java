@@ -33,9 +33,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Set;
-import java.util.UUID;
-import java.util.stream.Collectors;
+import java.util.*;
 
 /**
  * Filter that automatically extracts identity and tenant claims from the active
@@ -55,6 +53,7 @@ public class UserContextFilter extends OncePerRequestFilter {
                 UUID userId = null;
                 String email = null;
                 String tenantId = null;
+                String preferredLanguage = null;
 
                 if (auth.getPrincipal() instanceof Jwt jwt) {
                     if (jwt.getSubject() != null) {
@@ -70,6 +69,7 @@ public class UserContextFilter extends OncePerRequestFilter {
                     }
 
                     tenantId = jwt.getClaimAsString("tenant_id");
+                    preferredLanguage = jwt.getClaimAsString("preferred_language");
                 } else if (auth.getName() != null) {
                     try {
                         userId = UUID.fromString(auth.getName());
@@ -85,15 +85,48 @@ public class UserContextFilter extends OncePerRequestFilter {
                     TenantContext.set(tenantId);
                 }
 
-                Set<String> roles = auth.getAuthorities().stream()
-                        .map(GrantedAuthority::getAuthority)
-                        .collect(Collectors.toUnmodifiableSet());
+                Set<String> roles = new HashSet<>();
+                if (auth.getAuthorities() != null) {
+                    for (GrantedAuthority ga : auth.getAuthorities()) {
+                        if (ga != null && ga.getAuthority() != null) {
+                            String authStr = ga.getAuthority();
+                            roles.add(authStr);
+                            roles.add(authStr.replaceFirst("^ROLE_", ""));
+                            roles.add("ROLE_" + authStr.replaceFirst("^ROLE_", ""));
+                        }
+                    }
+                }
+
+                if (auth.getPrincipal() instanceof Jwt jwt) {
+                    Object realmAccess = jwt.getClaim("realm_access");
+                    if (realmAccess instanceof Map<?, ?> realmMap) {
+                        Object r = realmMap.get("roles");
+                        if (r instanceof Collection<?> roleList) {
+                            for (Object role : roleList) {
+                                if (role != null && !role.toString().isBlank()) {
+                                    roles.add(role.toString());
+                                    roles.add("ROLE_" + role.toString().replaceFirst("^ROLE_", ""));
+                                }
+                            }
+                        }
+                    }
+                    Object rolesClaim = jwt.getClaim("roles");
+                    if (rolesClaim instanceof Collection<?> roleList) {
+                        for (Object role : roleList) {
+                            if (role != null && !role.toString().isBlank()) {
+                                roles.add(role.toString());
+                                roles.add("ROLE_" + role.toString().replaceFirst("^ROLE_", ""));
+                            }
+                        }
+                    }
+                }
 
                 UserContext.set(new UserContext.CurrentUser(
                         userId,
                         email,
                         tenantId != null && !tenantId.isBlank() ? tenantId : TenantContext.get(),
-                        roles
+                        Collections.unmodifiableSet(roles),
+                        preferredLanguage
                 ));
             } else {
                 String headerTenant = request.getHeader(SharedConstants.HEADER_TENANT_ID);

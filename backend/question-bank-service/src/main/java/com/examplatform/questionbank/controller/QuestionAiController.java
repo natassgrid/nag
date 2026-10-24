@@ -25,6 +25,8 @@ import com.examplatform.questionbank.ai.parser.NormalizedSampleQuestion;
 import com.examplatform.questionbank.ai.parser.SampleDocumentParserService;
 import com.examplatform.shared.api.ApiResponse;
 import com.examplatform.shared.constants.SharedConstants;
+import com.examplatform.shared.security.UserContext;
+import com.examplatform.shared.tenant.TenantContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -64,18 +66,19 @@ public class QuestionAiController {
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'QUESTION_AUTHOR')")
     public ResponseEntity<ApiResponse<QuestionGenerationResponse>> generateQuestions(
             @Valid @RequestBody QuestionGenerationRequest request,
-            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, required = false) String tenantId,
             @AuthenticationPrincipal Jwt jwt) {
 
+        String effectiveTenant = TenantContext.resolveTenant(tenantId);
         log.info("AI question generation requested: subject={}, topic={}, count={}, tenant={}",
-                request.getSubject(), request.getTopic(), request.getCount(), tenantId);
+                request.getSubject(), request.getTopic(), request.getCount(), effectiveTenant);
 
-        UUID authorId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
-        QuestionGenerationResponse response = questionGenerationService.generate(request, tenantId, authorId);
+        UUID authorId = UserContext.resolveUserIdOrDefault(jwt);
+        QuestionGenerationResponse response = questionGenerationService.generate(request, effectiveTenant, authorId);
 
         log.info("AI generation completed: model={}, generated={}, valid={}, duplicates={}, mode={}, tenant={}",
                 response.getModelUsed(), response.getTotalGenerated(),
-                response.getTotalValid(), response.getTotalDuplicates(), response.getExecutionMode(), tenantId);
+                response.getTotalValid(), response.getTotalDuplicates(), response.getExecutionMode(), effectiveTenant);
 
         return ResponseEntity.ok(ApiResponse.success(response,
                 String.format("Generated %d questions (%d valid, %d duplicates detected)",
@@ -92,10 +95,11 @@ public class QuestionAiController {
     public ResponseEntity<ApiResponse<QuestionGenerationResponse>> generateWithSamplesMultipart(
             @RequestPart(value = "file", required = false) MultipartFile file,
             @RequestPart("request") String requestJson,
-            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, required = false) String tenantId,
             @AuthenticationPrincipal Jwt jwt) throws IOException {
 
-        UUID authorId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
+        UUID authorId = UserContext.resolveUserIdOrDefault(jwt);
+        String effectiveTenant = TenantContext.resolveTenant(tenantId);
         QuestionGenerationRequest request = objectMapper.readValue(requestJson, QuestionGenerationRequest.class);
 
         List<NormalizedSampleQuestion> sampleQuestions = new ArrayList<>();
@@ -110,7 +114,7 @@ public class QuestionAiController {
         }
 
         QuestionGenerationResponse response = questionGenerationService.generateWithSamples(
-                request, sampleQuestions, tenantId, authorId);
+                request, sampleQuestions, effectiveTenant, authorId);
 
         return ResponseEntity.ok(ApiResponse.success(response,
                 String.format("Generated %d questions with samples (%s mode)",
@@ -124,11 +128,12 @@ public class QuestionAiController {
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'QUESTION_AUTHOR')")
     public ResponseEntity<ApiResponse<QuestionGenerationResponse>> generateWithSamplesJson(
             @Valid @RequestBody QuestionGenerationRequest request,
-            @RequestHeader(SharedConstants.HEADER_TENANT_ID) String tenantId,
+            @RequestHeader(value = SharedConstants.HEADER_TENANT_ID, required = false) String tenantId,
             @AuthenticationPrincipal Jwt jwt) {
 
-        UUID authorId = UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
-        QuestionGenerationResponse response = questionGenerationService.generate(request, tenantId, authorId);
+        UUID authorId = UserContext.resolveUserIdOrDefault(jwt);
+        String effectiveTenant = TenantContext.resolveTenant(tenantId);
+        QuestionGenerationResponse response = questionGenerationService.generate(request, effectiveTenant, authorId);
 
         return ResponseEntity.ok(ApiResponse.success(response,
                 String.format("Generated %d questions (%s mode)",

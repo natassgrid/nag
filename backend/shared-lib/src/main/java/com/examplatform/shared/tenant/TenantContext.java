@@ -19,6 +19,9 @@
 
 package com.examplatform.shared.tenant;
 
+import com.examplatform.shared.constants.SharedConstants;
+import com.examplatform.shared.security.UserContext;
+
 /**
  * Thread-local holder for the current request's {@code tenantId}.
  *
@@ -97,13 +100,21 @@ public final class TenantContext {
     }
 
     /**
-     * Retrieve the tenant ID bound to the current thread.
+     * Retrieve the tenant ID bound to the current thread, or fall back to {@link UserContext#getTenantId()}.
      *
      * @return the tenant ID, or {@code null} if none has been set
      *         (e.g. during background jobs that are not tenant-scoped)
      */
     public static String getTenantId() {
-        return HOLDER.get();
+        String tenantId = HOLDER.get();
+        if (tenantId != null) {
+            return tenantId;
+        }
+        try {
+            return UserContext.getTenantId();
+        } catch (NoClassDefFoundError | Exception ignored) {
+            return null;
+        }
     }
 
     /**
@@ -126,13 +137,64 @@ public final class TenantContext {
      * @throws IllegalStateException if no tenant ID is set
      */
     public static String getRequired() {
-        String tenantId = HOLDER.get();
+        String tenantId = getTenantId();
         if (tenantId == null) {
             throw new IllegalStateException(
                     "No tenantId bound to the current thread. "
                     + "Ensure TenantContext.setTenantId() is called in the request filter.");
         }
         return tenantId;
+    }
+
+    /**
+     * Alias for {@link #getRequired()} for standardized naming convention.
+     *
+     * @return the tenant ID bound to the current thread
+     * @throws IllegalStateException if no tenant ID is set
+     */
+    public static String getRequiredTenantId() {
+        return getRequired();
+    }
+
+    /**
+     * Resolves the current tenant ID, falling back to {@link SharedConstants#DEFAULT_TENANT}.
+     */
+    public static String getTenantIdOrDefault() {
+        return getTenantIdOrDefault(SharedConstants.DEFAULT_TENANT);
+    }
+
+    /**
+     * Resolves the current tenant ID, falling back to {@code defaultTenant}.
+     */
+    public static String getTenantIdOrDefault(String defaultTenant) {
+        String tenantId = getTenantId();
+        return (tenantId != null && !tenantId.isBlank()) ? tenantId : defaultTenant;
+    }
+
+    /**
+     * Resolves tenant ID from request header parameter, falling back to ambient thread context
+     * and finally {@link SharedConstants#DEFAULT_TENANT}.
+     */
+    public static String resolveTenant(String headerTenant) {
+        if (headerTenant != null && !headerTenant.isBlank()) {
+            return headerTenant;
+        }
+        return getTenantIdOrDefault();
+    }
+
+    /**
+     * Resolves mandatory tenant ID from header parameter or ambient context.
+     * Throws {@link IllegalArgumentException} if no tenant identifier is present.
+     */
+    public static String resolveRequiredTenant(String headerTenant) {
+        if (headerTenant != null && !headerTenant.isBlank()) {
+            return headerTenant;
+        }
+        String tenantId = getTenantId();
+        if (tenantId != null && !tenantId.isBlank()) {
+            return tenantId;
+        }
+        throw new IllegalArgumentException("Missing required request header: " + SharedConstants.HEADER_TENANT_ID);
     }
 
     /**
