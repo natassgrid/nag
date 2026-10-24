@@ -58,9 +58,16 @@ model_list:
       api_base: http://ollama:11434
 
   # Qwen2.5-VL 7B Multimodal Vision-Language Model via Ollama (OpenAI-compatible route)
+  # Supports both official Ollama tag 'qwen2.5vl:7b' and hyphenated alias 'qwen2.5-vl:7b'
   - model_name: qwen2.5-vl:7b
     litellm_params:
-      model: openai/qwen2.5-vl:7b
+      model: openai/qwen2.5vl:7b
+      api_base: http://ollama:11434/v1
+      api_key: ollama
+
+  - model_name: qwen2.5vl:7b
+    litellm_params:
+      model: openai/qwen2.5vl:7b
       api_base: http://ollama:11434/v1
       api_key: ollama
 
@@ -68,7 +75,7 @@ model_list:
   # Vision/Multimodal route for scanned PDF pages, formulas, diagrams & tables
   - model_name: paper-extract-vision
     litellm_params:
-      model: openai/qwen2.5-vl:7b
+      model: openai/qwen2.5vl:7b
       api_base: http://ollama:11434/v1
       api_key: ollama
 
