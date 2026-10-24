@@ -516,8 +516,6 @@ services:
     image: exam-ocr:latest
     container_name: exam-ocr
     restart: unless-stopped
-    profiles:
-      - ai
     ports:
       - "${OCR_PORT:-5005}:5005"
     healthcheck:
@@ -527,7 +525,9 @@ services:
       retries: 5
       start_period: 10s
     networks:
-      - exam-network
+      exam-network:
+        aliases:
+          - ocr-service
 
   # ===========================================================================
   # Mock DPI Third-Party Server — DigiLocker, Aadhaar e-KYC, MSG91 Gateway

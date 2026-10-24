@@ -25,9 +25,11 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.Duration;
 import java.util.Map;
 
 /**
@@ -47,15 +49,26 @@ public class OcrServiceClient {
     private final RestTemplate restTemplate;
 
     public OcrServiceClient() {
-        this.restTemplate = new RestTemplate();
+        this.restTemplate = createOcrRestTemplate();
     }
 
     @Autowired
     public OcrServiceClient(
-            @Autowired(required = false) RestTemplate restTemplate,
             @Value("${app.ai.extraction.ocr-service-url:${OCR_SERVICE_URL:http://localhost:5005}}") String ocrServiceUrl) {
-        this.restTemplate = restTemplate != null ? restTemplate : new RestTemplate();
+        this.restTemplate = createOcrRestTemplate();
         this.ocrServiceUrl = ocrServiceUrl;
+    }
+
+    public OcrServiceClient(RestTemplate restTemplate, String ocrServiceUrl) {
+        this.restTemplate = restTemplate != null ? restTemplate : createOcrRestTemplate();
+        this.ocrServiceUrl = ocrServiceUrl;
+    }
+
+    private static RestTemplate createOcrRestTemplate() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(Duration.ofSeconds(10));
+        factory.setReadTimeout(Duration.ofSeconds(60));
+        return new RestTemplate(factory);
     }
 
     public boolean isAvailable() {
