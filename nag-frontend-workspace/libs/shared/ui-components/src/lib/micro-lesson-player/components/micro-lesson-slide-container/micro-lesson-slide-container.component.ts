@@ -1,6 +1,7 @@
 import {
   Component,
   ChangeDetectionStrategy,
+  HostListener,
   computed,
   input,
   output,
@@ -50,6 +51,7 @@ export class MicroLessonSlideContainerComponent {
   readonly tutorAvatarState = input<TutorAvatarState>('IDLE');
   readonly activeCaption = input<string>('');
   readonly formulaRequired = input<boolean>(true);
+  readonly isFullscreen = input<boolean>(false);
 
   readonly nextSlide = output<void>();
   readonly prevSlide = output<void>();
@@ -60,9 +62,30 @@ export class MicroLessonSlideContainerComponent {
   readonly selectQuizOption = output<{ questionIndex: number; option: string }>();
   readonly resetQuiz = output<void>();
   readonly startAutoPlay = output<void>();
+  readonly toggleFullscreen = output<void>();
 
   readonly activeFormulaIndex = signal<number>(0);
   private touchStartX = 0;
+
+  readonly windowHeight = signal<number>(
+    typeof window !== 'undefined' ? window.innerHeight : 800
+  );
+
+  @HostListener('window:resize')
+  onResize(): void {
+    if (typeof window !== 'undefined') {
+      this.windowHeight.set(window.innerHeight);
+    }
+  }
+
+  readonly calculatedCardHeight = computed<string>(() => {
+    if (this.isFullscreen()) {
+      return 'calc(100vh - 105px)';
+    }
+    const vh = this.windowHeight();
+    const target = Math.max(340, Math.min(620, vh - 220));
+    return `${target}px`;
+  });
 
   readonly currentSlide = computed<LessonSlide>(() => {
     const list = this.slides() || [];
@@ -82,11 +105,51 @@ export class MicroLessonSlideContainerComponent {
   });
 
   readonly normalizedFormulas = computed<PlayerFormulaEntry[]>(() => {
-    const sheet = this.lesson()?.content?.formulaCheatSheet;
+    const sheet =
+      this.lesson()?.content?.formulaCheatSheet ||
+      (this.lesson() as any)?.formulaCheatSheet;
+
     if (Array.isArray(sheet)) {
-      const valid = sheet.filter(
-        (f) => f && ((f.latex && f.latex.trim()) || (f.name && f.name.trim()))
-      );
+      const valid = sheet
+        .map((f: any, idx: number): PlayerFormulaEntry | null => {
+          if (!f) return null;
+          if (typeof f === 'string') {
+            const trimmed = f.trim();
+            const colonIdx = trimmed.indexOf(':');
+            const dollarIdx = trimmed.indexOf('$');
+            const slashIdx = trimmed.indexOf('\\');
+            const hasColon = colonIdx > 0;
+            const colonBeforeDollar = dollarIdx === -1 || colonIdx < dollarIdx;
+            const colonBeforeSlash = slashIdx === -1 || colonIdx < slashIdx;
+            let name = `Formula ${idx + 1}`;
+            let latex = trimmed;
+            if (hasColon && colonBeforeDollar && colonBeforeSlash) {
+              const namePart = trimmed.substring(0, colonIdx).trim();
+              const latexPart = trimmed.substring(colonIdx + 1).trim();
+              if (namePart && !namePart.includes('$') && !namePart.includes('\\')) {
+                name = namePart;
+                latex = latexPart;
+              }
+            }
+            return {
+              name,
+              latex,
+              description: '',
+              variables: [],
+            };
+          }
+          return {
+            name: f.name || f.title || f.namePart || `Formula ${idx + 1}`,
+            latex: f.latex || f.formula || f.expression || f.value || '',
+            description: f.description || f.note || f.usage || '',
+            variables: f.variables || [],
+          };
+        })
+        .filter(
+          (f): f is PlayerFormulaEntry =>
+            !!f && (f.latex.trim().length > 0 || f.name.trim().length > 0)
+        );
+
       if (valid.length > 0) return valid;
     }
     if (typeof sheet === 'string' && sheet.trim()) {
@@ -223,8 +286,18 @@ export class MicroLessonSlideContainerComponent {
   }
 
   formatLatex(latex: string): string {
-    const trimmed = (latex || '').trim();
+    let trimmed = (latex || '').trim();
     if (!trimmed) return '';
+    // Strip redundant leading "Formula Name: " prefix if embedded in latex string
+    const colonIdx = trimmed.indexOf(':');
+    const dollarIdx = trimmed.indexOf('$');
+    const slashIdx = trimmed.indexOf('\\');
+    if (
+      colonIdx > 0 &&
+      (dollarIdx > colonIdx || (dollarIdx === -1 && slashIdx > colonIdx))
+    ) {
+      trimmed = trimmed.substring(colonIdx + 1).trim();
+    }
     if (trimmed.includes('$$') || trimmed.includes('$')) return trimmed;
     return `$$${trimmed}$$`;
   }

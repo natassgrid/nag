@@ -47,6 +47,7 @@ export class MicroLessonPlayerTopbarComponent {
   readonly audioEnabled = input<boolean>(false);
   readonly tutorStageExpanded = input<boolean>(false);
   readonly tutorAvatarState = input<TutorAvatarState>('IDLE');
+  readonly isFullscreen = input<boolean>(false);
 
   readonly backToRoadmap = output<void>();
   readonly selectSlide = output<number>();
@@ -54,6 +55,7 @@ export class MicroLessonPlayerTopbarComponent {
   readonly speedChange = output<number>();
   readonly toggleAudio = output<void>();
   readonly toggleTutorStage = output<void>();
+  readonly toggleFullscreen = output<void>();
 
   readonly speeds: number[] = [0.75, 1, 1.25, 1.5, 2];
 
@@ -92,5 +94,9 @@ export class MicroLessonPlayerTopbarComponent {
 
   onToggleTutorStage(): void {
     this.toggleTutorStage.emit();
+  }
+
+  onToggleFullscreen(): void {
+    this.toggleFullscreen.emit();
   }
 }

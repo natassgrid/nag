@@ -1,9 +1,9 @@
-<div class="bg-white/90 backdrop-blur-xs rounded-2xl border border-slate-200/80 px-3.5 py-2.5 shadow-2xs">
-  <div class="flex flex-wrap items-center justify-between gap-2.5">
+<div class="bg-white/95 backdrop-blur-xs rounded-xl border border-slate-200/80 px-3 py-1.5 shadow-2xs">
+  <div class="flex flex-wrap items-center justify-between gap-2">
     <!-- Left side: Approach pill tabs & switcher (renders array of micro-lessons returned from API) -->
     <div class="flex flex-wrap items-center gap-1.5 min-w-0">
-      <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider shrink-0 flex items-center gap-1">
-        <mat-icon class="!text-sm text-indigo-600">alt_route</mat-icon>
+      <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider shrink-0 flex items-center gap-1">
+        <mat-icon class="!text-xs text-indigo-600">alt_route</mat-icon>
         <span>Approach:</span>
       </span>
 
@@ -14,11 +14,13 @@
               type="button"
               (click)="onSelectApproach(ap)"
               [attr.data-testid]="'approach-card-' + ap.sequenceNo"
-              class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer border"
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
               [ngClass]="activeApproachId() === ap.id ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs font-bold' : 'bg-slate-100 text-slate-700 border-slate-200/80 hover:bg-slate-200'"
             >
               <mat-icon class="!text-xs shrink-0">{{ ap.icon }}</mat-icon>
-              <span class="truncate max-w-[160px] sm:max-w-[220px]">{{ ap.approachName }}</span>
+              <span class="truncate max-w-[150px] sm:max-w-[200px]">
+                {{ approaches().length > 1 ? ('Approach ' + ap.sequenceNo + ': ' + ap.approachName) : ap.approachName }}
+              </span>
             </button>
           }
         </div>
@@ -29,10 +31,10 @@
             (click)="onTryAnother()"
             data-testid="try-another-approach-btn"
             title="Switch to next micro-tutorial approach"
-            class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-all cursor-pointer shrink-0"
+            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-all cursor-pointer shrink-0"
           >
             <mat-icon class="!text-xs">shuffle</mat-icon>
-            <span class="hidden sm:inline">Next Approach</span>
+            <span class="hidden sm:inline">Next</span>
           </button>
         }
       } @else {
@@ -41,16 +43,16 @@
     </div>
 
     <!-- Right side: Depth segmented control & Language dropdown -->
-    <div class="flex items-center gap-2.5 shrink-0 ml-auto">
+    <div class="flex items-center gap-2 shrink-0 ml-auto">
       <!-- Depth Segmented Control -->
-      <div class="flex items-center gap-1.5">
+      <div class="flex items-center gap-1">
         <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 hidden xl:inline">Depth:</span>
-        <div class="inline-flex items-center rounded-xl bg-slate-100 p-0.5 border border-slate-200/80">
+        <div class="inline-flex items-center rounded-lg bg-slate-100 p-0.5 border border-slate-200/80">
           @for (diff of allDifficulties; track diff.level) {
             <button
               type="button"
               (click)="onSelectDifficulty(diff.level)"
-              class="px-2 py-0.5 rounded-lg text-xs font-semibold transition-all cursor-pointer"
+              class="px-1.5 py-0.5 rounded-md text-[11px] font-semibold transition-all cursor-pointer"
               [ngClass]="currentDifficulty() === diff.level ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'"
             >
               {{ diff.label }}
@@ -66,7 +68,7 @@
           [value]="selectedLanguage()"
           (change)="onSelectLanguage($any($event.target).value)"
           aria-label="Select tutorial language"
-          class="text-xs font-semibold text-slate-700 bg-slate-100 border border-slate-200/80 rounded-xl px-2 py-1 cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          class="text-xs font-semibold text-slate-700 bg-slate-100 border border-slate-200/80 rounded-lg px-1.5 py-0.5 cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-500"
         >
           @for (lang of supportedLanguages; track lang.code) {
             <option [value]="lang.code">{{ lang.name }}</option>

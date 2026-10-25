@@ -3,6 +3,9 @@ import {
   ChangeDetectionStrategy,
   OnInit,
   OnDestroy,
+  ElementRef,
+  HostListener,
+  ViewChild,
   inject,
   signal,
   computed,
@@ -91,6 +94,9 @@ export class MicroLessonViewerComponent implements OnInit, OnDestroy {
   readonly tutorStageExpanded = signal<boolean>(false);
   readonly tutorAvatarState = signal<TutorAvatarState>('IDLE');
   readonly activeCaption = signal<string>('');
+  readonly isFullscreen = signal<boolean>(false);
+
+  @ViewChild('playerContainer') playerContainerRef?: ElementRef<HTMLElement>;
 
   private autoPlayTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -438,6 +444,54 @@ export class MicroLessonViewerComponent implements OnInit, OnDestroy {
 
   onBackToRoadmap(): void {
     this.router.navigate(['/learn/roadmap']);
+  }
+
+  @HostListener('document:fullscreenchange')
+  @HostListener('document:webkitfullscreenchange')
+  onFullscreenChange(): void {
+    if (typeof document !== 'undefined') {
+      const isDocFull = !!(
+        document.fullscreenElement ||
+        (document as any).webkitFullscreenElement
+      );
+      this.isFullscreen.set(isDocFull);
+    }
+  }
+
+  onToggleFullscreen(): void {
+    if (typeof document === 'undefined') return;
+    const target = this.playerContainerRef?.nativeElement;
+
+    if (!this.isFullscreen()) {
+      if (target?.requestFullscreen) {
+        target
+          .requestFullscreen()
+          .then(() => this.isFullscreen.set(true))
+          .catch(() => this.isFullscreen.set(true));
+      } else if ((target as any)?.webkitRequestFullscreen) {
+        (target as any).webkitRequestFullscreen();
+        this.isFullscreen.set(true);
+      } else {
+        this.isFullscreen.set(true);
+      }
+    } else {
+      if (
+        document.fullscreenElement ||
+        (document as any).webkitFullscreenElement
+      ) {
+        if (document.exitFullscreen) {
+          document
+            .exitFullscreen()
+            .then(() => this.isFullscreen.set(false))
+            .catch(() => this.isFullscreen.set(false));
+        } else if ((document as any).webkitExitFullscreen) {
+          (document as any).webkitExitFullscreen();
+          this.isFullscreen.set(false);
+        }
+      } else {
+        this.isFullscreen.set(false);
+      }
+    }
   }
 
   private resetSlideInteractiveState(): void {

@@ -66,11 +66,13 @@
         [audioEnabled]="audioEnabled()"
         [tutorStageExpanded]="tutorStageExpanded()"
         [tutorAvatarState]="tutorAvatarState()"
+        [isFullscreen]="isFullscreen()"
         (selectSlide)="onSelectSlide($event)"
         (togglePlay)="onTogglePlay()"
         (speedChange)="onSpeedChange($event)"
         (toggleAudio)="onToggleAudio()"
         (toggleTutorStage)="onToggleTutorStage()"
+        (toggleFullscreen)="onToggleFullscreen()"
       />
 
       <app-micro-lesson-slide-container
@@ -85,6 +87,7 @@
         [tutorAvatarState]="tutorAvatarState()"
         [activeCaption]="activeCaption()"
         [formulaRequired]="formulaRequired()"
+        [isFullscreen]="isFullscreen()"
         (nextSlide)="onNextSlide()"
         (prevSlide)="onPrevSlide()"
         (goToSlide)="onSelectSlide($event)"
@@ -94,6 +97,7 @@
         (selectQuizOption)="onSelectQuizOption($event)"
         (resetQuiz)="onResetQuiz()"
         (startAutoPlay)="onStartAutoPlay()"
+        (toggleFullscreen)="onToggleFullscreen()"
       />
     } @else {
       <!-- Full Scroll Sheet Mode for Quick All-Section Inspection -->

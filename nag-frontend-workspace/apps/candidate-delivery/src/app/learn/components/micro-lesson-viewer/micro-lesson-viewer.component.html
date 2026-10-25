@@ -1,29 +1,4 @@
-<div class="micro-lesson-viewer-container max-w-4xl mx-auto px-4 py-3 sm:py-4 space-y-3">
-  <!-- 1. Top Navigation Bar (Tracks progress bar: currentSlide / totalSlides + Auto/Manual Tutor Controls) -->
-  <app-micro-lesson-player-topbar
-    [subjectName]="lesson()?.subjectName || 'Curriculum Subject'"
-    [topicName]="lesson()?.topicName || 'Topic'"
-    [subtopicName]="lesson()?.subtopicName || 'Micro-Lesson'"
-    [approachLabel]="lesson()?.approachName || 'Conceptual Foundation'"
-    [contentVersion]="lesson()?.contentVersion || 1"
-    [slides]="slides()"
-    [currentSlideIndex]="currentSlideIndex()"
-    [totalSlides]="totalSlides()"
-    [isPlaying]="isPlaying()"
-    [playbackMode]="playbackMode()"
-    [playbackSpeed]="playbackSpeed()"
-    [autoPlayProgress]="autoPlayProgress()"
-    [audioEnabled]="audioEnabled()"
-    [tutorStageExpanded]="tutorStageExpanded()"
-    [tutorAvatarState]="tutorAvatarState()"
-    (backToRoadmap)="onBackToRoadmap()"
-    (selectSlide)="onSelectSlide($event)"
-    (togglePlay)="onTogglePlay()"
-    (speedChange)="onSpeedChange($event)"
-    (toggleAudio)="onToggleAudio()"
-    (toggleTutorStage)="onToggleTutorStage()"
-  />
-
+<div class="micro-lesson-viewer-container max-w-4xl mx-auto px-3 sm:px-4 py-2 sm:py-3 space-y-2.5 sm:space-y-3">
   @if (loading()) {
     <div class="py-12 text-center space-y-3">
       <mat-progress-bar mode="indeterminate" class="max-w-md mx-auto !h-1.5"></mat-progress-bar>
@@ -43,35 +18,71 @@
       </button>
     </div>
   } @else if (lesson(); as l) {
-    @if (l.fallbackToEnglish) {
-      <div class="p-2.5 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-800 flex items-center gap-2">
-        <mat-icon class="!text-sm text-amber-600">info</mat-icon>
-        <span>Translation for the selected regional language is being prepared. Showing verified English master content.</span>
-      </div>
-    }
+    <!-- Dedicated Player Container (Supports Fullscreen for Player Only) -->
+    <div
+      #playerContainer
+      class="micro-lesson-player-deck space-y-2 transition-all"
+      [class.player-fullscreen-active]="isFullscreen()"
+    >
+      <!-- 1. Top Navigation Bar (Tracks progress bar: currentSlide / totalSlides + Fullscreen & Tutor Controls) -->
+      <app-micro-lesson-player-topbar
+        [subjectName]="l.subjectName || 'Curriculum Subject'"
+        [topicName]="l.topicName || 'Topic'"
+        [subtopicName]="l.subtopicName || 'Micro-Lesson'"
+        [approachLabel]="l.approachName || 'Conceptual Foundation'"
+        [contentVersion]="l.contentVersion || 1"
+        [slides]="slides()"
+        [currentSlideIndex]="currentSlideIndex()"
+        [totalSlides]="totalSlides()"
+        [isPlaying]="isPlaying()"
+        [playbackMode]="playbackMode()"
+        [playbackSpeed]="playbackSpeed()"
+        [autoPlayProgress]="autoPlayProgress()"
+        [audioEnabled]="audioEnabled()"
+        [tutorStageExpanded]="tutorStageExpanded()"
+        [tutorAvatarState]="tutorAvatarState()"
+        [isFullscreen]="isFullscreen()"
+        (backToRoadmap)="onBackToRoadmap()"
+        (selectSlide)="onSelectSlide($event)"
+        (togglePlay)="onTogglePlay()"
+        (speedChange)="onSpeedChange($event)"
+        (toggleAudio)="onToggleAudio()"
+        (toggleTutorStage)="onToggleTutorStage()"
+        (toggleFullscreen)="onToggleFullscreen()"
+      />
 
-    <!-- 2. Interactive Slide Container (INTRO -> CONCEPT -> FORMULA -> STEPS -> QUIZ) -->
-    <app-micro-lesson-slide-container
-      [lesson]="l"
-      [slides]="slides()"
-      [currentSlideIndex]="currentSlideIndex()"
-      [revealedStepCount]="revealedStepCount()"
-      [quizSelections]="quizSelections()"
-      [isPlaying]="isPlaying()"
-      [audioEnabled]="audioEnabled()"
-      [tutorStageExpanded]="tutorStageExpanded()"
-      [tutorAvatarState]="tutorAvatarState()"
-      [activeCaption]="activeCaption()"
-      (nextSlide)="onNextSlide()"
-      (prevSlide)="onPrevSlide()"
-      (goToSlide)="onSelectSlide($event)"
-      (revealNextStep)="onRevealNextStep()"
-      (revealAllSteps)="onRevealAllSteps()"
-      (resetSteps)="onResetSteps()"
-      (selectQuizOption)="onSelectQuizOption($event)"
-      (resetQuiz)="onResetQuiz()"
-      (startAutoPlay)="onStartAutoPlay()"
-    />
+      @if (l.fallbackToEnglish) {
+        <div class="p-2 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-800 flex items-center gap-2 shrink-0">
+          <mat-icon class="!text-sm text-amber-600">info</mat-icon>
+          <span>Translation for the selected regional language is being prepared. Showing verified English master content.</span>
+        </div>
+      }
+
+      <!-- 2. Interactive Slide Container (INTRO -> CONCEPT -> FORMULA -> STEPS -> QUIZ with fixed calculated scrollable area) -->
+      <app-micro-lesson-slide-container
+        [lesson]="l"
+        [slides]="slides()"
+        [currentSlideIndex]="currentSlideIndex()"
+        [revealedStepCount]="revealedStepCount()"
+        [quizSelections]="quizSelections()"
+        [isPlaying]="isPlaying()"
+        [audioEnabled]="audioEnabled()"
+        [tutorStageExpanded]="tutorStageExpanded()"
+        [tutorAvatarState]="tutorAvatarState()"
+        [activeCaption]="activeCaption()"
+        [isFullscreen]="isFullscreen()"
+        (nextSlide)="onNextSlide()"
+        (prevSlide)="onPrevSlide()"
+        (goToSlide)="onSelectSlide($event)"
+        (revealNextStep)="onRevealNextStep()"
+        (revealAllSteps)="onRevealAllSteps()"
+        (resetSteps)="onResetSteps()"
+        (selectQuizOption)="onSelectQuizOption($event)"
+        (resetQuiz)="onResetQuiz()"
+        (startAutoPlay)="onStartAutoPlay()"
+        (toggleFullscreen)="onToggleFullscreen()"
+      />
+    </div>
 
     <!-- 3. Compact Multi-Tutorial Approach, Depth & Language Bar -->
     <app-micro-lesson-variant-switcher

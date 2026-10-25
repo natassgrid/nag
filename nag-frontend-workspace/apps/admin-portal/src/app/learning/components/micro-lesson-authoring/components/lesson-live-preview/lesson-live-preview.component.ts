@@ -81,6 +81,7 @@ export class LessonLivePreviewComponent implements OnDestroy {
   readonly tutorStageExpanded = signal<boolean>(false);
   readonly tutorAvatarState = signal<TutorAvatarState>('IDLE');
   readonly activeCaption = signal<string>('');
+  readonly isFullscreen = signal<boolean>(false);
 
   private autoPlayTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -322,6 +323,10 @@ export class LessonLivePreviewComponent implements OnDestroy {
 
   onResetQuiz(): void {
     this.quizSelections.set({});
+  }
+
+  onToggleFullscreen(): void {
+    this.isFullscreen.update((v) => !v);
   }
 
   formatLatex(latex: string): string {

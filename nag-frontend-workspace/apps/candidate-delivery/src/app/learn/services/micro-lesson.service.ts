@@ -140,22 +140,61 @@ export class MicroLessonService {
     }
 
     // 3. Formula Cheat Sheet
-    let formulaCheatSheet: string | FormulaEntry[] =
-      rawContent.formulaCheatSheet || '';
-    if (Array.isArray(raw.cheatSheet)) {
-      formulaCheatSheet = raw.cheatSheet.map((formula: string, idx: number) => ({
-        name: `Key Formula ${idx + 1}`,
-        latex: formula.replace(/^\$\$|\$\$$/g, '').trim(),
-        description: formula,
-        variables: [],
+    let formulaCheatSheet: string | FormulaEntry[] = [];
+    const richFormulas =
+      Array.isArray(rawContent.formulaCheatSheet) && rawContent.formulaCheatSheet.length > 0
+        ? rawContent.formulaCheatSheet
+        : Array.isArray(raw.formulaCheatSheet) && raw.formulaCheatSheet.length > 0
+        ? raw.formulaCheatSheet
+        : null;
+
+    if (richFormulas) {
+      formulaCheatSheet = richFormulas.map((f: any, idx: number) => ({
+        name: f.name || f.title || f.namePart || `Formula ${idx + 1}`,
+        latex: f.latex || f.formula || f.expression || f.value || '',
+        description: f.description || f.note || f.usage || '',
+        variables: Array.isArray(f.variables) ? f.variables : [],
       }));
-    } else if (Array.isArray(rawContent.formulaCheatSheet)) {
-      formulaCheatSheet = rawContent.formulaCheatSheet;
+    } else if (Array.isArray(raw.cheatSheet) && raw.cheatSheet.length > 0) {
+      formulaCheatSheet = raw.cheatSheet.map((formulaStr: string, idx: number) => {
+        const item = (formulaStr || '').trim();
+        const colonIdx = item.indexOf(':');
+        const firstDollarIdx = item.indexOf('$');
+        const firstSlashIdx = item.indexOf('\\');
+        const hasColon = colonIdx > 0;
+        const colonBeforeDollar = firstDollarIdx === -1 || colonIdx < firstDollarIdx;
+        const colonBeforeSlash = firstSlashIdx === -1 || colonIdx < firstSlashIdx;
+
+        let name = `Key Formula ${idx + 1}`;
+        let latex = item;
+        let desc = '';
+
+        if (hasColon && colonBeforeDollar && colonBeforeSlash) {
+          const namePart = item.substring(0, colonIdx).trim();
+          const latexPart = item.substring(colonIdx + 1).trim();
+          if (namePart && !namePart.includes('$') && !namePart.includes('\\')) {
+            name = namePart;
+            latex = latexPart;
+            desc = namePart;
+          }
+        }
+        return {
+          name,
+          latex,
+          description: desc,
+          variables: [],
+        };
+      });
     } else if (
       typeof rawContent.formulaCheatSheet === 'string' &&
-      rawContent.formulaCheatSheet
+      rawContent.formulaCheatSheet.trim()
     ) {
-      formulaCheatSheet = rawContent.formulaCheatSheet;
+      formulaCheatSheet = rawContent.formulaCheatSheet.trim();
+    } else if (
+      typeof raw.formulaCheatSheet === 'string' &&
+      raw.formulaCheatSheet.trim()
+    ) {
+      formulaCheatSheet = raw.formulaCheatSheet.trim();
     }
 
     // 4. Step-by-Step Breakdown
