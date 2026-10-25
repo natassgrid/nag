@@ -96,4 +96,53 @@ describe('Candidate MicroLessonService', () => {
     expect(normalized.fallbackToEnglish).toBe(false);
     expect(normalized.content.coreConcept).toBe('मराठी संकल्पना');
   });
+
+  it('should normalize micro-lesson with lessonType and difficultyLevel (e.g. MEDIUM to CORE)', () => {
+    const raw = {
+      id: 'lesson-3',
+      subtopicId: '37',
+      lessonType: 'CONCEPT',
+      difficultyLevel: 'MEDIUM',
+      languageCode: 'en',
+      coreConcept: 'Sphere concept',
+    };
+
+    const normalized = service.normalizeMicroLesson(raw);
+    expect(normalized.lessonType).toBe('CONCEPT');
+    expect(normalized.difficultyLevel).toBe('CORE');
+  });
+
+  it('should pass both lang and language query parameters in getMicroLessonsBySubtopic', () => {
+    service
+      .getMicroLessonsBySubtopic(37, {
+        lessonType: 'CONCEPT',
+        difficulty: 'CORE',
+        lang: 'en',
+      })
+      .subscribe((lessons) => {
+        expect(lessons.length).toBe(1);
+        expect(lessons[0].difficultyLevel).toBe('CORE');
+      });
+
+    const req = httpMock.expectOne(
+      (r) =>
+        r.url === '/api/micro-lessons/subtopic/37' &&
+        r.params.get('lessonType') === 'CONCEPT' &&
+        r.params.get('difficulty') === 'CORE' &&
+        r.params.get('lang') === 'en' &&
+        r.params.get('language') === 'en'
+    );
+    expect(req.request.method).toBe('GET');
+    req.flush([
+      {
+        id: 'lesson-37',
+        subtopicId: 37,
+        lessonType: 'CONCEPT',
+        difficultyLevel: 'CORE',
+        languageCode: 'en',
+        content: { coreConcept: 'Sphere concept' },
+      },
+    ]);
+  });
+
 });

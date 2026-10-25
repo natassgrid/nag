@@ -29,11 +29,16 @@ public class MicroLessonController {
             @PathVariable Long subtopicId,
             @RequestParam(required = false) String lessonType,
             @RequestParam(required = false) String difficulty,
-            @RequestParam(required = false, defaultValue = "en") String language,
+            @RequestParam(required = false) String language,
+            @RequestParam(name = "lang", required = false) String lang,
             @RequestParam(required = false) String targetExam) {
 
+        String resolvedLanguage = (lang != null && !lang.isBlank())
+                ? lang.trim()
+                : ((language != null && !language.isBlank()) ? language.trim() : "en");
+
         List<MicroLessonResponse> lessons = microLessonService.getMicroLessonsForSubtopic(
-                subtopicId, lessonType, difficulty, language);
+                subtopicId, lessonType, difficulty, resolvedLanguage);
         return ResponseEntity.ok(lessons);
     }
 

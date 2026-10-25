@@ -170,6 +170,22 @@ public class MicroLessonGeneratorService {
         return QuestionTaxonomyConstants.Difficulty.EASY;
     }
 
+    /**
+     * Maps question difficulty (EASY, MEDIUM, HARD) to canonical micro-lesson pedagogical difficulty
+     * (FOUNDATION, CORE, ADVANCED).
+     */
+    public static String mapToPedagogicalDifficulty(String difficulty) {
+        if (difficulty == null || difficulty.isBlank()) {
+            return "CORE";
+        }
+        return switch (difficulty.trim().toUpperCase()) {
+            case "EASY", "FOUNDATION", "BEGINNER", "BASIC" -> "FOUNDATION";
+            case "MEDIUM", "CORE", "INTERMEDIATE", "STANDARD" -> "CORE";
+            case "HARD", "ADVANCED", "EXPERT", "OLYMPIAD" -> "ADVANCED";
+            default -> difficulty.trim().toUpperCase();
+        };
+    }
+
     @Transactional
     public SubtopicMicroLesson generateForSubtopic(
             Long subjectId, String subject,
@@ -259,7 +275,7 @@ public class MicroLessonGeneratorService {
                 .status(MicroLessonStatus.AI_GENERATED.name())
                 .contentVersion(nextVersion)
                 .lessonType("CONCEPT")
-                .difficultyLevel(difficulty != null ? difficulty : "CORE")
+                .difficultyLevel(mapToPedagogicalDifficulty(difficulty))
                 .sequenceNo(1)
                 .estimatedMinutes(5)
                 .language("en")
@@ -363,7 +379,7 @@ public class MicroLessonGeneratorService {
                 entity.getLanguage(),
                 false,
                 entity.getLessonType(),
-                entity.getDifficultyLevel(),
+                mapToPedagogicalDifficulty(entity.getDifficultyLevel()),
                 entity.getSequenceNo(),
                 entity.getPrerequisiteLessonId(),
                 entity.getEstimatedMinutes(),

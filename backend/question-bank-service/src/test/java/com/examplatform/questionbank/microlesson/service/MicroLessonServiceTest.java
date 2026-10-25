@@ -538,5 +538,48 @@ class MicroLessonServiceTest {
 
             assertThat(options.topics()).containsExactly("Number Systems", "Algebra");
         }
+
+        @Test
+        @DisplayName("getMicroLessonsForSubtopic matches CORE to MEDIUM and returns normalized difficulty")
+        void testGetMicroLessonsForSubtopicMatchesCoreToMedium() {
+            SubtopicMicroLesson entity = SubtopicMicroLesson.builder()
+                    .subtopicId(37L)
+                    .subjectId(1L)
+                    .topicId(10L)
+                    .lessonType("CONCEPT")
+                    .difficultyLevel("MEDIUM")
+                    .sequenceNo(1)
+                    .status("AI_GENERATED")
+                    .coreConcept("Sphere concept")
+                    .trap("Trap")
+                    .cheatSheetJson("[]")
+                    .stepByStepBreakdownJson("{}")
+                    .language("en")
+                    .build();
+            ReflectionTestUtils.setField(entity, "id", LESSON_ID);
+
+            when(repository.findBySubtopicIdAndStatusOrderBySequenceNoAsc(37L, "PUBLISHED"))
+                    .thenReturn(List.of());
+            when(repository.findBySubtopicIdOrderBySequenceNoAsc(37L))
+                    .thenReturn(List.of(entity));
+
+            List<MicroLessonResponse> results = service.getMicroLessonsForSubtopic(37L, "CONCEPT", "CORE", "en");
+
+            assertThat(results).hasSize(1);
+            assertThat(results.get(0).difficultyLevel()).isEqualTo("CORE");
+        }
+
+        @Test
+        @DisplayName("normalizeDifficulty properly maps all difficulty variants")
+        void testNormalizeDifficulty() {
+            assertThat(MicroLessonService.normalizeDifficulty("MEDIUM")).isEqualTo("CORE");
+            assertThat(MicroLessonService.normalizeDifficulty("CORE")).isEqualTo("CORE");
+            assertThat(MicroLessonService.normalizeDifficulty("EASY")).isEqualTo("FOUNDATION");
+            assertThat(MicroLessonService.normalizeDifficulty("FOUNDATION")).isEqualTo("FOUNDATION");
+            assertThat(MicroLessonService.normalizeDifficulty("HARD")).isEqualTo("ADVANCED");
+            assertThat(MicroLessonService.normalizeDifficulty("ADVANCED")).isEqualTo("ADVANCED");
+            assertThat(MicroLessonService.normalizeDifficulty(null)).isEqualTo("CORE");
+        }
+
     }
 }

@@ -83,6 +83,7 @@ export class MicroLessonService {
       }
       if (paramsOrTargetExam.lang) {
         params = params.set('lang', paramsOrTargetExam.lang);
+        params = params.set('language', paramsOrTargetExam.lang);
       }
       if (paramsOrTargetExam.lessonType) {
         params = params.set('lessonType', paramsOrTargetExam.lessonType);
@@ -247,6 +248,8 @@ export class MicroLessonService {
         raw.contentVersion != null ? Number(raw.contentVersion) : 1,
       languageCode: raw.languageCode || 'en',
       fallbackToEnglish: !!raw.fallbackToEnglish,
+      lessonType: raw.lessonType || 'CONCEPT',
+      difficultyLevel: this.normalizeDifficultyLevel(raw.difficultyLevel),
       content: {
         coreConcept,
         trapAlert,
@@ -258,5 +261,13 @@ export class MicroLessonService {
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
     };
+  }
+
+  private normalizeDifficultyLevel(diff?: string): 'FOUNDATION' | 'CORE' | 'ADVANCED' {
+    if (!diff) return 'CORE';
+    const upper = diff.trim().toUpperCase();
+    if (upper === 'FOUNDATION' || upper === 'EASY' || upper === 'BEGINNER') return 'FOUNDATION';
+    if (upper === 'ADVANCED' || upper === 'HARD' || upper === 'EXPERT') return 'ADVANCED';
+    return 'CORE';
   }
 }

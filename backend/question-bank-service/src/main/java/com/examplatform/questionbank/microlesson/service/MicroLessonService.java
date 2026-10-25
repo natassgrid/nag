@@ -483,7 +483,7 @@ public class MicroLessonService {
         }
 
         String difficultyLevel = (request.difficultyLevel() != null && !request.difficultyLevel().isBlank())
-                ? request.difficultyLevel().trim() : "CORE";
+                ? normalizeDifficulty(request.difficultyLevel().trim()) : "CORE";
         int seqNo = request.sequenceNo() != null ? request.sequenceNo() : 1;
         int estMins = request.estimatedMinutes() != null ? request.estimatedMinutes() : 5;
         String lang = (request.language() != null && !request.language().isBlank())
@@ -538,7 +538,7 @@ public class MicroLessonService {
             lesson.setLessonType(request.lessonType().trim());
         }
         if (request.difficultyLevel() != null && !request.difficultyLevel().isBlank()) {
-            lesson.setDifficultyLevel(request.difficultyLevel().trim());
+            lesson.setDifficultyLevel(normalizeDifficulty(request.difficultyLevel().trim()));
         }
         if (request.sequenceNo() != null) {
             lesson.setSequenceNo(request.sequenceNo());
@@ -1161,7 +1161,7 @@ public class MicroLessonService {
                     entity.getLanguage(),
                     false,
                     entity.getLessonType(),
-                    entity.getDifficultyLevel(),
+                    normalizeDifficulty(entity.getDifficultyLevel()),
                     entity.getSequenceNo(),
                     entity.getPrerequisiteLessonId(),
                     entity.getEstimatedMinutes(),
@@ -1196,7 +1196,7 @@ public class MicroLessonService {
                 base.languageCode(),
                 base.fallbackToEnglish(),
                 base.lessonType(),
-                base.difficultyLevel(),
+                normalizeDifficulty(base.difficultyLevel()),
                 base.sequenceNo(),
                 base.prerequisiteLessonId(),
                 base.estimatedMinutes(),
@@ -1226,6 +1226,34 @@ public class MicroLessonService {
 
         MicroLessonResponse base = (generatorService != null) ? generatorService.toResponse(entity) : null;
         return enrichWithTaxonomy(base, entity, sName, tName, stName);
+    }
+
+    /**
+     * Normalizes difficulty string to canonical pedagogical levels (FOUNDATION, CORE, ADVANCED).
+     */
+    public static String normalizeDifficulty(String diff) {
+        if (diff == null || diff.isBlank()) return "CORE";
+        return switch (diff.trim().toUpperCase()) {
+            case "FOUNDATION", "EASY", "BEGINNER", "BASIC" -> "FOUNDATION";
+            case "CORE", "MEDIUM", "INTERMEDIATE", "STANDARD" -> "CORE";
+            case "ADVANCED", "HARD", "EXPERT", "OLYMPIAD" -> "ADVANCED";
+            default -> diff.trim().toUpperCase();
+        };
+    }
+
+    private boolean difficultyMatches(String requestedDifficulty, String lessonDifficulty) {
+        if (requestedDifficulty == null || requestedDifficulty.isBlank()) {
+            return true;
+        }
+        if (lessonDifficulty == null || lessonDifficulty.isBlank()) {
+            return false;
+        }
+        if (requestedDifficulty.equalsIgnoreCase(lessonDifficulty)) {
+            return true;
+        }
+        String normReq = normalizeDifficulty(requestedDifficulty);
+        String normLesson = normalizeDifficulty(lessonDifficulty);
+        return normReq.equalsIgnoreCase(normLesson);
     }
 
     private static String firstNonBlank(String... values) {
@@ -1440,7 +1468,7 @@ public class MicroLessonService {
             if (lessonType != null && !lessonType.isBlank() && !lessonType.equalsIgnoreCase(lesson.getLessonType())) {
                 continue;
             }
-            if (difficulty != null && !difficulty.isBlank() && !difficulty.equalsIgnoreCase(lesson.getDifficultyLevel())) {
+            if (difficulty != null && !difficulty.isBlank() && !difficultyMatches(difficulty, lesson.getDifficultyLevel())) {
                 continue;
             }
             MicroLessonResponse res = toResponse(lesson);

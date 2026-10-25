@@ -178,6 +178,39 @@ class MicroLessonControllerIntegrationTest extends AbstractIntegrationTest {
                     .andExpect(jsonPath("$").isArray())
                     .andExpect(jsonPath("$").isEmpty());
         }
+
+        @Test
+        @DisplayName("200 OK - Resolves lang alias and matches difficulty alias (CORE -> MEDIUM)")
+        void testGetMicroLessonsForSubtopicWithLangAndDifficultyAlias() throws Exception {
+            SubtopicMicroLesson entity = SubtopicMicroLesson.builder()
+                    .subtopicId(37L)
+                    .lessonType("CONCEPT")
+                    .difficultyLevel("MEDIUM")
+                    .sequenceNo(1)
+                    .status("AI_GENERATED")
+                    .coreConcept("Sphere concept")
+                    .trap("Trap")
+                    .cheatSheetJson("[]")
+                    .stepByStepBreakdownJson("{}")
+                    .language("en")
+                    .build();
+            ReflectionTestUtils.setField(entity, "id", LESSON_ID);
+
+            when(repository.findBySubtopicIdAndStatusOrderBySequenceNoAsc(37L, "PUBLISHED"))
+                    .thenReturn(List.of());
+            when(repository.findBySubtopicIdOrderBySequenceNoAsc(37L))
+                    .thenReturn(List.of(entity));
+
+            mockMvc.perform(get("/api/micro-lessons/subtopic/37")
+                            .param("lang", "en")
+                            .param("lessonType", "CONCEPT")
+                            .param("difficulty", "CORE")
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$").isArray())
+                    .andExpect(jsonPath("$[0].difficultyLevel").value("CORE"));
+        }
+
     }
 
     @Nested
