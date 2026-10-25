@@ -104,23 +104,23 @@
       </div>
     }
   }
-
-  <!-- Details Slide-Over Drawer -->
-  @if (selectedDetailExam(); as exam) {
-    <nag-exam-details-drawer
-      [exam]="exam"
-      (closeDrawer)="selectedDetailExam.set(null)"
-      (applyExam)="openApplyModal($event)"
-    />
-  }
-
-  <!-- Multi-step Application Modal -->
-  @if (selectedApplyExam(); as exam) {
-    <nag-exam-apply-dialog
-      [exam]="exam"
-      [centres]="browseService.centres()"
-      (closeDialog)="selectedApplyExam.set(null)"
-      (applicationCompleted)="onApplicationCompleted($event)"
-    />
-  }
 </div>
+
+<!-- Details Slide-Over Drawer -->
+@if (selectedDetailExam(); as exam) {
+  <nag-exam-details-drawer
+    [exam]="exam"
+    (closeDrawer)="selectedDetailExam.set(null)"
+    (applyExam)="openApplyModal($event)"
+  />
+}
+
+<!-- Multi-step Application Modal -->
+@if (selectedApplyExam(); as exam) {
+  <nag-exam-apply-dialog
+    [exam]="exam"
+    [centres]="browseService.centres()"
+    (closeDialog)="selectedApplyExam.set(null)"
+    (applicationCompleted)="onApplicationCompleted($event)"
+  />
+}

@@ -1,5 +1,13 @@
-<div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto" role="dialog" aria-modal="true">
-  <div class="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl border border-slate-100 space-y-6 animate-fade-in relative my-auto">
+<div
+  class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto"
+  role="dialog"
+  aria-modal="true"
+  (click)="!submitting() && handleClose()"
+>
+  <div
+    class="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl border border-slate-100 space-y-6 animate-fade-in relative my-auto"
+    (click)="$event.stopPropagation()"
+  >
     <!-- Modal Header -->
     <div class="flex items-center justify-between border-b border-slate-100 pb-4">
       <div>
