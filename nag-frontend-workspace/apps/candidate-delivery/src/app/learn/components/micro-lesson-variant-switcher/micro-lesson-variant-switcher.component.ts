@@ -9,6 +9,11 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
 import { LessonType, LessonDifficultyLevel } from '../../models/learner.model';
+import {
+  MicroTutorialApproach,
+  SUPPORTED_MICROLESSON_LANGUAGES,
+  MicroLessonLanguage,
+} from '../../models/micro-lesson.model';
 
 @Component({
   selector: 'app-micro-lesson-variant-switcher',
@@ -21,25 +26,27 @@ import { LessonType, LessonDifficultyLevel } from '../../models/learner.model';
 export class MicroLessonVariantSwitcherComponent {
   readonly currentType = input<LessonType>('CONCEPT');
   readonly currentDifficulty = input<LessonDifficultyLevel>('CORE');
+  readonly approaches = input<MicroTutorialApproach[]>([]);
+  readonly activeApproachId = input<string>('');
+  readonly selectedLanguage = input<string>('en');
 
   readonly typeChange = output<LessonType>();
   readonly difficultyChange = output<LessonDifficultyLevel>();
   readonly tryAnotherExplanation = output<void>();
+  readonly approachChange = output<MicroTutorialApproach>();
+  readonly languageChange = output<string>();
 
-  readonly allTypes: Array<{ type: LessonType; label: string; icon: string }> = [
-    { type: 'CONCEPT', label: 'Core Concept', icon: 'menu_book' },
-    { type: 'WORKED_EXAMPLES', label: 'Worked Examples', icon: 'functions' },
-    { type: 'TRAPS_AND_PITFALLS', label: 'Traps & Pitfalls', icon: 'warning' },
-    { type: 'CHEAT_SHEET', label: 'Cheat Sheet', icon: 'description' },
-    { type: 'VISUAL', label: 'Visual Intuition', icon: 'visibility' },
-    { type: 'QUICK_RECAP', label: 'Quick Recap', icon: 'bolt' },
-  ];
+  readonly supportedLanguages: MicroLessonLanguage[] = SUPPORTED_MICROLESSON_LANGUAGES;
 
   readonly allDifficulties: Array<{ level: LessonDifficultyLevel; label: string }> = [
     { level: 'FOUNDATION', label: 'Foundation' },
     { level: 'CORE', label: 'Exam Core' },
     { level: 'ADVANCED', label: 'Advanced' },
   ];
+
+  onSelectApproach(approach: MicroTutorialApproach): void {
+    this.approachChange.emit(approach);
+  }
 
   onSelectType(type: LessonType): void {
     if (this.currentType() !== type) {
@@ -50,6 +57,12 @@ export class MicroLessonVariantSwitcherComponent {
   onSelectDifficulty(level: LessonDifficultyLevel): void {
     if (this.currentDifficulty() !== level) {
       this.difficultyChange.emit(level);
+    }
+  }
+
+  onSelectLanguage(langCode: string): void {
+    if (this.selectedLanguage() !== langCode) {
+      this.languageChange.emit(langCode);
     }
   }
 

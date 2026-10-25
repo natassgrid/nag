@@ -133,6 +133,28 @@ public record MicroLessonResponse(
         return reviewComments;
     }
 
+    @JsonProperty(value = "approachName", access = JsonProperty.Access.READ_ONLY)
+    public String getApproachName() {
+        if (lessonType == null || lessonType.isBlank()) {
+            return "Core Micro-Tutorial";
+        }
+        return switch (lessonType.trim().toUpperCase()) {
+            case "CONCEPT" -> "Conceptual Foundation";
+            case "WORKED_EXAMPLE", "WORKED_EXAMPLES" -> "Step-by-Step Worked Method";
+            case "TRAPS_AND_PITFALLS" -> "Exam Traps & Elimination";
+            case "CHEAT_SHEET" -> "Formula & Shortcut Sheet";
+            case "VISUAL" -> "Visual & Intuitive Model";
+            case "QUICK_RECAP" -> "Rapid Revision Recap";
+            default -> "Core Micro-Tutorial";
+        };
+    }
+
+    @JsonProperty(value = "title", access = JsonProperty.Access.READ_ONLY)
+    public String getTitle() {
+        int seq = sequenceNo > 0 ? sequenceNo : 1;
+        return "Approach " + seq + ": " + getApproachName();
+    }
+
     @JsonProperty(value = "formulaCheatSheet", access = JsonProperty.Access.READ_ONLY)
     public List<FormulaEntryDto> getFormulaCheatSheet() {
         return buildStructuredContent().formulaCheatSheet();

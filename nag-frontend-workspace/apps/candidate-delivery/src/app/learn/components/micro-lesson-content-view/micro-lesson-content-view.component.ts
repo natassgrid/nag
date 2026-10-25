@@ -1,6 +1,7 @@
 import {
   Component,
   ChangeDetectionStrategy,
+  computed,
   input,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -11,6 +12,10 @@ import {
   SubtopicMicroLesson,
   TrapAlert,
   FormulaEntry,
+  StepItem,
+  extractStepsFromLesson,
+  extractProblemStatementFromLesson,
+  extractFinalAnswerFromLesson,
 } from '../../models/micro-lesson.model';
 
 @Component({
@@ -23,6 +28,10 @@ import {
 })
 export class MicroLessonContentViewComponent {
   readonly lesson = input.required<SubtopicMicroLesson>();
+
+  readonly steps = computed<StepItem[]>(() => extractStepsFromLesson(this.lesson()));
+  readonly problemStatement = computed<string>(() => extractProblemStatementFromLesson(this.lesson()));
+  readonly finalAnswer = computed<string>(() => extractFinalAnswerFromLesson(this.lesson()));
 
   asTrapAlert(trap: any): TrapAlert | null {
     return typeof trap === 'object' && trap !== null && 'title' in trap ? (trap as TrapAlert) : null;

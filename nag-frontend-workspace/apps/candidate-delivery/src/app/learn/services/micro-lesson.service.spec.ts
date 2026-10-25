@@ -145,4 +145,88 @@ describe('Candidate MicroLessonService', () => {
     ]);
   });
 
+  it('should build 5 slides and multiple micro-tutorial approaches for a subtopic', () => {
+    const normalized = service.normalizeMicroLesson({
+      id: 'lesson-37',
+      subtopicId: 37,
+      subtopic: 'Equation of a Sphere',
+      topic: '3D Geometry',
+      subject: 'Mathematics',
+      lessonType: 'CONCEPT',
+      difficultyLevel: 'CORE',
+      coreConcept: 'A sphere is the locus of a point in 3D space equidistant from a fixed center.',
+      trap: 'Forgetting to divide coefficients of x, y, z by -2 when finding center.',
+      cheatSheet: ['$$(x - a)^2 + (y - b)^2 + (z - c)^2 = R^2$$'],
+      stepByStepBreakdown: {
+        questionStem: 'Find the radius of $$x^2 + y^2 + z^2 = 25$$.',
+        steps: ['Compare with $$x^2 + y^2 + z^2 = R^2$$ to get $$R = 5$$.'],
+        finalAnswer: '$$R = 5$$',
+      },
+    });
+
+    const slides = service.buildSlidesForLesson(normalized);
+    expect(slides.length).toBe(5);
+    expect(slides.map((s) => s.type)).toEqual(['INTRO', 'CONCEPT', 'FORMULA', 'STEPS', 'QUIZ']);
+    expect(normalized.content.quickCheckItems?.length).toBeGreaterThan(0);
+    expect(normalized.content.quickCheckItems?.[0].options?.length).toBe(4);
+
+    const singleApproach = service.buildApproachesForSubtopic(normalized, [normalized]);
+    expect(singleApproach.length).toBe(1);
+    expect(singleApproach[0].badge).toBe('Approach 1');
+
+    const variant2 = {
+      ...normalized,
+      id: 'lesson-37-variant2',
+      sequenceNo: 2,
+      approachName: 'Geometric Decomposition',
+    };
+    const multiApproaches = service.buildApproachesForSubtopic(normalized, [normalized, variant2]);
+    expect(multiApproaches.length).toBe(2);
+    expect(multiApproaches[0].badge).toBe('Approach 1');
+    expect(multiApproaches[1].badge).toBe('Approach 2');
+    expect(multiApproaches[1].approachName).toBe('Geometric Decomposition');
+  });
+
+  it('should normalize micro-lesson when content.stepByStepBreakdown is a direct JSON array', () => {
+    const raw = {
+      id: 'lesson-sphere',
+      subtopicId: 37,
+      subtopicName: 'Sphere Geometry',
+      lessonType: 'CONCEPT',
+      difficultyLevel: 'CORE',
+      languageCode: 'en',
+      content: {
+        coreConcept: 'Sphere volume and surface area equations',
+        stepByStepBreakdown: [
+          {
+            stepNumber: 1,
+            title: 'Step 1',
+            explanation: 'Step 1: Identify the given parameters and state the governing formula in KaTeX notation.',
+          },
+          {
+            stepNumber: 2,
+            title: 'Step 2',
+            explanation: 'Step 2: Substitute the numerical value and simplify step-by-step in KaTeX notation.',
+          },
+          {
+            stepNumber: 3,
+            title: 'Step 3',
+            explanation: 'Step 3: Compute the final result with proper units or percentage in KaTeX notation.',
+            tip: 'Final Answer: $$V = \\frac{4}{3}\\pi (5)^3 = 523.6 \\text{ cm}^3$$, $$A = 4\\pi (5)^2 = 314.2 \\text{ cm}^2$$',
+          },
+        ],
+      },
+    };
+
+    const result = service.normalizeMicroLesson(raw);
+    const breakdown = result.content.stepByStepBreakdown as any;
+    expect(breakdown).toBeDefined();
+    expect(breakdown.steps.length).toBe(3);
+    expect(breakdown.steps[0].title).toBe('Step 1');
+    expect(breakdown.steps[1].title).toBe('Step 2');
+    expect(breakdown.steps[2].title).toBe('Step 3');
+    expect(breakdown.finalAnswer).toBe(
+      '$$V = \\frac{4}{3}\\pi (5)^3 = 523.6 \\text{ cm}^3$$, $$A = 4\\pi (5)^2 = 314.2 \\text{ cm}^2$$'
+    );
+  });
 });

@@ -1,0 +1,146 @@
+<header class="bg-white rounded-2xl border border-slate-200/90 p-3.5 sm:p-4 shadow-xs space-y-3">
+  <!-- Row 1: Breadcrumb, Subtopic Title & Unified Player Control Deck -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <!-- Left: Back Button, Breadcrumb, Title & Approach Pill -->
+    <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1 min-w-0">
+      @if (showBackButton()) {
+        <button
+          type="button"
+          (click)="onBack()"
+          class="text-slate-500 hover:text-slate-900 text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors shrink-0"
+        >
+          <mat-icon class="!text-sm !w-4 !h-4 leading-none">arrow_back</mat-icon>
+          <span class="hidden sm:inline">Roadmap</span>
+        </button>
+        <span class="text-slate-300 hidden sm:inline">&bull;</span>
+      }
+
+      <span class="text-xs text-slate-400 font-medium truncate">
+        {{ subjectName() || 'Curriculum' }} &rsaquo; {{ topicName() || 'Topic' }}
+      </span>
+
+      <span class="text-slate-300">&bull;</span>
+
+      <h1 class="text-sm sm:text-base font-bold text-slate-900 truncate">
+        {{ subtopicName() || 'Micro-Lesson' }}
+      </h1>
+
+      <span class="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100 shrink-0">
+        {{ approachLabel() }}
+      </span>
+    </div>
+
+    <!-- Right: Single Unified Minimal Control Bar -->
+    <div class="bg-slate-100/80 p-1 rounded-xl border border-slate-200/80 flex items-center gap-1 shrink-0 self-start sm:self-auto">
+      <!-- Play/Pause Auto-Play Button -->
+      <button
+        type="button"
+        (click)="onTogglePlay()"
+        data-testid="toggle-autoplay-btn"
+        class="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer"
+        [ngClass]="{
+          'bg-indigo-600 text-white shadow-2xs': isPlaying(),
+          'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200/60 shadow-2xs': !isPlaying()
+        }"
+      >
+        <mat-icon class="!text-sm !w-4 !h-4 leading-none shrink-0">{{ isPlaying() ? 'pause' : 'play_arrow' }}</mat-icon>
+        <span>{{ isPlaying() ? 'Pause' : 'Auto-Play' }}</span>
+      </button>
+
+      <!-- Speed Selector Button -->
+      <button
+        type="button"
+        (click)="onCycleSpeed()"
+        data-testid="cycle-speed-btn"
+        title="Cycle Playback Speed"
+        class="px-2 py-1 rounded-lg text-xs font-mono font-medium text-slate-600 hover:text-slate-900 hover:bg-white/70 transition-colors cursor-pointer"
+      >
+        {{ playbackSpeed() }}x
+      </button>
+
+      <!-- Audio / Narration Toggle -->
+      <button
+        type="button"
+        (click)="onToggleAudio()"
+        data-testid="toggle-audio-btn"
+        [title]="audioEnabled() ? 'Mute AI Voice' : 'Enable AI Voice'"
+        class="w-7 h-7 rounded-lg flex items-center justify-center transition-all cursor-pointer"
+        [ngClass]="{
+          'bg-amber-100 text-amber-800': audioEnabled(),
+          'text-slate-500 hover:text-slate-800 hover:bg-white/70': !audioEnabled()
+        }"
+      >
+        <mat-icon class="!text-base !w-4 !h-4 leading-none">{{ audioEnabled() ? 'volume_up' : 'volume_off' }}</mat-icon>
+      </button>
+
+      <!-- AI Tutor Stage Toggle -->
+      <button
+        type="button"
+        (click)="onToggleTutorStage()"
+        data-testid="toggle-tutor-stage-btn"
+        [title]="tutorStageExpanded() ? 'Hide AI Tutor' : 'Show AI Tutor'"
+        class="w-7 h-7 rounded-lg flex items-center justify-center transition-all cursor-pointer"
+        [ngClass]="{
+          'bg-indigo-100 text-indigo-700': tutorStageExpanded(),
+          'text-slate-500 hover:text-slate-800 hover:bg-white/70': !tutorStageExpanded()
+        }"
+      >
+        <mat-icon class="!text-base !w-4 !h-4 leading-none">smart_display</mat-icon>
+      </button>
+    </div>
+  </div>
+
+  <!-- Row 2: Minimal Segmented Stepper + Progress -->
+  <div class="pt-2 border-t border-slate-100 space-y-2">
+    <!-- Thin Sleek Progress Bar -->
+    <div class="relative w-full h-1 bg-slate-100 rounded-full overflow-hidden">
+      <div
+        class="h-full bg-indigo-600 rounded-full transition-all duration-300 ease-out"
+        [style.width.%]="overallProgressPercent()"
+      ></div>
+      @if (isPlaying()) {
+        <div
+          class="absolute bottom-0 left-0 h-full bg-amber-400/80 transition-all duration-100"
+          [style.width.%]="autoPlayProgress()"
+        ></div>
+      }
+    </div>
+
+    <!-- Stepper Tabs & Counter -->
+    <div class="flex items-center justify-between gap-2">
+      <!-- Minimal Horizontal Step Tabs -->
+      <div class="flex items-center gap-1 sm:gap-1.5 flex-1 min-w-0 overflow-x-auto py-0.5">
+        @for (slide of slides(); track slide.id) {
+          <button
+            type="button"
+            (click)="onSelectSlide(slide.index)"
+            [attr.data-testid]="'slide-tab-' + slide.type"
+            class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer shrink-0"
+            [ngClass]="{
+              'bg-slate-900 text-white font-semibold shadow-2xs': currentSlideIndex() === slide.index,
+              'text-emerald-700 hover:bg-slate-100': currentSlideIndex() > slide.index,
+              'text-slate-500 hover:text-slate-800 hover:bg-slate-50': currentSlideIndex() < slide.index
+            }"
+          >
+            @if (currentSlideIndex() > slide.index) {
+              <mat-icon class="!text-xs !w-3.5 !h-3.5 leading-none shrink-0 text-emerald-600">check</mat-icon>
+            } @else {
+              <span
+                class="w-1.5 h-1.5 rounded-full shrink-0"
+                [ngClass]="currentSlideIndex() === slide.index ? 'bg-indigo-400' : 'bg-slate-300'"
+              ></span>
+            }
+            <span class="truncate">{{ slide.index + 1 }}. {{ slide.type }}</span>
+          </button>
+        }
+      </div>
+
+      <!-- Slide Counter -->
+      <div class="flex items-center gap-1.5 text-xs font-mono text-slate-500 shrink-0">
+        <span data-testid="slide-counter">Slide {{ currentSlideNumber() }} / {{ totalSlides() }}</span>
+        <span class="text-slate-300">&bull;</span>
+        <span class="font-semibold text-slate-700">{{ overallProgressPercent() }}%</span>
+      </div>
+    </div>
+  </div>
+</header>

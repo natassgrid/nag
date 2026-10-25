@@ -1,199 +1,143 @@
-<div class="sticky top-6 bg-slate-50 rounded-2xl border border-slate-200 shadow-xs overflow-hidden flex flex-col max-h-[calc(100vh-3rem)]">
+<div class="sticky top-6 bg-slate-50/50 rounded-2xl border border-slate-200 shadow-xs overflow-hidden flex flex-col max-h-[calc(100vh-3rem)]">
   <!-- Preview Toolbar Header -->
-  <div class="px-5 py-3.5 bg-white border-b border-slate-200 flex items-center justify-between gap-2">
+  <div class="px-5 py-3.5 bg-white border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
     <div class="flex items-center gap-2">
-      <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+      <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
       <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700">
-        Real-Time Candidate Micro-Lesson Preview
+        Candidate Micro-Lesson Preview
       </h3>
     </div>
+
     <div class="flex items-center gap-1.5 flex-wrap justify-end">
-      <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+      <!-- Interactive Slide Player vs Scroll View Switcher -->
+      <div class="inline-flex rounded-xl bg-slate-100 p-0.5 border border-slate-200 mr-1">
+        <button
+          type="button"
+          (click)="previewMode.set('PLAYER')"
+          data-testid="preview-mode-player-btn"
+          class="px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer flex items-center gap-1"
+          [ngClass]="previewMode() === 'PLAYER' ? 'bg-slate-900 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'"
+        >
+          <mat-icon class="!text-xs !w-3.5 !h-3.5 leading-none">slideshow</mat-icon>
+          <span>Interactive Player</span>
+        </button>
+        <button
+          type="button"
+          (click)="previewMode.set('SCROLL')"
+          data-testid="preview-mode-scroll-btn"
+          class="px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer flex items-center gap-1"
+          [ngClass]="previewMode() === 'SCROLL' ? 'bg-slate-900 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'"
+        >
+          <mat-icon class="!text-xs !w-3.5 !h-3.5 leading-none">view_agenda</mat-icon>
+          <span>All Sections</span>
+        </button>
+      </div>
+
+      <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
         {{ lessonType() }}
       </span>
-      <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+      <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">
         {{ difficultyLevel() }}
       </span>
-      <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
-        {{ targetExam() || 'UNIVERSAL' }}
-      </span>
-      <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+      <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
         {{ status() }}
       </span>
     </div>
   </div>
 
-  <!-- Scrollable Candidate View -->
-  <div class="p-5 space-y-4 overflow-y-auto">
-    <!-- Hero Title Card -->
-    <div class="bg-gradient-to-r from-slate-900 to-indigo-950 text-white rounded-2xl p-5 shadow-md hero-card">
-      <div class="text-[11px] font-semibold uppercase tracking-wider text-indigo-300 mb-1">
-        {{ subjectName() || 'Subject' }} &bull; {{ topicName() || 'Topic' }}
-      </div>
-      <h2 class="text-lg font-extrabold tracking-tight !text-white text-white">
-        <nag-math-renderer class="!text-white" [content]="subtopicName() || 'Untitled Subtopic'" [inline]="true"></nag-math-renderer>
-      </h2>
-      <p class="text-xs text-slate-300 mt-1">
-        {{ lessonType() }} &bull; {{ difficultyLevel() }} &bull; ~{{ estimatedMinutes() }} min &bull; {{ targetExam() || 'Universal' }}
-      </p>
-    </div>
+  <!-- Preview Content Body -->
+  <div class="p-4 sm:p-5 space-y-4 overflow-y-auto">
+    @if (previewMode() === 'PLAYER') {
+      <!-- Shared Interactive Lesson Player (Top Navigation Bar + Slide Container) -->
+      <app-micro-lesson-player-topbar
+        [showBackButton]="false"
+        [subjectName]="subjectName() || 'Subject'"
+        [topicName]="topicName() || 'Topic'"
+        [subtopicName]="subtopicName() || 'Untitled Subtopic'"
+        [approachLabel]="lessonType() || 'CONCEPT'"
+        [contentVersion]="1"
+        [slides]="slides()"
+        [currentSlideIndex]="currentSlideIndex()"
+        [totalSlides]="totalSlides()"
+        [isPlaying]="isPlaying()"
+        [playbackMode]="playbackMode()"
+        [playbackSpeed]="playbackSpeed()"
+        [autoPlayProgress]="autoPlayProgress()"
+        [audioEnabled]="audioEnabled()"
+        [tutorStageExpanded]="tutorStageExpanded()"
+        [tutorAvatarState]="tutorAvatarState()"
+        (selectSlide)="onSelectSlide($event)"
+        (togglePlay)="onTogglePlay()"
+        (speedChange)="onSpeedChange($event)"
+        (toggleAudio)="onToggleAudio()"
+        (toggleTutorStage)="onToggleTutorStage()"
+      />
 
-    <!-- 1. Core Concept -->
-    <div class="bg-white rounded-xl p-4 border border-slate-200/80 shadow-2xs space-y-2">
-      <div class="flex items-center gap-1.5 text-indigo-700 font-bold text-xs uppercase tracking-wide">
-        <mat-icon class="!w-4 !h-4 !text-[16px]">lightbulb</mat-icon>
-        Part 1: The Core Concept &amp; Mental Model
-      </div>
-      <div class="text-xs text-slate-800 leading-relaxed">
-        <nag-math-renderer
-          [content]="coreConcept() || 'Enter core concept explanation on the left to preview live KaTeX rendering...'"
-        ></nag-math-renderer>
-      </div>
-    </div>
-
-    <!-- 2. Trap Alert -->
-    <div class="bg-amber-50/90 rounded-xl p-4 border border-amber-300/80 space-y-2">
-      <div class="flex items-center gap-1.5 text-amber-800 font-bold text-xs uppercase tracking-wide">
-        <mat-icon class="!w-4 !h-4 !text-[16px] text-amber-600">warning</mat-icon>
-        Part 2: The Exam Trap
-      </div>
-      @if (trapAlert().title) {
-        <div class="text-xs font-bold text-amber-950">{{ trapAlert().title }}</div>
-      }
-      <div class="text-xs text-amber-900 leading-relaxed">
-        <nag-math-renderer
-          [content]="trapAlert().description || 'Describe the common exam pitfall...'"
-        ></nag-math-renderer>
-      </div>
-      @if (trapAlert().commonMistake) {
-        <div class="p-2 rounded-lg bg-amber-100/70 border border-amber-200 text-[11px] text-amber-900">
-          <span class="font-bold">Common Pitfall: </span>
-          <nag-math-renderer [content]="trapAlert().commonMistake!" [inline]="true"></nag-math-renderer>
-        </div>
-      }
-      @if (trapAlert().correctApproach) {
-        <div class="p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-900">
-          <span class="font-bold">Correct Approach: </span>
-          <nag-math-renderer [content]="trapAlert().correctApproach!" [inline]="true"></nag-math-renderer>
-        </div>
-      }
-    </div>
-
-    <!-- 3. Formula Cheat Sheet (Shown when mandatory or when optional formulas are provided) -->
-    @if (formulaRequired() || previewFormulas().length > 0) {
-      <div class="bg-indigo-50/60 rounded-xl p-4 border border-indigo-200/80 space-y-2.5 formula-sheet-card">
-        <div class="flex items-center justify-between gap-1.5">
-          <div class="flex items-center gap-1.5 text-indigo-700 font-bold text-xs uppercase tracking-wide">
-            <mat-icon class="!w-4 !h-4 !text-[16px] text-indigo-600">functions</mat-icon>
-            Part 3: KaTeX Formula Cheat Sheet
+      <app-micro-lesson-slide-container
+        [lesson]="previewLesson()"
+        [slides]="slides()"
+        [currentSlideIndex]="currentSlideIndex()"
+        [revealedStepCount]="revealedStepCount()"
+        [quizSelections]="quizSelections()"
+        [isPlaying]="isPlaying()"
+        [audioEnabled]="audioEnabled()"
+        [tutorStageExpanded]="tutorStageExpanded()"
+        [tutorAvatarState]="tutorAvatarState()"
+        [activeCaption]="activeCaption()"
+        [formulaRequired]="formulaRequired()"
+        (nextSlide)="onNextSlide()"
+        (prevSlide)="onPrevSlide()"
+        (goToSlide)="onSelectSlide($event)"
+        (revealNextStep)="onRevealNextStep()"
+        (revealAllSteps)="onRevealAllSteps()"
+        (resetSteps)="onResetSteps()"
+        (selectQuizOption)="onSelectQuizOption($event)"
+        (resetQuiz)="onResetQuiz()"
+        (startAutoPlay)="onStartAutoPlay()"
+      />
+    } @else {
+      <!-- Full Scroll Sheet Mode for Quick All-Section Inspection -->
+      <div class="space-y-4">
+        <div class="bg-slate-900 text-white rounded-2xl p-5 shadow-xs">
+          <div class="text-[11px] font-medium uppercase tracking-wider text-slate-400 mb-1">
+            {{ subjectName() || 'Subject' }} &bull; {{ topicName() || 'Topic' }}
           </div>
-          @if (!formulaRequired()) {
-            <span class="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase bg-indigo-100 text-indigo-700">
-              Optional
-            </span>
-          }
+          <h2 class="text-lg font-bold tracking-tight text-white">
+            <nag-math-renderer class="!text-white" [content]="subtopicName() || 'Untitled Subtopic'" [inline]="true"></nag-math-renderer>
+          </h2>
+          <p class="text-xs text-slate-300 mt-1">
+            {{ lessonType() }} &bull; {{ difficultyLevel() }} &bull; ~{{ estimatedMinutes() }} min &bull; {{ targetExam() || 'Universal' }}
+          </p>
         </div>
-        <div class="grid grid-cols-1 gap-2.5">
-          @for (item of previewFormulas(); track $index) {
-            <div class="bg-white rounded-lg p-3 border border-indigo-100/90 shadow-2xs space-y-1">
-              <div class="text-[11px] font-bold text-indigo-900">{{ item.name || ('Formula ' + ($index + 1)) }}</div>
-              @if (item.latex) {
-                <div class="overflow-x-auto py-1 text-xs text-slate-900 font-medium">
-                  <nag-math-renderer [content]="formatLatex(item.latex)"></nag-math-renderer>
+
+        <div class="bg-white rounded-xl p-4 border border-slate-200/80 shadow-2xs space-y-2">
+          <div class="flex items-center gap-1.5 text-slate-600 font-bold text-xs uppercase tracking-wider">
+            <mat-icon class="!w-4 !h-4 !text-[16px] text-indigo-600">lightbulb</mat-icon>
+            Part 1: The Core Concept &amp; Mental Model
+          </div>
+          <div class="text-xs text-slate-800 leading-relaxed">
+            <nag-math-renderer [content]="coreConcept() || 'Enter core concept explanation...'"></nag-math-renderer>
+          </div>
+        </div>
+
+        @if (formulaRequired() || previewFormulas().length > 0) {
+          <div class="bg-white rounded-xl p-4 border border-slate-200/80 space-y-2.5 formula-sheet-card">
+            <div class="flex items-center gap-1.5 text-slate-600 font-bold text-xs uppercase tracking-wider">
+              <mat-icon class="!w-4 !h-4 !text-[16px] text-indigo-600">functions</mat-icon>
+              Part 3: Formula Cheat Sheet
+            </div>
+            <div class="grid grid-cols-1 gap-2.5">
+              @for (item of previewFormulas(); track $index) {
+                <div class="bg-slate-50/70 rounded-lg p-3 border border-slate-200/60 shadow-2xs space-y-1">
+                  <div class="text-[11px] font-semibold text-slate-800">{{ item.name || ('Formula ' + ($index + 1)) }}</div>
+                  @if (item.latex) {
+                    <div class="overflow-x-auto py-1 text-xs text-slate-900 font-medium">
+                      <nag-math-renderer [content]="formatLatex(item.latex)"></nag-math-renderer>
+                    </div>
+                  }
                 </div>
               }
-              @if (item.description) {
-                <div class="text-[11px] text-slate-600 font-medium">{{ item.description }}</div>
-              }
             </div>
-          }
-        </div>
-      </div>
-    }
-
-    <!-- 4. Step-by-Step Breakdown -->
-    <div class="bg-white rounded-xl p-4 border border-slate-200/80 space-y-3">
-      <div class="flex items-center gap-1.5 text-indigo-700 font-bold text-xs uppercase tracking-wide">
-        <mat-icon class="!w-4 !h-4 !text-[16px]">checklist</mat-icon>
-        Part 4: Step-by-Step Worked Example
-      </div>
-
-      @if (problemStatement()) {
-        <div class="bg-slate-50 rounded-lg p-3 border border-slate-200 text-xs text-slate-800">
-          <span class="font-bold text-slate-900 block mb-1">Standard Exam Problem:</span>
-          <nag-math-renderer [content]="problemStatement()"></nag-math-renderer>
-        </div>
-      }
-
-      <div class="space-y-2">
-        @for (step of steps(); track $index) {
-          <div class="p-3 rounded-lg border border-slate-200 bg-white space-y-1.5">
-            <div class="flex items-center gap-2">
-              <span class="w-5 h-5 rounded-full bg-indigo-100 text-indigo-800 text-[11px] font-bold flex items-center justify-center shrink-0">
-                {{ $index + 1 }}
-              </span>
-              <span class="text-xs font-bold text-slate-800">{{ step.title || ('Step ' + ($index + 1)) }}</span>
-            </div>
-            @if (step.explanation) {
-              <div class="text-xs text-slate-700 pl-7">
-                <nag-math-renderer [content]="step.explanation"></nag-math-renderer>
-              </div>
-            }
-            @if (step.formula) {
-              <div class="ml-7 p-2 bg-slate-50 rounded border border-slate-200 text-xs overflow-x-auto">
-                <nag-math-renderer [content]="formatLatex(step.formula)"></nag-math-renderer>
-              </div>
-            }
-          </div>
-        }
-      </div>
-
-      @if (finalAnswer()) {
-        <div class="p-3 bg-emerald-50 rounded-lg border border-emerald-200 text-xs text-emerald-950 flex items-center justify-between gap-2">
-          <div>
-            <span class="font-bold text-emerald-800 block">Final Answer:</span>
-            <nag-math-renderer [content]="finalAnswer()" [inline]="true"></nag-math-renderer>
-          </div>
-          <mat-icon class="text-emerald-600 !text-base shrink-0">check_circle</mat-icon>
-        </div>
-      }
-    </div>
-
-    <!-- 5. Key Takeaways -->
-    @if (nonEmptyTakeaways().length > 0) {
-      <div class="bg-white rounded-xl p-4 border border-slate-200/80 space-y-2">
-        <div class="flex items-center gap-1.5 text-indigo-700 font-bold text-xs uppercase tracking-wide">
-          <mat-icon class="!w-4 !h-4 !text-[16px]">fact_check</mat-icon>
-          Part 5: Key Takeaways
-        </div>
-        <ul class="list-disc pl-5 space-y-1 text-xs text-slate-700">
-          @for (item of nonEmptyTakeaways(); track $index) {
-            <li>
-              <nag-math-renderer [content]="item" [inline]="true"></nag-math-renderer>
-            </li>
-          }
-        </ul>
-      </div>
-    }
-
-    <!-- 6. Quick Concept Check -->
-    @if (nonEmptyQuickChecks().length > 0) {
-      <div class="bg-emerald-50/60 rounded-xl p-4 border border-emerald-200/80 space-y-2.5">
-        <div class="flex items-center gap-1.5 text-emerald-800 font-bold text-xs uppercase tracking-wide">
-          <mat-icon class="!w-4 !h-4 !text-[16px]">quiz</mat-icon>
-          Part 6: Quick Concept Check
-        </div>
-        @for (qc of nonEmptyQuickChecks(); track $index) {
-          <div class="bg-white rounded-lg p-3 border border-emerald-100 space-y-1.5 text-xs">
-            <div class="font-semibold text-slate-800">
-              <nag-math-renderer [content]="qc.question"></nag-math-renderer>
-            </div>
-            @if (qc.answer) {
-              <div class="p-2 bg-emerald-50/60 rounded border border-emerald-200 text-emerald-950">
-                <span class="font-bold text-emerald-800">Answer: </span>
-                <nag-math-renderer [content]="qc.answer" [inline]="true"></nag-math-renderer>
-              </div>
-            }
           </div>
         }
       </div>
