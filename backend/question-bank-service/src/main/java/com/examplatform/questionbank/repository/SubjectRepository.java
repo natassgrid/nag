@@ -47,6 +47,10 @@ public interface SubjectRepository extends JpaRepository<Subject, Long> {
 
     Optional<Subject> findByNameAndTenantIdIsNull(String name);
 
+    List<Subject> findByNameIgnoreCaseAndTenantIdIsNull(String name);
+
+    List<Subject> findByNameContainingIgnoreCase(String name);
+
     Optional<Subject> findByCodeAndTenantId(String code, String tenantId);
 
     Optional<Subject> findByCodeAndTenantIdIsNull(String code);

@@ -21,6 +21,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.server.ResponseStatusException;
@@ -460,6 +465,78 @@ class MicroLessonServiceTest {
             assertThatThrownBy(() -> service.getMicroLessonById(LESSON_ID))
                     .isInstanceOf(ResponseStatusException.class)
                     .satisfies(ex -> assertThat(((ResponseStatusException) ex).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
+        }
+    }
+
+    @Nested
+    @DisplayName("listForReview and Filtering Tests")
+    class ListForReviewTests {
+
+        @Test
+        @DisplayName("listForReview populates subject, topic, and subtopic names from database repositories")
+        void testListForReviewPopulatesTaxonomyNames() {
+            SubtopicMicroLesson entity = SubtopicMicroLesson.builder()
+                    .subjectId(1L)
+                    .topicId(10L)
+                    .subtopicId(100L)
+                    .coreConcept("Concept")
+                    .trap("Trap")
+                    .cheatSheetJson("[]")
+                    .stepByStepBreakdownJson("{}")
+                    .status("AI_GENERATED")
+                    .contentVersion(1)
+                    .build();
+            ReflectionTestUtils.setField(entity, "id", LESSON_ID);
+
+            when(repository.findByStatus(eq("AI_GENERATED"), any(Pageable.class)))
+                    .thenReturn(new PageImpl<>(List.of(entity)));
+
+            Subject subject = Subject.builder().name("Mathematics").build();
+            ReflectionTestUtils.setField(subject, "id", 1L);
+            Topic topic = Topic.builder().name("Number Systems").build();
+            ReflectionTestUtils.setField(topic, "id", 10L);
+            Subtopic subtopic = Subtopic.builder().name("Whole Numbers").build();
+            ReflectionTestUtils.setField(subtopic, "id", 100L);
+
+            when(subjectRepository.findAllById(any())).thenReturn(List.of(subject));
+            when(topicRepository.findAllById(any())).thenReturn(List.of(topic));
+            when(subtopicRepository.findAllById(any())).thenReturn(List.of(subtopic));
+
+            Page<MicroLessonResponse> page = service.listForReview("AI_GENERATED", null, PageRequest.of(0, 10));
+
+            assertThat(page).isNotNull();
+            assertThat(page.getContent()).hasSize(1);
+            MicroLessonResponse item = page.getContent().get(0);
+            assertThat(item.subject()).isEqualTo("Mathematics");
+            assertThat(item.topic()).isEqualTo("Number Systems");
+            assertThat(item.subtopic()).isEqualTo("Whole Numbers");
+        }
+
+        @Test
+        @DisplayName("listForReview resolves subject name and filters by subject")
+        void testListForReviewWithSubjectFilter() {
+            when(repository.findAll(any(Specification.class), any(Pageable.class)))
+                    .thenReturn(new PageImpl<>(List.of()));
+
+            Page<MicroLessonResponse> page = service.listForReview(null, null, "Mathematics", null, null, null, PageRequest.of(0, 10));
+
+            assertThat(page).isNotNull();
+            ArgumentCaptor<Specification<SubtopicMicroLesson>> captor = ArgumentCaptor.forClass(Specification.class);
+            verify(repository).findAll(captor.capture(), any(Pageable.class));
+            assertThat(captor.getValue()).isNotNull();
+        }
+
+        @Test
+        @DisplayName("getFilterOptions returns all topics when subject is null or ALL")
+        void testGetFilterOptionsWithoutSubject() {
+            Topic topic1 = Topic.builder().name("Number Systems").build();
+            Topic topic2 = Topic.builder().name("Algebra").build();
+            when(topicRepository.findByTenantIdIsNullOrderByDisplayOrderAscNameAsc()).thenReturn(List.of(topic1, topic2));
+            when(subjectRepository.findByTenantIdIsNullOrderByDisplayOrderAscNameAsc()).thenReturn(List.of());
+
+            MicroLessonFilterOptionsResponse options = service.getFilterOptions(null);
+
+            assertThat(options.topics()).containsExactly("Number Systems", "Algebra");
         }
     }
 }

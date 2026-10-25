@@ -33,9 +33,14 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -135,7 +140,7 @@ public class MicroLessonService {
             result = repository.findAll(spec, pageable);
         }
 
-        return result.map(generatorService::toResponse);
+        return toResponsePage(result);
     }
 
     private Specification<SubtopicMicroLesson> buildSpecification(
@@ -152,19 +157,192 @@ public class MicroLessonService {
                 predicates.add(cb.equal(cb.upper(root.get("status")), status.trim().toUpperCase()));
             }
 
-            if (subjectId != null) {
-                predicates.add(cb.equal(root.get("subjectId"), subjectId));
+            Long resolvedSubjectId = subjectId;
+            if (resolvedSubjectId != null) {
+                predicates.add(cb.equal(root.get("subjectId"), resolvedSubjectId));
+            } else if (subject != null && !subject.isBlank() && !"ALL".equalsIgnoreCase(subject.trim())) {
+                List<Long> matchedSubjectIds = resolveSubjectIds(subject.trim());
+                if (!matchedSubjectIds.isEmpty()) {
+                    predicates.add(root.get("subjectId").in(matchedSubjectIds));
+                    if (matchedSubjectIds.size() == 1) {
+                        resolvedSubjectId = matchedSubjectIds.get(0);
+                    }
+                } else {
+                    predicates.add(cb.disjunction());
+                }
+            }
+
+            if (topic != null && !topic.isBlank() && !"ALL".equalsIgnoreCase(topic.trim())) {
+                List<Long> matchedTopicIds = resolveTopicIds(topic.trim(), resolvedSubjectId);
+                if (!matchedTopicIds.isEmpty()) {
+                    predicates.add(root.get("topicId").in(matchedTopicIds));
+                } else {
+                    predicates.add(cb.disjunction());
+                }
             }
 
             if (search != null && !search.isBlank()) {
                 String term = "%" + search.trim().toLowerCase() + "%";
-                Predicate coreConceptMatch = cb.like(cb.lower(root.get("coreConcept")), term);
-                Predicate trapMatch = cb.like(cb.lower(root.get("trap")), term);
-                predicates.add(cb.or(coreConceptMatch, trapMatch));
+                List<Predicate> searchOr = new ArrayList<>();
+                searchOr.add(cb.like(cb.lower(root.get("coreConcept")), term));
+                searchOr.add(cb.like(cb.lower(root.get("trap")), term));
+
+                List<Long> subtopicIds = resolveSubtopicIdsForSearch(search.trim());
+                if (!subtopicIds.isEmpty()) {
+                    searchOr.add(root.get("subtopicId").in(subtopicIds));
+                }
+
+                List<Long> topicIds = resolveTopicIdsForSearch(search.trim());
+                if (!topicIds.isEmpty()) {
+                    searchOr.add(root.get("topicId").in(topicIds));
+                }
+
+                List<Long> subjectIds = resolveSubjectIdsForSearch(search.trim());
+                if (!subjectIds.isEmpty()) {
+                    searchOr.add(root.get("subjectId").in(subjectIds));
+                }
+
+                predicates.add(cb.or(searchOr.toArray(new Predicate[0])));
             }
 
             return predicates.isEmpty() ? cb.conjunction() : cb.and(predicates.toArray(new Predicate[0]));
         };
+    }
+
+    private List<Long> resolveSubjectIds(String subjectStr) {
+        if (subjectStr == null || subjectStr.isBlank()) {
+            return Collections.emptyList();
+        }
+        if (subjectStr.matches("\\d+")) {
+            return List.of(Long.parseLong(subjectStr));
+        }
+        if (subjectRepository == null) {
+            return Collections.emptyList();
+        }
+        try {
+            Optional<Subject> exact = subjectRepository.findByNameAndTenantIdIsNull(subjectStr.trim());
+            if (exact.isPresent()) {
+                return List.of(exact.get().getId());
+            }
+        } catch (Exception ignored) {}
+        try {
+            List<Subject> byIgnoreCase = subjectRepository.findByNameIgnoreCaseAndTenantIdIsNull(subjectStr.trim());
+            if (!byIgnoreCase.isEmpty()) {
+                return byIgnoreCase.stream().map(Subject::getId).filter(Objects::nonNull).toList();
+            }
+        } catch (Exception ignored) {}
+        try {
+            return subjectRepository.findAll().stream()
+                    .filter(s -> s.getName() != null && s.getName().equalsIgnoreCase(subjectStr.trim()))
+                    .map(Subject::getId)
+                    .filter(Objects::nonNull)
+                    .toList();
+        } catch (Exception ignored) {
+            return Collections.emptyList();
+        }
+    }
+
+    private List<Long> resolveTopicIds(String topicStr, Long subjectId) {
+        if (topicStr == null || topicStr.isBlank()) {
+            return Collections.emptyList();
+        }
+        if (topicStr.matches("\\d+")) {
+            return List.of(Long.parseLong(topicStr));
+        }
+        if (topicRepository == null) {
+            return Collections.emptyList();
+        }
+        try {
+            if (subjectId != null) {
+                Optional<Topic> exact = topicRepository.findByNameAndSubjectIdAndTenantIdIsNull(topicStr.trim(), subjectId);
+                if (exact.isPresent()) {
+                    return List.of(exact.get().getId());
+                }
+            }
+        } catch (Exception ignored) {}
+        try {
+            List<Topic> byIgnoreCase = topicRepository.findByNameIgnoreCaseAndTenantIdIsNull(topicStr.trim());
+            if (!byIgnoreCase.isEmpty()) {
+                return byIgnoreCase.stream()
+                        .filter(t -> subjectId == null || subjectId.equals(t.getSubjectId()))
+                        .map(Topic::getId)
+                        .filter(Objects::nonNull)
+                        .toList();
+            }
+        } catch (Exception ignored) {}
+        try {
+            return topicRepository.findAll().stream()
+                    .filter(t -> t.getName() != null && t.getName().equalsIgnoreCase(topicStr.trim()))
+                    .filter(t -> subjectId == null || subjectId.equals(t.getSubjectId()))
+                    .map(Topic::getId)
+                    .filter(Objects::nonNull)
+                    .toList();
+        } catch (Exception ignored) {
+            return Collections.emptyList();
+        }
+    }
+
+    private List<Long> resolveSubtopicIdsForSearch(String term) {
+        if (subtopicRepository == null || term == null || term.isBlank()) {
+            return Collections.emptyList();
+        }
+        try {
+            List<Subtopic> results = subtopicRepository.findByNameContainingIgnoreCase(term);
+            if (results != null && !results.isEmpty()) {
+                return results.stream().map(Subtopic::getId).filter(Objects::nonNull).toList();
+            }
+        } catch (Exception ignored) {}
+        try {
+            return subtopicRepository.findAll().stream()
+                    .filter(st -> st.getName() != null && st.getName().toLowerCase().contains(term.toLowerCase()))
+                    .map(Subtopic::getId)
+                    .filter(Objects::nonNull)
+                    .toList();
+        } catch (Exception ignored) {
+            return Collections.emptyList();
+        }
+    }
+
+    private List<Long> resolveTopicIdsForSearch(String term) {
+        if (topicRepository == null || term == null || term.isBlank()) {
+            return Collections.emptyList();
+        }
+        try {
+            List<Topic> results = topicRepository.findByNameContainingIgnoreCase(term);
+            if (results != null && !results.isEmpty()) {
+                return results.stream().map(Topic::getId).filter(Objects::nonNull).toList();
+            }
+        } catch (Exception ignored) {}
+        try {
+            return topicRepository.findAll().stream()
+                    .filter(t -> t.getName() != null && t.getName().toLowerCase().contains(term.toLowerCase()))
+                    .map(Topic::getId)
+                    .filter(Objects::nonNull)
+                    .toList();
+        } catch (Exception ignored) {
+            return Collections.emptyList();
+        }
+    }
+
+    private List<Long> resolveSubjectIdsForSearch(String term) {
+        if (subjectRepository == null || term == null || term.isBlank()) {
+            return Collections.emptyList();
+        }
+        try {
+            List<Subject> results = subjectRepository.findByNameContainingIgnoreCase(term);
+            if (results != null && !results.isEmpty()) {
+                return results.stream().map(Subject::getId).filter(Objects::nonNull).toList();
+            }
+        } catch (Exception ignored) {}
+        try {
+            return subjectRepository.findAll().stream()
+                    .filter(s -> s.getName() != null && s.getName().toLowerCase().contains(term.toLowerCase()))
+                    .map(Subject::getId)
+                    .filter(Objects::nonNull)
+                    .toList();
+        } catch (Exception ignored) {
+            return Collections.emptyList();
+        }
     }
 
     @Transactional(readOnly = true)
@@ -184,11 +362,18 @@ public class MicroLessonService {
                 ? subjectRepository.findByTenantIdIsNullOrderByDisplayOrderAscNameAsc().stream().map(Subject::getName).toList()
                 : List.of();
         List<String> topics = List.of();
-        if (subject != null && subjectRepository != null && topicRepository != null) {
-            topics = subjectRepository.findByNameAndTenantIdIsNull(subject)
+        if (subject != null && !subject.isBlank() && !"ALL".equalsIgnoreCase(subject.trim()) && subjectRepository != null && topicRepository != null) {
+            topics = subjectRepository.findByNameAndTenantIdIsNull(subject.trim())
                     .map(s -> topicRepository.findBySubjectIdAndTenantIdIsNullOrderByDisplayOrderAscNameAsc(s.getId())
                             .stream().map(Topic::getName).toList())
                     .orElse(List.of());
+        } else if (topicRepository != null) {
+            try {
+                topics = topicRepository.findByTenantIdIsNullOrderByDisplayOrderAscNameAsc()
+                        .stream().map(Topic::getName).distinct().toList();
+            } catch (Exception ignored) {
+                topics = List.of();
+            }
         }
         List<String> statuses = List.of("ALL", "AI_GENERATED", "IN_REVIEW", "APPROVED", "PUBLISHED", "REJECTED");
         return new MicroLessonFilterOptionsResponse(subjects, topics, statuses);
@@ -893,52 +1078,154 @@ public class MicroLessonService {
         }
     }
 
-    private MicroLessonResponse toResponse(SubtopicMicroLesson entity) {
-        if (generatorService != null) {
-            MicroLessonResponse res = generatorService.toResponse(entity);
-            if (res != null) {
-                return res;
-            }
+    private Page<MicroLessonResponse> toResponsePage(Page<SubtopicMicroLesson> page) {
+        List<SubtopicMicroLesson> content = page.getContent();
+        if (content.isEmpty()) {
+            return page.map(this::toResponse);
         }
+
+        Set<Long> subjectIds = content.stream()
+                .map(SubtopicMicroLesson::getSubjectId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Set<Long> topicIds = content.stream()
+                .map(SubtopicMicroLesson::getTopicId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Set<Long> subtopicIds = content.stream()
+                .map(SubtopicMicroLesson::getSubtopicId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        Map<Long, String> subjectNames = new HashMap<>();
+        if (subjectRepository != null && !subjectIds.isEmpty()) {
+            try {
+                subjectRepository.findAllById(subjectIds).forEach(s -> subjectNames.put(s.getId(), s.getName()));
+            } catch (Exception ignored) {}
+        }
+
+        Map<Long, String> topicNames = new HashMap<>();
+        if (topicRepository != null && !topicIds.isEmpty()) {
+            try {
+                topicRepository.findAllById(topicIds).forEach(t -> topicNames.put(t.getId(), t.getName()));
+            } catch (Exception ignored) {}
+        }
+
+        Map<Long, String> subtopicNames = new HashMap<>();
+        if (subtopicRepository != null && !subtopicIds.isEmpty()) {
+            try {
+                subtopicRepository.findAllById(subtopicIds).forEach(st -> subtopicNames.put(st.getId(), st.getName()));
+            } catch (Exception ignored) {}
+        }
+
+        return page.map(entity -> {
+            MicroLessonResponse base = (generatorService != null) ? generatorService.toResponse(entity) : null;
+            return enrichWithTaxonomy(
+                    base,
+                    entity,
+                    subjectNames.get(entity.getSubjectId()),
+                    topicNames.get(entity.getTopicId()),
+                    subtopicNames.get(entity.getSubtopicId())
+            );
+        });
+    }
+
+    private MicroLessonResponse enrichWithTaxonomy(
+            MicroLessonResponse base,
+            SubtopicMicroLesson entity,
+            String sName,
+            String tName,
+            String stName) {
+
+        if (base == null) {
+            return new MicroLessonResponse(
+                    entity.getId(),
+                    entity.getSubjectId(),
+                    entity.getTopicId(),
+                    entity.getSubtopicId(),
+                    sName,
+                    tName,
+                    stName,
+                    null,
+                    entity.getCoreConcept(),
+                    entity.getTrap(),
+                    parseCheatSheetJson(entity.getCheatSheetJson()),
+                    parseBreakdownJson(entity.getStepByStepBreakdownJson()),
+                    entity.getStatus(),
+                    entity.getReviewedBy(),
+                    entity.getReviewedAt(),
+                    entity.getReviewComments(),
+                    entity.getContentVersion(),
+                    entity.getCreatedAt(),
+                    entity.getUpdatedAt(),
+                    entity.getLanguage(),
+                    false,
+                    entity.getLessonType(),
+                    entity.getDifficultyLevel(),
+                    entity.getSequenceNo(),
+                    entity.getPrerequisiteLessonId(),
+                    entity.getEstimatedMinutes(),
+                    entity.getQualityScore()
+            );
+        }
+
+        String resolvedSubject = base.subject() != null ? base.subject() : sName;
+        String resolvedTopic = base.topic() != null ? base.topic() : tName;
+        String resolvedSubtopic = base.subtopic() != null ? base.subtopic() : stName;
+
+        return new MicroLessonResponse(
+                base.id(),
+                base.subjectId(),
+                base.topicId(),
+                base.subtopicId(),
+                resolvedSubject,
+                resolvedTopic,
+                resolvedSubtopic,
+                base.targetExam(),
+                base.coreConcept(),
+                base.trap(),
+                base.cheatSheet(),
+                base.stepByStepBreakdown(),
+                base.status(),
+                base.reviewedBy(),
+                base.reviewedAt(),
+                base.reviewComments(),
+                base.contentVersion(),
+                base.createdAt(),
+                base.updatedAt(),
+                base.languageCode(),
+                base.fallbackToEnglish(),
+                base.lessonType(),
+                base.difficultyLevel(),
+                base.sequenceNo(),
+                base.prerequisiteLessonId(),
+                base.estimatedMinutes(),
+                base.qualityScore()
+        );
+    }
+
+    private MicroLessonResponse toResponse(SubtopicMicroLesson entity) {
+        if (entity == null) return null;
+
         String sName = null, tName = null, stName = null;
         if (subtopicRepository != null && entity.getSubtopicId() != null) {
-            stName = subtopicRepository.findById(entity.getSubtopicId()).map(Subtopic::getName).orElse(null);
+            try {
+                stName = subtopicRepository.findById(entity.getSubtopicId()).map(Subtopic::getName).orElse(null);
+            } catch (Exception ignored) {}
         }
         if (topicRepository != null && entity.getTopicId() != null) {
-            tName = topicRepository.findById(entity.getTopicId()).map(Topic::getName).orElse(null);
+            try {
+                tName = topicRepository.findById(entity.getTopicId()).map(Topic::getName).orElse(null);
+            } catch (Exception ignored) {}
         }
         if (subjectRepository != null && entity.getSubjectId() != null) {
-            sName = subjectRepository.findById(entity.getSubjectId()).map(Subject::getName).orElse(null);
+            try {
+                sName = subjectRepository.findById(entity.getSubjectId()).map(Subject::getName).orElse(null);
+            } catch (Exception ignored) {}
         }
-        return new MicroLessonResponse(
-                entity.getId(),
-                entity.getSubjectId(),
-                entity.getTopicId(),
-                entity.getSubtopicId(),
-                sName,
-                tName,
-                stName,
-                null,
-                entity.getCoreConcept(),
-                entity.getTrap(),
-                parseCheatSheetJson(entity.getCheatSheetJson()),
-                parseBreakdownJson(entity.getStepByStepBreakdownJson()),
-                entity.getStatus(),
-                entity.getReviewedBy(),
-                entity.getReviewedAt(),
-                entity.getReviewComments(),
-                entity.getContentVersion(),
-                entity.getCreatedAt(),
-                entity.getUpdatedAt(),
-                entity.getLanguage(),
-                false,
-                entity.getLessonType(),
-                entity.getDifficultyLevel(),
-                entity.getSequenceNo(),
-                entity.getPrerequisiteLessonId(),
-                entity.getEstimatedMinutes(),
-                entity.getQualityScore()
-        );
+
+        MicroLessonResponse base = (generatorService != null) ? generatorService.toResponse(entity) : null;
+        return enrichWithTaxonomy(base, entity, sName, tName, stName);
     }
 
     private static String firstNonBlank(String... values) {
@@ -1015,7 +1302,7 @@ public class MicroLessonService {
                     .findFirstBySubtopicIdAndStatusOrderByContentVersionDesc(
                             subtopicId, MicroLessonStatus.PUBLISHED.name());
             if (publishedLesson.isPresent()) {
-                MicroLessonResponse response = generatorService.toResponse(publishedLesson.get());
+                MicroLessonResponse response = toResponse(publishedLesson.get());
                 cacheService.put(subtopicId, response);
                 return Optional.of(response);
             }
@@ -1024,7 +1311,7 @@ public class MicroLessonService {
             Optional<SubtopicMicroLesson> anyLesson = repository
                     .findTopBySubtopicIdOrderByContentVersionDesc(subtopicId);
             if (anyLesson.isPresent()) {
-                MicroLessonResponse response = generatorService.toResponse(anyLesson.get());
+                MicroLessonResponse response = toResponse(anyLesson.get());
                 return Optional.of(response);
             }
         }
@@ -1100,7 +1387,7 @@ public class MicroLessonService {
                     resolvedSubtopic,
                     exam
             );
-            MicroLessonResponse response = generatorService.toResponse(generated);
+            MicroLessonResponse response = toResponse(generated);
             cacheService.put(effectiveSubtopicId, response);
             return Optional.of(response);
         } catch (Exception ex) {
@@ -1125,7 +1412,7 @@ public class MicroLessonService {
                         .estimatedMinutes(5)
                         .language("en")
                         .build();
-                return Optional.of(generatorService.toResponse(transientLesson));
+                return Optional.of(toResponse(transientLesson));
             } catch (Exception e2) {
                 log.error("Failed to construct fallback micro-lesson: {}", e2.getMessage());
                 return Optional.empty();

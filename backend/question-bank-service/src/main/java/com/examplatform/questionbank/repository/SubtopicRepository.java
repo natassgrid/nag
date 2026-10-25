@@ -56,6 +56,10 @@ public interface SubtopicRepository extends JpaRepository<Subtopic, Long> {
 
     Optional<Subtopic> findByNameAndTopicIdAndTenantIdIsNull(String name, Long topicId);
 
+    List<Subtopic> findByNameIgnoreCaseAndTenantIdIsNull(String name);
+
+    List<Subtopic> findByNameContainingIgnoreCase(String name);
+
     Optional<Subtopic> findByTopicIdAndCodeAndTenantId(Long topicId, String code, String tenantId);
 
     Optional<Subtopic> findByTopicIdAndCodeAndTenantIdIsNull(Long topicId, String code);

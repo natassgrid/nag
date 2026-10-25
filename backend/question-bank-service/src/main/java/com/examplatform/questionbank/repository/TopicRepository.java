@@ -48,6 +48,8 @@ public interface TopicRepository extends JpaRepository<Topic, Long> {
 
     List<Topic> findBySubjectIdAndTenantIdOrderByDisplayOrderAscNameAsc(Long subjectId, String tenantId);
 
+    List<Topic> findByTenantIdIsNullOrderByDisplayOrderAscNameAsc();
+
     List<Topic> findBySubjectIdInAndTenantIdIsNull(Collection<Long> subjectIds);
 
     List<Topic> findBySubjectIdInAndTenantId(Collection<Long> subjectIds, String tenantId);
@@ -55,6 +57,10 @@ public interface TopicRepository extends JpaRepository<Topic, Long> {
     Optional<Topic> findByNameAndSubjectIdAndTenantId(String name, Long subjectId, String tenantId);
 
     Optional<Topic> findByNameAndSubjectIdAndTenantIdIsNull(String name, Long subjectId);
+
+    List<Topic> findByNameIgnoreCaseAndTenantIdIsNull(String name);
+
+    List<Topic> findByNameContainingIgnoreCase(String name);
 
     Optional<Topic> findBySubjectIdAndCodeAndTenantId(Long subjectId, String code, String tenantId);
 

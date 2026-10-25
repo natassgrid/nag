@@ -88,7 +88,7 @@
                   </button>
                   <button
                     type="button"
-                    (click)="deleteLesson.emit({ lesson: item, event: $event })"
+                    (click)="deleteLesson.emit({ lesson: item, event: $event }); $event.stopPropagation()"
                     title="Delete Micro-Lesson"
                     class="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer transition-colors inline-flex items-center"
                   >

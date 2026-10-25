@@ -62,7 +62,7 @@ export class MicroLessonAdminService {
         .set('page', (q.page ?? 0).toString())
         .set('size', (q.size ?? 20).toString());
 
-      if (q.status && q.status !== 'ALL') {
+      if (q.status) {
         params = params.set('status', q.status);
       }
       if (q.subjectId != null) {
@@ -88,6 +88,8 @@ export class MicroLessonAdminService {
       }
       if (q.sortBy) {
         params = params.set('sortBy', q.sortBy);
+        const dir = (q.direction || 'desc').toLowerCase();
+        params = params.set('sort', `${q.sortBy},${dir}`);
       }
       if (q.direction) {
         params = params.set('direction', q.direction);
