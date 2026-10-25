@@ -62,5 +62,9 @@ public interface ExtractedQuestionRepository
     long countByPaperMetadataIdAndStatusAndTenantId(
             UUID paperMetadataId, ExtractedQuestionStatus status, String tenantId);
 
+    void deleteByPaperMetadataIdAndTenantId(UUID paperMetadataId, String tenantId);
+
+    void deleteByIdInAndPaperMetadataIdAndTenantId(Collection<UUID> ids, UUID paperMetadataId, String tenantId);
+
     void deleteByPaperMetadataIdAndSourcePageNumber(UUID paperMetadataId, Integer sourcePageNumber);
 }

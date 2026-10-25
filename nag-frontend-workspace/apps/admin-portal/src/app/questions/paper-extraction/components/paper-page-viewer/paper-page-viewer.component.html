@@ -1,0 +1,121 @@
+<div class="bg-white rounded-2xl border border-slate-200/80 shadow-md overflow-hidden flex flex-col h-full">
+  <!-- Toolbar Header -->
+  <div class="p-3 border-b border-slate-200 bg-slate-50 flex flex-wrap items-center justify-between gap-2">
+    <!-- Title & Page Info -->
+    <div class="flex items-center gap-2">
+      <div class="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center">
+        <mat-icon class="!text-base">picture_as_pdf</mat-icon>
+      </div>
+      <div>
+        <div class="text-xs font-bold text-slate-800">Original PDF Page</div>
+        <div class="text-[10px] text-slate-500 font-mono">
+          Page {{ currentPage() }} of {{ totalPages() || 1 }}
+        </div>
+      </div>
+    </div>
+
+    <!-- Page Paging Controls -->
+    <div class="flex items-center gap-1">
+      <button
+        mat-icon-button
+        (click)="prevPage()"
+        [disabled]="currentPage() <= 1 || loading()"
+        matTooltip="Previous page"
+        class="!w-7 !h-7 !rounded-lg cursor-pointer"
+      >
+        <mat-icon class="!text-base">chevron_left</mat-icon>
+      </button>
+
+      <span class="text-xs font-bold text-slate-700 px-1 font-mono">
+        {{ currentPage() }} / {{ totalPages() || 1 }}
+      </span>
+
+      <button
+        mat-icon-button
+        (click)="nextPage()"
+        [disabled]="currentPage() >= totalPages() || loading()"
+        matTooltip="Next page"
+        class="!w-7 !h-7 !rounded-lg cursor-pointer"
+      >
+        <mat-icon class="!text-base">chevron_right</mat-icon>
+      </button>
+    </div>
+
+    <!-- Zoom & Close Controls -->
+    <div class="flex items-center gap-1">
+      <button
+        mat-icon-button
+        (click)="zoomOut()"
+        [disabled]="zoomPercent() <= 50"
+        matTooltip="Zoom Out (Ctrl -)"
+        class="!w-7 !h-7 !rounded-lg cursor-pointer"
+      >
+        <mat-icon class="!text-sm">zoom_out</mat-icon>
+      </button>
+
+      <button
+        type="button"
+        (click)="resetZoom()"
+        matTooltip="Reset Zoom to 100%"
+        class="text-[11px] font-mono font-bold text-slate-700 px-1.5 py-0.5 rounded hover:bg-slate-200 cursor-pointer"
+      >
+        {{ zoomPercent() }}%
+      </button>
+
+      <button
+        mat-icon-button
+        (click)="zoomIn()"
+        [disabled]="zoomPercent() >= 250"
+        matTooltip="Zoom In (Ctrl +)"
+        class="!w-7 !h-7 !rounded-lg cursor-pointer"
+      >
+        <mat-icon class="!text-sm">zoom_in</mat-icon>
+      </button>
+
+      <button
+        mat-icon-button
+        (click)="closeViewer.emit()"
+        matTooltip="Close PDF Viewer"
+        class="!w-7 !h-7 !rounded-lg !text-slate-400 hover:!text-slate-700 cursor-pointer ml-1"
+      >
+        <mat-icon class="!text-base">close</mat-icon>
+      </button>
+    </div>
+  </div>
+
+  <!-- Page Image Viewport -->
+  <div class="flex-1 min-h-[500px] max-h-[calc(100vh-220px)] overflow-auto bg-slate-900/5 p-4 flex items-center justify-center">
+    @if (loading()) {
+      <div class="text-center p-8 space-y-2">
+        <mat-spinner diameter="32" class="mx-auto"></mat-spinner>
+        <p class="text-xs text-slate-500 font-medium">Rendering page {{ currentPage() }}...</p>
+      </div>
+    } @else if (errorMessage()) {
+      <div class="text-center p-6 space-y-2 max-w-sm">
+        <mat-icon class="!text-3xl text-rose-500">error_outline</mat-icon>
+        <div class="text-xs font-bold text-slate-800">Preview Unavailable</div>
+        <p class="text-[11px] text-slate-500">{{ errorMessage() }}</p>
+        <button
+          mat-stroked-button
+          (click)="fetchPageImage(paperId(), currentPage())"
+          class="!text-xs !border-slate-300 cursor-pointer"
+        >
+          <mat-icon class="!text-sm">refresh</mat-icon> Retry
+        </button>
+      </div>
+    } @else if (imageUrl()) {
+      <div class="w-full flex justify-center">
+        <img
+          [src]="imageUrl()"
+          [style.width.%]="zoomPercent()"
+          class="transition-all duration-150 shadow-md rounded-lg border border-slate-200 max-w-none origin-top object-contain bg-white"
+          [alt]="'Page ' + currentPage() + ' preview'"
+        />
+      </div>
+    } @else {
+      <div class="text-center p-6 text-slate-400 text-xs">
+        No preview available.
+      </div>
+    }
+  </div>
+</div>

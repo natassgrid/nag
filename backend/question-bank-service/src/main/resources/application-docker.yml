@@ -27,3 +27,7 @@ spring:
 
 indictrans2:
   url: ${INDICTRANS2_URL:http://indictrans2:7860}
+
+app:
+  extraction:
+    ocr-service-url: ${OCR_SERVICE_URL:http://ocr-service:5005}

@@ -40,7 +40,6 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 import java.util.regex.Matcher;
@@ -176,7 +175,6 @@ public class SpringAiGenerationService implements QuestionGenerationService {
     }
 
     @Override
-    @Transactional
     public QuestionGenerationResponse generate(QuestionGenerationRequest request, String tenantId, UUID authorId) {
         List<NormalizedSampleQuestion> sampleQuestions = new ArrayList<>();
         if (request.getSampleQuestions() != null && !request.getSampleQuestions().isEmpty()) {
@@ -188,7 +186,6 @@ public class SpringAiGenerationService implements QuestionGenerationService {
     }
 
     @Override
-    @Transactional
     public QuestionGenerationResponse generateWithSamples(
             QuestionGenerationRequest request,
             List<NormalizedSampleQuestion> sampleQuestions,

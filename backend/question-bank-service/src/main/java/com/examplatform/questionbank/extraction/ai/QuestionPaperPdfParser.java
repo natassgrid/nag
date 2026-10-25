@@ -15,7 +15,9 @@
  */
 package com.examplatform.questionbank.extraction.ai;
 
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.cos.COSName;
@@ -25,6 +27,8 @@ import org.apache.pdfbox.pdmodel.PDResources;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import org.apache.pdfbox.rendering.PDFRenderer;
 import org.apache.pdfbox.text.PDFTextStripper;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.imageio.ImageIO;
@@ -50,7 +54,6 @@ import java.util.regex.Pattern;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class QuestionPaperPdfParser {
 
     public static final int MAX_DIAGRAM_DIMENSION = 1024;
@@ -60,6 +63,22 @@ public class QuestionPaperPdfParser {
     public static final int MIN_IMAGE_DIMENSION = 40;
     public static final int FULL_PAGE_IMAGE_MIN_WIDTH = 500;
     public static final int FULL_PAGE_IMAGE_MIN_HEIGHT = 700;
+
+    private final OcrServiceClient ocrServiceClient;
+
+    @Getter
+    @Setter
+    @Value("${app.extraction.vision-strategy:local-ocr}")
+    private String visionStrategy = "local-ocr";
+
+    public QuestionPaperPdfParser() {
+        this.ocrServiceClient = null;
+    }
+
+    @Autowired
+    public QuestionPaperPdfParser(@Autowired(required = false) OcrServiceClient ocrServiceClient) {
+        this.ocrServiceClient = ocrServiceClient;
+    }
 
     private static final Pattern PAREN_DELIMITER_PATTERN =
             Pattern.compile(Pattern.quote("\\(") + "(.*?)" + Pattern.quote("\\)"), Pattern.DOTALL);
@@ -146,16 +165,34 @@ public class QuestionPaperPdfParser {
         String renderedPageDataUri = null;
 
         if (cleanText.length() < MIN_TEXT_LENGTH_THRESHOLD || hasFullPageScanImage) {
-            // Tier 2: Scanned fallback
-            tier = PdfPageContent.TIER_2_SCANNED_FALLBACK;
-            scannedOrImageHeavy = true;
-            log.info("Page {} classified as {} (cleanText length={}, hasFullPageScanImage={})",
-                    oneBasedPageNumber, tier, cleanText.length(), hasFullPageScanImage);
-
             PDFRenderer renderer = new PDFRenderer(document);
             BufferedImage renderedPage = renderer.renderImageWithDPI(oneBasedPageNumber - 1, SCANNED_RENDER_DPI);
             BufferedImage downsampled = downsampleImage(renderedPage, MAX_RENDERED_PAGE_DIMENSION);
             renderedPageDataUri = encodeImageToDataUri(downsampled);
+
+            // Option B (Default: local-ocr): Perform fast local Tesseract OCR if text is missing or page is scanned
+            if ("local-ocr".equalsIgnoreCase(visionStrategy) && ocrServiceClient != null && ocrServiceClient.isAvailable()) {
+                log.info("Page {} has sparse text or full page scan; invoking local Tesseract OCR (eng+hin)...", oneBasedPageNumber);
+                String ocrText = ocrServiceClient.extractTextFromImage(renderedPageDataUri, "eng+hin");
+                if (ocrText != null && !ocrText.isBlank()) {
+                    cleanText = ocrText.trim();
+                    normalizedText = normalizeMathAndFormatting(cleanText);
+                    log.info("Local OCR recognized {} characters on page {}", cleanText.length(), oneBasedPageNumber);
+                }
+            }
+
+            if (cleanText.length() >= MIN_TEXT_LENGTH_THRESHOLD) {
+                // If OCR or digital stream produced sufficient text, classify as text tier
+                tier = embeddedDiagramDataUris.isEmpty() ? PdfPageContent.TIER_0_LOCAL_TEXT : PdfPageContent.TIER_1_SELECTIVE_VISION;
+                scannedOrImageHeavy = false;
+                log.info("Page {} promoted to {} via text extraction (length={})", oneBasedPageNumber, tier, cleanText.length());
+            } else {
+                // Tier 2: Scanned fallback (for cloud vision Option A: Gemini Flash or local VL)
+                tier = PdfPageContent.TIER_2_SCANNED_FALLBACK;
+                scannedOrImageHeavy = true;
+                log.info("Page {} classified as {} (cleanText length={}, hasFullPageScanImage={})",
+                        oneBasedPageNumber, tier, cleanText.length(), hasFullPageScanImage);
+            }
         } else if (!embeddedDiagramDataUris.isEmpty()) {
             // Tier 1: Digital text with embedded diagrams
             tier = PdfPageContent.TIER_1_SELECTIVE_VISION;

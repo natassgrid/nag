@@ -33,6 +33,10 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 @DisplayName("QuestionPaperPdfParser Unit Tests")
 class QuestionPaperPdfParserTest {
@@ -167,5 +171,43 @@ class QuestionPaperPdfParserTest {
         assertThat(normalized).contains("$$\\ce{H2SO4}$$");
         assertThat(normalized).doesNotContain("\\(");
         assertThat(normalized).doesNotContain("\\[");
+    }
+
+    @Test
+    @DisplayName("Option B (local-ocr): Scanned page is promoted to Tier 0 when OCR produces >= 40 characters")
+    void testLocalOcrPromotionToTier0() throws IOException {
+        OcrServiceClient mockOcr = mock(OcrServiceClient.class);
+        when(mockOcr.isAvailable()).thenReturn(true);
+        when(mockOcr.extractTextFromImage(anyString(), eq("eng+hin")))
+                .thenReturn("Q.1 Which of the following is a fundamental SI unit? (A) Newton (B) Joule (C) Kelvin (D) Watt");
+
+        QuestionPaperPdfParser ocrParser = new QuestionPaperPdfParser(mockOcr);
+        ocrParser.setVisionStrategy("local-ocr");
+
+        byte[] pdfBytes = createScannedPdf();
+        PdfPageContent pageContent = ocrParser.extractSinglePage(pdfBytes, 1);
+
+        assertThat(pageContent).isNotNull();
+        assertThat(pageContent.getParsingTier()).isEqualTo(PdfPageContent.TIER_0_LOCAL_TEXT);
+        assertThat(pageContent.isScannedOrImageHeavy()).isFalse();
+        assertThat(pageContent.getDigitalText()).contains("fundamental SI unit");
+    }
+
+    @Test
+    @DisplayName("Option A (cloud-vision): Scanned page remains Tier 2 when strategy is cloud-vision")
+    void testCloudVisionStrategyPreservesTier2() throws IOException {
+        OcrServiceClient mockOcr = mock(OcrServiceClient.class);
+        when(mockOcr.isAvailable()).thenReturn(true);
+
+        QuestionPaperPdfParser cloudParser = new QuestionPaperPdfParser(mockOcr);
+        cloudParser.setVisionStrategy("cloud-vision");
+
+        byte[] pdfBytes = createScannedPdf();
+        PdfPageContent pageContent = cloudParser.extractSinglePage(pdfBytes, 1);
+
+        assertThat(pageContent).isNotNull();
+        assertThat(pageContent.getParsingTier()).isEqualTo(PdfPageContent.TIER_2_SCANNED_FALLBACK);
+        assertThat(pageContent.isScannedOrImageHeavy()).isTrue();
+        assertThat(pageContent.getRenderedPageDataUri()).isNotNull();
     }
 }

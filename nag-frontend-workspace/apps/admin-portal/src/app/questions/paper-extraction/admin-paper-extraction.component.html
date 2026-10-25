@@ -89,6 +89,8 @@
       (applyAnswerKey)="openAnswerKeyDialog($event)"
       (retryExtraction)="handleRetryJob($event)"
       (cancelExtraction)="handleCancelJob($event)"
+      (resumeExtraction)="handleResumeJob($event)"
+      (deletePaper)="handleDeletePaper($event)"
       (refresh)="loadPapers()"
     ></nag-paper-list-table>
   }
@@ -104,6 +106,9 @@
       [pageSize]="questionsPageSize()"
       [promoting]="promotingQuestions()"
       [updating]="updatingQuestion()"
+      [merging]="mergingQuestions()"
+      [splitting]="splittingQuestion()"
+      [resequencing]="resequencingQuestions()"
       (backToList)="handleBackToList()"
       (refresh)="loadExtractedQuestions(selectedPaper()!.id)"
       (statusFilterChange)="onQuestionsStatusFilterChange($event)"
@@ -111,6 +116,11 @@
       (updateQuestion)="handleUpdateQuestion($event)"
       (promoteApproved)="handlePromoteApproved($event)"
       (openAnswerKeyDialog)="openAnswerKeyDialog($event)"
+      (mergeQuestions)="handleMergeQuestions($event)"
+      (splitQuestion)="handleSplitQuestion($event)"
+      (resequenceQuestions)="handleResequenceQuestions($event)"
+      (deleteQuestion)="handleDeleteQuestion($event)"
+      (batchDeleteQuestions)="handleBatchDeleteQuestions($event)"
     ></nag-extracted-questions-panel>
   }
 

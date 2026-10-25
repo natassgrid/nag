@@ -80,6 +80,13 @@ public class QuestionPaperMetadata extends BaseEntity {
     @Builder.Default
     private int totalPages = 0;
 
+    @Column(name = "page_selection", length = 500)
+    private String pageSelection;
+
+    @Column(name = "last_completed_page", nullable = false)
+    @Builder.Default
+    private int lastCompletedPage = 0;
+
     @Column(name = "total_questions_expected", nullable = false)
     @Builder.Default
     private int totalQuestionsExpected = 0;

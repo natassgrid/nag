@@ -48,12 +48,38 @@ export class PaperUploadDialogComponent {
   totalQuestionsExpected = signal<number | null>(null);
   durationMinutes = signal<number | null>(null);
   forceReExtract = signal<boolean>(false);
+  pageSelection = signal<string>('');
+
+  readonly isPageSelectionValid = computed(() => {
+    const raw = (this.pageSelection() || '').trim();
+    if (!raw) return true;
+    const parts = raw.split(',').map((p) => p.trim());
+    if (parts.length === 0) return true;
+    for (const part of parts) {
+      if (!part) return false;
+      const rangeMatch = part.match(/^(\d+)(?:-(\d+))?$/);
+      if (!rangeMatch) return false;
+      const start = parseInt(rangeMatch[1], 10);
+      if (start <= 0) return false;
+      if (rangeMatch[2]) {
+        const end = parseInt(rangeMatch[2], 10);
+        if (end <= 0 || end < start) return false;
+      }
+    }
+    return true;
+  });
 
   readonly isFormValid = computed(() => {
     const file = this.selectedFile();
     const examName = (this.examinationName() || '').trim();
     const year = this.examYear();
-    return !!file && examName.length > 0 && year > 1900 && year < 2100;
+    return (
+      !!file &&
+      examName.length > 0 &&
+      year > 1900 &&
+      year < 2100 &&
+      this.isPageSelectionValid()
+    );
   });
 
   readonly formattedFileSize = computed(() => {
@@ -114,6 +140,7 @@ export class PaperUploadDialogComponent {
     this.totalQuestionsExpected.set(null);
     this.durationMinutes.set(null);
     this.forceReExtract.set(false);
+    this.pageSelection.set('');
   }
 
   handleClose(): void {
@@ -137,6 +164,7 @@ export class PaperUploadDialogComponent {
       totalQuestionsExpected: this.totalQuestionsExpected() ?? undefined,
       durationMinutes: this.durationMinutes() ?? undefined,
       forceReExtract: this.forceReExtract(),
+      pageSelection: (this.pageSelection() || '').trim() || undefined,
     };
 
     this.upload.emit({ file, metadata });

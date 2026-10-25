@@ -4,7 +4,8 @@ export type PaperExtractionStatus =
   | 'COMPLETED'
   | 'PARTIAL_FAILED'
   | 'FAILED'
-  | 'CANCELLED';
+  | 'CANCELLED'
+  | 'QUOTA_EXHAUSTED';
 
 export type ExtractedQuestionStatus =
   | 'EXTRACTED'
@@ -96,6 +97,9 @@ export interface QuestionPaperMetadata {
   startedAt?: string;
   completedAt?: string;
   progressPercentage?: number;
+  pageSelection?: string | null;
+  lastCompletedPage?: number;
+  resumable?: boolean;
 }
 
 export interface PaperUploadRequest {
@@ -115,6 +119,21 @@ export interface PaperUploadRequest {
   negativeMarkingRatio?: number;
   forceReExtract?: boolean;
   fileAssetId?: string;
+  pageSelection?: string;
+}
+
+export interface MergeQuestionsRequest {
+  questionIds: string[];
+}
+
+export interface SplitQuestionRequest {
+  firstContent: string;
+  secondContent: string;
+}
+
+export interface ResequenceQuestionsRequest {
+  orderedQuestionIds: string[];
+  startNumber?: number;
 }
 
 export interface BulkAnswerKeyRequest {

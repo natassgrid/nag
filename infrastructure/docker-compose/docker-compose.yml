@@ -386,18 +386,24 @@ services:
         else
           echo "llama3.2:1b already present, skipping."
         fi
-        if ! curl -sf http://ollama:11434/api/tags | grep -q "qwen2.5-vl:7b"; then
-          echo "Pulling qwen2.5-vl:7b for multimodal scanned OCR..."
-          curl -sf http://ollama:11434/api/pull -d '{"name":"qwen2.5-vl:7b"}'
+        if ! curl -sf http://ollama:11434/api/tags | grep -q "qwen2.5vl:7b"; then
+          echo "Pulling qwen2.5vl:7b for multimodal scanned OCR..."
+          curl -sf http://ollama:11434/api/pull -d '{"name":"qwen2.5vl:7b"}'
         else
-          echo "qwen2.5-vl:7b already present, skipping."
+          echo "qwen2.5vl:7b already present, skipping."
         fi
+        echo "Configuring 32k context window for qwen2.5vl:7b..."
+        curl -sf http://ollama:11434/api/create -d '{"model":"qwen2.5vl:7b","from":"qwen2.5vl:7b","parameters":{"num_ctx":32768},"stream":false}'
+        echo "Updating alias qwen2.5-vl:7b..."
+        curl -sf http://ollama:11434/api/copy -d '{"source":"qwen2.5vl:7b","destination":"qwen2.5-vl:7b"}'
         if ! curl -sf http://ollama:11434/api/tags | grep -q "qwen3:8b"; then
           echo "Pulling qwen3:8b for extraction..."
           curl -sf http://ollama:11434/api/pull -d '{"name":"qwen3:8b"}'
         else
           echo "qwen3:8b already present, skipping."
         fi
+        echo "Configuring 32k context window for qwen3:8b..."
+        curl -sf http://ollama:11434/api/create -d '{"model":"qwen3:8b","from":"qwen3:8b","parameters":{"num_ctx":32768},"stream":false}'
         echo "Done."
     networks:
       - exam-network
@@ -498,6 +504,30 @@ services:
       start_period: 120s
     networks:
       - exam-network
+
+  # ===========================================================================
+  # OCR Service — High-Speed Local Tesseract OCR (English + Hindi)
+  # Port 5005 — REST API at http://localhost:5005
+  # ===========================================================================
+  ocr-service:
+    build:
+      context: ../ocr-service
+      dockerfile: Dockerfile
+    image: exam-ocr:latest
+    container_name: exam-ocr
+    restart: unless-stopped
+    ports:
+      - "${OCR_PORT:-5005}:5005"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:5005/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      exam-network:
+        aliases:
+          - ocr-service
 
   # ===========================================================================
   # Mock DPI Third-Party Server — DigiLocker, Aadhaar e-KYC, MSG91 Gateway

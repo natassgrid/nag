@@ -12,14 +12,16 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { MathRendererComponent } from '@nag-frontend-workspace/shared-ui-components';
 import {
   QuestionPaperMetadata,
   ExtractedQuestion,
-  ExtractedQuestionOption,
   ExtractedQuestionStatus,
   UpdateExtractedQuestionRequest,
 } from '../../models';
+import { PaperPageViewerComponent } from '../paper-page-viewer/paper-page-viewer.component';
+import { SplitQuestionDialogComponent } from '../split-question-dialog/split-question-dialog.component';
+import { ExtractedQuestionCardComponent } from '../extracted-question-card/extracted-question-card.component';
+import { ExtractedQuestionEditDialogComponent } from '../extracted-question-edit-dialog/extracted-question-edit-dialog.component';
 
 @Component({
   selector: 'nag-extracted-questions-panel',
@@ -31,7 +33,10 @@ import {
     MatIconModule,
     MatProgressSpinnerModule,
     MatTooltipModule,
-    MathRendererComponent,
+    PaperPageViewerComponent,
+    SplitQuestionDialogComponent,
+    ExtractedQuestionCardComponent,
+    ExtractedQuestionEditDialogComponent,
   ],
   templateUrl: './extracted-questions-panel.component.html',
   styleUrl: './extracted-questions-panel.component.scss',
@@ -47,6 +52,9 @@ export class ExtractedQuestionsPanelComponent {
   pageSizeOptions = input<number[]>([20, 50, 100]);
   promoting = input<boolean>(false);
   updating = input<boolean>(false);
+  merging = input<boolean>(false);
+  splitting = input<boolean>(false);
+  resequencing = input<boolean>(false);
 
   backToList = output<void>();
   refresh = output<void>();
@@ -55,25 +63,27 @@ export class ExtractedQuestionsPanelComponent {
   updateQuestion = output<{ questionId: string; request: UpdateExtractedQuestionRequest }>();
   promoteApproved = output<{ paperId: string; questionIds?: string[] }>();
   openAnswerKeyDialog = output<QuestionPaperMetadata>();
+  mergeQuestions = output<{ paperId: string; questionIds: string[] }>();
+  splitQuestion = output<{ paperId: string; questionId: string; firstContent: string; secondContent: string }>();
+  resequenceQuestions = output<{ paperId: string; orderedQuestionIds: string[]; startNumber?: number }>();
+  deleteQuestion = output<{ paperId: string; questionId: string }>();
+  batchDeleteQuestions = output<{ paperId: string; questionIds: string[] }>();
 
   readonly Math = Math;
 
-  // Filter & Toggle State
   searchQuery = signal<string>('');
   selectedStatusFilter = signal<string>('ALL');
   bilingualMode = signal<boolean>(false);
+  pdfViewerOpen = signal<boolean>(false);
+  inspectedPage = signal<number>(1);
 
-  // Selection State
   selectedQuestionIds = signal<Set<string>>(new Set<string>());
 
-  // Inline Card Editor State
-  editingQuestionId = signal<string | null>(null);
-  editContent = signal<string>('');
-  editAnswerKey = signal<string>('');
-  editExplanation = signal<string>('');
-  editOptions = signal<ExtractedQuestionOption[]>([]);
-  editStatus = signal<ExtractedQuestionStatus>('APPROVED');
-  editReviewComments = signal<string>('');
+  splitDialogOpen = signal<boolean>(false);
+  activeQuestionForSplit = signal<ExtractedQuestion | null>(null);
+  editDialogOpen = signal<boolean>(false);
+  activeQuestionForEdit = signal<ExtractedQuestion | null>(null);
+  mergeDialogOpen = signal<boolean>(false);
 
   readonly statusFilterOptions: { value: string; label: string }[] = [
     { value: 'ALL', label: 'All Staging Statuses' },
@@ -110,7 +120,7 @@ export class ExtractedQuestionsPanelComponent {
   });
 
   readonly approvedCount = computed(() => {
-    return (this.questions() || []).filter((q) => q.status === 'APPROVED').length;
+    return (this.questions() || []).filter((q) => q && q.status === 'APPROVED').length;
   });
 
   readonly allVisibleSelected = computed(() => {
@@ -120,28 +130,60 @@ export class ExtractedQuestionsPanelComponent {
     return visible.every((q) => selected.has(q.id));
   });
 
+  readonly canMergeSelected = computed(() => {
+    const selected = this.selectedQuestionIds();
+    if (selected.size < 2) return false;
+    const list = this.questions() || [];
+    const selectedItems = list.filter((q) => selected.has(q.id));
+    return selectedItems.length >= 2 && selectedItems.every((q) => q && q.status !== 'PROMOTED');
+  });
+
+  readonly canDeleteSelected = computed(() => {
+    const selected = this.selectedQuestionIds();
+    if (selected.size === 0) return false;
+    const list = this.questions() || [];
+    const selectedItems = list.filter((q) => selected.has(q.id));
+    return selectedItems.length > 0 && selectedItems.every((q) => q && q.status !== 'PROMOTED');
+  });
+
+  readonly canResequence = computed(() => {
+    const list = this.filteredQuestions();
+    return list.length > 0 && list.some((q) => q && q.status !== 'PROMOTED');
+  });
+
+  toggleCompareWithPdf(): void {
+    const nextState = !this.pdfViewerOpen();
+    this.pdfViewerOpen.set(nextState);
+    if (nextState) {
+      const visible = this.filteredQuestions();
+      if (visible.length > 0 && visible[0].sourcePageNumber) {
+        this.inspectedPage.set(visible[0].sourcePageNumber);
+      }
+    }
+  }
+
+  onInspectPage(pageNumber: number): void {
+    if (pageNumber > 0) {
+      this.inspectedPage.set(pageNumber);
+      this.pdfViewerOpen.set(true);
+    }
+  }
+
   toggleSelectAll(): void {
     const current = new Set(this.selectedQuestionIds());
     const visible = this.filteredQuestions();
     if (this.allVisibleSelected()) {
-      for (const q of visible) {
-        current.delete(q.id);
-      }
+      for (const q of visible) current.delete(q.id);
     } else {
-      for (const q of visible) {
-        current.add(q.id);
-      }
+      for (const q of visible) current.add(q.id);
     }
     this.selectedQuestionIds.set(current);
   }
 
   toggleSelectQuestion(id: string): void {
     const current = new Set(this.selectedQuestionIds());
-    if (current.has(id)) {
-      current.delete(id);
-    } else {
-      current.add(id);
-    }
+    if (current.has(id)) current.delete(id);
+    else current.add(id);
     this.selectedQuestionIds.set(current);
   }
 
@@ -149,126 +191,70 @@ export class ExtractedQuestionsPanelComponent {
     return this.selectedQuestionIds().has(id);
   }
 
-  getStatusClass(status: ExtractedQuestionStatus | string): string {
-    switch (status) {
-      case 'APPROVED':
-        return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-      case 'PROMOTED':
-        return 'bg-cyan-50 text-cyan-800 border-cyan-200';
-      case 'NEEDS_REVIEW':
-        return 'bg-amber-50 text-amber-700 border-amber-200';
-      case 'EXTRACTED':
-        return 'bg-indigo-50 text-indigo-700 border-indigo-200';
-      case 'REJECTED':
-        return 'bg-rose-50 text-rose-700 border-rose-200';
-      case 'DUPLICATE':
-        return 'bg-slate-100 text-slate-600 border-slate-200';
-      default:
-        return 'bg-slate-50 text-slate-600 border-slate-200';
-    }
+  onQuickStatusChange(event: { question: ExtractedQuestion; status: ExtractedQuestionStatus }): void {
+    this.updateQuestion.emit({ questionId: event.question.id, request: { status: event.status } });
   }
 
-  isOptionCorrect(q: ExtractedQuestion, opt: ExtractedQuestionOption): boolean {
-    if (opt.correct === true) return true;
-    if (q.answerKey && opt.id) {
-      const cleanKey = q.answerKey.trim().toUpperCase();
-      const cleanId = opt.id.trim().toUpperCase();
-      return cleanKey === cleanId || cleanKey.includes(cleanId);
-    }
-    return false;
+  onOpenEditDialog(q: ExtractedQuestion): void {
+    this.activeQuestionForEdit.set(q);
+    this.editDialogOpen.set(true);
   }
 
-  getHindiTranslation(q: ExtractedQuestion): { content?: string; options?: ExtractedQuestionOption[]; explanation?: string } | null {
-    if (q.translations && q.translations['hi']) {
-      return q.translations['hi'];
-    }
-    return null;
+  onCloseEditDialog(): void {
+    this.editDialogOpen.set(false);
+    this.activeQuestionForEdit.set(null);
   }
 
-  getHindiOptionText(q: ExtractedQuestion, optionId: string): string | null {
-    const hi = this.getHindiTranslation(q);
-    if (!hi || !hi.options || !Array.isArray(hi.options)) return null;
-    const cleanId = (optionId || '').trim().toUpperCase();
-    const match = hi.options.find(
-      (o: any) => o && o.id && o.id.toString().trim().toUpperCase() === cleanId
-    );
-    return match ? match.text : null;
+  onSaveEdit(event: { questionId: string; request: UpdateExtractedQuestionRequest }): void {
+    this.updateQuestion.emit(event);
+    this.onCloseEditDialog();
   }
 
-  onQuickStatusChange(q: ExtractedQuestion, newStatus: ExtractedQuestionStatus): void {
-    this.updateQuestion.emit({
-      questionId: q.id,
-      request: { status: newStatus },
-    });
+  onUpdateQuestionNumber(event: { question: ExtractedQuestion; questionNumber: number }): void {
+    this.updateQuestion.emit({ questionId: event.question.id, request: { questionNumber: event.questionNumber } });
   }
 
-  startEditing(q: ExtractedQuestion): void {
-    this.editingQuestionId.set(q.id);
-    this.editContent.set(q.content || '');
-    this.editAnswerKey.set(q.answerKey || '');
-    this.editExplanation.set(q.explanation || '');
-    this.editOptions.set(
-      (q.options || []).map((opt) => ({
-        id: opt.id,
-        text: opt.text,
-        correct: opt.correct,
-      }))
-    );
-    this.editStatus.set(q.status);
-    this.editReviewComments.set(q.reviewComments || '');
+  onOpenSplitDialog(q: ExtractedQuestion): void {
+    this.activeQuestionForSplit.set(q);
+    this.splitDialogOpen.set(true);
   }
 
-  cancelEditing(): void {
-    this.editingQuestionId.set(null);
+  onCloseSplitDialog(): void {
+    this.splitDialogOpen.set(false);
+    this.activeQuestionForSplit.set(null);
   }
 
-  saveEditing(q: ExtractedQuestion): void {
-    const req: UpdateExtractedQuestionRequest = {
-      content: (this.editContent() || '').trim(),
-      answerKey: (this.editAnswerKey() || '').trim() || undefined,
-      explanation: (this.editExplanation() || '').trim() || undefined,
-      options: this.editOptions(),
-      status: this.editStatus(),
-      reviewComments: (this.editReviewComments() || '').trim() || undefined,
-    };
-
-    this.updateQuestion.emit({
-      questionId: q.id,
-      request: req,
-    });
-    this.editingQuestionId.set(null);
+  onConfirmSplit(event: { questionId: string; firstContent: string; secondContent: string }): void {
+    this.splitQuestion.emit({ paperId: this.paper().id, ...event });
+    this.onCloseSplitDialog();
   }
 
-  updateEditOptionText(index: number, text: string): void {
-    const list = [...this.editOptions()];
-    if (list[index]) {
-      list[index] = { ...list[index], text };
-      this.editOptions.set(list);
-    }
+  onOpenMergeDialog(): void {
+    if (this.canMergeSelected()) this.mergeDialogOpen.set(true);
   }
 
-  toggleEditOptionCorrect(index: number): void {
-    const list = [...this.editOptions()];
-    if (list[index]) {
-      const isCurrentlyCorrect = !!list[index].correct;
-      list[index] = { ...list[index], correct: !isCurrentlyCorrect };
-      // Also update answerKey if single choice
-      if (!isCurrentlyCorrect) {
-        this.editAnswerKey.set(list[index].id);
-      }
-      this.editOptions.set(list);
-    }
+  onCloseMergeDialog(): void {
+    this.mergeDialogOpen.set(false);
+  }
+
+  onConfirmMerge(): void {
+    const selected = Array.from(this.selectedQuestionIds());
+    if (selected.length < 2) return;
+    this.mergeQuestions.emit({ paperId: this.paper().id, questionIds: selected });
+    this.selectedQuestionIds.set(new Set());
+    this.onCloseMergeDialog();
+  }
+
+  onResequenceSequentially(): void {
+    if (!this.canResequence()) return;
+    const orderedIds = this.filteredQuestions().map((q) => q.id);
+    this.resequenceQuestions.emit({ paperId: this.paper().id, orderedQuestionIds: orderedIds, startNumber: 1 });
   }
 
   bulkApproveSelected(): void {
     const selected = Array.from(this.selectedQuestionIds());
-    if (selected.length === 0) return;
-
     for (const qId of selected) {
-      this.updateQuestion.emit({
-        questionId: qId,
-        request: { status: 'APPROVED' },
-      });
+      this.updateQuestion.emit({ questionId: qId, request: { status: 'APPROVED' } });
     }
     this.selectedQuestionIds.set(new Set());
   }
@@ -276,12 +262,7 @@ export class ExtractedQuestionsPanelComponent {
   triggerPromotion(): void {
     const selected = Array.from(this.selectedQuestionIds());
     const paperId = this.paper().id;
-    if (selected.length > 0) {
-      this.promoteApproved.emit({ paperId, questionIds: selected });
-    } else {
-      // Promote all approved questions for this paper
-      this.promoteApproved.emit({ paperId });
-    }
+    this.promoteApproved.emit(selected.length > 0 ? { paperId, questionIds: selected } : { paperId });
   }
 
   onFilterStatus(status: string): void {
@@ -291,15 +272,24 @@ export class ExtractedQuestionsPanelComponent {
 
   onPrevPage(): void {
     const current = this.page();
-    if (current > 0) {
-      this.pageChange.emit({ pageIndex: current - 1, pageSize: this.pageSize() });
-    }
+    if (current > 0) this.pageChange.emit({ pageIndex: current - 1, pageSize: this.pageSize() });
   }
 
   onNextPage(): void {
     const current = this.page();
-    if (current < this.totalPages() - 1) {
-      this.pageChange.emit({ pageIndex: current + 1, pageSize: this.pageSize() });
+    if (current < this.totalPages() - 1) this.pageChange.emit({ pageIndex: current + 1, pageSize: this.pageSize() });
+  }
+
+  onDeleteQuestion(questionId: string): void {
+    this.deleteQuestion.emit({ paperId: this.paper().id, questionId });
+  }
+
+  onBulkDeleteSelected(): void {
+    const selected = Array.from(this.selectedQuestionIds());
+    if (selected.length === 0 || !this.canDeleteSelected()) return;
+    if (window.confirm(`Delete ${selected.length} selected questions from staging? This cannot be undone.`)) {
+      this.batchDeleteQuestions.emit({ paperId: this.paper().id, questionIds: selected });
+      this.selectedQuestionIds.set(new Set());
     }
   }
 }

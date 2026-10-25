@@ -1,0 +1,162 @@
+@if (isOpen()) {
+  <div class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+      <!-- Header -->
+      <div class="p-6 border-b border-slate-100 bg-slate-900 text-white flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-300">
+            <mat-icon>edit_note</mat-icon>
+          </div>
+          <div>
+            <h2 class="text-lg font-bold">Edit Staged Question Q{{ editQuestionNumber() }}</h2>
+            <p class="text-xs text-slate-400">Modify question stem, options, correct key, and verification status</p>
+          </div>
+        </div>
+        <button mat-icon-button (click)="handleClose()" [disabled]="updating()" class="!text-slate-400 hover:!text-white cursor-pointer">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+
+      <!-- Form Body -->
+      <div class="p-6 space-y-4 text-xs overflow-y-auto flex-1 bg-slate-50/30">
+        <!-- Number & Status Row -->
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+          <div>
+            <label class="block font-bold uppercase text-slate-700 text-xs mb-1">Question Number</label>
+            <input
+              type="number"
+              min="1"
+              [ngModel]="editQuestionNumber()"
+              (ngModelChange)="editQuestionNumber.set($event)"
+              class="w-full p-2.5 bg-white border border-slate-300 rounded-xl text-xs font-black font-mono focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+          <div class="sm:col-span-3">
+            <label class="block font-bold uppercase text-slate-700 text-xs mb-1">Verification Status</label>
+            <select
+              [ngModel]="editStatus()"
+              (ngModelChange)="editStatus.set($event)"
+              class="w-full p-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold focus:outline-none focus:border-indigo-500 cursor-pointer"
+            >
+              <option value="EXTRACTED">EXTRACTED (Pending Review)</option>
+              <option value="NEEDS_REVIEW">NEEDS_REVIEW</option>
+              <option value="APPROVED">APPROVED</option>
+              <option value="REJECTED">REJECTED</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Question Content -->
+        <div>
+          <label class="block font-bold uppercase text-slate-700 text-xs mb-1">Question Content (LaTeX $$...$$ supported)</label>
+          <textarea
+            rows="4"
+            [ngModel]="editContent()"
+            (ngModelChange)="editContent.set($event)"
+            class="w-full p-3 bg-white border border-slate-300 rounded-xl text-xs font-mono focus:outline-none focus:border-indigo-500"
+          ></textarea>
+        </div>
+
+        <!-- Options Editor -->
+        <div>
+          <label class="block font-bold uppercase text-slate-700 text-xs mb-1.5">Options &amp; Correct Answer Key</label>
+          <div class="space-y-2">
+            @for (opt of editOptions(); track opt.id; let i = $index) {
+              <div class="flex items-center gap-2">
+                <button
+                  type="button"
+                  (click)="toggleOptionCorrect(i)"
+                  class="w-8 h-8 rounded-lg font-bold text-xs flex items-center justify-center cursor-pointer transition-colors"
+                  [ngClass]="opt.correct ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'"
+                >
+                  {{ opt.id }}
+                </button>
+                <input
+                  type="text"
+                  [ngModel]="opt.text"
+                  (ngModelChange)="updateOptionText(i, $event)"
+                  class="flex-1 p-2 bg-white border border-slate-300 rounded-xl text-xs font-mono focus:outline-none focus:border-indigo-500"
+                />
+                <button
+                  type="button"
+                  mat-icon-button
+                  (click)="toggleOptionCorrect(i)"
+                  [matTooltip]="opt.correct ? 'Marked Correct' : 'Mark Correct'"
+                  class="cursor-pointer"
+                  [ngClass]="opt.correct ? '!text-emerald-600' : '!text-slate-400'"
+                >
+                  <mat-icon>{{ opt.correct ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
+                </button>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Answer Key Field -->
+        <div>
+          <label class="block font-bold uppercase text-slate-700 text-xs mb-1">Official Answer Key</label>
+          <input
+            type="text"
+            [ngModel]="editAnswerKey()"
+            (ngModelChange)="editAnswerKey.set($event)"
+            placeholder="e.g. A, B, C, D"
+            class="w-full p-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold font-mono focus:outline-none focus:border-indigo-500"
+          />
+        </div>
+
+        <!-- Explanation Field -->
+        <div>
+          <label class="block font-bold uppercase text-slate-700 text-xs mb-1">Explanation / Derivation</label>
+          <textarea
+            rows="2"
+            [ngModel]="editExplanation()"
+            (ngModelChange)="editExplanation.set($event)"
+            placeholder="Step-by-step derivation..."
+            class="w-full p-3 bg-white border border-slate-300 rounded-xl text-xs font-mono focus:outline-none focus:border-indigo-500"
+          ></textarea>
+        </div>
+
+        <!-- Reviewer Comments Field -->
+        <div>
+          <label class="block font-bold uppercase text-slate-700 text-xs mb-1">Reviewer Note / Comments</label>
+          <input
+            type="text"
+            [ngModel]="editReviewComments()"
+            (ngModelChange)="editReviewComments.set($event)"
+            placeholder="Optional note about corrections made..."
+            class="w-full p-2.5 bg-white border border-slate-300 rounded-xl text-xs focus:outline-none focus:border-indigo-500"
+          />
+        </div>
+      </div>
+
+      <!-- Footer Buttons -->
+      <div class="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-end gap-3">
+        <button
+          type="button"
+          mat-stroked-button
+          (click)="handleClose()"
+          [disabled]="updating()"
+          class="!border-slate-300 cursor-pointer"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          mat-flat-button
+          color="primary"
+          [disabled]="updating()"
+          (click)="onSave()"
+          class="!bg-indigo-600 !text-white !font-bold cursor-pointer"
+        >
+          @if (updating()) {
+            <mat-spinner diameter="18" class="inline-block mr-2"></mat-spinner>
+            Saving...
+          } @else {
+            <mat-icon>save</mat-icon>
+            Save Verification Changes
+          }
+        </button>
+      </div>
+    </div>
+  </div>
+}

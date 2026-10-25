@@ -69,6 +69,8 @@ public class PaperUploadRequest {
 
     private Double negativeMarkingRatio;
 
+    private String pageSelection;
+
     private boolean forceReExtract;
 
     /**

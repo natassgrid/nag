@@ -21,6 +21,8 @@ import com.examplatform.questionbank.microlesson.ai.agent.DeterministicJsonRepai
 import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import com.examplatform.shared.constants.QuestionTypeConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.prompt.ChatOptions;
@@ -40,9 +42,10 @@ import java.util.regex.Pattern;
 
 /**
  * LiteLLM AI Extraction Client for Question Paper PDF pages.
- * Handles multimodal extraction via LiteLLM gateway routes (vision/text)
- * and provides a robust deterministic regex/heuristic fallback for offline development,
- * CI/CD pipelines, and network disconnect resilience.
+ * Handles multimodal extraction via LiteLLM gateway routes (vision/text),
+ * resilient backoff retries on rate-limit/quota errors (429 / RESOURCE_EXHAUSTED),
+ * fixture-based mock extraction mode, option identifier normalization,
+ * bilingual separation guarding, and diagram cropping.
  */
 @Service
 @Slf4j
@@ -69,6 +72,10 @@ public class LiteLlmPageExtractionClient {
 
     private static final Pattern DEVANAGARI_PATTERN = Pattern.compile(
             "[\\u0900-\\u097F]"
+    );
+
+    private static final Pattern LATIN_PATTERN = Pattern.compile(
+            "[A-Za-z]"
     );
 
     private static final Pattern PAPER_CODE_PATTERN = Pattern.compile(
@@ -109,6 +116,25 @@ public class LiteLlmPageExtractionClient {
     private final ObjectMapper objectMapper;
     private final DeterministicJsonRepairEngine jsonRepairEngine;
 
+    @Getter
+    @Setter
+    private LlmRetryPolicy retryPolicy;
+
+    @Getter
+    @Setter
+    private DiagramCropper diagramCropper;
+
+    @Getter
+    @Setter
+    private MockPageExtractionFixtures mockFixtures;
+
+    @Getter
+    @Setter
+    @Value("${app.extraction.mode:llm}")
+    private String extractionMode = "llm";
+
+    @Getter
+    @Setter
     @Value("${app.extraction.deterministic-fallback-enabled:true}")
     private boolean deterministicFallbackEnabled = true;
 
@@ -118,17 +144,37 @@ public class LiteLlmPageExtractionClient {
             QuestionPaperPdfParser pdfParser,
             ObjectMapper objectMapper,
             @Autowired(required = false) DeterministicJsonRepairEngine jsonRepairEngine) {
+        this(chatClient, modelRouter, pdfParser, objectMapper, jsonRepairEngine,
+                new LlmRetryPolicy(4, 2000, 30000), new DiagramCropper(),
+                new MockPageExtractionFixtures(objectMapper));
+    }
+
+    @Autowired
+    public LiteLlmPageExtractionClient(
+            @Autowired(required = false) ChatClient chatClient,
+            ModelRouter modelRouter,
+            QuestionPaperPdfParser pdfParser,
+            ObjectMapper objectMapper,
+            @Autowired(required = false) DeterministicJsonRepairEngine jsonRepairEngine,
+            @Autowired(required = false) LlmRetryPolicy retryPolicy,
+            @Autowired(required = false) DiagramCropper diagramCropper,
+            @Autowired(required = false) MockPageExtractionFixtures mockFixtures) {
         this.chatClient = chatClient;
         this.modelRouter = modelRouter;
         this.pdfParser = pdfParser;
         this.objectMapper = objectMapper;
         this.jsonRepairEngine = jsonRepairEngine != null ? jsonRepairEngine : new DeterministicJsonRepairEngine();
+        this.retryPolicy = retryPolicy != null ? retryPolicy : new LlmRetryPolicy(4, 2000, 30000);
+        this.diagramCropper = diagramCropper != null ? diagramCropper : new DiagramCropper();
+        this.mockFixtures = mockFixtures != null ? mockFixtures : new MockPageExtractionFixtures(objectMapper);
     }
 
     /**
      * Extracts cover metadata or questions from a parsed PDF page.
-     * Invokes LiteLLM when available, falling back to deterministic heuristic parsing
-     * if LiteLLM is offline or disabled.
+     * When extraction mode is "mock", returns deterministic fixture data without invoking the LLM.
+     * When LLM is active, wraps calls with exponential backoff and full jitter for quota errors.
+     * If quota retries are exhausted, throws {@link LlmQuotaExhaustedException}.
+     * Falls back to deterministic heuristic parsing for non-quota errors.
      *
      * @param pageContent parsed page containing text, image streams, and tier
      * @param examContextHint optional examination context hint (e.g. "JEE Advanced Physics Paper 1")
@@ -139,6 +185,20 @@ public class LiteLlmPageExtractionClient {
             return new LlmPageExtractionResult();
         }
 
+        // 1. Mock Mode: zero LLM calls, deterministic fixture-based output
+        if ("mock".equalsIgnoreCase(extractionMode)) {
+            log.info("Extraction mode is 'mock'. Bypassing LLM calls for page {}", pageContent.getPageNumber());
+            var fixtureOpt = mockFixtures.loadFixture(pageContent.getPageNumber());
+            if (fixtureOpt.isPresent()) {
+                LlmPageExtractionResult fixtureResult = fixtureOpt.get();
+                postProcessResult(fixtureResult, pageContent);
+                return fixtureResult;
+            }
+            log.info("No mock fixture found for page {}. Falling back to deterministic extraction", pageContent.getPageNumber());
+            return extractDeterministically(pageContent);
+        }
+
+        // 2. LLM Mode
         boolean requiresVision = pageContent.isScannedOrImageHeavy()
                 || (pageContent.getEmbeddedDiagramDataUris() != null && !pageContent.getEmbeddedDiagramDataUris().isEmpty());
         String modelName = modelRouter.selectPaperExtractionModel(requiresVision);
@@ -151,17 +211,23 @@ public class LiteLlmPageExtractionClient {
                 String systemPrompt = buildSystemPrompt();
                 String userPromptText = buildUserPrompt(pageContent, examContextHint);
 
-                String rawResponse = chatClient.prompt()
-                        .system(systemPrompt)
-                        .user(u -> {
-                            u.text(userPromptText);
-                            attachMediaIfPresent(u, pageContent);
-                        })
-                        .options(ChatOptions.builder().model(modelName).temperature(0.1))
-                        .call()
-                        .content();
+                String rawResponse = retryPolicy.executeWithRetry(pageContent.getPageNumber(), () ->
+                        chatClient.prompt()
+                                .system(systemPrompt)
+                                .user(u -> {
+                                    u.text(userPromptText);
+                                    attachMediaIfPresent(u, pageContent);
+                                })
+                                .options(ChatOptions.builder().model(modelName).temperature(0.1))
+                                .call()
+                                .content()
+                );
 
                 return parseAndNormalizeLlmResponse(rawResponse, pageContent);
+            } catch (LlmQuotaExhaustedException e) {
+                // Must NOT be swallowed into deterministic fallback — propagate checkpoint exception
+                log.error("LLM rate limit / quota exhausted for page {}: {}", pageContent.getPageNumber(), e.getMessage());
+                throw e;
             } catch (Exception e) {
                 log.warn("LiteLLM page extraction failed for page {}: {}. Evaluating fallback...",
                         pageContent.getPageNumber(), e.getMessage());
@@ -233,7 +299,159 @@ public class LiteLlmPageExtractionClient {
         }
 
         resultBuilder.questions(questions);
-        return resultBuilder.build();
+        LlmPageExtractionResult result = resultBuilder.build();
+        postProcessResult(result, pageContent);
+        return result;
+    }
+
+    /**
+     * Normalizes LaTeX formatting, guards bilingual separation, aligns option IDs,
+     * and crops diagrams across all extracted question items.
+     *
+     * @param result extraction result to post-process
+     * @param pageContent parsed PDF page content
+     */
+    public void postProcessResult(LlmPageExtractionResult result, PdfPageContent pageContent) {
+        if (result == null || result.getQuestions() == null) {
+            return;
+        }
+
+        for (LlmPageExtractionResult.ExtractedItemPayload q : result.getQuestions()) {
+            // 1. Normalize LaTeX math and formatting
+            if (q.getContent() != null) {
+                q.setContent(pdfParser.normalizeMathAndFormatting(q.getContent()));
+            }
+            if (q.getHindiContent() != null) {
+                q.setHindiContent(pdfParser.normalizeMathAndFormatting(q.getHindiContent()));
+            }
+            if (q.getOptions() != null) {
+                for (QuestionOption opt : q.getOptions()) {
+                    if (opt.getText() != null) {
+                        opt.setText(pdfParser.normalizeMathAndFormatting(opt.getText()));
+                    }
+                }
+            }
+            if (q.getHindiOptions() != null) {
+                for (QuestionOption opt : q.getHindiOptions()) {
+                    if (opt.getText() != null) {
+                        opt.setText(pdfParser.normalizeMathAndFormatting(opt.getText()));
+                    }
+                }
+            }
+
+            // 2. Bilingual separation guard
+            applyBilingualSeparationGuard(q);
+
+            // 3. Option ID normalization
+            OptionIdNormalizer.normalizeQuestionOptions(q);
+
+            // 4. Mark embedded raster diagrams
+            if (pageContent != null && pageContent.getEmbeddedDiagramDataUris() != null
+                    && !pageContent.getEmbeddedDiagramDataUris().isEmpty()) {
+                q.setHasDiagram(true);
+            }
+
+            // 5. Crop diagrams from bounding boxes
+            if (pageContent != null && pageContent.getRenderedPageDataUri() != null
+                    && q.getDiagramBoundingBoxes() != null && !q.getDiagramBoundingBoxes().isEmpty()) {
+                List<String> crops = diagramCropper.cropDiagrams(
+                        pageContent.getRenderedPageDataUri(),
+                        q.getDiagramBoundingBoxes()
+                );
+                if (!crops.isEmpty()) {
+                    q.setCroppedDiagramDataUris(crops);
+                    q.setHasDiagram(true);
+                }
+            }
+        }
+    }
+
+    /**
+     * Guards against bilingual column bleeding.
+     * Moves Devanagari-dominant text in English fields to Hindi fields when the Hindi counterpart is empty.
+     * Moves Latin-dominant text in Hindi fields back to English fields when the English counterpart is empty.
+     * Never duplicates text across fields.
+     *
+     * @param item extracted item payload to guard
+     */
+    public void applyBilingualSeparationGuard(LlmPageExtractionResult.ExtractedItemPayload item) {
+        if (item == null) {
+            return;
+        }
+
+        // Stem separation
+        String content = item.getContent();
+        String hindiContent = item.getHindiContent();
+
+        if (isDevanagariDominant(content) && (hindiContent == null || hindiContent.isBlank())) {
+            item.setHindiContent(content);
+            item.setContent(null);
+        } else if (isLatinDominant(hindiContent) && (content == null || content.isBlank())) {
+            item.setContent(hindiContent);
+            item.setHindiContent(null);
+        }
+
+        // Option separation
+        List<QuestionOption> options = item.getOptions();
+        List<QuestionOption> hindiOptions = item.getHindiOptions();
+
+        boolean optionsDevanagari = options != null && !options.isEmpty()
+                && options.stream().anyMatch(o -> isDevanagariDominant(o.getText()));
+        boolean hindiOptionsLatin = hindiOptions != null && !hindiOptions.isEmpty()
+                && hindiOptions.stream().anyMatch(o -> isLatinDominant(o.getText()));
+
+        if (optionsDevanagari && (hindiOptions == null || hindiOptions.isEmpty())) {
+            item.setHindiOptions(new ArrayList<>(options));
+            item.setOptions(new ArrayList<>());
+        } else if (hindiOptionsLatin && (options == null || options.isEmpty())) {
+            item.setOptions(new ArrayList<>(hindiOptions));
+            item.setHindiOptions(new ArrayList<>());
+        } else if (options != null && hindiOptions != null && options.size() == hindiOptions.size()) {
+            for (int i = 0; i < options.size(); i++) {
+                QuestionOption opt = options.get(i);
+                QuestionOption hOpt = hindiOptions.get(i);
+                if (isDevanagariDominant(opt.getText()) && (hOpt.getText() == null || hOpt.getText().isBlank())) {
+                    hOpt.setText(opt.getText());
+                    opt.setText(null);
+                } else if (isLatinDominant(hOpt.getText()) && (opt.getText() == null || opt.getText().isBlank())) {
+                    opt.setText(hOpt.getText());
+                    hOpt.setText(null);
+                }
+            }
+        }
+    }
+
+    /**
+     * Checks if the text has predominantly Devanagari script characters.
+     */
+    public static boolean isDevanagariDominant(String text) {
+        if (text == null || text.isBlank()) {
+            return false;
+        }
+        int devanagariCount = countMatches(DEVANAGARI_PATTERN, text);
+        int latinCount = countMatches(LATIN_PATTERN, text);
+        return devanagariCount > 0 && devanagariCount >= latinCount;
+    }
+
+    /**
+     * Checks if the text has predominantly Latin alphabet characters.
+     */
+    public static boolean isLatinDominant(String text) {
+        if (text == null || text.isBlank()) {
+            return false;
+        }
+        int devanagariCount = countMatches(DEVANAGARI_PATTERN, text);
+        int latinCount = countMatches(LATIN_PATTERN, text);
+        return latinCount > 0 && latinCount > devanagariCount;
+    }
+
+    private static int countMatches(Pattern pattern, String text) {
+        Matcher matcher = pattern.matcher(text);
+        int count = 0;
+        while (matcher.find()) {
+            count++;
+        }
+        return count;
     }
 
     private void attachMediaIfPresent(org.springframework.ai.chat.client.ChatClient.PromptUserSpec userSpec, PdfPageContent pageContent) {
@@ -296,21 +514,68 @@ public class LiteLlmPageExtractionClient {
                - Identify question type: SINGLE_MCQ, MULTI_MCQ, MATRIX_MATCH, NUMERICAL, DESCRIPTIVE, ASSERTION_REASON, PARAGRAPH_SET.
                - If the correct answer key is marked or evident, populate "answerKey" (e.g. "B") and mark the matching option "isCorrect": true.
 
-            4. STRICT LATEX MATH & SCIENCE FORMULAS ($$...$$ ONLY):
+            4. COMPREHENSION PASSAGES & DIRECTION RANGES:
+               - If a group of questions is preceded by reading passage or directions (e.g., "Directions for Questions 15 to 18" or "प्रश्न 15 से 18 के लिए निर्देश"):
+                 * Extract the full reading passage text into "passageText".
+                 * Set "passageRangeStart": 15 and "passageRangeEnd": 18 (first and last question number in that set).
+                 * Include "passageText", "passageRangeStart", and "passageRangeEnd" on all questions belonging to that passage set.
+
+            5. DIAGRAM BOUNDING BOXES (SCANNED & EMBEDDED FIGURES):
+               - If a question references or contains a figure, chart, circuit, or diagram in the scanned page bitmap:
+                 * Set "hasDiagram": true.
+                 * Provide normalized coordinates [x0, y0, x1, y1] for each visual figure in "diagramBoundingBoxes": [[x0, y0, x1, y1], ...].
+                 * Coordinates MUST be normalized to 0.0 - 1.0 with origin at top-left: x0 (left), y0 (top), x1 (right), y1 (bottom).
+
+            6. STRICT LATEX MATH & SCIENCE FORMULAS ($$...$$ ONLY):
                - Enclose ALL mathematical, physical, and chemical formulas, variables, Greek letters, fractions, superscripts, subscripts, and physical units in double dollars: $$ ... $$.
                - STRICTLY FORBIDDEN: Single dollar ($ ... $), \\( ... \\), and \\[ ... \\].
-               - Chemistry notation: Use \\ce{...} inside $$...$$ (e.g., $$\\ce{H2SO4}$$).
-               - Physical units: Use \\pu{...} inside $$...$$ (e.g., $$\\pu{9.8 m/s^2}$$).
+               - Chemistry notation: MUST use \\ce{...} enclosed inside $$...$$ (e.g., "$$\\ce{H2SO4}$$", "$$\\ce{2H2 + O2 -> 2H2O}$$").
+               - Physical units: MUST use \\pu{...} enclosed inside $$...$$ (e.g., "$$\\pu{9.8 m/s^2}$$", "$$\\pu{6.022e23 mol-1}$$").
                - Escape backslashes properly in JSON strings (e.g. "$$\\frac{a}{b}$$", "$$\\sqrt{x}$$").
 
-            5. MARKDOWN & TABLE FORMATTING:
+            7. MARKDOWN & TABLE FORMATTING:
                - Multi-statement reasoning: Format statements as clean numbered or Roman lists with double line breaks:
                  English: "**Statements:**\\n1. Statement one.\\n2. Statement two.\\n\\n**Conclusions:**\\nI. Conclusion one.\\nII. Conclusion two."
                  Hindi: "**कथन:**\\n1. पहला कथन।\\n2. दूसरा कथन।\\n\\n**निष्कर्ष:**\\nI. पहला निष्कर्ष।\\nII. दूसरा निष्कर्ष।"
                - Match-the-following questions (List-I / List-II or सूची-I / सूची-II): Format as clean GitHub-Flavored Markdown (GFM) pipe tables in both "content" and "hindiContent".
 
-            6. OUTPUT FORMAT:
-               - Output ONLY a single JSON object conforming to the schema. No conversational preambles, notes, or markdown outside of ```json ... ``` code fence.
+            8. EXPLICIT JSON SCHEMA FIELD LIST:
+               Root object fields:
+               - "coverPage": boolean
+               - "detectedPaperCode": string or null
+               - "detectedBookletSerialNo": string or null
+               - "detectedExamYear": integer or null
+               - "detectedSubjectName": string or null
+               - "detectedTotalQuestions": integer or null
+               - "detectedDurationMinutes": integer or null
+               - "detectedMaxMarks": number or null
+               - "detectedNegativeMarkingRatio": number or null
+               - "detectedSections": array of objects [{"name": string, "startQuestion": int, "endQuestion": int}]
+               - "questions": array of Question objects
+
+               Each Question object fields:
+               - "questionNumber": integer
+               - "sectionName": string or null
+               - "questionType": "SINGLE_MCQ" | "MULTI_MCQ" | "MATRIX_MATCH" | "NUMERICAL" | "DESCRIPTIVE" | "ASSERTION_REASON" | "PARAGRAPH_SET"
+               - "content": string (English stem, GFM Markdown + $$...$$ LaTeX)
+               - "options": array of {"id": "A"|"B"|"C"|"D", "text": string, "isCorrect": boolean}
+               - "answerKey": string or null ("A"|"B"|"C"|"D" or numeric string)
+               - "explanation": string or null
+               - "passageText": string or null
+               - "passageRangeStart": integer or null
+               - "passageRangeEnd": integer or null
+               - "hindiContent": string or null (Hindi stem in Devanagari script)
+               - "hindiOptions": array of {"id": "A"|"B"|"C"|"D", "text": string, "isCorrect": boolean}
+               - "hasFormulas": boolean
+               - "hasTables": boolean
+               - "hasDiagram": boolean
+               - "diagramBoundingBoxes": array of [x0, y0, x1, y1] normalized numbers (0.0 to 1.0)
+               - "suggestedDifficulty": "EASY" | "MEDIUM" | "HARD"
+               - "suggestedCognitiveLevel": "REMEMBER" | "UNDERSTAND" | "APPLY" | "ANALYZE" | "EVALUATE" | "CREATE"
+               - "confidence": number (0.0 to 1.0)
+
+            9. OUTPUT FORMAT:
+               - Output ONLY a single JSON object conforming to the schema above. No conversational preambles, notes, or markdown outside of ```json ... ``` code fence.
             """;
     }
 
@@ -337,7 +602,7 @@ public class LiteLlmPageExtractionClient {
         return sb.toString();
     }
 
-    private LlmPageExtractionResult parseAndNormalizeLlmResponse(String rawResponse, PdfPageContent pageContent) throws Exception {
+    public LlmPageExtractionResult parseAndNormalizeLlmResponse(String rawResponse, PdfPageContent pageContent) throws Exception {
         if (rawResponse == null || rawResponse.isBlank()) {
             throw new IllegalArgumentException("Empty response received from LiteLLM");
         }
@@ -353,34 +618,8 @@ public class LiteLlmPageExtractionClient {
         // Step 3: Parse JSON into result model
         LlmPageExtractionResult result = objectMapper.readValue(json, LlmPageExtractionResult.class);
 
-        // Step 4: Normalize LaTeX formatting on questions
-        if (result.getQuestions() != null) {
-            for (LlmPageExtractionResult.ExtractedItemPayload q : result.getQuestions()) {
-                if (q.getContent() != null) {
-                    q.setContent(pdfParser.normalizeMathAndFormatting(q.getContent()));
-                }
-                if (q.getHindiContent() != null) {
-                    q.setHindiContent(pdfParser.normalizeMathAndFormatting(q.getHindiContent()));
-                }
-                if (q.getOptions() != null) {
-                    for (QuestionOption opt : q.getOptions()) {
-                        if (opt.getText() != null) {
-                            opt.setText(pdfParser.normalizeMathAndFormatting(opt.getText()));
-                        }
-                    }
-                }
-                if (q.getHindiOptions() != null) {
-                    for (QuestionOption opt : q.getHindiOptions()) {
-                        if (opt.getText() != null) {
-                            opt.setText(pdfParser.normalizeMathAndFormatting(opt.getText()));
-                        }
-                    }
-                }
-                if (pageContent.getEmbeddedDiagramDataUris() != null && !pageContent.getEmbeddedDiagramDataUris().isEmpty()) {
-                    q.setHasDiagram(true);
-                }
-            }
-        }
+        // Step 4: Post-process (LaTeX, bilingual separation, option normalization, diagram cropping)
+        postProcessResult(result, pageContent);
 
         return result;
     }
@@ -536,7 +775,7 @@ public class LiteLlmPageExtractionClient {
         String answerKey = null;
         Matcher keyMatcher = ANSWER_KEY_PATTERN.matcher(chunk);
         if (keyMatcher.find()) {
-            answerKey = normalizeOptionId(keyMatcher.group(1));
+            answerKey = OptionIdNormalizer.normalize(keyMatcher.group(1));
             for (QuestionOption opt : options) {
                 if (opt.getId().equalsIgnoreCase(answerKey)) {
                     opt.setCorrect(true);
@@ -563,7 +802,7 @@ public class LiteLlmPageExtractionClient {
 
         double confidence = options.size() >= 4 ? 0.95 : (options.size() >= 2 ? 0.85 : 0.80);
 
-        return LlmPageExtractionResult.ExtractedItemPayload.builder()
+        LlmPageExtractionResult.ExtractedItemPayload payload = LlmPageExtractionResult.ExtractedItemPayload.builder()
                 .questionNumber(questionNumber)
                 .questionType(questionType)
                 .content(primaryContent)
@@ -577,6 +816,11 @@ public class LiteLlmPageExtractionClient {
                 .suggestedCognitiveLevel(hasFormulas ? QuestionTaxonomyConstants.CognitiveLevel.ANALYZE : QuestionTaxonomyConstants.CognitiveLevel.UNDERSTAND)
                 .confidence(confidence)
                 .build();
+
+        OptionIdNormalizer.normalizeQuestionOptions(payload);
+        applyBilingualSeparationGuard(payload);
+
+        return payload;
     }
 
     private LlmPageExtractionResult.ExtractedItemPayload parseSingleFallbackQuestion(String text, PdfPageContent pageContent) {
@@ -587,7 +831,7 @@ public class LiteLlmPageExtractionClient {
         boolean hasFormulas = normalizedStem.contains("$$") || normalizedStem.contains("=");
         boolean hasDiagram = pageContent.getEmbeddedDiagramDataUris() != null && !pageContent.getEmbeddedDiagramDataUris().isEmpty();
 
-        return LlmPageExtractionResult.ExtractedItemPayload.builder()
+        LlmPageExtractionResult.ExtractedItemPayload payload = LlmPageExtractionResult.ExtractedItemPayload.builder()
                 .questionNumber(pageContent.getPageNumber())
                 .questionType(options.size() >= 2 ? QuestionTypeConstants.SINGLE_MCQ : QuestionTypeConstants.DESCRIPTIVE)
                 .content(normalizedStem)
@@ -598,6 +842,11 @@ public class LiteLlmPageExtractionClient {
                 .suggestedCognitiveLevel(QuestionTaxonomyConstants.CognitiveLevel.UNDERSTAND)
                 .confidence(0.70)
                 .build();
+
+        OptionIdNormalizer.normalizeQuestionOptions(payload);
+        applyBilingualSeparationGuard(payload);
+
+        return payload;
     }
 
     private List<QuestionOption> extractOptions(String text) {
@@ -611,7 +860,7 @@ public class LiteLlmPageExtractionClient {
 
         while (lineMatcher.find()) {
             lineMatches.add(new int[]{lineMatcher.start(), lineMatcher.end()});
-            optionIds.add(normalizeOptionId(lineMatcher.group(1)));
+            optionIds.add(OptionIdNormalizer.normalize(lineMatcher.group(1)));
         }
 
         if (lineMatches.size() >= 2) {
@@ -631,7 +880,7 @@ public class LiteLlmPageExtractionClient {
         // Try inline options e.g. (A) 10 (B) 20 (C) 30 (D) 40
         Matcher inlineMatcher = INLINE_OPTION_PATTERN.matcher(text);
         while (inlineMatcher.find()) {
-            String id = normalizeOptionId(inlineMatcher.group(1));
+            String id = OptionIdNormalizer.normalize(inlineMatcher.group(1));
             String optText = inlineMatcher.group(2).trim();
             options.add(QuestionOption.builder()
                     .id(id)
@@ -672,18 +921,6 @@ public class LiteLlmPageExtractionClient {
         }
 
         return new String[]{english.toString().trim(), hindi.toString().trim()};
-    }
-
-    private String normalizeOptionId(String token) {
-        if (token == null) return "A";
-        String trimmed = token.trim();
-        return switch (trimmed.toUpperCase()) {
-            case "1", "A" -> "A";
-            case "2", "B" -> "B";
-            case "3", "C" -> "C";
-            case "4", "D" -> "D";
-            default -> trimmed.toUpperCase();
-        };
     }
 
     private String extractRegex(Pattern pattern, String text, int group) {

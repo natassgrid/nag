@@ -49,6 +49,8 @@ export class PaperListTableComponent {
   applyAnswerKey = output<QuestionPaperMetadata>();
   retryExtraction = output<QuestionPaperMetadata>();
   cancelExtraction = output<QuestionPaperMetadata>();
+  resumeExtraction = output<QuestionPaperMetadata>();
+  deletePaper = output<QuestionPaperMetadata>();
   refresh = output<void>();
 
   readonly totalPages = computed(() => {
@@ -62,6 +64,7 @@ export class PaperListTableComponent {
     { value: 'PENDING', label: 'Pending' },
     { value: 'PROCESSING', label: 'Processing' },
     { value: 'COMPLETED', label: 'Completed' },
+    { value: 'QUOTA_EXHAUSTED', label: 'Quota Exhausted' },
     { value: 'PARTIAL_FAILED', label: 'Partially Failed' },
     { value: 'FAILED', label: 'Failed' },
     { value: 'CANCELLED', label: 'Cancelled' },
@@ -73,6 +76,8 @@ export class PaperListTableComponent {
         return 'bg-emerald-50 text-emerald-700 border-emerald-200';
       case 'PROCESSING':
         return 'bg-amber-50 text-amber-700 border-amber-200';
+      case 'QUOTA_EXHAUSTED':
+        return 'bg-amber-100 text-amber-900 border-amber-300';
       case 'PENDING':
         return 'bg-blue-50 text-blue-700 border-blue-200';
       case 'PARTIAL_FAILED':
@@ -92,6 +97,8 @@ export class PaperListTableComponent {
         return 'check_circle';
       case 'PROCESSING':
         return 'autorenew';
+      case 'QUOTA_EXHAUSTED':
+        return 'hourglass_top';
       case 'PENDING':
         return 'hourglass_empty';
       case 'PARTIAL_FAILED':
@@ -127,6 +134,10 @@ export class PaperListTableComponent {
     );
   }
 
+  isResumable(paper: QuestionPaperMetadata): boolean {
+    return !!paper.resumable;
+  }
+
   onPrevPage(): void {
     const current = this.page();
     if (current > 0) {
@@ -145,5 +156,11 @@ export class PaperListTableComponent {
     const target = event.target as HTMLSelectElement;
     const newSize = parseInt(target.value, 10);
     this.pageChange.emit({ pageIndex: 0, pageSize: newSize });
+  }
+
+  onDeletePaper(paper: QuestionPaperMetadata): void {
+    if (window.confirm(`Are you sure you want to delete "${paper.examinationName}" and all its staging questions? This cannot be undone.`)) {
+      this.deletePaper.emit(paper);
+    }
   }
 }

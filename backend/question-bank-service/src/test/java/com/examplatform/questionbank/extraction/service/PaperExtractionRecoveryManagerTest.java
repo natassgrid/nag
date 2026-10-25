@@ -26,6 +26,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -93,5 +94,22 @@ class PaperExtractionRecoveryManagerTest {
 
         verifyNoInteractions(metadataRepository);
         verifyNoInteractions(asyncWorker);
+    }
+
+    @Test
+    @DisplayName("resumeInterruptedJobs does not query or resume QUOTA_EXHAUSTED jobs")
+    void testDoesNotResumeQuotaExhaustedJobs() {
+        recoveryManager.resumeInterruptedJobs();
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<PaperExtractionStatus>> captor = ArgumentCaptor.forClass(List.class);
+        verify(metadataRepository).findByExtractionStatusInOrderByCreatedAtAsc(captor.capture());
+
+        List<PaperExtractionStatus> queriedStatuses = captor.getValue();
+        assertThat(queriedStatuses).containsExactlyInAnyOrder(
+                PaperExtractionStatus.PENDING,
+                PaperExtractionStatus.PROCESSING
+        );
+        assertThat(queriedStatuses).doesNotContain(PaperExtractionStatus.QUOTA_EXHAUSTED);
     }
 }

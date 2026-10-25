@@ -202,7 +202,7 @@ public class SubjectTopicService {
      * @param subtopicId required subtopic id (must belong to topicId)
      * @param tenantId   tenant scope
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public HierarchyIds resolveByIds(Long subjectId, Long topicId, Long subtopicId, String tenantId) {
         if (subjectId == null) {
             throw new IllegalArgumentException("subjectId is required");
@@ -229,12 +229,14 @@ public class SubjectTopicService {
                             "Subtopic not found: id=" + subtopicId + " for topicId=" + topicId + " tenant=" + tenantId));
             resolvedSubtopicId = subtopic.getId();
         } else {
-            // Pick first subtopic of topic as mandatory subtopic
+            // Pick first subtopic of topic as mandatory subtopic, or create default subtopic if none exist
             List<Subtopic> subs = listSubtopics(topic.getId(), tenantId);
-            if (subs.isEmpty()) {
-                throw new IllegalArgumentException("Topic id=" + topicId + " has no subtopics; subtopic is mandatory");
+            if (!subs.isEmpty()) {
+                resolvedSubtopicId = subs.get(0).getId();
+            } else {
+                Subtopic created = createSubtopic(topic.getId(), null, "General " + topic.getName(), null, tenantId);
+                resolvedSubtopicId = created.getId();
             }
-            resolvedSubtopicId = subs.get(0).getId();
         }
 
         return new HierarchyIds(subject.getId(), topic.getId(), resolvedSubtopicId);

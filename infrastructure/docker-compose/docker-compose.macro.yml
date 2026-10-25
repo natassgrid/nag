@@ -89,6 +89,30 @@ services:
       - exam-network
 
   # ===========================================================================
+  # OCR Service — High-Speed Local Tesseract OCR (English + Hindi)
+  # Port 5005 — REST API at http://localhost:5005
+  # ===========================================================================
+  ocr-service:
+    build:
+      context: ../ocr-service
+      dockerfile: Dockerfile
+    image: exam-ocr:latest
+    container_name: exam-ocr
+    restart: unless-stopped
+    ports:
+      - "${OCR_PORT:-5005}:5005"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:5005/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      exam-network:
+        aliases:
+          - ocr-service
+
+  # ===========================================================================
   # Macro 1: Identity & Access Service (Identity, Candidate, Admin, Notification)
   # ===========================================================================
   identity-service:
@@ -188,8 +212,13 @@ services:
       INDICTRANS2_URL: http://indictrans2:7860
       SPRING_AI_OPENAI_BASE_URL: http://litellm:4000
       SPRING_AI_OPENAI_API_KEY: sk-litellm-dev-key
+      OCR_SERVICE_URL: ${OCR_SERVICE_URL:-http://ocr-service:5005}
+      EXTRACTION_VISION_STRATEGY: ${EXTRACTION_VISION_STRATEGY:-local-ocr}
+      OCR_ENABLED: ${OCR_ENABLED:-true}
     depends_on:
       <<: *depends-macro
+      ocr-service:
+        condition: service_healthy
     volumes:
       - asset_storage:/data/asset-storage
     healthcheck:
@@ -364,3 +393,7 @@ volumes:
   rabbitmq_data:
   asset_storage:
   scorecard_storage:
+
+networks:
+  exam-network:
+    name: exam-network

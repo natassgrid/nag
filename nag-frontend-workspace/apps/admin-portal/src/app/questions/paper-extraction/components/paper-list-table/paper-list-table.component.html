@@ -142,6 +142,11 @@
                     ></div>
                   </div>
                 }
+                @if (paper.extractionStatus === 'QUOTA_EXHAUSTED') {
+                  <div class="text-[10px] font-bold text-amber-800 mt-1 flex items-center gap-1">
+                    <mat-icon class="!text-xs">hourglass_top</mat-icon> LLM quota exhausted
+                  </div>
+                }
                 @if (paper.errorMessage) {
                   <div class="text-[10px] text-rose-600 truncate max-w-xs mt-1" [matTooltip]="paper.errorMessage">
                     {{ paper.errorMessage }}
@@ -153,6 +158,16 @@
               <td class="py-3 px-4 text-center font-mono">
                 <span class="font-bold text-slate-800">{{ paper.pagesProcessed }}</span>
                 <span class="text-slate-400">/{{ paper.totalPages || '?' }}</span>
+                @if (paper.lastCompletedPage != null && paper.lastCompletedPage > 0) {
+                  <div class="text-[10px] text-slate-500 font-mono mt-0.5">
+                    Last: pg #{{ paper.lastCompletedPage }}
+                  </div>
+                }
+                @if (paper.pageSelection) {
+                  <div class="text-[10px] text-indigo-700 font-mono font-medium truncate max-w-[120px] mx-auto mt-0.5" [matTooltip]="'Selected Pages: ' + paper.pageSelection">
+                    Range: {{ paper.pageSelection }}
+                  </div>
+                }
               </td>
 
               <!-- Extracted -->
@@ -200,6 +215,19 @@
                     <mat-icon class="!text-sm text-amber-600">key</mat-icon>
                   </button>
 
+                  <!-- Resume Button -->
+                  @if (isResumable(paper)) {
+                    <button
+                      mat-stroked-button
+                      (click)="resumeExtraction.emit(paper)"
+                      matTooltip="Resume extraction from last completed page"
+                      class="!border-amber-400 !text-amber-800 !bg-amber-50 hover:!bg-amber-100 !text-xs !py-1 !px-2.5 !min-h-0 !h-7 !rounded-lg cursor-pointer font-bold"
+                    >
+                      <mat-icon class="!text-sm text-amber-700">play_arrow</mat-icon>
+                      Resume
+                    </button>
+                  }
+
                   <!-- Retry Button -->
                   @if (isRetryable(paper)) {
                     <button
@@ -223,6 +251,16 @@
                       <mat-icon class="!text-sm">cancel</mat-icon>
                     </button>
                   }
+
+                  <!-- Delete Button -->
+                  <button
+                    mat-stroked-button
+                    (click)="onDeletePaper(paper)"
+                    matTooltip="Delete question paper and staging data"
+                    class="!border-rose-200 !text-rose-600 hover:!bg-rose-50 hover:!border-rose-400 !text-xs !py-1 !px-2 !min-h-0 !h-7 !rounded-lg cursor-pointer"
+                  >
+                    <mat-icon class="!text-sm">delete_outline</mat-icon>
+                  </button>
                 </div>
               </td>
             </tr>

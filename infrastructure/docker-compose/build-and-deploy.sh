@@ -66,7 +66,7 @@ if [ "$OBSERVABILITY" = true ]; then
     INFRA_TARGETS="$INFRA_TARGETS prometheus grafana jaeger"
 fi
 if [ "$AI" = true ]; then
-    INFRA_TARGETS="$INFRA_TARGETS ollama litellm indictrans2"
+    INFRA_TARGETS="$INFRA_TARGETS ollama litellm indictrans2 ocr-service"
 fi
 
 echo "▶ Starting infrastructure services ($INFRA_TARGETS)..."

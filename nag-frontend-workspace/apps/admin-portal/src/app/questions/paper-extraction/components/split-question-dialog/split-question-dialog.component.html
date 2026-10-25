@@ -1,0 +1,95 @@
+@if (isOpen()) {
+  <div class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+      <!-- Header -->
+      <div class="p-6 border-b border-slate-100 bg-slate-900 text-white flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-300">
+            <mat-icon>call_split</mat-icon>
+          </div>
+          <div>
+            <h2 class="text-lg font-bold">Split Question Q{{ question()?.questionNumber }}</h2>
+            <p class="text-xs text-slate-400">Divide merged question content into two separate items</p>
+          </div>
+        </div>
+        <button
+          mat-icon-button
+          (click)="handleClose()"
+          [disabled]="splitting()"
+          class="!text-slate-400 hover:!text-white cursor-pointer"
+        >
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+
+      <!-- Body -->
+      <div class="p-6 space-y-4 text-xs overflow-y-auto flex-1">
+        <div class="p-3 bg-indigo-50/70 rounded-xl border border-indigo-100 text-[11px] text-indigo-900 flex items-start gap-2">
+          <mat-icon class="!text-sm text-indigo-600 shrink-0 mt-0.5">info</mat-icon>
+          <span>
+            The first content section will remain as <strong>Question Q{{ question()?.questionNumber }}</strong>.
+            The second content section will become a new <strong>Question Q{{ (question()?.questionNumber || 0) + 1 }}</strong>.
+            Subsequent questions in the paper will be automatically shifted by +1.
+          </span>
+        </div>
+
+        <!-- First Part Textarea -->
+        <div>
+          <label class="block font-bold uppercase text-slate-700 mb-1">
+            Part 1 Content (Remains Q{{ question()?.questionNumber }}) *
+          </label>
+          <textarea
+            rows="4"
+            [ngModel]="firstContent()"
+            (ngModelChange)="firstContent.set($event)"
+            placeholder="Content for the first question..."
+            class="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono focus:outline-none focus:border-indigo-500"
+          ></textarea>
+        </div>
+
+        <!-- Second Part Textarea -->
+        <div>
+          <label class="block font-bold uppercase text-slate-700 mb-1">
+            Part 2 Content (Becomes Q{{ (question()?.questionNumber || 0) + 1 }}) *
+          </label>
+          <textarea
+            rows="4"
+            [ngModel]="secondContent()"
+            (ngModelChange)="secondContent.set($event)"
+            placeholder="Content for the newly created second question..."
+            class="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono focus:outline-none focus:border-indigo-500"
+          ></textarea>
+        </div>
+      </div>
+
+      <!-- Footer Buttons -->
+      <div class="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-end gap-3">
+        <button
+          type="button"
+          mat-stroked-button
+          (click)="handleClose()"
+          [disabled]="splitting()"
+          class="!border-slate-300 cursor-pointer"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          mat-flat-button
+          color="primary"
+          [disabled]="!isValid() || splitting()"
+          (click)="handleConfirm()"
+          class="!bg-indigo-600 !text-white !font-bold cursor-pointer"
+        >
+          @if (splitting()) {
+            <mat-spinner diameter="18" class="inline-block mr-2"></mat-spinner>
+            Splitting...
+          } @else {
+            <mat-icon>call_split</mat-icon>
+            Split into 2 Questions
+          }
+        </button>
+      </div>
+    </div>
+  </div>
+}
