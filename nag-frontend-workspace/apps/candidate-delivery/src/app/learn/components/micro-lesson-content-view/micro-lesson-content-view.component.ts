@@ -7,7 +7,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { MatCardModule } from '@angular/material/card';
-import { MathRendererComponent } from '@nag-frontend-workspace/shared-ui-components';
+import { MathRendererComponent, formatLatex } from '@nag-frontend-workspace/shared-ui-components';
 import {
   SubtopicMicroLesson,
   TrapAlert,
@@ -28,6 +28,8 @@ import {
 })
 export class MicroLessonContentViewComponent {
   readonly lesson = input.required<SubtopicMicroLesson>();
+
+  readonly formatLatex = formatLatex;
 
   readonly steps = computed<StepItem[]>(() => extractStepsFromLesson(this.lesson()));
   readonly problemStatement = computed<string>(() => extractProblemStatementFromLesson(this.lesson()));
@@ -58,22 +60,6 @@ export class MicroLessonContentViewComponent {
       return sheet.trim().length > 0;
     }
     return false;
-  }
-
-  formatLatex(latex: string): string {
-    let trimmed = (latex || '').trim();
-    if (!trimmed) return '';
-    const colonIdx = trimmed.indexOf(':');
-    const dollarIdx = trimmed.indexOf('$');
-    const slashIdx = trimmed.indexOf('\\');
-    if (
-      colonIdx > 0 &&
-      (dollarIdx > colonIdx || (dollarIdx === -1 && slashIdx > colonIdx))
-    ) {
-      trimmed = trimmed.substring(colonIdx + 1).trim();
-    }
-    if (trimmed.includes('$$') || trimmed.includes('$')) return trimmed;
-    return `$$${trimmed}$$`;
   }
 
   asString(val: any): string {

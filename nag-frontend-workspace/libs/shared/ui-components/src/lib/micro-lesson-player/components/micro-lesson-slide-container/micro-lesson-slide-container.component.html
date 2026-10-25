@@ -1,9 +1,10 @@
 <div
-  class="slide-player-wrapper select-none flex flex-col gap-2"
+  class="slide-player-wrapper w-full select-none flex flex-col gap-2"
   (touchstart)="onTouchStart($event)"
   (touchend)="onTouchEnd($event)"
+  data-testid="slide-container-wrapper"
 >
-  <!-- Sleek Compact Single-Line AI Tutor Audio / Video Companion Stage -->
+  <!-- Sleek Compact AI Tutor Audio / Video Companion Stage -->
   @if (tutorStageExpanded() || isPlaying() || audioEnabled() || currentSlide().mediaHook?.videoUrl) {
     <div
       data-testid="ai-tutor-stage"
@@ -43,394 +44,99 @@
     </div>
   }
 
-  <!-- Active Slide Card (Fixed calculated height based on viewport with scrollable content) -->
+  <!-- Card with Calculated Viewport-Aware Height -->
   <div
     [attr.data-testid]="'active-slide-' + currentSlide().type"
-    class="slide-card-container bg-white rounded-xl sm:rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col overflow-hidden"
+    class="slide-card bg-white border border-slate-200/90 rounded-2xl shadow-xs overflow-hidden flex flex-col transition-all duration-300"
     [style.height]="calculatedCardHeight()"
+    [style.min-height]="isFullscreen() ? 'calc(100vh - 105px)' : '340px'"
+    [style.max-height]="isFullscreen() ? 'calc(100vh - 105px)' : '620px'"
   >
-    <!-- Middle Scrollable Viewport (content area with scroll) -->
-    <div class="slide-scroll-viewport flex-1 overflow-y-auto p-4 sm:p-5 scrollbar-thin">
+    <!-- Slide Header Bar (Compact) -->
+    <div class="slide-header shrink-0 px-4 py-2.5 bg-slate-50/80 border-b border-slate-100 flex items-center justify-between gap-3">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <span
+          class="w-6 h-6 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0"
+        >
+          <mat-icon class="!text-sm !w-3.5 !h-3.5 leading-none">{{ currentSlide().icon }}</mat-icon>
+        </span>
+        <div class="min-w-0">
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">
+              {{ currentSlide().type }}
+            </span>
+            <span class="text-xs font-semibold text-slate-800 truncate">
+              {{ currentSlide().title }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 shrink-0">
+        <!-- Toggle Fullscreen Button -->
+        <button
+          type="button"
+          (click)="toggleFullscreen.emit()"
+          [title]="isFullscreen() ? 'Exit Fullscreen' : 'Enter Fullscreen'"
+          data-testid="toggle-fullscreen-btn"
+          class="w-7 h-7 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 hover:text-slate-900 flex items-center justify-center cursor-pointer transition-colors"
+        >
+          <mat-icon class="!text-sm !w-4 !h-4 leading-none">
+            {{ isFullscreen() ? 'fullscreen_exit' : 'fullscreen' }}
+          </mat-icon>
+        </button>
+
+        <span class="text-[11px] font-mono text-slate-400 tabular-nums">
+          {{ currentSlide().durationSeconds }}s
+        </span>
+      </div>
+    </div>
+
+    <!-- Scrollable Slide Content Area -->
+    <div class="slide-scrollable-content flex-1 overflow-y-auto p-4 sm:p-5" data-testid="slide-content-area">
       @switch (currentSlide().type) {
-      <!-- 1. INTRO SLIDE -->
-      @case ('INTRO') {
-        <div class="space-y-6" data-testid="slide-content-intro">
-          <div class="space-y-3">
-            <!-- Subtle Metadata Line -->
-            <div class="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-              <span class="font-medium text-indigo-600">{{ lesson().subjectName || 'Subject' }}</span>
-              <span>&rsaquo;</span>
-              <span class="font-medium text-slate-700">{{ lesson().topicName || 'Topic' }}</span>
-              @if (lesson().difficultyLevel) {
-                <span class="text-slate-300">&bull;</span>
-                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">
-                  {{ lesson().difficultyLevel }}
-                </span>
-              }
-            </div>
+        @case ('INTRO') {
+          <nag-intro-slide
+            [lesson]="lesson()"
+            [slides]="slides()"
+            (startAutoPlay)="startAutoPlay.emit()"
+            (nextSlide)="nextSlide.emit()"
+            (goToSlide)="goToSlide.emit($event)"
+          />
+        }
 
-            <!-- Title -->
-            <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-              <nag-math-renderer [content]="lesson().subtopicName || 'Subtopic Micro-Tutorial'" [inline]="true" />
-            </h2>
+        @case ('CONCEPT') {
+          <nag-concept-slide [lesson]="lesson()" />
+        }
 
-            <!-- Subtitle -->
-            <p class="text-xs sm:text-sm text-slate-600 leading-relaxed max-w-2xl">
-              Approach: <strong class="text-slate-900">{{ lesson().approachName || lesson().lessonType || 'Conceptual Foundation' }}</strong>.
-              Step through core concepts, formulas, guided walkthroughs, and quick mastery checks at your own pace.
-            </p>
+        @case ('FORMULA') {
+          <nag-formula-slide
+            [lesson]="lesson()"
+            [formulaRequired]="formulaRequired()"
+          />
+        }
 
-            <!-- CTA Buttons -->
-            <div class="flex flex-wrap items-center gap-2.5 pt-2">
-              <button
-                type="button"
-                (click)="startAutoPlay.emit()"
-                data-testid="intro-start-autoplay-btn"
-                class="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
-              >
-                <mat-icon class="!text-sm !w-4 !h-4 leading-none">play_arrow</mat-icon>
-                <span>Start Auto-Play Tutor</span>
-              </button>
-              <button
-                type="button"
-                (click)="nextSlide.emit()"
-                data-testid="intro-next-slide-btn"
-                class="px-4 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors"
-              >
-                <span>Explore Manually</span>
-                <mat-icon class="!text-sm !w-4 !h-4 leading-none">arrow_forward</mat-icon>
-              </button>
-            </div>
-          </div>
+        @case ('STEPS') {
+          <nag-steps-slide
+            [lesson]="lesson()"
+            [revealedStepCount]="revealedStepCount()"
+            [isPlaying]="isPlaying()"
+            (startAutoPlay)="startAutoPlay.emit()"
+            (revealNextStep)="revealNextStep.emit()"
+            (revealAllSteps)="revealAllSteps.emit()"
+            (resetSteps)="resetSteps.emit()"
+          />
+        }
 
-          <!-- Minimal 4-Item Horizontal Step Preview Strip -->
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2">
-            @for (s of slides().slice(1); track s.id) {
-              <button
-                type="button"
-                (click)="goToSlide.emit(s.index)"
-                class="p-3 rounded-xl border border-slate-200/80 bg-slate-50/60 hover:bg-white hover:border-slate-300 text-left transition-all cursor-pointer group"
-              >
-                <div class="flex items-center justify-between text-xs text-slate-500 mb-1">
-                  <span class="font-mono text-[11px] font-semibold text-slate-400 group-hover:text-indigo-600">0{{ s.index + 1 }}</span>
-                  <mat-icon class="!text-sm !w-4 !h-4 leading-none text-slate-400 group-hover:text-indigo-600">{{ s.icon }}</mat-icon>
-                </div>
-                <div class="text-xs font-semibold text-slate-800 truncate">{{ s.title }}</div>
-                <div class="text-[11px] text-slate-400 truncate">{{ s.subtitle }}</div>
-              </button>
-            }
-          </div>
-        </div>
+        @case ('QUIZ') {
+          <nag-quiz-slide
+            [lesson]="lesson()"
+            [quizSelections]="quizSelections()"
+            (selectQuizOption)="selectQuizOption.emit($event)"
+            (resetQuiz)="resetQuiz.emit()"
+          />
+        }
       }
-
-      <!-- 2. CONCEPT SLIDE -->
-      @case ('CONCEPT') {
-        <div class="space-y-6" data-testid="slide-content-concept">
-          @if (lesson().content.coreConcept) {
-            <div class="space-y-2">
-              <div class="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-500">
-                <mat-icon class="!text-base !w-4 !h-4 text-indigo-600">lightbulb</mat-icon>
-                <span>Core Concept</span>
-              </div>
-              <div class="text-slate-800 text-sm sm:text-base leading-relaxed font-normal">
-                <nag-math-renderer [content]="lesson().content.coreConcept" />
-              </div>
-            </div>
-          }
-
-          @if (lesson().content.trapAlert) {
-            <div class="border-l-4 border-amber-400 bg-amber-50/40 p-4 rounded-r-xl space-y-2.5" data-testid="trap-alert-card">
-              <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-800">
-                <mat-icon class="!text-base !w-4 !h-4 text-amber-600">warning</mat-icon>
-                <span>Trap Alert &amp; Common Pitfalls</span>
-              </div>
-              @if (asTrapAlert(lesson().content.trapAlert); as trap) {
-                <div class="space-y-2 text-xs text-amber-950">
-                  <div class="font-bold text-sm text-amber-900">{{ trap.title }}</div>
-                  <div class="leading-relaxed text-slate-700">
-                    <nag-math-renderer [content]="trap.description" />
-                  </div>
-                  @if (trap.commonMistake) {
-                    <div class="text-xs pt-1">
-                      <span class="font-bold text-rose-700">Common Mistake: </span>
-                      <span class="text-slate-700"><nag-math-renderer [content]="trap.commonMistake" [inline]="true" /></span>
-                    </div>
-                  }
-                  @if (trap.correctApproach) {
-                    <div class="text-xs">
-                      <span class="font-bold text-emerald-700">Correct Strategy: </span>
-                      <span class="text-slate-700"><nag-math-renderer [content]="trap.correctApproach" [inline]="true" /></span>
-                    </div>
-                  }
-                </div>
-              } @else {
-                <div class="text-xs text-amber-950 leading-relaxed">
-                  <nag-math-renderer [content]="asString(lesson().content.trapAlert)" />
-                </div>
-              }
-            </div>
-          }
-        </div>
-      }
-
-      <!-- 3. FORMULA SLIDE -->
-      @case ('FORMULA') {
-        <div class="space-y-4" data-testid="slide-content-formula">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
-              <mat-icon class="!text-base !w-4 !h-4 text-indigo-600">functions</mat-icon>
-              <span>Formula &amp; Identity Cheat Sheet ({{ normalizedFormulas().length }})</span>
-            </div>
-            <span class="text-[11px] text-slate-400">Click a card to spotlight</span>
-          </div>
-
-          @if (normalizedFormulas().length > 0) {
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 formula-sheet-card">
-              @for (f of normalizedFormulas(); track $index) {
-                <div
-                  (click)="activeFormulaIndex.set($index)"
-                  [attr.data-testid]="'formula-card-' + $index"
-                  class="p-4 rounded-xl border transition-all cursor-pointer space-y-2 bg-white"
-                  [ngClass]="{
-                    'border-indigo-500 ring-2 ring-indigo-500/20 shadow-xs': activeFormulaIndex() === $index,
-                    'border-slate-200 hover:border-slate-300': activeFormulaIndex() !== $index
-                  }"
-                >
-                  <div class="flex items-center justify-between">
-                    <span class="text-xs font-semibold text-slate-800">{{ f.name || ('Formula ' + ($index + 1)) }}</span>
-                    <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">
-                      #{{ $index + 1 }}
-                    </span>
-                  </div>
-                  @if (f.latex) {
-                    <div class="p-3 bg-slate-50 rounded-lg text-center text-sm text-slate-900 overflow-x-auto">
-                      <nag-math-renderer [content]="formatLatex(f.latex)" />
-                    </div>
-                  }
-                  @if (f.description && f.description !== f.name && f.description !== f.latex) {
-                    <div class="text-xs text-slate-500 leading-relaxed">
-                      <nag-math-renderer [content]="f.description" />
-                    </div>
-                  }
-                </div>
-              }
-            </div>
-          } @else {
-            <div class="p-6 rounded-2xl bg-slate-50 border border-slate-200/80 text-xs text-slate-500 text-center">
-              No explicit mathematical formulas are required for this conceptual topic. Proceed to the step-by-step walkthrough.
-            </div>
-          }
-        </div>
-      }
-
-      <!-- 4. STEPS SLIDE -->
-      @case ('STEPS') {
-        <div class="space-y-4" data-testid="slide-content-steps">
-          <div class="flex flex-wrap items-center justify-between gap-2">
-            <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
-              <mat-icon class="!text-base !w-4 !h-4 text-indigo-600">format_list_numbered</mat-icon>
-              <span>Step-by-Step Breakdown ({{ revealedStepCount() }} / {{ totalStepsCount() }})</span>
-            </div>
-            <div class="flex items-center gap-1.5">
-              @if (!isPlaying() && revealedStepCount() < totalStepsCount()) {
-                <button
-                  type="button"
-                  (click)="startAutoPlay.emit()"
-                  data-testid="autoplay-steps-btn"
-                  class="text-xs font-medium text-indigo-700 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg flex items-center gap-1 cursor-pointer transition-colors"
-                >
-                  <mat-icon class="!text-xs !w-3.5 !h-3.5 leading-none">play_arrow</mat-icon>
-                  <span>Auto-Play Steps</span>
-                </button>
-              }
-              @if (revealedStepCount() < totalStepsCount()) {
-                <button
-                  type="button"
-                  (click)="revealAllSteps.emit()"
-                  data-testid="reveal-all-steps-btn"
-                  class="text-xs font-medium text-slate-700 hover:text-slate-900 px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 cursor-pointer transition-colors"
-                >
-                  Reveal All
-                </button>
-              }
-              @if (revealedStepCount() > 0) {
-                <button
-                  type="button"
-                  (click)="resetSteps.emit()"
-                  data-testid="reset-steps-btn"
-                  class="text-xs font-medium text-slate-500 hover:text-slate-800 px-2.5 py-1 rounded-lg hover:bg-slate-100 cursor-pointer transition-colors"
-                >
-                  Reset
-                </button>
-              }
-            </div>
-          </div>
-
-          <!-- Clean Problem Statement Box -->
-          @if (problemStatementText()) {
-            <div
-              data-testid="steps-problem-statement"
-              class="p-4 rounded-xl bg-slate-50 border border-slate-200/90 text-xs text-slate-800 leading-relaxed"
-            >
-              <span class="font-bold text-slate-900">Problem Statement: </span>
-              <nag-math-renderer [content]="problemStatementText()" />
-            </div>
-          }
-
-          <!-- Revealed Steps List -->
-          <div class="space-y-3">
-            @for (step of visibleSteps(); track step.stepNumber; let idx = $index) {
-              <div
-                [attr.data-testid]="'revealed-step-' + step.stepNumber"
-                class="step-reveal-item p-4 rounded-xl border space-y-2 transition-all bg-white"
-                [ngClass]="
-                  idx === visibleSteps().length - 1
-                    ? 'border-indigo-400 ring-1 ring-indigo-300/50 shadow-2xs'
-                    : 'border-slate-200'
-                "
-              >
-                <div class="flex flex-wrap items-center justify-between gap-2">
-                  <div class="flex items-center gap-2">
-                    <span class="w-5 h-5 rounded-md bg-indigo-50 text-indigo-700 font-mono text-xs font-bold flex items-center justify-center shrink-0">
-                      {{ step.stepNumber }}
-                    </span>
-                    @if (hasDistinctStepTitle(step)) {
-                      <span class="text-xs font-bold text-slate-900">{{ step.title }}</span>
-                    }
-                  </div>
-                  @if (step.tip) {
-                    <span class="text-[11px] font-medium text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/70">
-                      <nag-math-renderer [content]="step.tip" [inline]="true" />
-                    </span>
-                  }
-                </div>
-                <div class="text-xs text-slate-700 leading-relaxed pl-7">
-                  <nag-math-renderer [content]="cleanStepExplanation(step)" />
-                </div>
-                @if (step.formula) {
-                  <div class="ml-7 p-2.5 bg-slate-50 rounded-lg text-center text-xs font-mono text-slate-900 overflow-x-auto border border-slate-100">
-                    <nag-math-renderer [content]="formatLatex(step.formula)" />
-                  </div>
-                }
-              </div>
-            }
-          </div>
-
-          <!-- Interactive Tap / Click to Reveal Next Step -->
-          @if (revealedStepCount() < totalStepsCount()) {
-            <button
-              type="button"
-              (click)="revealNextStep.emit()"
-              data-testid="tap-reveal-step-btn"
-              class="w-full py-3 px-4 rounded-xl border border-dashed border-indigo-300 bg-indigo-50/40 hover:bg-indigo-50/80 text-indigo-700 font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors"
-            >
-              <mat-icon class="!text-sm !w-4 !h-4 leading-none">touch_app</mat-icon>
-              <span>Reveal Step {{ revealedStepCount() + 1 }} of {{ totalStepsCount() }}</span>
-            </button>
-          } @else if (finalAnswerText()) {
-            <div
-              data-testid="steps-final-answer"
-              class="p-4 rounded-xl bg-emerald-50/70 border border-emerald-200 text-xs text-emerald-950 font-medium flex flex-wrap items-center justify-between gap-2"
-            >
-              <span class="font-bold text-emerald-900">Final Answer:</span>
-              <span class="font-mono text-sm text-emerald-900">
-                <nag-math-renderer [content]="finalAnswerText()" [inline]="true" />
-              </span>
-            </div>
-          }
-        </div>
-      }
-
-      <!-- 5. QUIZ SLIDE -->
-      @case ('QUIZ') {
-        <div class="space-y-4" data-testid="slide-content-quiz">
-          <!-- Minimal Light Header Bar -->
-          <div
-            data-testid="quiz-success-stats"
-            class="p-3.5 rounded-xl bg-slate-50 border border-slate-200/90 flex flex-wrap items-center justify-between gap-2.5"
-          >
-            <div class="flex items-center gap-2.5">
-              <div class="flex items-center gap-2">
-                <span class="text-xs font-bold text-slate-800">Knowledge Check</span>
-                <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-white border border-slate-200 text-slate-700">
-                  {{ quizStats().correctCount }}/{{ quizStats().totalQuestions }} Correct &bull; {{ quizStats().accuracyPercent }}%
-                </span>
-              </div>
-              <span class="text-xs text-slate-500 hidden sm:inline">&bull; {{ quizStats().statusLabel }}</span>
-            </div>
-
-            @if (quizStats().answeredCount > 0) {
-              <button
-                type="button"
-                (click)="resetQuiz.emit()"
-                data-testid="reset-quiz-btn"
-                class="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-medium cursor-pointer transition-colors"
-              >
-                Retry Quiz
-              </button>
-            }
-          </div>
-
-          <!-- Quiz Questions & Options -->
-          <div class="space-y-4">
-            @for (q of normalizedQuizItems(); track $index; let qIdx = $index) {
-              <div class="p-4 rounded-xl border border-slate-200 bg-white space-y-3" [attr.data-testid]="'quiz-question-' + qIdx">
-                <div class="text-xs sm:text-sm font-semibold text-slate-900 leading-relaxed">
-                  <span class="text-indigo-600 font-mono mr-1">Q{{ qIdx + 1 }}.</span>
-                  <nag-math-renderer [content]="q.question" />
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  @for (opt of q.options || []; track $index; let oIdx = $index) {
-                    @let sel = quizSelections()[qIdx];
-                    @let isSelected = sel?.selectedOption === opt;
-                    @let isCorrectOpt = opt === (q.correctAnswer || q.answer);
-                    <button
-                      type="button"
-                      (click)="selectQuizOption.emit({ questionIndex: qIdx, option: opt })"
-                      [attr.data-testid]="'quiz-option-' + qIdx + '-' + oIdx"
-                      class="p-2.5 rounded-xl border text-left text-xs font-medium flex items-center gap-2 transition-all cursor-pointer"
-                      [ngClass]="{
-                        'bg-emerald-50/80 border-emerald-400 text-emerald-950 font-semibold ring-1 ring-emerald-300': sel && isCorrectOpt,
-                        'bg-rose-50/80 border-rose-300 text-rose-900': sel && isSelected && !sel.isCorrect,
-                        'bg-slate-50/60 border-slate-200 hover:border-slate-300 hover:bg-white text-slate-800': !sel
-                      }"
-                    >
-                      <span
-                        class="w-5 h-5 rounded-md text-[11px] font-mono font-bold flex items-center justify-center shrink-0 border"
-                        [ngClass]="sel && isCorrectOpt ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-600 border-slate-200'"
-                      >
-                        {{ optionLetter(oIdx) }}
-                      </span>
-                      <span class="flex-1">
-                        <nag-math-renderer [content]="opt" />
-                      </span>
-                    </button>
-                  }
-                </div>
-
-                @if (quizSelections()[qIdx]; as selection) {
-                  <div
-                    [attr.data-testid]="'quiz-feedback-' + qIdx"
-                    class="p-3 rounded-lg border text-xs space-y-1"
-                    [ngClass]="selection.isCorrect ? 'bg-emerald-50/80 border-emerald-200 text-emerald-900' : 'bg-amber-50/80 border-amber-200 text-amber-900'"
-                  >
-                    <div class="font-bold">
-                      {{ selection.isCorrect ? 'Correct!' : 'Incorrect — review the answer:' }}
-                    </div>
-                    @if (q.explanation) {
-                      <div class="leading-relaxed">
-                        <nag-math-renderer [content]="q.explanation" />
-                      </div>
-                    }
-                  </div>
-                }
-              </div>
-            }
-          </div>
-        </div>
-      }
-    }
     </div>
 
     <!-- Pinned Compact Slide Footer Navigation Bar -->

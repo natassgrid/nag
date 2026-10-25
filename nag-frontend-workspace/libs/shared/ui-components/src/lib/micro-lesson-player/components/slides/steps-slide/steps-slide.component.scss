@@ -1,0 +1,18 @@
+:host {
+  display: block;
+}
+
+.step-reveal-item {
+  animation: stepPopIn 0.24s ease-out;
+}
+
+@keyframes stepPopIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}

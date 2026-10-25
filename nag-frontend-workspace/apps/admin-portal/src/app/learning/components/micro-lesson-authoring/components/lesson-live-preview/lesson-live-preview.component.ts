@@ -21,6 +21,7 @@ import {
   LessonPlaybackMode,
   TutorAvatarState,
   createSlidesFromLesson,
+  formatLatex,
 } from '@nag-frontend-workspace/shared-ui-components';
 import {
   FormulaEntry,
@@ -329,12 +330,7 @@ export class LessonLivePreviewComponent implements OnDestroy {
     this.isFullscreen.update((v) => !v);
   }
 
-  formatLatex(latex: string): string {
-    const trimmed = (latex || '').trim();
-    if (!trimmed) return '';
-    if (trimmed.includes('$$') || trimmed.includes('$')) return trimmed;
-    return `$$${trimmed}$$`;
-  }
+  readonly formatLatex = formatLatex;
 
   private clearAutoPlayTimer(): void {
     if (this.autoPlayTimer) {

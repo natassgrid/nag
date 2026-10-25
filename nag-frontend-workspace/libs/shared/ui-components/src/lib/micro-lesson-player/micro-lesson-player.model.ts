@@ -258,3 +258,23 @@ export function createSlidesFromLesson(lesson: PlayerSubtopicMicroLesson): Lesso
     },
   ];
 }
+
+/**
+ * Normalizes LaTeX math strings by stripping accidental "Name: " prefixes
+ * and guaranteeing $$...$$ display math delimiters if absent.
+ */
+export function formatLatex(latex: string): string {
+  let trimmed = (latex || '').trim();
+  if (!trimmed) return '';
+  const colonIdx = trimmed.indexOf(':');
+  const dollarIdx = trimmed.indexOf('$');
+  const slashIdx = trimmed.indexOf('\\');
+  if (
+    colonIdx > 0 &&
+    (dollarIdx > colonIdx || (dollarIdx === -1 && slashIdx > colonIdx))
+  ) {
+    trimmed = trimmed.substring(colonIdx + 1).trim();
+  }
+  if (trimmed.includes('$$') || trimmed.includes('$')) return trimmed;
+  return `$$${trimmed}$$`;
+}

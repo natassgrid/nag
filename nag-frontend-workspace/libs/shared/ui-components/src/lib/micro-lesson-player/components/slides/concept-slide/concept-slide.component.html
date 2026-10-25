@@ -1,0 +1,47 @@
+<div class="space-y-4" data-testid="slide-content-concept">
+  <!-- Core Concept Block -->
+  <div class="space-y-2">
+    <div class="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-500">
+      <mat-icon class="!text-sm !w-4 !h-4 text-amber-500">lightbulb</mat-icon>
+      <span>Core Concept</span>
+    </div>
+    <div class="text-xs sm:text-sm text-slate-800 leading-relaxed max-w-3xl">
+      <nag-math-renderer [content]="lesson().content.coreConcept" />
+    </div>
+  </div>
+
+  <!-- Trap Alert Card -->
+  @if (lesson().content.trapAlert) {
+    <div
+      data-testid="trap-alert-card"
+      class="p-4 rounded-xl border border-amber-200 bg-amber-50/50 space-y-2"
+    >
+      <div class="flex items-center gap-1.5 text-xs font-bold text-amber-900">
+        <mat-icon class="!text-sm !w-4 !h-4 text-amber-600 leading-none">warning_amber</mat-icon>
+        <span>{{ asTrapAlert(lesson().content.trapAlert)?.title || 'Exam Trap & Common Pitfalls' }}</span>
+      </div>
+
+      @if (asTrapAlert(lesson().content.trapAlert); as trap) {
+        <div class="text-xs text-amber-950 leading-relaxed space-y-1.5">
+          <p><nag-math-renderer [content]="trap.description" /></p>
+          @if (trap.commonMistake) {
+            <div class="text-xs pt-1">
+              <span class="font-bold text-rose-700">Common Mistake: </span>
+              <span class="text-slate-700"><nag-math-renderer [content]="trap.commonMistake" [inline]="true" /></span>
+            </div>
+          }
+          @if (trap.correctApproach) {
+            <div class="text-xs">
+              <span class="font-bold text-emerald-700">Correct Strategy: </span>
+              <span class="text-slate-700"><nag-math-renderer [content]="trap.correctApproach" [inline]="true" /></span>
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="text-xs text-amber-950 leading-relaxed">
+          <nag-math-renderer [content]="asString(lesson().content.trapAlert)" />
+        </div>
+      }
+    </div>
+  }
+</div>
