@@ -51,7 +51,7 @@
     "@nx/js": "23.3.0",
     "@nx/playwright": "^23.3.0",
     "@nx/web": "23.3.0",
-    "@nx/workspace": "23.3.0",
+    "@nx/workspace": "24.0.0",
     "@playwright/test": "^1.64.1",
     "@schematics/angular": "~22.2.1",
     "@swc/helpers": "~0.5.18",
