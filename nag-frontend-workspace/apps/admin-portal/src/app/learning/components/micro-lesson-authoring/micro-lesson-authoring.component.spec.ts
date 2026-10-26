@@ -318,4 +318,60 @@ describe('MicroLessonAuthoringComponent', () => {
     expect(compiled.querySelector('app-micro-lesson-slide-container')).toBeTruthy();
     expect(compiled.querySelector('[data-testid="slide-counter"]')?.textContent).toContain('Slide 1 / 5');
   });
+
+  it('should pass selected taxonomy when opening prompt import dialog and sync back on close', () => {
+    subjectTopicServiceMock.getTopics.mockImplementation((subjId: number) =>
+      subjId === 20
+        ? of([{ id: 200, name: 'Organic Chemistry', subjectId: 20 }])
+        : of(mockTopics)
+    );
+    subjectTopicServiceMock.getSubtopics.mockImplementation((_subjId: number, topId: number) =>
+      topId === 200
+        ? of([{ id: 2000, name: 'Alkanes', topicId: 200 }])
+        : of(mockSubtopics)
+    );
+
+    createComponent();
+
+    component.selectedSubjectId.set(10);
+    component.selectedTopicId.set(100);
+    component.selectedSubtopicId.set(1000);
+
+    const afterClosedSubject = of({
+      action: 'close',
+      taxonomy: {
+        subjectId: 20,
+        topicId: 200,
+        subtopicId: 2000,
+        subjectName: 'Chemistry',
+        topicName: 'Organic Chemistry',
+        subtopicName: 'Alkanes',
+        isCustomSubject: false,
+        isCustomTopic: false,
+        isCustomSubtopic: false,
+      },
+    });
+
+    const openSpy = jest.spyOn((component as any).dialog, 'open').mockReturnValue({
+      afterClosed: () => afterClosedSubject,
+    } as any);
+
+    component.openAiPromptImportDialog('prompt');
+
+    expect(openSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        data: expect.objectContaining({
+          subjectId: 10,
+          topicId: 100,
+          subtopicId: 1000,
+        }),
+      })
+    );
+
+    expect(component.selectedSubjectId()).toBe(20);
+    expect(component.selectedTopicId()).toBe(200);
+    expect(component.selectedSubtopicId()).toBe(2000);
+    expect(component.customSubtopicName()).toBe('Alkanes');
+  });
 });

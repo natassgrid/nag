@@ -35,6 +35,8 @@ import {
   StandaloneQuestionFormComponent,
   PassageAuthoringPanelComponent,
   QuestionPromptImportDialogComponent,
+  QuestionPromptImportDialogResult,
+  PromptImportTaxonomySelection,
 } from '../components';
 import { ImportedQuestion } from '../services/external-prompt.service';
 
@@ -439,6 +441,9 @@ export class QuestionsFeatureAuthoring implements OnInit {
         subject: selectedSub?.name,
         topic: selectedTop?.name,
         subtopic: selectedSubtop?.name,
+        subjectId: this.selectedSubjectId ?? undefined,
+        topicId: this.selectedTopicId ?? undefined,
+        subtopicId: this.selectedSubtopicId ?? undefined,
         questionType: this.type,
         difficulty: this.difficulty,
         cognitiveLevel: this.cognitiveLevel,
@@ -451,10 +456,99 @@ export class QuestionsFeatureAuthoring implements OnInit {
       panelClass: 'dialog-panel-no-padding',
     });
 
-    dialogRef.afterClosed().subscribe((imported: ImportedQuestion | null) => {
-      if (imported) {
-        this.applyImportedQuestion(imported);
+    dialogRef.afterClosed().subscribe((result: QuestionPromptImportDialogResult | ImportedQuestion | null) => {
+      if (!result) return;
+
+      if ('action' in result) {
+        if (result.taxonomy) {
+          this.syncTaxonomyFromDialog(result.taxonomy);
+        }
+        if (result.action === 'import' && result.importedQuestion) {
+          this.applyImportedQuestion(result.importedQuestion);
+        }
+      } else if ('content' in result) {
+        this.applyImportedQuestion(result);
       }
+    });
+  }
+
+  /**
+   * Synchronizes taxonomy selection from dialog into the parent authoring form.
+   */
+  syncTaxonomyFromDialog(tax: {
+    subjectId?: number | null;
+    topicId?: number | null;
+    subtopicId?: number | null;
+    subjectName?: string;
+    topicName?: string;
+    subtopicName?: string;
+  }): void {
+    let resolvedSubjectId = tax.subjectId;
+    if (!resolvedSubjectId && tax.subjectName) {
+      const foundSub = this.subjects().find(
+        (s) => s.name.toLowerCase() === tax.subjectName?.toLowerCase()
+      );
+      if (foundSub) resolvedSubjectId = foundSub.id;
+    }
+
+    if (!resolvedSubjectId) {
+      if (tax.subjectName && tax.subjectName.trim()) {
+        this.subjectTopicService.createSubject({ name: tax.subjectName.trim() }).subscribe({
+          next: (newSub) => {
+            this.subjects.update((list) => [...list, newSub]);
+            this.selectedSubjectId = newSub.id;
+            this.onSubjectChange(newSub.id);
+          },
+        });
+      }
+      return;
+    }
+
+    this.selectedSubjectId = resolvedSubjectId;
+
+    this.subjectTopicService.getTopics(resolvedSubjectId).subscribe({
+      next: (tops) => {
+        this.topics.set(tops || []);
+        let targetTopicId = tax.topicId;
+        if (!targetTopicId && tax.topicName) {
+          const foundTop = tops?.find(
+            (t) => t.name.toLowerCase() === tax.topicName?.toLowerCase()
+          );
+          if (foundTop) targetTopicId = foundTop.id;
+        }
+
+        const validTopic = tops?.find((t) => t.id === targetTopicId);
+        if (validTopic) {
+          this.selectedTopicId = validTopic.id;
+          this.subjectTopicService.getSubtopics(resolvedSubjectId!, validTopic.id).subscribe({
+            next: (subs) => {
+              this.subtopics.set(subs || []);
+              let targetSubtopicId = tax.subtopicId;
+              if (!targetSubtopicId && tax.subtopicName) {
+                const foundSubtop = subs?.find(
+                  (st) => st.name.toLowerCase() === tax.subtopicName?.toLowerCase()
+                );
+                if (foundSubtop) targetSubtopicId = foundSubtop.id;
+              }
+              const validSub = subs?.find((st) => st.id === targetSubtopicId);
+              if (validSub) {
+                this.selectedSubtopicId = validSub.id;
+              } else if (subs && subs.length > 0) {
+                this.selectedSubtopicId = subs[0].id;
+              } else {
+                this.selectedSubtopicId = null;
+              }
+            },
+          });
+        } else if (tops && tops.length > 0) {
+          this.selectedTopicId = tops[0].id;
+          this.onTopicChange(tops[0].id);
+        } else {
+          this.selectedTopicId = null;
+          this.selectedSubtopicId = null;
+          this.subtopics.set([]);
+        }
+      },
     });
   }
 
@@ -474,17 +568,15 @@ export class QuestionsFeatureAuthoring implements OnInit {
     this.options = data.options;
 
     // Match taxonomy if available
-    if (data.subjectId) {
-      this.selectedSubjectId = data.subjectId;
-      this.onSubjectChange(data.subjectId);
-    } else if (data.subject) {
-      const foundSub = this.subjects().find(
-        (s) => s.name.toLowerCase() === data.subject?.toLowerCase()
-      );
-      if (foundSub) {
-        this.selectedSubjectId = foundSub.id;
-        this.onSubjectChange(foundSub.id);
-      }
+    if (data.subjectId || data.subject) {
+      this.syncTaxonomyFromDialog({
+        subjectId: data.subjectId ?? null,
+        topicId: data.topicId ?? null,
+        subtopicId: data.subtopicId ?? null,
+        subjectName: data.subject || '',
+        topicName: data.topic || '',
+        subtopicName: data.subtopic || '',
+      });
     }
 
     this.feedback.set({

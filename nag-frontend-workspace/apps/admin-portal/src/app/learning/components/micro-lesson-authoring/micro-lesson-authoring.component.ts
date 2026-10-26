@@ -20,7 +20,11 @@ import {
   CoreConceptEditorComponent, FormulaSheetBuilderComponent, LessonLivePreviewComponent,
   LessonMetadataBarComponent, QuickCheckBuilderComponent, StepBreakdownBuilderComponent, TrapAlertEditorComponent,
 } from './components';
-import { MicroLessonPromptImportDialogComponent } from '../micro-lesson-prompt-import-dialog/micro-lesson-prompt-import-dialog.component';
+import {
+  MicroLessonPromptImportDialogComponent,
+  MicroLessonPromptImportDialogResult,
+  MicroLessonPromptImportTaxonomySelection,
+} from '../micro-lesson-prompt-import-dialog/micro-lesson-prompt-import-dialog.component';
 
 @Component({
   selector: 'app-micro-lesson-authoring',
@@ -274,6 +278,9 @@ export class MicroLessonAuthoringComponent implements OnInit {
         subject: this.resolvedSubjectName(),
         topic: this.resolvedTopicName(),
         subtopic: this.resolvedSubtopicName(),
+        subjectId: this.selectedSubjectId() ?? undefined,
+        topicId: this.selectedTopicId() ?? undefined,
+        subtopicId: this.selectedSubtopicId() ?? undefined,
         targetExam: this.targetExam(),
         activeTab: defaultTab,
       },
@@ -282,10 +289,106 @@ export class MicroLessonAuthoringComponent implements OnInit {
       panelClass: 'dialog-panel-no-padding',
     });
 
-    dialogRef.afterClosed().subscribe((imported: ParsedAuthoringLessonState | null) => {
-      if (imported) {
-        this.applyImportedLesson(imported);
+    dialogRef.afterClosed().subscribe((result: MicroLessonPromptImportDialogResult | ParsedAuthoringLessonState | null) => {
+      if (!result) return;
+      if ('action' in result) {
+        if (result.taxonomy) {
+          this.syncTaxonomyFromDialog(result.taxonomy);
+        }
+        if (result.action === 'import' && result.importedLesson) {
+          this.applyImportedLesson(result.importedLesson);
+        }
+      } else if ('coreConcept' in result) {
+        this.applyImportedLesson(result);
       }
+    });
+  }
+
+  /**
+   * Synchronizes taxonomy selection from dialog into the parent authoring form.
+   */
+  syncTaxonomyFromDialog(tax: {
+    subjectId?: number | null;
+    topicId?: number | null;
+    subtopicId?: number | null;
+    subjectName?: string;
+    topicName?: string;
+    subtopicName?: string;
+  }): void {
+    let resolvedSubjectId = tax.subjectId ?? null;
+    if (!resolvedSubjectId && tax.subjectName) {
+      const foundSub = this.subjects().find(
+        (s) => s.name.toLowerCase() === tax.subjectName?.toLowerCase()
+      );
+      if (foundSub) resolvedSubjectId = foundSub.id;
+    }
+
+    if (!resolvedSubjectId) {
+      if (tax.subjectName && tax.subjectName.trim()) {
+        this.createQuickSubject(tax.subjectName.trim());
+      }
+      return;
+    }
+
+    this.selectedSubjectId.set(resolvedSubjectId);
+    this.syncFormulaPlaceholderWithPolicy();
+
+    this.subjectTopicService.getTopics(resolvedSubjectId).subscribe({
+      next: (tops) => {
+        this.topics.set(tops || []);
+        let targetTopicId = tax.topicId ?? null;
+        if (!targetTopicId && tax.topicName) {
+          const foundTop = tops?.find(
+            (t) => t.name.toLowerCase() === tax.topicName?.toLowerCase()
+          );
+          if (foundTop) targetTopicId = foundTop.id;
+        }
+
+        const validTopic = tops?.find((t) => t.id === targetTopicId);
+        if (validTopic) {
+          this.selectedTopicId.set(validTopic.id);
+          this.syncFormulaPlaceholderWithPolicy();
+
+          this.subjectTopicService.getSubtopics(resolvedSubjectId!, validTopic.id).subscribe({
+            next: (subs) => {
+              this.subtopics.set(subs || []);
+              let targetSubtopicId = tax.subtopicId ?? null;
+              if (!targetSubtopicId && tax.subtopicName) {
+                const foundSubtop = subs?.find(
+                  (st) => st.name.toLowerCase() === tax.subtopicName?.toLowerCase()
+                );
+                if (foundSubtop) targetSubtopicId = foundSubtop.id;
+              }
+
+              const validSub = subs?.find((st) => st.id === targetSubtopicId);
+              if (validSub) {
+                this.selectedSubtopicId.set(validSub.id);
+                this.customSubtopicName.set(validSub.name);
+              } else if (subs && subs.length > 0) {
+                this.selectedSubtopicId.set(subs[0].id);
+                this.customSubtopicName.set(subs[0].name);
+              } else {
+                this.selectedSubtopicId.set(null);
+                if (tax.subtopicName) {
+                  this.customSubtopicName.set(tax.subtopicName);
+                }
+              }
+              this.syncFormulaPlaceholderWithPolicy();
+            },
+          });
+        } else if (tops && tops.length > 0) {
+          this.selectedTopicId.set(tops[0].id);
+          this.onTopicChange(tops[0].id);
+        } else {
+          this.selectedTopicId.set(null);
+          this.selectedSubtopicId.set(null);
+          this.subtopics.set([]);
+          if (tax.subtopicName) {
+            this.customSubtopicName.set(tax.subtopicName);
+          }
+          this.syncFormulaPlaceholderWithPolicy();
+        }
+      },
     });
   }
 

@@ -381,7 +381,7 @@
   <!-- Dialog Footer -->
   <div class="flex items-center justify-between px-6 py-4 border-t border-slate-200 bg-slate-50/70">
     <button mat-stroked-button type="button" (click)="close()">
-      Cancel
+      Close
     </button>
 
     @if (activeTab() === 'prompt') {
@@ -390,9 +390,13 @@
           <mat-icon>{{ copied() ? 'check' : 'content_copy' }}</mat-icon>
           {{ copied() ? 'Copied' : 'Copy Prompt' }}
         </button>
-        <button mat-flat-button color="primary" type="button" (click)="downloadPrompt()">
+        <button mat-stroked-button color="primary" type="button" (click)="downloadPrompt()">
           <mat-icon>file_download</mat-icon>
           Download Prompt
+        </button>
+        <button mat-flat-button color="primary" type="button" (click)="close()">
+          <mat-icon>done</mat-icon>
+          Apply &amp; Close
         </button>
       </div>
     } @else {

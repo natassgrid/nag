@@ -42,6 +42,8 @@ describe('ExternalPromptService', () => {
       expect(prompt).toContain('$$...$$');
       expect(prompt).toContain('composite bodies with parallel axis theorem');
       expect(prompt).toContain('Expected JSON Output Schema');
+      expect(prompt).toContain('```json');
+      expect(prompt).toContain('enclosed inside markdown code fences');
       expect(prompt).toContain('"questionType": "SINGLE_MCQ"');
     });
 

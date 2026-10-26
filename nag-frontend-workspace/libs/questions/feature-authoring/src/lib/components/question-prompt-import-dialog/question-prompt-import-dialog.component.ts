@@ -33,6 +33,24 @@ export interface QuestionPromptImportDialogData {
   activeTab?: 'prompt' | 'import';
 }
 
+export interface PromptImportTaxonomySelection {
+  subjectId: number | null;
+  topicId: number | null;
+  subtopicId: number | null;
+  subjectName: string;
+  topicName: string;
+  subtopicName: string;
+  isCustomSubject: boolean;
+  isCustomTopic: boolean;
+  isCustomSubtopic: boolean;
+}
+
+export interface QuestionPromptImportDialogResult {
+  action: 'import' | 'close';
+  importedQuestion?: ImportedQuestion;
+  taxonomy: PromptImportTaxonomySelection;
+}
+
 @Component({
   selector: 'nag-question-prompt-import-dialog',
   standalone: true,
@@ -142,10 +160,27 @@ export class QuestionPromptImportDialogComponent implements OnInit {
     return this.promptService.generateQuestionPrompt(config);
   });
 
+  getCurrentTaxonomy(): PromptImportTaxonomySelection {
+    return {
+      subjectId: this.isCustomSubject() ? null : this.selectedSubjectId(),
+      topicId: this.isCustomTopic() ? null : this.selectedTopicId(),
+      subtopicId: this.isCustomSubtopic() ? null : this.selectedSubtopicId(),
+      subjectName: this.resolvedSubjectName(),
+      topicName: this.resolvedTopicName(),
+      subtopicName: this.resolvedSubtopicName(),
+      isCustomSubject: this.isCustomSubject(),
+      isCustomTopic: this.isCustomTopic(),
+      isCustomSubtopic: this.isCustomSubtopic(),
+    };
+  }
+
   ngOnInit(): void {
     if (this.data.activeTab) {
       this.activeTab.set(this.data.activeTab);
     }
+    if (this.data.subjectId) this.selectedSubjectId.set(this.data.subjectId);
+    if (this.data.topicId) this.selectedTopicId.set(this.data.topicId);
+    if (this.data.subtopicId) this.selectedSubtopicId.set(this.data.subtopicId);
     if (this.data.subject) this.customSubjectName.set(this.data.subject);
     if (this.data.topic) this.customTopicName.set(this.data.topic);
     if (this.data.subtopic) this.customSubtopicName.set(this.data.subtopic);
@@ -160,6 +195,17 @@ export class QuestionPromptImportDialogComponent implements OnInit {
     if (this.data.cognitiveLevel) this.cognitiveLevel.set(this.data.cognitiveLevel);
     if (this.data.marks) this.marks.set(this.data.marks);
     if (this.data.negativeMarks !== undefined) this.negativeMarks.set(this.data.negativeMarks);
+
+    if (this.dialogRef.backdropClick) {
+      this.dialogRef.backdropClick().subscribe(() => this.close());
+    }
+    if (this.dialogRef.keydownEvents) {
+      this.dialogRef.keydownEvents().subscribe((event) => {
+        if (event.key === 'Escape') {
+          this.close();
+        }
+      });
+    }
 
     this.loadTaxonomy();
     this.loadExaminations();
@@ -218,11 +264,21 @@ export class QuestionPromptImportDialogComponent implements OnInit {
               if (matchedSubtop) {
                 this.selectedSubtopicId.set(matchedSubtop.id);
                 this.isCustomSubtopic.set(false);
+              } else if (this.data.subtopic) {
+                this.isCustomSubtopic.set(true);
+                this.customSubtopicName.set(this.data.subtopic);
               } else if (matchedTopic.subtopics?.length > 0) {
                 this.selectedSubtopicId.set(matchedTopic.subtopics[0].id);
                 this.isCustomSubtopic.set(false);
               } else {
                 this.isCustomSubtopic.set(true);
+              }
+            } else if (this.data.topic) {
+              this.isCustomTopic.set(true);
+              this.customTopicName.set(this.data.topic);
+              if (this.data.subtopic) {
+                this.isCustomSubtopic.set(true);
+                this.customSubtopicName.set(this.data.subtopic);
               }
             } else if (matchedSubj.topics?.length > 0) {
               this.selectedTopicId.set(matchedSubj.topics[0].id);
@@ -237,14 +293,17 @@ export class QuestionPromptImportDialogComponent implements OnInit {
               this.isCustomTopic.set(true);
               this.isCustomSubtopic.set(true);
             }
-          } else if (!this.data.subject) {
+          } else if (!this.data.subject && !this.data.subjectId) {
             // Default to first subject
             this.onSubjectSelect(String(list[0].id));
           } else {
             // Keep provided custom subject
             this.isCustomSubject.set(true);
+            if (this.data.subject) this.customSubjectName.set(this.data.subject);
             this.isCustomTopic.set(true);
+            if (this.data.topic) this.customTopicName.set(this.data.topic);
             this.isCustomSubtopic.set(true);
+            if (this.data.subtopic) this.customSubtopicName.set(this.data.subtopic);
           }
         } else {
           this.isCustomSubject.set(true);
@@ -425,20 +484,29 @@ export class QuestionPromptImportDialogComponent implements OnInit {
     this.validationWarnings.set(res.warnings || []);
 
     if (res.valid && res.data) {
+      const taxonomy = this.getCurrentTaxonomy();
       const resultData = {
         ...res.data,
-        subject: res.data.subject || this.resolvedSubjectName(),
-        topic: res.data.topic || this.resolvedTopicName(),
-        subtopic: res.data.subtopic || this.resolvedSubtopicName(),
-        subjectId: res.data.subjectId || this.selectedSubjectId() || undefined,
-        topicId: res.data.topicId || this.selectedTopicId() || undefined,
-        subtopicId: res.data.subtopicId || this.selectedSubtopicId() || undefined,
+        subject: res.data.subject || taxonomy.subjectName,
+        topic: res.data.topic || taxonomy.topicName,
+        subtopic: res.data.subtopic || taxonomy.subtopicName,
+        subjectId: res.data.subjectId || (taxonomy.subjectId ?? undefined),
+        topicId: res.data.topicId || (taxonomy.topicId ?? undefined),
+        subtopicId: res.data.subtopicId || (taxonomy.subtopicId ?? undefined),
       };
-      this.dialogRef.close(resultData as ImportedQuestion);
+      this.dialogRef.close({
+        action: 'import',
+        importedQuestion: resultData as ImportedQuestion,
+        taxonomy,
+        ...resultData,
+      } as any);
     }
   }
 
   close(): void {
-    this.dialogRef.close(null);
+    this.dialogRef.close({
+      action: 'close',
+      taxonomy: this.getCurrentTaxonomy(),
+    } as QuestionPromptImportDialogResult);
   }
 }

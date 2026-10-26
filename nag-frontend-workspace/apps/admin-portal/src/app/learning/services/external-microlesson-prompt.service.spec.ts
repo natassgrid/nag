@@ -41,6 +41,8 @@ describe('ExternalMicroLessonPromptService', () => {
       expect(prompt).toContain('reversible vs irreversible cycle calculation traps');
       expect(prompt).toContain('$$...$$');
       expect(prompt).toContain('Expected JSON Output Schema');
+      expect(prompt).toContain('```json');
+      expect(prompt).toContain('enclosed inside markdown code fences');
     });
   });
 

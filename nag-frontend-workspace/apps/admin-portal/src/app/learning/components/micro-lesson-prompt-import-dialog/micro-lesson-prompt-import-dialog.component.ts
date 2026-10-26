@@ -27,6 +27,24 @@ export interface MicroLessonPromptImportDialogData {
   activeTab?: 'prompt' | 'import';
 }
 
+export interface MicroLessonPromptImportTaxonomySelection {
+  subjectId: number | null;
+  topicId: number | null;
+  subtopicId: number | null;
+  subjectName: string;
+  topicName: string;
+  subtopicName: string;
+  isCustomSubject: boolean;
+  isCustomTopic: boolean;
+  isCustomSubtopic: boolean;
+}
+
+export interface MicroLessonPromptImportDialogResult {
+  action: 'import' | 'close';
+  importedLesson?: ParsedAuthoringLessonState;
+  taxonomy: MicroLessonPromptImportTaxonomySelection;
+}
+
 @Component({
   selector: 'app-micro-lesson-prompt-import-dialog',
   standalone: true,
@@ -125,13 +143,41 @@ export class MicroLessonPromptImportDialogComponent implements OnInit {
     return this.promptService.generateMicroLessonPrompt(config);
   });
 
+  getCurrentTaxonomy(): MicroLessonPromptImportTaxonomySelection {
+    return {
+      subjectId: this.isCustomSubject() ? null : this.selectedSubjectId(),
+      topicId: this.isCustomTopic() ? null : this.selectedTopicId(),
+      subtopicId: this.isCustomSubtopic() ? null : this.selectedSubtopicId(),
+      subjectName: this.resolvedSubjectName(),
+      topicName: this.resolvedTopicName(),
+      subtopicName: this.resolvedSubtopicName(),
+      isCustomSubject: this.isCustomSubject(),
+      isCustomTopic: this.isCustomTopic(),
+      isCustomSubtopic: this.isCustomSubtopic(),
+    };
+  }
+
   ngOnInit(): void {
     if (this.data.activeTab) this.activeTab.set(this.data.activeTab);
+    if (this.data.subjectId) this.selectedSubjectId.set(this.data.subjectId);
+    if (this.data.topicId) this.selectedTopicId.set(this.data.topicId);
+    if (this.data.subtopicId) this.selectedSubtopicId.set(this.data.subtopicId);
     if (this.data.subject) this.customSubjectName.set(this.data.subject);
     if (this.data.topic) this.customTopicName.set(this.data.topic);
     if (this.data.subtopic) this.customSubtopicName.set(this.data.subtopic);
     if (this.data.targetExam) this.targetExam.set(this.data.targetExam);
     if (this.data.referenceText) this.referenceText.set(this.data.referenceText);
+
+    if (this.dialogRef.backdropClick) {
+      this.dialogRef.backdropClick().subscribe(() => this.close());
+    }
+    if (this.dialogRef.keydownEvents) {
+      this.dialogRef.keydownEvents().subscribe((event) => {
+        if (event.key === 'Escape') {
+          this.close();
+        }
+      });
+    }
 
     this.loadTaxonomy();
     this.loadExaminations();
@@ -187,11 +233,21 @@ export class MicroLessonPromptImportDialogComponent implements OnInit {
               if (matchedSubtop) {
                 this.selectedSubtopicId.set(matchedSubtop.id);
                 this.isCustomSubtopic.set(false);
+              } else if (this.data.subtopic) {
+                this.isCustomSubtopic.set(true);
+                this.customSubtopicName.set(this.data.subtopic);
               } else if (matchedTopic.subtopics?.length > 0) {
                 this.selectedSubtopicId.set(matchedTopic.subtopics[0].id);
                 this.isCustomSubtopic.set(false);
               } else {
                 this.isCustomSubtopic.set(true);
+              }
+            } else if (this.data.topic) {
+              this.isCustomTopic.set(true);
+              this.customTopicName.set(this.data.topic);
+              if (this.data.subtopic) {
+                this.isCustomSubtopic.set(true);
+                this.customSubtopicName.set(this.data.subtopic);
               }
             } else if (matchedSubj.topics?.length > 0) {
               this.selectedTopicId.set(matchedSubj.topics[0].id);
@@ -206,12 +262,15 @@ export class MicroLessonPromptImportDialogComponent implements OnInit {
               this.isCustomTopic.set(true);
               this.isCustomSubtopic.set(true);
             }
-          } else if (!this.data.subject) {
+          } else if (!this.data.subject && !this.data.subjectId) {
             this.onSubjectSelect(String(list[0].id));
           } else {
             this.isCustomSubject.set(true);
+            if (this.data.subject) this.customSubjectName.set(this.data.subject);
             this.isCustomTopic.set(true);
+            if (this.data.topic) this.customTopicName.set(this.data.topic);
             this.isCustomSubtopic.set(true);
+            if (this.data.subtopic) this.customSubtopicName.set(this.data.subtopic);
           }
         } else {
           this.isCustomSubject.set(true);
@@ -424,16 +483,25 @@ export class MicroLessonPromptImportDialogComponent implements OnInit {
     this.validationWarnings.set(res.warnings || []);
 
     if (res.valid && res.data) {
+      const taxonomy = this.getCurrentTaxonomy();
       const resultData: ParsedAuthoringLessonState = {
         ...res.data,
         targetExam: res.data.targetExam || this.targetExam(),
-        subtopicCustomName: res.data.subtopicCustomName || this.resolvedSubtopicName(),
+        subtopicCustomName: res.data.subtopicCustomName || taxonomy.subtopicName,
       };
-      this.dialogRef.close(resultData);
+      this.dialogRef.close({
+        action: 'import',
+        importedLesson: resultData,
+        taxonomy,
+        ...resultData,
+      } as any);
     }
   }
 
   close(): void {
-    this.dialogRef.close(null);
+    this.dialogRef.close({
+      action: 'close',
+      taxonomy: this.getCurrentTaxonomy(),
+    } as MicroLessonPromptImportDialogResult);
   }
 }
