@@ -84,12 +84,14 @@ Mathematical & Formula Formatting Rules (STRICT REQUIREMENT WHEN FORMULAS ARE US
 2. Chemical reactions MUST use valid LaTeX \\ce syntax enclosed in $$...$$ (e.g. "$$\\ce{2H2 + O2 -> 2H2O}$$").
 3. In JSON strings, ALWAYS escape all LaTeX backslashes with double backslashes: write \\\\ce, \\\\frac, \\\\times, \\\\Delta, \\\\sqrt, \\\\theta, \\\\pm, \\\\sum, \\\\int, \\\\% (never emit single unescaped backslashes).
 
-CRITICAL INSTRUCTION:
-Return ONLY a raw, valid JSON object matching the schema below.
-Do NOT wrap the output in markdown code blocks or backticks (do NOT output \`\`\`json or \`\`\`).
-Do NOT include any conversational preamble, greetings, or postscript commentary.
+CRITICAL INSTRUCTION (IMPORTANT - STRICT JSON FORMAT):
+Return the output strictly as a JSON object enclosed inside markdown code fences (\`\`\`json ... \`\`\`).
+Ensure that the JSON is strictly valid, parseable, and matches the schema below.
+Do NOT include any conversational preamble, greetings, introductory explanations, or postscript commentary outside the code fence.
+Output ONLY the \`\`\`json ... \`\`\` code block.
 
 Expected JSON Output Schema:
+\`\`\`json
 {
   "targetExam": "${targetExam}",
   "subtopicCustomName": "${subtopic}",
@@ -138,7 +140,8 @@ ${formulaSchemaSnippet}
       "explanation": "The theorem $$W_{\\text{all}} = \\Delta K$$ is universally valid when work of all forces is summed."
     }
   ]
-}`;
+}
+\`\`\``;
   }
 
   /**
@@ -165,8 +168,12 @@ ${formulaSchemaSnippet}
       return { valid: false, errors: ['JSON input is empty. Please paste valid micro-lesson JSON.'] };
     }
 
+    // Extract from markdown code fences (```json ... ``` or ``` ... ```) if present
     let cleaned = rawInput.trim();
-    if (cleaned.startsWith('```')) {
+    const codeBlockMatch = cleaned.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+    if (codeBlockMatch) {
+      cleaned = codeBlockMatch[1].trim();
+    } else if (cleaned.startsWith('```')) {
       cleaned = cleaned.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
     }
 

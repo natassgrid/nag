@@ -90,12 +90,14 @@ Question Type Specifications:
 - If NUMERICAL: Options must be an empty array []. "answerKey" contains the exact numerical answer or range (e.g. "12.5").
 - If DESCRIPTIVE: Options must be an empty array []. "answerKey" contains the model answer key points.
 
-CRITICAL INSTRUCTION:
-Return ONLY a raw, valid JSON object matching the schema below.
-Do NOT wrap the output in markdown code blocks or backticks (do NOT output \`\`\`json or \`\`\`).
-Do NOT include any conversational preamble, greetings, or postscript commentary.
+CRITICAL INSTRUCTION (IMPORTANT - STRICT JSON FORMAT):
+Return the output strictly as a JSON object enclosed inside markdown code fences (\`\`\`json ... \`\`\`).
+Ensure that the JSON is strictly valid, parseable, and matches the schema below.
+Do NOT include any conversational preamble, greetings, introductory explanations, or postscript commentary outside the code fence.
+Output ONLY the \`\`\`json ... \`\`\` code block.
 
 Expected JSON Output Schema:
+\`\`\`json
 {
   "content": "Clear, rigorous problem statement with $$formulas$$ and context.",
   "questionType": "${qType}",
@@ -111,7 +113,8 @@ Expected JSON Output Schema:
   ],
   "answerKey": "B",
   "explanation": "Detailed step-by-step mathematical derivation showing why option B is correct and common traps are avoided."
-}`;
+}
+\`\`\``;
   }
 
   /**
@@ -135,9 +138,12 @@ Expected JSON Output Schema:
       return { valid: false, errors: ['JSON input is empty. Please paste valid question JSON.'] };
     }
 
-    // Strip markdown code fences if user copied them with ``` or ```json
+    // Extract from markdown code fences (```json ... ``` or ``` ... ```) if present
     let cleaned = rawInput.trim();
-    if (cleaned.startsWith('```')) {
+    const codeBlockMatch = cleaned.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+    if (codeBlockMatch) {
+      cleaned = codeBlockMatch[1].trim();
+    } else if (cleaned.startsWith('```')) {
       cleaned = cleaned.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
     }
 
