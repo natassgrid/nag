@@ -1,0 +1,86 @@
+<div class="space-y-4" data-testid="slide-content-quiz">
+  <!-- Minimal Light Header Bar -->
+  <div
+    data-testid="quiz-success-stats"
+    class="p-3.5 rounded-xl bg-slate-50 border border-slate-200/90 flex flex-wrap items-center justify-between gap-2.5"
+  >
+    <div class="flex items-center gap-2.5">
+      <div class="flex items-center gap-2">
+        <span class="text-xs font-bold text-slate-800">Knowledge Check</span>
+        <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-white border border-slate-200 text-slate-700">
+          {{ quizStats().correctCount }}/{{ quizStats().totalQuestions }} Correct &bull; {{ quizStats().accuracyPercent }}%
+        </span>
+      </div>
+      <span class="text-xs text-slate-500 hidden sm:inline">&bull; {{ quizStats().statusLabel }}</span>
+    </div>
+
+    @if (quizStats().answeredCount > 0) {
+      <button
+        type="button"
+        (click)="resetQuiz.emit()"
+        data-testid="reset-quiz-btn"
+        class="px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-medium cursor-pointer transition-colors"
+      >
+        Retry Quiz
+      </button>
+    }
+  </div>
+
+  <!-- Quiz Questions & Options -->
+  <div class="space-y-4">
+    @for (q of normalizedQuizItems(); track $index; let qIdx = $index) {
+      <div class="p-4 rounded-xl border border-slate-200 bg-white space-y-3" [attr.data-testid]="'quiz-question-' + qIdx">
+        <div class="text-xs sm:text-sm font-semibold text-slate-900 leading-relaxed">
+          <span class="text-indigo-600 font-mono mr-1">Q{{ qIdx + 1 }}.</span>
+          <nag-math-renderer [content]="q.question" />
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          @for (opt of q.options || []; track $index; let oIdx = $index) {
+            @let sel = quizSelections()[qIdx];
+            @let isSelected = sel?.selectedOption === opt;
+            @let isCorrectOpt = opt === (q.correctAnswer || q.answer);
+            <button
+              type="button"
+              (click)="selectQuizOption.emit({ questionIndex: qIdx, option: opt })"
+              [attr.data-testid]="'quiz-option-' + qIdx + '-' + oIdx"
+              class="p-2.5 rounded-xl border text-left text-xs font-medium flex items-center gap-2 transition-all cursor-pointer"
+              [ngClass]="{
+                'bg-emerald-50/80 border-emerald-400 text-emerald-950 font-semibold ring-1 ring-emerald-300': sel && isCorrectOpt,
+                'bg-rose-50/80 border-rose-300 text-rose-900': sel && isSelected && !sel.isCorrect,
+                'bg-slate-50/60 border-slate-200 hover:border-slate-300 hover:bg-white text-slate-800': !sel
+              }"
+            >
+              <span
+                class="w-5 h-5 rounded-md text-[11px] font-mono font-bold flex items-center justify-center shrink-0 border"
+                [ngClass]="sel && isCorrectOpt ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-600 border-slate-200'"
+              >
+                {{ optionLetter(oIdx) }}
+              </span>
+              <span class="flex-1">
+                <nag-math-renderer [content]="opt" />
+              </span>
+            </button>
+          }
+        </div>
+
+        @if (quizSelections()[qIdx]; as selection) {
+          <div
+            [attr.data-testid]="'quiz-feedback-' + qIdx"
+            class="p-3 rounded-lg border text-xs space-y-1"
+            [ngClass]="selection.isCorrect ? 'bg-emerald-50/80 border-emerald-200 text-emerald-900' : 'bg-amber-50/80 border-amber-200 text-amber-900'"
+          >
+            <div class="font-bold">
+              {{ selection.isCorrect ? 'Correct!' : 'Incorrect — review the answer:' }}
+            </div>
+            @if (q.explanation) {
+              <div class="leading-relaxed">
+                <nag-math-renderer [content]="q.explanation" />
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
+  </div>
+</div>

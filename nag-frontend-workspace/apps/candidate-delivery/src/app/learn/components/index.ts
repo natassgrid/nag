@@ -21,3 +21,5 @@ export * from './phased-milestones-list/phased-milestones-list.component';
 export * from './micro-lesson-variant-switcher/micro-lesson-variant-switcher.component';
 export * from './micro-lesson-feedback-bar/micro-lesson-feedback-bar.component';
 export * from './micro-lesson-content-view/micro-lesson-content-view.component';
+export * from './micro-lesson-player-topbar/micro-lesson-player-topbar.component';
+export * from './micro-lesson-slide-container/micro-lesson-slide-container.component';

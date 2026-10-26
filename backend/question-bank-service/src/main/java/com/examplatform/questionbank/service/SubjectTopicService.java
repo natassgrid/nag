@@ -34,6 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -61,7 +62,21 @@ public class SubjectTopicService {
         }
         List<Subject> tenantSubs = subjectRepository.findByTenantIdOrderByDisplayOrderAscNameAsc(tenantId);
         List<Subject> combined = new ArrayList<>(platform);
-        combined.addAll(tenantSubs);
+        Set<String> platformNames = platform.stream()
+                .map(s -> s.getName().trim().toLowerCase(Locale.ROOT))
+                .collect(Collectors.toSet());
+        Set<String> platformCodes = platform.stream()
+                .filter(s -> s.getCode() != null)
+                .map(s -> s.getCode().trim().toUpperCase(Locale.ROOT))
+                .collect(Collectors.toSet());
+
+        for (Subject ts : tenantSubs) {
+            String normName = ts.getName() != null ? ts.getName().trim().toLowerCase(Locale.ROOT) : "";
+            String normCode = ts.getCode() != null ? ts.getCode().trim().toUpperCase(Locale.ROOT) : "";
+            if (!platformNames.contains(normName) && (normCode.isEmpty() || !platformCodes.contains(normCode))) {
+                combined.add(ts);
+            }
+        }
         return combined;
     }
 

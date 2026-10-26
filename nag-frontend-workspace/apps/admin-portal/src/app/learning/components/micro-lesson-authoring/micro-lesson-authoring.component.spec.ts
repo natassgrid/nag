@@ -310,4 +310,12 @@ describe('MicroLessonAuthoringComponent', () => {
     );
     expect(component.feedback()?.type).toBe('success');
   });
+
+  it('should render the shared interactive slide player in the live preview pane', () => {
+    createComponent();
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('app-micro-lesson-player-topbar')).toBeTruthy();
+    expect(compiled.querySelector('app-micro-lesson-slide-container')).toBeTruthy();
+    expect(compiled.querySelector('[data-testid="slide-counter"]')?.textContent).toContain('Slide 1 / 5');
+  });
 });

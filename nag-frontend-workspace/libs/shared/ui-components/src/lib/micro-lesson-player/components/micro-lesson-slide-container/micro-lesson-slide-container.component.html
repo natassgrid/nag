@@ -1,0 +1,179 @@
+<div
+  class="slide-player-wrapper w-full select-none flex flex-col gap-2"
+  (touchstart)="onTouchStart($event)"
+  (touchend)="onTouchEnd($event)"
+  data-testid="slide-container-wrapper"
+>
+  <!-- Sleek Compact AI Tutor Audio / Video Companion Stage -->
+  @if (tutorStageExpanded() || isPlaying() || audioEnabled() || currentSlide().mediaHook?.videoUrl) {
+    <div
+      data-testid="ai-tutor-stage"
+      class="py-1.5 px-3 rounded-xl bg-slate-900 text-white flex items-center justify-between gap-2 shadow-2xs border border-slate-800 shrink-0"
+    >
+      <div class="flex items-center gap-2.5 min-w-0">
+        <div class="relative w-6 h-6 rounded-md bg-indigo-500/20 border border-indigo-400/40 flex items-center justify-center shrink-0">
+          <mat-icon class="!text-xs !w-3.5 !h-3.5 text-indigo-300 leading-none">record_voice_over</mat-icon>
+          @if (tutorAvatarState() === 'SPEAKING' || isPlaying()) {
+            <span class="tutor-pulse-ring absolute inset-0 rounded-md border border-emerald-400"></span>
+          }
+        </div>
+        <div class="flex items-center gap-1.5 min-w-0">
+          <span class="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-indigo-500/30 text-indigo-200 shrink-0">
+            AI Tutor
+          </span>
+          @if (audioEnabled()) {
+            <div class="tutor-waveform flex items-end gap-0.5 h-2.5 shrink-0" aria-hidden="true">
+              <span class="w-0.5 bg-emerald-400 rounded-full h-1.5 animate-bounce"></span>
+              <span class="w-0.5 bg-emerald-400 rounded-full h-2.5 animate-pulse"></span>
+              <span class="w-0.5 bg-emerald-400 rounded-full h-1 animate-bounce"></span>
+            </div>
+          }
+          <p class="text-[11px] sm:text-xs text-slate-200 truncate">
+            {{ activeCaption() || currentSlide().narrationText }}
+          </p>
+        </div>
+      </div>
+
+      @if (currentSlide().mediaHook?.videoUrl; as videoSrc) {
+        <video
+          [src]="videoSrc"
+          controls
+          class="h-7 w-24 rounded-md border border-indigo-400/30 bg-black shrink-0"
+        ></video>
+      }
+    </div>
+  }
+
+  <!-- Card with Calculated Viewport-Aware Height -->
+  <div
+    [attr.data-testid]="'active-slide-' + currentSlide().type"
+    class="slide-card bg-white border border-slate-200/90 rounded-2xl shadow-xs overflow-hidden flex flex-col transition-all duration-300"
+    [style.height]="calculatedCardHeight()"
+    [style.min-height]="isFullscreen() ? 'calc(100vh - 105px)' : '340px'"
+    [style.max-height]="isFullscreen() ? 'calc(100vh - 105px)' : '620px'"
+  >
+    <!-- Slide Header Bar (Compact) -->
+    <div class="slide-header shrink-0 px-4 py-2.5 bg-slate-50/80 border-b border-slate-100 flex items-center justify-between gap-3">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <span
+          class="w-6 h-6 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0"
+        >
+          <mat-icon class="!text-sm !w-3.5 !h-3.5 leading-none">{{ currentSlide().icon }}</mat-icon>
+        </span>
+        <div class="min-w-0">
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">
+              {{ currentSlide().type }}
+            </span>
+            <span class="text-xs font-semibold text-slate-800 truncate">
+              {{ currentSlide().title }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 shrink-0">
+        <!-- Toggle Fullscreen Button -->
+        <button
+          type="button"
+          (click)="toggleFullscreen.emit()"
+          [title]="isFullscreen() ? 'Exit Fullscreen' : 'Enter Fullscreen'"
+          data-testid="toggle-fullscreen-btn"
+          class="w-7 h-7 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 hover:text-slate-900 flex items-center justify-center cursor-pointer transition-colors"
+        >
+          <mat-icon class="!text-sm !w-4 !h-4 leading-none">
+            {{ isFullscreen() ? 'fullscreen_exit' : 'fullscreen' }}
+          </mat-icon>
+        </button>
+
+        <span class="text-[11px] font-mono text-slate-400 tabular-nums">
+          {{ currentSlide().durationSeconds }}s
+        </span>
+      </div>
+    </div>
+
+    <!-- Scrollable Slide Content Area -->
+    <div class="slide-scrollable-content flex-1 overflow-y-auto p-4 sm:p-5" data-testid="slide-content-area">
+      @switch (currentSlide().type) {
+        @case ('INTRO') {
+          <nag-intro-slide
+            [lesson]="lesson()"
+            [slides]="slides()"
+            (startAutoPlay)="startAutoPlay.emit()"
+            (nextSlide)="nextSlide.emit()"
+            (goToSlide)="goToSlide.emit($event)"
+          />
+        }
+
+        @case ('CONCEPT') {
+          <nag-concept-slide [lesson]="lesson()" />
+        }
+
+        @case ('FORMULA') {
+          <nag-formula-slide
+            [lesson]="lesson()"
+            [formulaRequired]="formulaRequired()"
+          />
+        }
+
+        @case ('STEPS') {
+          <nag-steps-slide
+            [lesson]="lesson()"
+            [revealedStepCount]="revealedStepCount()"
+            [isPlaying]="isPlaying()"
+            (startAutoPlay)="startAutoPlay.emit()"
+            (revealNextStep)="revealNextStep.emit()"
+            (revealAllSteps)="revealAllSteps.emit()"
+            (resetSteps)="resetSteps.emit()"
+          />
+        }
+
+        @case ('QUIZ') {
+          <nag-quiz-slide
+            [lesson]="lesson()"
+            [quizSelections]="quizSelections()"
+            (selectQuizOption)="selectQuizOption.emit($event)"
+            (resetQuiz)="resetQuiz.emit()"
+          />
+        }
+      }
+    </div>
+
+    <!-- Pinned Compact Slide Footer Navigation Bar -->
+    <div class="slide-footer-nav shrink-0 py-2 px-3 sm:px-4 bg-slate-50/90 border-t border-slate-100 flex items-center justify-between gap-2">
+      <button
+        type="button"
+        [disabled]="currentSlideIndex() <= 0"
+        (click)="prevSlide.emit()"
+        data-testid="prev-slide-btn"
+        class="px-2.5 py-1 rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-white disabled:opacity-40 disabled:pointer-events-none flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+      >
+        <mat-icon class="!text-sm !w-4 !h-4 leading-none">chevron_left</mat-icon>
+        <span>Previous</span>
+      </button>
+
+      <div class="flex items-center gap-1" aria-hidden="true">
+        @for (s of slides(); track s.id; let idx = $index) {
+          <button
+            type="button"
+            (click)="goToSlide.emit(idx)"
+            class="h-1.5 rounded-full transition-all cursor-pointer"
+            [ngClass]="idx === currentSlideIndex() ? 'w-3.5 bg-indigo-600' : 'w-1.5 bg-slate-200 hover:bg-slate-300'"
+            [title]="'Go to slide ' + (idx + 1)"
+          ></button>
+        }
+      </div>
+
+      <button
+        type="button"
+        [disabled]="currentSlideIndex() >= slides().length - 1"
+        (click)="nextSlide.emit()"
+        data-testid="next-slide-btn"
+        class="px-3 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold disabled:opacity-40 disabled:pointer-events-none flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+      >
+        <span>Next</span>
+        <mat-icon class="!text-sm !w-4 !h-4 leading-none">chevron_right</mat-icon>
+      </button>
+    </div>
+  </div>
+</div>

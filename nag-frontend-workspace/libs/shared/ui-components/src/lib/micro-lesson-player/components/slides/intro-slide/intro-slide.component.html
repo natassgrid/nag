@@ -1,0 +1,66 @@
+<div class="space-y-5" data-testid="slide-content-intro">
+  <div class="space-y-2.5">
+    <!-- Subtle Metadata Line -->
+    <div class="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+      <span class="font-medium text-indigo-600">{{ lesson().subjectName || 'Subject' }}</span>
+      <span>&rsaquo;</span>
+      <span class="font-medium text-slate-700">{{ lesson().topicName || 'Topic' }}</span>
+      @if (lesson().difficultyLevel) {
+        <span class="text-slate-300">&bull;</span>
+        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+          {{ lesson().difficultyLevel }}
+        </span>
+      }
+    </div>
+
+    <!-- Title -->
+    <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+      <nag-math-renderer [content]="lesson().subtopicName || 'Subtopic Micro-Tutorial'" [inline]="true" />
+    </h2>
+
+    <!-- Subtitle -->
+    <p class="text-xs sm:text-sm text-slate-600 leading-relaxed max-w-2xl">
+      Approach: <strong class="text-slate-900">{{ lesson().approachName || lesson().lessonType || 'Conceptual Foundation' }}</strong>.
+      Step through core concepts, formulas, guided walkthroughs, and quick mastery checks at your own pace.
+    </p>
+
+    <!-- CTA Buttons -->
+    <div class="flex flex-wrap items-center gap-2.5 pt-1.5">
+      <button
+        type="button"
+        (click)="startAutoPlay.emit()"
+        data-testid="intro-start-autoplay-btn"
+        class="px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+      >
+        <mat-icon class="!text-sm !w-4 !h-4 leading-none">play_arrow</mat-icon>
+        <span>Start Auto-Play Tutor</span>
+      </button>
+      <button
+        type="button"
+        (click)="nextSlide.emit()"
+        data-testid="intro-next-slide-btn"
+        class="px-4 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors"
+      >
+        <span>Explore Manually</span>
+        <mat-icon class="!text-sm !w-4 !h-4 leading-none">arrow_forward</mat-icon>
+      </button>
+    </div>
+  </div>
+
+  <!-- Minimal 4-Item Horizontal Step Preview Strip -->
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+    @for (s of slides().slice(1); track s.id) {
+      <button
+        type="button"
+        (click)="goToSlide.emit(s.index)"
+        class="p-2.5 rounded-xl border border-slate-200/80 bg-slate-50/60 hover:bg-white hover:border-slate-300 text-left transition-all cursor-pointer group"
+      >
+        <div class="flex items-center gap-1.5 text-slate-500 group-hover:text-indigo-600 text-xs font-bold mb-1">
+          <mat-icon class="!text-sm !w-4 !h-4 leading-none">{{ s.icon }}</mat-icon>
+          <span class="truncate">{{ s.title }}</span>
+        </div>
+        <p class="text-[11px] text-slate-400 line-clamp-1">{{ s.subtitle }}</p>
+      </button>
+    }
+  </div>
+</div>

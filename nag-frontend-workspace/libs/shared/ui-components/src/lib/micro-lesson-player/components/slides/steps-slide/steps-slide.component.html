@@ -1,0 +1,114 @@
+<div class="space-y-4" data-testid="slide-content-steps">
+  <div class="flex flex-wrap items-center justify-between gap-2">
+    <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
+      <mat-icon class="!text-base !w-4 !h-4 text-indigo-600">format_list_numbered</mat-icon>
+      <span>Step-by-Step Breakdown ({{ revealedStepCount() }} / {{ totalStepsCount() }})</span>
+    </div>
+    <div class="flex items-center gap-1.5">
+      @if (!isPlaying() && revealedStepCount() < totalStepsCount()) {
+        <button
+          type="button"
+          (click)="startAutoPlay.emit()"
+          data-testid="autoplay-steps-btn"
+          class="text-xs font-medium text-indigo-700 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg flex items-center gap-1 cursor-pointer transition-colors"
+        >
+          <mat-icon class="!text-xs !w-3.5 !h-3.5 leading-none">play_arrow</mat-icon>
+          <span>Auto-Play Steps</span>
+        </button>
+      }
+      @if (revealedStepCount() < totalStepsCount()) {
+        <button
+          type="button"
+          (click)="revealAllSteps.emit()"
+          data-testid="reveal-all-steps-btn"
+          class="text-xs font-medium text-slate-700 hover:text-slate-900 px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 cursor-pointer transition-colors"
+        >
+          Reveal All
+        </button>
+      }
+      @if (revealedStepCount() > 0) {
+        <button
+          type="button"
+          (click)="resetSteps.emit()"
+          data-testid="reset-steps-btn"
+          class="text-xs font-medium text-slate-500 hover:text-slate-800 px-2.5 py-1 rounded-lg hover:bg-slate-100 cursor-pointer transition-colors"
+        >
+          Reset
+        </button>
+      }
+    </div>
+  </div>
+
+  <!-- Clean Problem Statement Box -->
+  @if (problemStatementText()) {
+    <div
+      data-testid="steps-problem-statement"
+      class="p-4 rounded-xl bg-slate-50 border border-slate-200/90 text-xs text-slate-800 leading-relaxed"
+    >
+      <span class="font-bold text-slate-900">Problem Statement: </span>
+      <nag-math-renderer [content]="problemStatementText()" />
+    </div>
+  }
+
+  <!-- Revealed Steps List -->
+  <div class="space-y-3">
+    @for (step of visibleSteps(); track step.stepNumber; let idx = $index) {
+      <div
+        [attr.data-testid]="'revealed-step-' + step.stepNumber"
+        class="step-reveal-item p-4 rounded-xl border space-y-2 transition-all bg-white"
+        [ngClass]="
+          idx === visibleSteps().length - 1
+            ? 'border-indigo-400 ring-1 ring-indigo-300/50 shadow-2xs'
+            : 'border-slate-200'
+        "
+      >
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <span class="w-5 h-5 rounded-md bg-indigo-50 text-indigo-700 font-mono text-xs font-bold flex items-center justify-center shrink-0">
+              {{ step.stepNumber }}
+            </span>
+            @if (hasDistinctStepTitle(step)) {
+              <span class="text-xs font-bold text-slate-900">{{ step.title }}</span>
+            }
+          </div>
+          @if (step.tip) {
+            <span class="text-[11px] font-medium text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/70">
+              <nag-math-renderer [content]="step.tip" [inline]="true" />
+            </span>
+          }
+        </div>
+        <div class="text-xs text-slate-700 leading-relaxed pl-7">
+          <nag-math-renderer [content]="cleanStepExplanation(step)" />
+        </div>
+        @if (step.formula) {
+          <div class="ml-7 p-2.5 bg-slate-50 rounded-lg text-center text-xs font-mono text-slate-900 overflow-x-auto border border-slate-100">
+            <nag-math-renderer [content]="formatLatex(step.formula)" />
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+  <!-- Interactive Tap / Click to Reveal Next Step -->
+  @if (revealedStepCount() < totalStepsCount()) {
+    <button
+      type="button"
+      (click)="revealNextStep.emit()"
+      data-testid="tap-reveal-step-btn"
+      class="w-full py-3 px-4 rounded-xl border border-dashed border-indigo-300 bg-indigo-50/40 hover:bg-indigo-50/80 text-indigo-700 font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors"
+    >
+      <mat-icon class="!text-sm !w-4 !h-4 leading-none">touch_app</mat-icon>
+      <span>Reveal Step {{ revealedStepCount() + 1 }} of {{ totalStepsCount() }}</span>
+    </button>
+  } @else if (finalAnswerText()) {
+    <div
+      data-testid="steps-final-answer"
+      class="p-4 rounded-xl bg-emerald-50/70 border border-emerald-200 text-xs text-emerald-950 font-medium flex flex-wrap items-center justify-between gap-2"
+    >
+      <span class="font-bold text-emerald-900">Final Answer:</span>
+      <span class="font-mono text-sm text-emerald-900">
+        <nag-math-renderer [content]="finalAnswerText()" [inline]="true" />
+      </span>
+    </div>
+  }
+</div>

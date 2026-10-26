@@ -4,9 +4,9 @@ import {
   ElementRef,
   OnChanges,
   SimpleChanges,
+  computed,
   inject,
   input,
-  signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -26,15 +26,39 @@ export class MathRendererComponent implements OnChanges {
   content = input<string | null | undefined>('');
   inline = input<boolean>(false);
 
-  renderedHtml = signal<SafeHtml>('');
-
   private sanitizer = inject(DomSanitizer);
   private el = inject(ElementRef);
 
-  ngOnChanges(changes: SimpleChanges): void {
-    if (changes['content'] || changes['inline']) {
-      this.render();
-    }
+  readonly renderedHtml = computed<SafeHtml>(() => {
+    return this.renderToSafeHtml(this.content(), this.inline());
+  });
+
+  ngOnChanges(_changes: SimpleChanges): void {
+    // Signal-based computed renderedHtml automatically tracks inputs reactively
+  }
+
+  /**
+   * Repairs control character artifacts from JSON unescaping
+   * (e.g. form-feed for \frac, tab for \times, \theta, \tau, etc.)
+   */
+  private repairEscapedArtifacts(text: string): string {
+    return text
+      .replace(/\x0crac/g, '\\frac')
+      .replace(/\x0corall/g, '\\forall')
+      .replace(/\x0clat/g, '\\flat')
+      .replace(/\t+imes/g, '\\times')
+      .replace(/\t+heta/g, '\\theta')
+      .replace(/\t+au/g, '\\tau')
+      .replace(/\t+ext(?=[^a-zA-Z]|$)/g, '\\text')
+      .replace(/\t+an(?=[^a-zA-Z]|$)/g, '\\tan')
+      .replace(/\t+o(?=[^a-zA-Z]|$)/g, '\\to')
+      .replace(/\r+ho/g, '\\rho')
+      .replace(/\r+ight/g, '\\right')
+      .replace(/\x08eta/g, '\\beta')
+      .replace(/\x08egin/g, '\\begin')
+      .replace(/\x08ar(?=[^a-zA-Z]|$)/g, '\\bar')
+      .replace(/\x08ullet/g, '\\bullet')
+      .replace(/\x08oxed/g, '\\boxed');
   }
 
   /**
@@ -46,10 +70,7 @@ export class MathRendererComponent implements OnChanges {
    *    unless the formula is a multi-row environment (`\begin{...}`).
    */
   private normalizeFormula(formula: string): string {
-    let trimmed = formula.trim();
-
-    // Repair control character artifacts from JSON unescaping
-    trimmed = trimmed.replace(/\x0crac/g, '\\frac').replace(/\t+imes/g, '\\times');
+    let trimmed = this.repairEscapedArtifacts(formula.trim());
 
     // Normalize \ce\{...\} or \\ce\{...\} to standard \ce{...}
     trimmed = trimmed.replace(/\\\\?ce\s*\\\{([\s\S]*?)\\\}/g, (_, inner) => {
@@ -138,19 +159,16 @@ export class MathRendererComponent implements OnChanges {
     return result;
   }
 
-  private render(): void {
-    const rawContent = this.content();
+  private renderToSafeHtml(
+    rawContent: string | null | undefined,
+    forceInline: boolean
+  ): SafeHtml {
     if (!rawContent || !rawContent.trim()) {
-      this.renderedHtml.set('');
-      return;
+      return '';
     }
 
     try {
-      let text = rawContent.trim();
-      const forceInline = this.inline();
-
-      // Repair control character artifacts from JSON unescaping
-      text = text.replace(/\x0crac/g, '\\frac').replace(/\t+imes/g, '\\times');
+      let text = this.repairEscapedArtifacts(rawContent.trim());
 
       const mathTokens = new Map<string, string>();
       let tokenCounter = 0;
@@ -273,13 +291,9 @@ export class MathRendererComponent implements OnChanges {
         }
       }
 
-      this.renderedHtml.set(
-        this.sanitizer.bypassSecurityTrustHtml(parsedHtml)
-      );
+      return this.sanitizer.bypassSecurityTrustHtml(parsedHtml);
     } catch {
-      this.renderedHtml.set(
-        this.sanitizer.bypassSecurityTrustHtml(rawContent)
-      );
+      return this.sanitizer.bypassSecurityTrustHtml(rawContent);
     }
   }
 }

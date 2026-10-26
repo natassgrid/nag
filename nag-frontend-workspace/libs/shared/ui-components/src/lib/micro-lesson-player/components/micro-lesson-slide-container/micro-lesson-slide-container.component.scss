@@ -1,0 +1,75 @@
+:host {
+  display: block;
+}
+
+.slide-scroll-viewport {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 9999px;
+
+    &:hover {
+      background-color: #94a3b8;
+    }
+  }
+}
+
+.slide-card-container {
+  animation: slideFadeIn 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.slide-card-enter {
+  animation: slideFadeIn 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.step-reveal-item {
+  animation: stepPopIn 0.24s ease-out;
+}
+
+.tutor-pulse-ring {
+  animation: pulseRing 1.6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes slideFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes stepPopIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes pulseRing {
+  0%,
+  100% {
+    opacity: 0.85;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.25;
+    transform: scale(1.1);
+  }
+}

@@ -40,20 +40,24 @@ public class QuestionBankContentClientImpl implements QuestionBankContentClient 
         if (jdbcTemplate != null && subtopicId != null) {
             try {
                 String sql = """
-                    SELECT id, subtopic_id, lesson_type, difficulty_level, sequence_no, title, estimated_minutes
+                    SELECT id, subtopic_id, lesson_type, difficulty_level, sequence_no, estimated_minutes
                     FROM question_service.subtopic_micro_lesson
                     WHERE subtopic_id = ? AND status = 'PUBLISHED'
                     ORDER BY sequence_no ASC
                     """;
-                List<MicroLessonDto> list = jdbcTemplate.query(sql, (rs, rowNum) -> new MicroLessonDto(
-                        rs.getObject("id", UUID.class),
-                        rs.getLong("subtopic_id"),
-                        rs.getString("lesson_type"),
-                        rs.getString("difficulty_level"),
-                        rs.getInt("sequence_no"),
-                        rs.getString("title"),
-                        rs.getInt("estimated_minutes")
-                ), subtopicId);
+                List<MicroLessonDto> list = jdbcTemplate.query(sql, (rs, rowNum) -> {
+                    String lessonType = rs.getString("lesson_type");
+                    int sequenceNo = rs.getInt("sequence_no");
+                    return new MicroLessonDto(
+                            rs.getObject("id", UUID.class),
+                            rs.getLong("subtopic_id"),
+                            lessonType,
+                            rs.getString("difficulty_level"),
+                            sequenceNo,
+                            deriveTitle(lessonType, sequenceNo),
+                            rs.getInt("estimated_minutes")
+                    );
+                }, subtopicId);
                 if (!list.isEmpty()) {
                     return list;
                 }
@@ -126,5 +130,26 @@ public class QuestionBankContentClientImpl implements QuestionBankContentClient 
                         3
                 )
         );
+    }
+
+    private String deriveTitle(String lessonType, int sequenceNo) {
+        int seq = sequenceNo > 0 ? sequenceNo : 1;
+        String approachName = getApproachName(lessonType);
+        return "Approach " + seq + ": " + approachName;
+    }
+
+    private String getApproachName(String lessonType) {
+        if (lessonType == null || lessonType.isBlank()) {
+            return "Core Micro-Tutorial";
+        }
+        return switch (lessonType.trim().toUpperCase()) {
+            case "CONCEPT" -> "Conceptual Foundation";
+            case "WORKED_EXAMPLE", "WORKED_EXAMPLES" -> "Step-by-Step Worked Method";
+            case "TRAPS_AND_PITFALLS" -> "Exam Traps & Elimination";
+            case "CHEAT_SHEET" -> "Formula & Shortcut Sheet";
+            case "VISUAL" -> "Visual & Intuitive Model";
+            case "QUICK_RECAP" -> "Rapid Revision Recap";
+            default -> "Core Micro-Tutorial";
+        };
     }
 }

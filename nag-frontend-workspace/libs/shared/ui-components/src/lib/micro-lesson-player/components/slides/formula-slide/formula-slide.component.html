@@ -1,0 +1,46 @@
+<div class="space-y-3.5" data-testid="slide-content-formula">
+  <div class="flex items-center justify-between">
+    <div class="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-500">
+      <mat-icon class="!text-sm !w-4 !h-4 text-indigo-600">functions</mat-icon>
+      <span>Formula &amp; Identity Cheat Sheet ({{ formulas().length }})</span>
+    </div>
+    <span class="text-[11px] text-slate-400">Click a card to spotlight</span>
+  </div>
+
+  @if (formulas().length > 0) {
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 formula-sheet-card">
+      @for (f of formulas(); track $index) {
+        <div
+          (click)="activeFormulaIndex.set($index)"
+          [attr.data-testid]="'formula-card-' + $index"
+          class="p-3.5 rounded-xl border transition-all cursor-pointer space-y-2 bg-white"
+          [ngClass]="{
+            'border-indigo-500 ring-2 ring-indigo-500/20 shadow-xs': activeFormulaIndex() === $index,
+            'border-slate-200 hover:border-slate-300': activeFormulaIndex() !== $index
+          }"
+        >
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-slate-800">{{ f.name || ('Formula ' + ($index + 1)) }}</span>
+            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">
+              #{{ $index + 1 }}
+            </span>
+          </div>
+          @if (f.latex) {
+            <div class="p-2.5 bg-slate-50 rounded-lg text-center text-sm text-slate-900 overflow-x-auto">
+              <nag-math-renderer [content]="formatLatex(f.latex)" />
+            </div>
+          }
+          @if (f.description && f.description !== f.name && f.description !== f.latex) {
+            <div class="text-xs text-slate-500 leading-relaxed">
+              <nag-math-renderer [content]="f.description" />
+            </div>
+          }
+        </div>
+      }
+    </div>
+  } @else {
+    <div class="p-6 rounded-2xl bg-slate-50 border border-slate-200/80 text-xs text-slate-500 text-center">
+      No explicit mathematical formulas are required for this conceptual topic. Proceed to the step-by-step walkthrough.
+    </div>
+  }
+</div>

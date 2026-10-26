@@ -78,22 +78,22 @@
   }
 
   <!-- 4. Step-by-Step Breakdown -->
-  @if (lesson().content.stepByStepBreakdown; as b) {
+  @if (steps().length > 0 || problemStatement()) {
     <div class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-4">
       <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-indigo-700">
         <mat-icon class="!text-base">format_list_numbered</mat-icon>
         Part 4 &bull; Step-by-Step Solved Problem Walkthrough
       </div>
 
-      @if (b.problemStatement || b.questionStem) {
+      @if (problemStatement()) {
         <div class="p-4 rounded-2xl bg-indigo-50/50 border border-indigo-100 text-xs text-indigo-950 font-medium leading-relaxed">
           <span class="font-bold text-indigo-800">Problem: </span>
-          <nag-math-renderer [content]="b.problemStatement || b.questionStem || ''" />
+          <nag-math-renderer [content]="problemStatement()" />
         </div>
       }
 
       <div class="space-y-3 pt-2">
-        @for (step of b.steps; track step.stepNumber) {
+        @for (step of steps(); track step.stepNumber) {
           <div class="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 space-y-1.5">
             <div class="flex items-center justify-between text-xs font-bold text-slate-800">
               <span class="text-indigo-600 font-mono">{{ step.title || ('Step ' + step.stepNumber) }}</span>
@@ -108,17 +108,19 @@
             </div>
             @if (step.formula) {
               <div class="p-2 bg-white rounded-xl border border-slate-200 text-center text-xs font-mono text-indigo-800">
-                <nag-math-renderer [content]="'$$' + step.formula + '$$'" />
+                <nag-math-renderer [content]="formatLatex(step.formula)" />
               </div>
             }
           </div>
         }
       </div>
 
-      @if (b.finalAnswer) {
+      @if (finalAnswer()) {
         <div class="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 font-bold flex items-center justify-between">
           <span>Final Solution / Result:</span>
-          <span class="font-mono text-sm text-emerald-800">{{ b.finalAnswer }}</span>
+          <span class="font-mono text-sm text-emerald-800">
+            <nag-math-renderer [content]="finalAnswer()" [inline]="true" />
+          </span>
         </div>
       }
     </div>

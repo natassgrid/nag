@@ -89,4 +89,56 @@ class MicroLessonFormulaParsingTest {
         assertThat(entry2.name()).isEqualTo("Coulomb's Law");
         assertThat(entry2.latex()).isEqualTo("$$F = \\frac{1}{4\\pi \\epsilon_0}\\frac{q_1 q_2}{r^2}$$");
     }
+
+    @Test
+    @DisplayName("MicroLessonResponse should compute approachName and title correctly for all lesson types")
+    void shouldComputeApproachNameAndTitle() {
+        MicroLessonResponse concept = new MicroLessonResponse(
+                UUID.randomUUID(), 1L, 1L, 1L, "Physics", "Mechanics", "Torque", "JEE_MAIN",
+                "Concept", "Trap", List.of(), null, "PUBLISHED", null, null, null, 1, null, null,
+                "en", false, "CONCEPT", "CORE", 1, null, 5, null
+        );
+        assertThat(concept.getApproachName()).isEqualTo("Conceptual Foundation");
+        assertThat(concept.getTitle()).isEqualTo("Approach 1: Conceptual Foundation");
+
+        MicroLessonResponse worked = new MicroLessonResponse(
+                UUID.randomUUID(), 1L, 1L, 1L, "Physics", "Mechanics", "Torque", "JEE_MAIN",
+                "Concept", "Trap", List.of(), null, "PUBLISHED", null, null, null, 1, null, null,
+                "en", false, "WORKED_EXAMPLES", "CORE", 2, null, 5, null
+        );
+        assertThat(worked.getApproachName()).isEqualTo("Step-by-Step Worked Method");
+        assertThat(worked.getTitle()).isEqualTo("Approach 2: Step-by-Step Worked Method");
+
+        MicroLessonResponse traps = new MicroLessonResponse(
+                UUID.randomUUID(), 1L, 1L, 1L, "Physics", "Mechanics", "Torque", "JEE_MAIN",
+                "Concept", "Trap", List.of(), null, "PUBLISHED", null, null, null, 1, null, null,
+                "en", false, "TRAPS_AND_PITFALLS", "CORE", 3, null, 5, null
+        );
+        assertThat(traps.getApproachName()).isEqualTo("Exam Traps & Elimination");
+        assertThat(traps.getTitle()).isEqualTo("Approach 3: Exam Traps & Elimination");
+
+        MicroLessonResponse visual = new MicroLessonResponse(
+                UUID.randomUUID(), 1L, 1L, 1L, "Physics", "Mechanics", "Torque", "JEE_MAIN",
+                "Concept", "Trap", List.of(), null, "PUBLISHED", null, null, null, 1, null, null,
+                "en", false, "VISUAL", "CORE", 4, null, 5, null
+        );
+        assertThat(visual.getApproachName()).isEqualTo("Visual & Intuitive Model");
+        assertThat(visual.getTitle()).isEqualTo("Approach 4: Visual & Intuitive Model");
+
+        MicroLessonResponse cheat = new MicroLessonResponse(
+                UUID.randomUUID(), 1L, 1L, 1L, "Physics", "Mechanics", "Torque", "JEE_MAIN",
+                "Concept", "Trap", List.of(), null, "PUBLISHED", null, null, null, 1, null, null,
+                "en", false, "CHEAT_SHEET", "CORE", 5, null, 5, null
+        );
+        assertThat(cheat.getApproachName()).isEqualTo("Formula & Shortcut Sheet");
+        assertThat(cheat.getTitle()).isEqualTo("Approach 5: Formula & Shortcut Sheet");
+
+        MicroLessonResponse recap = new MicroLessonResponse(
+                UUID.randomUUID(), 1L, 1L, 1L, "Physics", "Mechanics", "Torque", "JEE_MAIN",
+                "Concept", "Trap", List.of(), null, "PUBLISHED", null, null, null, 1, null, null,
+                "en", false, "QUICK_RECAP", "CORE", 6, null, 5, null
+        );
+        assertThat(recap.getApproachName()).isEqualTo("Rapid Revision Recap");
+        assertThat(recap.getTitle()).isEqualTo("Approach 6: Rapid Revision Recap");
+    }
 }
