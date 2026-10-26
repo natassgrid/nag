@@ -187,8 +187,21 @@ describe('QuestionPromptImportDialogComponent', () => {
     expect(dialogRefMock.close).not.toHaveBeenCalled();
   });
 
-  it('should close on close()', () => {
+  it('should close on close() with current taxonomy selection', () => {
+    component.onSubjectSelect('2'); // Select Chemistry
     component.close();
-    expect(dialogRefMock.close).toHaveBeenCalledWith(null);
+    expect(dialogRefMock.close).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'close',
+        taxonomy: expect.objectContaining({
+          subjectId: 2,
+          subjectName: 'Chemistry',
+          topicId: 20,
+          topicName: 'Organic Chemistry',
+          subtopicId: 200,
+          subtopicName: 'Alkanes',
+        }),
+      })
+    );
   });
 });

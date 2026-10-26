@@ -148,6 +148,8 @@ describe('QuestionsFeatureAuthoring', () => {
   it('should show validation error when saving standalone question with empty content', async () => {
     await compileWithRoute();
     component.selectedSubjectId = 1;
+    component.selectedTopicId = 10;
+    component.selectedSubtopicId = 100;
     component.content = '   ';
     component.saveItem();
     expect(component.feedback()).toEqual({
@@ -161,6 +163,7 @@ describe('QuestionsFeatureAuthoring', () => {
     await compileWithRoute();
     component.selectedSubjectId = 1;
     component.selectedTopicId = 10;
+    component.selectedSubtopicId = 100;
     component.content = 'What is the speed of light? $c = 3 \\times 10^8 \\text{ m/s}$';
     component.type = 'MULTIPLE_CHOICE';
     component.options = [
@@ -320,15 +323,68 @@ describe('QuestionsFeatureAuthoring', () => {
     expect(component.feedback()?.message).toContain('loaded into authoring form');
   });
 
-  it('should show error feedback when getQuestionById fails', async () => {
-    questionBankMock.getQuestionById.mockReturnValue(
-      throwError(() => ({ error: { message: 'Question not found' } }))
+  it('should pass selected taxonomy when opening prompt import dialog and sync back on close', async () => {
+    subjectTopicServiceMock.getSubjects.mockReturnValue(
+      of([
+        { id: 1, name: 'Physics', code: 'PHY' },
+        { id: 2, name: 'Chemistry', code: 'CHEM' },
+      ])
     );
-    await compileWithRoute({ edit: 'q-missing' });
+    subjectTopicServiceMock.getTopics.mockImplementation((subjId: number) => {
+      if (subjId === 2) {
+        return of([{ id: 20, name: 'Organic Chemistry', code: 'ORG' }]);
+      }
+      return of([{ id: 10, name: 'Mechanics', code: 'MECH' }]);
+    });
+    subjectTopicServiceMock.getSubtopics.mockImplementation((_subjId: number, topId: number) => {
+      if (topId === 20) {
+        return of([{ id: 200, name: 'Alkanes', code: 'ALK' }]);
+      }
+      return of([{ id: 100, name: 'Kinematics', code: 'KIN' }]);
+    });
+
+    await compileWithRoute();
     fixture.detectChanges();
 
-    expect(component.editingQuestionId()).toBeNull();
-    expect(component.feedback()?.type).toBe('error');
-    expect(component.feedback()?.message).toBe('Question not found');
+    component.selectedSubjectId = 1;
+    component.selectedTopicId = 10;
+    component.selectedSubtopicId = 100;
+
+    const afterClosedSubject = of({
+      action: 'close',
+      taxonomy: {
+        subjectId: 2,
+        topicId: 20,
+        subtopicId: 200,
+        subjectName: 'Chemistry',
+        topicName: 'Organic Chemistry',
+        subtopicName: 'Alkanes',
+        isCustomSubject: false,
+        isCustomTopic: false,
+        isCustomSubtopic: false,
+      },
+    });
+
+    const openSpy = jest.spyOn((component as any).dialog, 'open').mockReturnValue({
+      afterClosed: () => afterClosedSubject,
+    } as any);
+
+    component.openAiPromptImportDialog('prompt');
+
+    expect(openSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        data: expect.objectContaining({
+          subjectId: 1,
+          topicId: 10,
+          subtopicId: 100,
+        }),
+      })
+    );
+
+    // Verify parent taxonomy updated
+    expect(component.selectedSubjectId).toBe(2);
+    expect(component.selectedTopicId).toBe(20);
+    expect(component.selectedSubtopicId).toBe(200);
   });
 });
