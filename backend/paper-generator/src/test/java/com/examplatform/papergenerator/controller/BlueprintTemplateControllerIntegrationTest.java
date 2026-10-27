@@ -152,12 +152,12 @@ class BlueprintTemplateControllerIntegrationTest extends AbstractIntegrationTest
     }
 
     @Nested
-    @DisplayName("POST /api/v1/papers/blueprint-templates/{id}/check-sufficiency")
+    @DisplayName("Check Sufficiency Endpoint (GET & POST)")
     class CheckSufficiencyEndpoint {
 
         @Test
-        @DisplayName("+ve: EXAM_CONTROLLER checks template sufficiency - returns 200 OK with feasibility details")
-        void checkSufficiencyReturnsOk() throws Exception {
+        @DisplayName("+ve: EXAM_CONTROLLER checks template sufficiency via POST - returns 200 OK with feasibility details")
+        void checkSufficiencyPostReturnsOk() throws Exception {
             BlueprintFeasibilityResponse resp = BlueprintFeasibilityResponse.builder()
                     .feasible(true)
                     .totalQuestionsNeeded(5)
@@ -171,6 +171,30 @@ class BlueprintTemplateControllerIntegrationTest extends AbstractIntegrationTest
             when(service.checkTemplateSufficiency(eq(TEMPLATE_ID), anyBoolean(), anyString())).thenReturn(resp);
 
             mockMvc.perform(post("/api/v1/papers/blueprint-templates/{id}/check-sufficiency", TEMPLATE_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EXAM_CONTROLLER"))
+                                    .jwt(j -> j.subject(USER_ID.toString()).claim("tenant_id", TENANT_ID))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.feasible").value(true))
+                    .andExpect(jsonPath("$.totalQuestionsNeeded").value(5))
+                    .andExpect(jsonPath("$.totalQuestionsAvailable").value(10));
+        }
+
+        @Test
+        @DisplayName("+ve: EXAM_CONTROLLER checks template sufficiency via GET - returns 200 OK with feasibility details")
+        void checkSufficiencyGetReturnsOk() throws Exception {
+            BlueprintFeasibilityResponse resp = BlueprintFeasibilityResponse.builder()
+                    .feasible(true)
+                    .totalQuestionsNeeded(5)
+                    .totalQuestionsAvailable(10)
+                    .deficitRuleCount(0)
+                    .notificationDispatched(false)
+                    .summary("Blueprint is feasible.")
+                    .checkedAt(Instant.now())
+                    .build();
+
+            when(service.checkTemplateSufficiency(eq(TEMPLATE_ID), anyBoolean(), anyString())).thenReturn(resp);
+
+            mockMvc.perform(get("/api/v1/papers/blueprint-templates/{id}/check-sufficiency", TEMPLATE_ID)
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EXAM_CONTROLLER"))
                                     .jwt(j -> j.subject(USER_ID.toString()).claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isOk())

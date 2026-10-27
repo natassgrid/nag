@@ -74,13 +74,13 @@
                         </span>
                       </td>
                       <td class="p-3 text-center font-bold text-slate-800">
-                        {{ item.requested || item.targetCount || item.questionCount || 0 }}
+                        {{ item.needed ?? item.requested ?? item.targetCount ?? item.questionCount ?? 0 }}
                       </td>
-                      <td class="p-3 text-center font-bold" [ngClass]="item.sufficient ? 'text-emerald-600' : 'text-rose-600'">
+                      <td class="p-3 text-center font-bold" [ngClass]="(item.sufficient ?? (item.status === 'SATISFIED' || (item.deficit ?? 0) === 0)) ? 'text-emerald-600' : 'text-rose-600'">
                         {{ item.available || 0 }}
                       </td>
                       <td class="p-3 text-center">
-                        @if (item.sufficient) {
+                        @if (item.sufficient ?? (item.status === 'SATISFIED' || (item.deficit ?? 0) === 0)) {
                           <span class="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600">
                             <mat-icon class="!text-sm">done</mat-icon> OK
                           </span>

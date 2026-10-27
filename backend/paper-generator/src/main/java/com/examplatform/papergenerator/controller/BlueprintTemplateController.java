@@ -44,6 +44,7 @@ import java.util.UUID;
  *   GET    /api/v1/papers/blueprint-templates                    list all (tenant-scoped)
  *   GET    /api/v1/papers/blueprint-templates?examId=...         list pinned to an exam
  *   GET    /api/v1/papers/blueprint-templates/{id}               get one
+ *   GET    /api/v1/papers/blueprint-templates/{id}/check-sufficiency  audit sufficiency against question bank
  *   POST   /api/v1/papers/blueprint-templates/{id}/check-sufficiency  audit sufficiency against question bank
  *   POST   /api/v1/papers/blueprint-templates                    create
  *   PUT    /api/v1/papers/blueprint-templates/{id}               update
@@ -83,8 +84,9 @@ public class BlueprintTemplateController {
 
     /**
      * Real-time feasibility check: audits a blueprint template against the live question bank.
+     * Supports both GET and POST for convenience across REST inspection and form actions.
      */
-    @PostMapping("/{id}/check-sufficiency")
+    @RequestMapping(value = "/{id}/check-sufficiency", method = {RequestMethod.GET, RequestMethod.POST})
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN')")
     public ResponseEntity<BlueprintFeasibilityResponse> checkSufficiency(
             @PathVariable UUID id,
