@@ -14,11 +14,11 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.\n */
 
 package com.examplatform.papergenerator.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -48,4 +48,19 @@ public class BlueprintFeasibilityResponse {
     private boolean notificationDispatched;
     private String summary;
     private Instant checkedAt;
+
+    @JsonProperty("totalRequested")
+    public int getTotalRequested() {
+        return totalQuestionsNeeded;
+    }
+
+    @JsonProperty("totalAvailable")
+    public int getTotalAvailable() {
+        return totalQuestionsAvailable;
+    }
+
+    @JsonProperty("rules")
+    public List<RuleFeasibilityDetail> getRules() {
+        return ruleDetails;
+    }
 }

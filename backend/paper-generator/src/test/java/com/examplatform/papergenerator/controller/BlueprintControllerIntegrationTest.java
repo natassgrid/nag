@@ -169,29 +169,45 @@ class BlueprintControllerIntegrationTest extends AbstractIntegrationTest {
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EXAM_CONTROLLER"))
                                     .jwt(j -> j.subject(USER_ID.toString())))
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(req)))
+                            .content(objectMapper.writeValueAsString(req))
+                            .header("X-Tenant-Id", TENANT_ID))
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.id").value(BLUEPRINT_ID.toString()));
         }
     }
 
     @Nested
-    @DisplayName("POST /api/v1/papers/blueprints/{id}/check-sufficiency")
+    @DisplayName("Check Sufficiency Endpoint (GET & POST)")
     class CheckSufficiencyEndpoint {
 
-        @Test
-        @DisplayName("+ve: EXAM_CONTROLLER checks sufficiency - returns 200 OK")
-        void checkSufficiencyReturns200() throws Exception {
-            BlueprintFeasibilityResponse feasibility = BlueprintFeasibilityResponse.builder()
+        private BlueprintFeasibilityResponse sampleFeasibility() {
+            RuleFeasibilityDetail detail = RuleFeasibilityDetail.builder()
+                    .subjectId(1L)
+                    .subject("General Intelligence and Reasoning")
+                    .difficulty("EASY")
+                    .cognitiveLevel("UNDERSTAND")
+                    .needed(5)
+                    .available(20)
+                    .surplus(15)
+                    .deficit(0)
+                    .status("SATISFIED")
+                    .build();
+
+            return BlueprintFeasibilityResponse.builder()
                     .feasible(true)
                     .totalQuestionsNeeded(5)
                     .totalQuestionsAvailable(20)
                     .deficitRuleCount(0)
+                    .ruleDetails(List.of(detail))
                     .summary("Blueprint is feasible.")
                     .build();
+        }
 
+        @Test
+        @DisplayName("+ve: EXAM_CONTROLLER checks sufficiency via POST - returns 200 OK")
+        void checkSufficiencyReturns200() throws Exception {
             when(service.checkSufficiency(eq(BLUEPRINT_ID), any(), eq(1), eq(TENANT_ID), anyBoolean()))
-                    .thenReturn(feasibility);
+                    .thenReturn(sampleFeasibility());
 
             mockMvc.perform(post("/api/v1/papers/blueprints/{id}/check-sufficiency", BLUEPRINT_ID)
                             .header("X-Tenant-Id", TENANT_ID)
@@ -199,7 +215,30 @@ class BlueprintControllerIntegrationTest extends AbstractIntegrationTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.feasible").value(true))
                     .andExpect(jsonPath("$.totalQuestionsNeeded").value(5))
-                    .andExpect(jsonPath("$.totalQuestionsAvailable").value(20));
+                    .andExpect(jsonPath("$.totalRequested").value(5))
+                    .andExpect(jsonPath("$.totalQuestionsAvailable").value(20))
+                    .andExpect(jsonPath("$.totalAvailable").value(20))
+                    .andExpect(jsonPath("$.rules[0].needed").value(5))
+                    .andExpect(jsonPath("$.rules[0].requested").value(5))
+                    .andExpect(jsonPath("$.rules[0].sufficient").value(true));
+        }
+
+        @Test
+        @DisplayName("+ve: EXAM_CONTROLLER checks sufficiency via GET - returns 200 OK")
+        void checkSufficiencyGetReturns200() throws Exception {
+            when(service.checkSufficiency(eq(BLUEPRINT_ID), any(), eq(1), eq(TENANT_ID), anyBoolean()))
+                    .thenReturn(sampleFeasibility());
+
+            mockMvc.perform(get("/api/v1/papers/blueprints/{id}/check-sufficiency", BLUEPRINT_ID)
+                            .param("shifts", "1")
+                            .param("notifyAdmin", "false")
+                            .header("X-Tenant-Id", TENANT_ID)
+                            .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EXAM_CONTROLLER"))))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.feasible").value(true))
+                    .andExpect(jsonPath("$.totalQuestionsNeeded").value(5))
+                    .andExpect(jsonPath("$.totalRequested").value(5))
+                    .andExpect(jsonPath("$.rules[0].sufficient").value(true));
         }
     }
 }

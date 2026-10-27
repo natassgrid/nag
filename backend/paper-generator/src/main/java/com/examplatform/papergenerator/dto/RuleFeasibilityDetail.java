@@ -19,6 +19,7 @@
 
 package com.examplatform.papergenerator.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -46,4 +47,19 @@ public class RuleFeasibilityDetail {
     private int surplus;
     private int deficit;
     private String status; // "SATISFIED" or "DEFICIT"
+
+    @JsonProperty("sufficient")
+    public boolean isSufficient() {
+        return deficit <= 0;
+    }
+
+    @JsonProperty("requested")
+    public int getRequested() {
+        return needed;
+    }
+
+    @JsonProperty("questionCount")
+    public int getQuestionCount() {
+        return needed;
+    }
 }

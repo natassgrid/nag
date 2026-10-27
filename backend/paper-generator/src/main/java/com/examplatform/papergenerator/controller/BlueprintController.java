@@ -48,6 +48,7 @@ import java.util.UUID;
  *   POST   /api/v1/papers/blueprints                         create
  *   PUT    /api/v1/papers/blueprints/{id}                    update
  *   DELETE /api/v1/papers/blueprints/{id}                    delete
+ *   GET    /api/v1/papers/blueprints/{id}/check-sufficiency  audit sufficiency against question bank
  *   POST   /api/v1/papers/blueprints/{id}/check-sufficiency  audit sufficiency against question bank
  *   POST   /api/v1/papers/blueprints/check-sufficiency       inline audit sufficiency
  * </pre>
@@ -79,8 +80,9 @@ public class BlueprintController {
 
     /**
      * Real-time feasibility check: audits a blueprint against the live question bank.
+     * Supports both GET and POST for convenience across REST inspection and form actions.
      */
-    @PostMapping("/{id}/check-sufficiency")
+    @RequestMapping(value = "/{id}/check-sufficiency", method = {RequestMethod.GET, RequestMethod.POST})
     @PreAuthorize("hasAnyRole('EXAM_CONTROLLER','SUPER_ADMIN')")
     public ResponseEntity<BlueprintFeasibilityResponse> checkSufficiency(
             @PathVariable UUID id,
