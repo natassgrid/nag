@@ -43,6 +43,18 @@
         Back to Moderation Desk
       </button>
 
+      <!-- Small Icon Button: Pop up Editor in Wizard Mode -->
+      <button
+        type="button"
+        (click)="openWizardMode()"
+        data-testid="open-microlesson-wizard-btn"
+        title="Open Micro-Lesson Editor in Popup Wizard Mode"
+        aria-label="Open Micro-Lesson Editor in Popup Wizard Mode"
+        class="inline-flex items-center justify-center w-9 h-9 rounded-xl border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 hover:border-purple-300 transition-all shadow-2xs cursor-pointer"
+      >
+        <mat-icon class="!text-lg leading-none">auto_fix_high</mat-icon>
+      </button>
+
       <button
         mat-stroked-button
         type="button"
@@ -148,7 +160,9 @@
     <div class="lg:col-span-7 space-y-5">
       <app-core-concept-editor
         [coreConcept]="coreConcept()"
+        [showWizardTrigger]="true"
         (coreConceptChange)="coreConcept.set($event)"
+        (openWizard)="openWizardMode(1)"
       ></app-core-concept-editor>
 
       <app-trap-alert-editor

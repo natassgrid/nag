@@ -28,7 +28,9 @@ import { FormulaSymbolPaletteComponent } from '@nag-frontend-workspace/questions
 })
 export class CoreConceptEditorComponent {
   readonly coreConcept = input<string>('');
+  readonly showWizardTrigger = input<boolean>(false);
   readonly coreConceptChange = output<string>();
+  readonly openWizard = output<void>();
 
   @ViewChild('conceptTextarea') conceptTextarea?: ElementRef<HTMLTextAreaElement>;
 

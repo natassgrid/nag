@@ -5,3 +5,5 @@ export * from './formula-sheet-builder/formula-sheet-builder.component';
 export * from './step-breakdown-builder/step-breakdown-builder.component';
 export * from './quick-check-builder/quick-check-builder.component';
 export * from './lesson-live-preview/lesson-live-preview.component';
+export * from './micro-lesson-wizard-dialog/micro-lesson-wizard-dialog.component';
+
