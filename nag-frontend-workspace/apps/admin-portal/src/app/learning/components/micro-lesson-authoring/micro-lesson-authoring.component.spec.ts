@@ -374,4 +374,121 @@ describe('MicroLessonAuthoringComponent', () => {
     expect(component.selectedSubtopicId()).toBe(2000);
     expect(component.customSubtopicName()).toBe('Alkanes');
   });
+
+  it('should open popup wizard mode with current studio state and sync back when switching to in-page', () => {
+    createComponent();
+    component.coreConcept.set('Initial in-page concept');
+
+    const wizardResult = {
+      action: 'switch-to-inpage' as const,
+      subjects: mockSubjects,
+      topics: mockTopics,
+      subtopics: mockSubtopics,
+      state: {
+        editingLessonId: null,
+        selectedSubjectId: 10,
+        selectedTopicId: 100,
+        selectedSubtopicId: 1000,
+        customSubtopicName: 'Work, Energy & Power',
+        targetExam: 'JEE_ADVANCED',
+        lessonType: 'WORKED_EXAMPLES',
+        difficultyLevel: 'ADVANCED',
+        sequenceNo: 2,
+        estimatedMinutes: 8,
+        status: 'APPROVED',
+        coreConcept: 'Updated concept from wizard $$W = \\Delta K$$',
+        trapAlert: {
+          title: 'Wizard Trap',
+          description: 'Watch signs',
+          commonMistake: 'Sign error',
+          correctApproach: 'Use vectors',
+        },
+        formulaEntries: [
+          { name: 'Work-Energy', latex: '$$W = \\Delta K$$', description: '', variables: [] },
+        ],
+        problemStatement: 'Updated problem stem',
+        steps: [{ stepNumber: 1, title: 'Step 1', explanation: 'Apply theorem', formula: '', tip: '' }],
+        finalAnswer: '$$10\\text{ J}$$',
+        keyTakeaways: ['Takeaway 1'],
+        quickCheckItems: [],
+        reviewerNotes: 'Checked in wizard',
+      },
+    };
+
+    const openSpy = jest.spyOn((component as any).dialog, 'open').mockReturnValue({
+      afterClosed: () => of(wizardResult),
+    } as any);
+
+    component.openWizardMode(1);
+
+    expect(openSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        data: expect.objectContaining({
+          coreConcept: 'Initial in-page concept',
+          initialStep: 1,
+        }),
+      })
+    );
+
+    expect(component.coreConcept()).toBe('Updated concept from wizard $$W = \\Delta K$$');
+    expect(component.targetExam()).toBe('JEE_ADVANCED');
+    expect(component.lessonType()).toBe('WORKED_EXAMPLES');
+    expect(component.difficultyLevel()).toBe('ADVANCED');
+    expect(component.finalAnswer()).toBe('$$10\\text{ J}$$');
+    expect(microLessonServiceMock.createMicroLesson).not.toHaveBeenCalled();
+  });
+
+  it('should save micro-lesson when popup wizard returns action="save"', () => {
+    createComponent();
+
+    const wizardSaveResult = {
+      action: 'save' as const,
+      subjects: mockSubjects,
+      topics: mockTopics,
+      subtopics: mockSubtopics,
+      state: {
+        editingLessonId: null,
+        selectedSubjectId: 10,
+        selectedTopicId: 100,
+        selectedSubtopicId: 1000,
+        customSubtopicName: 'Work, Energy & Power',
+        targetExam: 'JEE_MAIN',
+        lessonType: 'CONCEPT',
+        difficultyLevel: 'CORE',
+        sequenceNo: 1,
+        estimatedMinutes: 5,
+        status: 'APPROVED',
+        coreConcept: 'Wizard saved concept $$F = -\\nabla U$$',
+        trapAlert: {
+          title: 'Conservative Force Trap',
+          description: 'Only for conservative forces',
+          commonMistake: 'Applying to friction',
+          correctApproach: 'Check curl is zero',
+        },
+        formulaEntries: [
+          { name: 'Potential Gradient', latex: '$$F = -\\nabla U$$', description: '', variables: [] },
+        ],
+        problemStatement: 'Find force from U(x)',
+        steps: [{ stepNumber: 1, title: 'Differentiate', explanation: 'Take -dU/dx', formula: '', tip: '' }],
+        finalAnswer: '$$F = -2kx$$',
+        keyTakeaways: ['Conservative only'],
+        quickCheckItems: [],
+        reviewerNotes: '',
+      },
+    };
+
+    jest.spyOn((component as any).dialog, 'open').mockReturnValue({
+      afterClosed: () => of(wizardSaveResult),
+    } as any);
+
+    component.openWizardMode();
+
+    expect(microLessonServiceMock.createMicroLesson).toHaveBeenCalledWith(
+      expect.objectContaining({
+        coreConcept: 'Wizard saved concept $$F = -\\nabla U$$',
+      })
+    );
+    expect(component.feedback()?.type).toBe('success');
+  });
 });

@@ -387,4 +387,118 @@ describe('QuestionsFeatureAuthoring', () => {
     expect(component.selectedTopicId).toBe(20);
     expect(component.selectedSubtopicId).toBe(200);
   });
+
+  // ── WIZARD MODE ───────────────────────────────────────────────────────────
+
+  it('should open popup wizard mode with current in-page state and sync changes back when switching to in-page', async () => {
+    await compileWithRoute();
+    fixture.detectChanges();
+
+    component.selectedSubjectId = 1;
+    component.selectedTopicId = 10;
+    component.selectedSubtopicId = 100;
+    component.content = 'Initial in-page stem';
+
+    const wizardResult = {
+      action: 'switch-to-inpage' as const,
+      subjects: [{ id: 1, name: 'Physics', code: 'PHY' }],
+      topics: [{ id: 10, name: 'Mechanics', code: 'MECH' }],
+      subtopics: [{ id: 100, name: 'Kinematics', code: 'KIN' }],
+      state: {
+        mode: 'STANDALONE' as const,
+        editingQuestionId: null,
+        selectedSubjectId: 1,
+        selectedTopicId: 10,
+        selectedSubtopicId: 100,
+        cognitiveLevel: 'ANALYZE',
+        type: 'MULTIPLE_CHOICE' as const,
+        difficulty: 'HARD' as const,
+        marks: 5,
+        negativeMarks: 1.25,
+        content: 'Updated stem from wizard $$F = ma$$',
+        explanation: 'Updated explanation from wizard',
+        options: [
+          { id: 'A', text: 'Opt A', isCorrect: false },
+          { id: 'B', text: 'Opt B', isCorrect: true },
+          { id: 'C', text: 'Opt C', isCorrect: false },
+          { id: 'D', text: 'Opt D', isCorrect: false },
+        ],
+        passageTitle: '',
+        passageContent: '',
+        subQuestions: [],
+        activeSubQuestionIndex: 0,
+      },
+    };
+
+    const openSpy = jest.spyOn((component as any).dialog, 'open').mockReturnValue({
+      afterClosed: () => of(wizardResult),
+    } as any);
+
+    component.openWizardMode(1);
+
+    expect(openSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        data: expect.objectContaining({
+          content: 'Initial in-page stem',
+          initialStep: 1,
+        }),
+      })
+    );
+
+    expect(component.content).toBe('Updated stem from wizard $$F = ma$$');
+    expect(component.explanation).toBe('Updated explanation from wizard');
+    expect(component.difficulty).toBe('HARD');
+    expect(component.cognitiveLevel).toBe('ANALYZE');
+    expect(component.marks).toBe(5);
+    expect(questionBankMock.createQuestion).not.toHaveBeenCalled();
+  });
+
+  it('should save question when popup wizard returns action="save"', async () => {
+    await compileWithRoute();
+    fixture.detectChanges();
+
+    const wizardSaveResult = {
+      action: 'save' as const,
+      subjects: [{ id: 1, name: 'Physics', code: 'PHY' }],
+      topics: [{ id: 10, name: 'Mechanics', code: 'MECH' }],
+      subtopics: [{ id: 100, name: 'Kinematics', code: 'KIN' }],
+      state: {
+        mode: 'STANDALONE' as const,
+        editingQuestionId: null,
+        selectedSubjectId: 1,
+        selectedTopicId: 10,
+        selectedSubtopicId: 100,
+        cognitiveLevel: 'APPLY',
+        type: 'MULTIPLE_CHOICE' as const,
+        difficulty: 'MEDIUM' as const,
+        marks: 4,
+        negativeMarks: 1,
+        content: 'Wizard saved question $$E = hf$$',
+        explanation: 'Planck relation',
+        options: [
+          { id: 'A', text: '$$hf$$', isCorrect: true },
+          { id: 'B', text: '$$h/f$$', isCorrect: false },
+        ],
+        passageTitle: '',
+        passageContent: '',
+        subQuestions: [],
+        activeSubQuestionIndex: 0,
+      },
+    };
+
+    jest.spyOn((component as any).dialog, 'open').mockReturnValue({
+      afterClosed: () => of(wizardSaveResult),
+    } as any);
+
+    component.openWizardMode();
+
+    expect(questionBankMock.createQuestion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: 'Wizard saved question $$E = hf$$',
+        answerKey: 'A',
+      })
+    );
+    expect(component.feedback()?.type).toBe('success');
+  });
 });

@@ -14,6 +14,16 @@
         <mat-icon class="!w-4 !h-4 !text-base !leading-none flex items-center justify-center shrink-0">add</mat-icon>
         <span class="leading-none">Author New Question</span>
       </a>
+      <a
+        routerLink="/questions/authoring"
+        [queryParams]="{ wizard: 'true' }"
+        data-testid="bank-open-question-wizard-btn"
+        title="Author New Question in Popup Wizard Mode"
+        aria-label="Author New Question in Popup Wizard Mode"
+        class="inline-flex items-center justify-center w-9 h-9 rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 hover:border-indigo-300 transition-all shadow-2xs cursor-pointer"
+      >
+        <mat-icon class="!w-4 !h-4 !text-base !leading-none flex items-center justify-center shrink-0">auto_fix_high</mat-icon>
+      </a>
     </div>
   </nag-page-header>
 

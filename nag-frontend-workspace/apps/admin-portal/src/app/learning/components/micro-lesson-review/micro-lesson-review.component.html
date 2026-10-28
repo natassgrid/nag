@@ -68,6 +68,16 @@
       </button>
       <a
         routerLink="/learning/micro-lessons/authoring"
+        [queryParams]="{ wizard: 'true' }"
+        data-testid="desk-open-microlesson-wizard-btn"
+        title="Author Micro-Lesson in Popup Wizard Mode"
+        aria-label="Author Micro-Lesson in Popup Wizard Mode"
+        class="inline-flex items-center justify-center w-9 h-9 rounded-xl border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 hover:border-purple-300 transition-all shadow-2xs cursor-pointer"
+      >
+        <mat-icon class="!text-base leading-none">auto_fix_high</mat-icon>
+      </a>
+      <a
+        routerLink="/learning/micro-lessons/authoring"
         [queryParams]="{ action: 'prompt-import' }"
         mat-stroked-button
         class="!text-indigo-700 !border-indigo-200 hover:!bg-indigo-50 !rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"

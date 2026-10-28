@@ -45,6 +45,18 @@
         </div>
       }
 
+      <!-- Small Icon Button: Pop up Editor in Wizard Mode -->
+      <button
+        type="button"
+        (click)="openWizardMode()"
+        data-testid="open-question-wizard-btn"
+        title="Open Question Editor in Popup Wizard Mode"
+        aria-label="Open Question Editor in Popup Wizard Mode"
+        class="inline-flex items-center justify-center w-9 h-9 rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 hover:border-indigo-300 transition-all shadow-2xs cursor-pointer"
+      >
+        <mat-icon class="!text-lg leading-none">auto_fix_high</mat-icon>
+      </button>
+
       <button
         mat-stroked-button
         type="button"
@@ -148,6 +160,7 @@
       (contentChange)="content = $event"
       (explanationChange)="explanation = $event"
       (optionsChange)="options = $event"
+      (openWizard)="openWizardMode()"
     />
   }
 

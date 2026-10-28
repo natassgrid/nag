@@ -29,6 +29,7 @@ import {
 import {
   AuthoringMode,
   AuthoringSubQuestion,
+  QuestionWizardDialogResult,
 } from '../models/authoring.model';
 import {
   TaxonomySelectorComponent,
@@ -37,6 +38,7 @@ import {
   QuestionPromptImportDialogComponent,
   QuestionPromptImportDialogResult,
   PromptImportTaxonomySelection,
+  QuestionAuthoringWizardDialogComponent,
 } from '../components';
 import { ImportedQuestion } from '../services/external-prompt.service';
 
@@ -183,6 +185,87 @@ export class QuestionsFeatureAuthoring implements OnInit {
     if (action === 'prompt-import' || action === 'import') {
       setTimeout(() => this.openAiPromptImportDialog(action === 'import' ? 'import' : 'prompt'), 100);
     }
+
+    // Detect wizard query param (?wizard=true)
+    const wizardParam = this.route.snapshot.queryParamMap.get('wizard');
+    if (wizardParam === 'true') {
+      setTimeout(() => this.openWizardMode(), 100);
+    }
+  }
+
+  /**
+   * Opens the popup Question & Passage Authoring Wizard Dialog with current in-page state.
+   */
+  openWizardMode(initialStep = 0): void {
+    const dialogRef = this.dialog.open(QuestionAuthoringWizardDialogComponent, {
+      data: {
+        mode: this.mode(),
+        editingQuestionId: this.editingQuestionId(),
+        subjects: this.subjects(),
+        topics: this.topics(),
+        subtopics: this.subtopics(),
+        selectedSubjectId: this.selectedSubjectId,
+        selectedTopicId: this.selectedTopicId,
+        selectedSubtopicId: this.selectedSubtopicId,
+        cognitiveLevel: this.cognitiveLevel,
+        type: this.type,
+        difficulty: this.difficulty,
+        marks: this.marks,
+        negativeMarks: this.negativeMarks,
+        content: this.content,
+        explanation: this.explanation,
+        options: this.options.map((o) => ({ ...o })),
+        passageTitle: this.passageTitle,
+        passageContent: this.passageContent,
+        subQuestions: this.subQuestions.map((sq) => ({
+          ...sq,
+          options: sq.options.map((o) => ({ ...o })),
+        })),
+        activeSubQuestionIndex: this.activeSubQuestionIndex,
+        initialStep,
+      },
+      width: '1120px',
+      maxWidth: '96vw',
+      panelClass: 'dialog-panel-no-padding',
+    });
+
+    dialogRef.afterClosed().subscribe((result?: QuestionWizardDialogResult | null) => {
+      if (!result || !result.state) return;
+      this.applyWizardResult(result);
+      if (result.action === 'save') {
+        this.saveItem();
+      }
+    });
+  }
+
+  /**
+   * Syncs state from the popup Wizard Dialog back into the in-page Question Editor.
+   */
+  applyWizardResult(result: QuestionWizardDialogResult): void {
+    const s = result.state;
+    if (result.subjects?.length) this.subjects.set(result.subjects);
+    if (result.topics) this.topics.set(result.topics);
+    if (result.subtopics) this.subtopics.set(result.subtopics);
+
+    this.mode.set(s.mode);
+    this.selectedSubjectId = s.selectedSubjectId;
+    this.selectedTopicId = s.selectedTopicId;
+    this.selectedSubtopicId = s.selectedSubtopicId;
+    this.cognitiveLevel = s.cognitiveLevel;
+    this.type = s.type;
+    this.difficulty = s.difficulty;
+    this.marks = s.marks;
+    this.negativeMarks = s.negativeMarks;
+    this.content = s.content;
+    this.explanation = s.explanation;
+    this.options = s.options.map((o) => ({ ...o }));
+    this.passageTitle = s.passageTitle;
+    this.passageContent = s.passageContent;
+    this.subQuestions = s.subQuestions.map((sq) => ({
+      ...sq,
+      options: sq.options.map((o) => ({ ...o })),
+    }));
+    this.activeSubQuestionIndex = s.activeSubQuestionIndex;
   }
 
   /**

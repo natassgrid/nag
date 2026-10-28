@@ -53,6 +53,7 @@ export class StandaloneQuestionFormComponent {
   readonly contentChange = output<string>();
   readonly explanationChange = output<string>();
   readonly optionsChange = output<QuestionOption[]>();
+  readonly openWizard = output<void>();
 
   readonly showFormulaPalette = signal<boolean>(false);
   readonly showExplanationPalette = signal<boolean>(false);

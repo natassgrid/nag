@@ -14,11 +14,12 @@ import {
   DEFAULT_KEY_TAKEAWAYS, DEFAULT_PROBLEM_STATEMENT, DEFAULT_QUICK_CHECKS,
   DEFAULT_STEP_ITEMS, DEFAULT_TRAP_ALERT, TargetExamOption, SubjectTopicFormulaPolicy,
   buildCreateOrUpdateRequest, parseLessonForAuthoring, ParsedAuthoringLessonState,
-  resolveFormulaApplicability,
+  resolveFormulaApplicability, MicroLessonWizardDialogResult,
 } from './models';
 import {
   CoreConceptEditorComponent, FormulaSheetBuilderComponent, LessonLivePreviewComponent,
-  LessonMetadataBarComponent, QuickCheckBuilderComponent, StepBreakdownBuilderComponent, TrapAlertEditorComponent,
+  LessonMetadataBarComponent, QuickCheckBuilderComponent, StepBreakdownBuilderComponent,
+  TrapAlertEditorComponent, MicroLessonWizardDialogComponent,
 } from './components';
 import {
   MicroLessonPromptImportDialogComponent,
@@ -111,6 +112,87 @@ export class MicroLessonAuthoringComponent implements OnInit {
     if (action === 'prompt-import' || action === 'import') {
       setTimeout(() => this.openAiPromptImportDialog(action === 'import' ? 'import' : 'prompt'), 100);
     }
+
+    const wizardParam = this.route.snapshot?.queryParamMap?.get('wizard');
+    if (wizardParam === 'true') {
+      setTimeout(() => this.openWizardMode(), 100);
+    }
+  }
+
+  /**
+   * Opens the popup Micro-Lesson Authoring Wizard Dialog with current studio state.
+   */
+  openWizardMode(initialStep = 0): void {
+    const dialogRef = this.dialog.open(MicroLessonWizardDialogComponent, {
+      data: {
+        editingLessonId: this.editingLessonId(),
+        subjects: this.subjects(),
+        topics: this.topics(),
+        subtopics: this.subtopics(),
+        selectedSubjectId: this.selectedSubjectId(),
+        selectedTopicId: this.selectedTopicId(),
+        selectedSubtopicId: this.selectedSubtopicId(),
+        customSubtopicName: this.customSubtopicName(),
+        examOptions: this.examOptions(),
+        targetExam: this.targetExam(),
+        lessonType: this.lessonType(),
+        difficultyLevel: this.difficultyLevel(),
+        sequenceNo: this.sequenceNo(),
+        estimatedMinutes: this.estimatedMinutes(),
+        status: this.status(),
+        coreConcept: this.coreConcept(),
+        trapAlert: { ...this.trapAlert() },
+        formulaEntries: this.formulaEntries().map((f) => ({ ...f, variables: [...(f.variables || [])] })),
+        problemStatement: this.problemStatement(),
+        steps: this.steps().map((s) => ({ ...s })),
+        finalAnswer: this.finalAnswer(),
+        keyTakeaways: [...this.keyTakeaways()],
+        quickCheckItems: this.quickCheckItems().map((q) => ({ ...q, options: [...(q.options || [])] })),
+        reviewerNotes: this.reviewerNotes(),
+        initialStep,
+      },
+      width: '1160px',
+      maxWidth: '96vw',
+      panelClass: 'dialog-panel-no-padding',
+    });
+
+    dialogRef.afterClosed().subscribe((result?: MicroLessonWizardDialogResult | null) => {
+      if (!result || !result.state) return;
+      this.applyWizardResult(result);
+      if (result.action === 'save') {
+        this.saveLesson();
+      }
+    });
+  }
+
+  /**
+   * Syncs state from the popup Wizard Dialog back into the in-page Micro-Lesson Authoring Studio.
+   */
+  applyWizardResult(result: MicroLessonWizardDialogResult): void {
+    const s = result.state;
+    if (result.subjects?.length) this.subjects.set(result.subjects);
+    if (result.topics) this.topics.set(result.topics);
+    if (result.subtopics) this.subtopics.set(result.subtopics);
+
+    this.selectedSubjectId.set(s.selectedSubjectId);
+    this.selectedTopicId.set(s.selectedTopicId);
+    this.selectedSubtopicId.set(s.selectedSubtopicId);
+    this.customSubtopicName.set(s.customSubtopicName);
+    this.targetExam.set(s.targetExam);
+    this.lessonType.set(s.lessonType);
+    this.difficultyLevel.set(s.difficultyLevel);
+    this.sequenceNo.set(s.sequenceNo);
+    this.estimatedMinutes.set(s.estimatedMinutes);
+    this.status.set(s.status);
+    this.coreConcept.set(s.coreConcept);
+    this.trapAlert.set({ ...s.trapAlert });
+    this.formulaEntries.set(s.formulaEntries.map((f) => ({ ...f, variables: [...(f.variables || [])] })));
+    this.problemStatement.set(s.problemStatement);
+    this.steps.set(s.steps.map((st) => ({ ...st })));
+    this.finalAnswer.set(s.finalAnswer);
+    this.keyTakeaways.set([...s.keyTakeaways]);
+    this.quickCheckItems.set(s.quickCheckItems.map((q) => ({ ...q, options: [...(q.options || [])] })));
+    this.reviewerNotes.set(s.reviewerNotes);
   }
 
   loadTaxonomy(isEditMode: boolean): void {

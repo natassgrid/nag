@@ -1,0 +1,248 @@
+<div class="wizard-dialog-shell flex flex-col max-h-[92vh] w-full bg-white rounded-2xl overflow-hidden shadow-2xl">
+  <!-- Wizard Header -->
+  <div class="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-b border-slate-200 bg-slate-50/80">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center shadow-2xs">
+        <mat-icon class="!text-xl">auto_fix_high</mat-icon>
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <h2 class="text-base font-bold text-slate-900 tracking-tight">
+            {{ editingQuestionId() ? 'Edit Question Wizard' : 'Question & Passage Authoring Wizard' }}
+          </h2>
+          <span class="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full bg-indigo-100 text-indigo-700">
+            Step {{ currentStep() + 1 }} of {{ steps().length }}
+          </span>
+        </div>
+        <p class="text-xs text-slate-500">Guided step-by-step item authoring — switch back to the in-page studio anytime</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2">
+      @if (!editingQuestionId()) {
+        <div class="flex items-center bg-slate-200/70 p-0.5 rounded-xl border border-slate-200">
+          <button type="button" (click)="setMode('STANDALONE')"
+            class="px-2.5 py-1 text-xs font-bold rounded-lg transition-all flex items-center gap-1 cursor-pointer"
+            [ngClass]="mode() === 'STANDALONE' ? 'bg-white text-indigo-600 shadow-2xs' : 'text-slate-600 hover:text-slate-900'">
+            <mat-icon class="!text-sm leading-none">quiz</mat-icon> Standalone
+          </button>
+          <button type="button" (click)="setMode('PASSAGE')"
+            class="px-2.5 py-1 text-xs font-bold rounded-lg transition-all flex items-center gap-1 cursor-pointer"
+            [ngClass]="mode() === 'PASSAGE' ? 'bg-white text-indigo-600 shadow-2xs' : 'text-slate-600 hover:text-slate-900'">
+            <mat-icon class="!text-sm leading-none">auto_stories</mat-icon> Passage Set
+          </button>
+        </div>
+      }
+
+      @if (!isLastStep()) {
+        <button type="button" (click)="showSidePreview.set(!showSidePreview())"
+          class="px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all flex items-center gap-1.5 cursor-pointer"
+          [ngClass]="showSidePreview() ? 'bg-indigo-50 border-indigo-300 text-indigo-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'"
+          title="Toggle live side-by-side preview">
+          <mat-icon class="!text-sm leading-none">visibility</mat-icon>
+          <span>{{ showSidePreview() ? 'Hide Preview' : 'Live Preview' }}</span>
+        </button>
+      }
+
+      <!-- Small Icon Button: Switch back to In-Page Studio -->
+      <button type="button" (click)="switchToInPage()"
+        data-testid="switch-to-inpage-question-btn"
+        title="Switch to In-Page Editor (keep all changes)"
+        aria-label="Switch to In-Page Editor"
+        class="inline-flex items-center justify-center w-9 h-9 rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 hover:border-indigo-300 transition-all cursor-pointer">
+        <mat-icon class="!text-lg leading-none">close_fullscreen</mat-icon>
+      </button>
+
+      <button type="button" (click)="closeWizard()"
+        class="inline-flex items-center justify-center w-9 h-9 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition cursor-pointer"
+        title="Close wizard and sync changes" aria-label="Close wizard">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+  </div>
+
+  <!-- Horizontal Stepper Bar -->
+  <div class="px-6 py-3 bg-white border-b border-slate-200 overflow-x-auto">
+    <div class="flex items-center justify-between gap-2 min-w-max">
+      @for (step of steps(); track step.id; let idx = $index) {
+        <button type="button" (click)="goToStep(idx)"
+          [attr.data-testid]="'question-wizard-step-' + idx"
+          class="flex items-center gap-2.5 px-3.5 py-2 rounded-xl border text-left transition-all cursor-pointer flex-1"
+          [ngClass]="{
+            'border-indigo-600 bg-indigo-50/70 text-indigo-900 shadow-2xs': currentStep() === idx,
+            'border-emerald-200 bg-emerald-50/40 text-emerald-900': currentStep() > idx,
+            'border-slate-200 bg-slate-50/50 text-slate-600 hover:bg-slate-100': currentStep() < idx
+          }">
+          <div class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0"
+            [ngClass]="{
+              'bg-indigo-600 text-white': currentStep() === idx,
+              'bg-emerald-600 text-white': currentStep() > idx,
+              'bg-slate-200 text-slate-700': currentStep() < idx
+            }">
+            @if (currentStep() > idx) {
+              <mat-icon class="!text-sm leading-none">check</mat-icon>
+            } @else {
+              {{ step.stepNumber }}
+            }
+          </div>
+          <div class="min-w-0">
+            <div class="text-xs font-bold truncate">{{ step.title }}</div>
+            <div class="text-[10px] text-slate-500 truncate">{{ step.subtitle }}</div>
+          </div>
+        </button>
+      }
+    </div>
+  </div>
+
+  @if (validationError(); as err) {
+    <div class="mx-6 mt-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 text-xs font-medium flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <mat-icon class="!text-base text-rose-600">error_outline</mat-icon>
+        <span>{{ err }}</span>
+      </div>
+      <button type="button" (click)="validationError.set(null)" class="text-rose-600 hover:text-rose-800">
+        <mat-icon class="!text-sm">close</mat-icon>
+      </button>
+    </div>
+  }
+
+  <!-- Wizard Body -->
+  <div class="flex-1 overflow-y-auto p-6">
+    <div [ngClass]="showSidePreview() && !isLastStep() ? 'grid grid-cols-1 lg:grid-cols-12 gap-6 items-start' : 'space-y-6'">
+      <div [ngClass]="showSidePreview() && !isLastStep() ? 'lg:col-span-7 space-y-5' : 'space-y-5'">
+        @if (mode() === 'STANDALONE') {
+          @switch (currentStep()) {
+            @case (0) {
+              <nag-taxonomy-selector
+                [subjects]="subjects()" [topics]="topics()" [subtopics]="subtopics()"
+                [selectedSubjectId]="selectedSubjectId()" [selectedTopicId]="selectedTopicId()" [selectedSubtopicId]="selectedSubtopicId()"
+                (subjectChange)="onSubjectChange($event)" (topicChange)="onTopicChange($event)" (subtopicChange)="selectedSubtopicId.set($event)"
+                (createSubject)="createQuickSubject($event)" (createTopic)="createQuickTopic($event)" />
+              <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
+                <nag-standalone-taxonomy-scoring
+                  [cognitiveLevel]="cognitiveLevel()" [difficulty]="difficulty()" [type]="type()" [marks]="marks()" [negativeMarks]="negativeMarks()"
+                  (cognitiveLevelChange)="cognitiveLevel.set($event)" (difficultyChange)="difficulty.set($event)" (typeChange)="type.set($event)"
+                  (marksChange)="marks.set($event)" (negativeMarksChange)="negativeMarks.set($event)" />
+              </div>
+            }
+            @case (1) {
+              <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
+                <div class="flex items-center justify-between">
+                  <label for="wizard-content-input" class="text-xs font-bold text-slate-700 uppercase">Problem Statement (Markdown + LaTeX) *</label>
+                  <button type="button" (click)="showFormulaPalette.set(!showFormulaPalette())"
+                    class="px-2.5 py-1 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg flex items-center gap-1">
+                    <mat-icon class="!text-sm leading-none">functions</mat-icon>
+                    <span>{{ showFormulaPalette() ? 'Hide Formula Palette' : 'Insert Math / Chem Symbols' }}</span>
+                  </button>
+                </div>
+                @if (showFormulaPalette()) {
+                  <nag-formula-symbol-palette (symbolSelected)="insertSymbolIntoContent($event)" />
+                }
+                <textarea id="wizard-content-input" [ngModel]="content()" (ngModelChange)="content.set($event)" rows="6"
+                  placeholder="Enter question stem using $$...$$ for LaTeX expressions..."
+                  class="w-full font-mono text-sm p-3.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                <div class="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <span class="text-[11px] font-bold text-slate-400 uppercase block mb-1.5">Rendered Stem Preview</span>
+                  <nag-math-renderer [content]="content()" />
+                </div>
+              </div>
+            }
+            @case (2) {
+              <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs">
+                <nag-standalone-options-editor [options]="options()" [type]="type()" (optionsChange)="options.set($event)" />
+              </div>
+            }
+            @case (3) {
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
+                  <div class="flex items-center justify-between">
+                    <label for="wizard-explanation-input" class="text-xs font-bold text-slate-700 uppercase">Detailed Explanation / Solution Derivation</label>
+                    <button type="button" (click)="showExplanationPalette.set(!showExplanationPalette())"
+                      class="px-2.5 py-1 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg flex items-center gap-1">
+                      <mat-icon class="!text-sm leading-none">functions</mat-icon>
+                      <span>{{ showExplanationPalette() ? 'Hide Symbols' : 'Symbols' }}</span>
+                    </button>
+                  </div>
+                  @if (showExplanationPalette()) {
+                    <nag-formula-symbol-palette (symbolSelected)="insertSymbolIntoExplanation($event)" />
+                  }
+                  <textarea id="wizard-explanation-input" [ngModel]="explanation()" (ngModelChange)="explanation.set($event)" rows="6"
+                    placeholder="Step-by-step derivation or solution explanation..."
+                    class="w-full font-mono text-sm p-3.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                </div>
+                <nag-standalone-live-preview
+                  [difficulty]="difficulty()" [marks]="marks()" [negativeMarks]="negativeMarks()"
+                  [type]="type()" [content]="content()" [options]="options()" [explanation]="explanation()" />
+              </div>
+            }
+          }
+        }
+
+        @if (mode() === 'PASSAGE') {
+          @switch (currentStep()) {
+            @case (0) {
+              <nag-taxonomy-selector
+                [subjects]="subjects()" [topics]="topics()" [subtopics]="subtopics()"
+                [selectedSubjectId]="selectedSubjectId()" [selectedTopicId]="selectedTopicId()" [selectedSubtopicId]="selectedSubtopicId()"
+                (subjectChange)="onSubjectChange($event)" (topicChange)="onTopicChange($event)" (subtopicChange)="selectedSubtopicId.set($event)"
+                (createSubject)="createQuickSubject($event)" (createTopic)="createQuickTopic($event)" />
+              <nag-passage-text-box
+                [passageTitle]="passageTitle()" [passageContent]="passageContent()"
+                (passageTitleChange)="passageTitle.set($event)" (passageContentChange)="passageContent.set($event)" />
+            }
+            @case (1) {
+              <nag-passage-subquestion-editor
+                [subQuestions]="subQuestions()" [activeSubQuestionIndex]="activeSubQuestionIndex()"
+                (subQuestionsChange)="subQuestions.set($event)" (activeSubQuestionIndexChange)="activeSubQuestionIndex.set($event)"
+                (validationError)="validationError.set($event)" />
+            }
+            @case (2) {
+              <nag-passage-preview-viewport
+                [passageTitle]="passageTitle()" [passageContent]="passageContent()"
+                [subQuestions]="subQuestions()" [activeSubQuestionIndex]="activeSubQuestionIndex()" />
+            }
+          }
+        }
+      </div>
+
+      @if (showSidePreview() && !isLastStep()) {
+        <div class="lg:col-span-5">
+          @if (mode() === 'STANDALONE') {
+            <nag-standalone-live-preview
+              [difficulty]="difficulty()" [marks]="marks()" [negativeMarks]="negativeMarks()"
+              [type]="type()" [content]="content()" [options]="options()" [explanation]="explanation()" />
+          } @else {
+            <nag-passage-preview-viewport
+              [passageTitle]="passageTitle()" [passageContent]="passageContent()"
+              [subQuestions]="subQuestions()" [activeSubQuestionIndex]="activeSubQuestionIndex()" />
+          }
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- Wizard Footer -->
+  <div class="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-t border-slate-200 bg-slate-50">
+    <button mat-stroked-button type="button" (click)="switchToInPage()" class="!text-xs font-semibold !border-slate-300">
+      <mat-icon class="!text-sm">close_fullscreen</mat-icon> Continue in In-Page Studio
+    </button>
+
+    <div class="flex items-center gap-2.5">
+      <button mat-stroked-button type="button" (click)="prevStep()" [disabled]="currentStep() === 0">
+        <mat-icon>arrow_back</mat-icon> Previous
+      </button>
+
+      @if (!isLastStep()) {
+        <button mat-flat-button color="primary" type="button" (click)="nextStep()" data-testid="question-wizard-next-btn">
+          <span>Next Step</span> <mat-icon>arrow_forward</mat-icon>
+        </button>
+      }
+
+      <button mat-flat-button color="primary" type="button" (click)="saveFromWizard()" data-testid="question-wizard-save-btn"
+        class="!bg-emerald-600 hover:!bg-emerald-700 !text-white">
+        <mat-icon>save</mat-icon>
+        {{ editingQuestionId() ? 'Update Question' : mode() === 'STANDALONE' ? 'Save Question' : 'Save Passage Set' }}
+      </button>
+    </div>
+  </div>
+</div>

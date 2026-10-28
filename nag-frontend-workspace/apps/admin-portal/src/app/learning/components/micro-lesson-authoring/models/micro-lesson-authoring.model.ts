@@ -6,6 +6,11 @@ import {
   QuickCheckItem,
   TrapAlert,
 } from '../../../models/micro-lesson.model';
+import {
+  Subject,
+  Subtopic,
+  Topic,
+} from '@nag-frontend-workspace/questions-data-access';
 
 export interface TargetExamOption {
   label: string;
@@ -639,3 +644,96 @@ export function buildCreateOrUpdateRequest(params: {
     reviewComments: params.reviewerNotes.trim() || undefined,
   };
 }
+
+export interface MicroLessonWizardStep {
+  id: string;
+  stepNumber: number;
+  title: string;
+  subtitle: string;
+  icon: string;
+}
+
+export const MICRO_LESSON_WIZARD_STEPS: MicroLessonWizardStep[] = [
+  {
+    id: 'metadata',
+    stepNumber: 1,
+    title: 'Metadata & Taxonomy',
+    subtitle: 'Subject, topic, exam & duration',
+    icon: 'tune',
+  },
+  {
+    id: 'core-concept',
+    stepNumber: 2,
+    title: 'Part 1: Core Concept',
+    subtitle: 'Foundational principle & KaTeX',
+    icon: 'lightbulb',
+  },
+  {
+    id: 'trap-alert',
+    stepNumber: 3,
+    title: 'Part 2: Trap Alert',
+    subtitle: 'Exam pitfalls & correct approach',
+    icon: 'warning_amber',
+  },
+  {
+    id: 'formula-sheet',
+    stepNumber: 4,
+    title: 'Part 3: Formula Sheet',
+    subtitle: 'KaTeX equations & variables',
+    icon: 'functions',
+  },
+  {
+    id: 'step-breakdown',
+    stepNumber: 5,
+    title: 'Part 4: Worked Steps',
+    subtitle: 'Problem stem & derivation steps',
+    icon: 'format_list_numbered',
+  },
+  {
+    id: 'takeaways-preview',
+    stepNumber: 6,
+    title: 'Parts 5–6 & Preview',
+    subtitle: 'Quick checks & candidate player',
+    icon: 'visibility',
+  },
+];
+
+export interface MicroLessonWizardState {
+  editingLessonId: string | null;
+  selectedSubjectId: number | null;
+  selectedTopicId: number | null;
+  selectedSubtopicId: number | null;
+  customSubtopicName: string;
+  targetExam: string;
+  lessonType: string;
+  difficultyLevel: string;
+  sequenceNo: number;
+  estimatedMinutes: number;
+  status: string;
+  coreConcept: string;
+  trapAlert: TrapAlert;
+  formulaEntries: FormulaEntry[];
+  problemStatement: string;
+  steps: MicroLessonStep[];
+  finalAnswer: string;
+  keyTakeaways: string[];
+  quickCheckItems: QuickCheckItem[];
+  reviewerNotes: string;
+}
+
+export interface MicroLessonWizardDialogData extends MicroLessonWizardState {
+  subjects: Subject[];
+  topics: Topic[];
+  subtopics: Subtopic[];
+  examOptions: TargetExamOption[];
+  initialStep?: number;
+}
+
+export interface MicroLessonWizardDialogResult {
+  action: 'save' | 'switch-to-inpage' | 'close';
+  state: MicroLessonWizardState;
+  subjects: Subject[];
+  topics: Topic[];
+  subtopics: Subtopic[];
+}
+

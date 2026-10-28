@@ -1,0 +1,194 @@
+<div class="wizard-dialog-shell flex flex-col max-h-[92vh] w-full bg-white rounded-2xl overflow-hidden shadow-2xl">
+  <!-- Wizard Header -->
+  <div class="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-b border-slate-200 bg-slate-50/80">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center shadow-2xs">
+        <mat-icon class="!text-xl">auto_fix_high</mat-icon>
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <h2 class="text-base font-bold text-slate-900 tracking-tight">
+            {{ editingLessonId() ? 'Edit Micro-Lesson Wizard' : 'Micro-Lesson Authoring Wizard' }}
+          </h2>
+          <span class="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full bg-purple-100 text-purple-700">
+            Step {{ currentStep() + 1 }} of {{ stepsList.length }}
+          </span>
+          <span class="hidden sm:inline-flex px-2 py-0.5 text-[10px] font-semibold rounded-md bg-slate-100 text-slate-600 border border-slate-200">
+            {{ resolvedSubjectName() }} &rsaquo; {{ resolvedTopicName() }} &rsaquo; {{ resolvedSubtopicName() }}
+          </span>
+        </div>
+        <p class="text-xs text-slate-500">Guided 6-part remedial micro-lesson builder — switch to in-page studio anytime</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2">
+      @if (!isLastStep()) {
+        <button type="button" (click)="showSidePreview.set(!showSidePreview())"
+          class="px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all flex items-center gap-1.5 cursor-pointer"
+          [ngClass]="showSidePreview() ? 'bg-purple-50 border-purple-300 text-purple-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'"
+          title="Toggle live candidate preview alongside editor">
+          <mat-icon class="!text-sm leading-none">visibility</mat-icon>
+          <span>{{ showSidePreview() ? 'Hide Preview' : 'Live Preview' }}</span>
+        </button>
+      }
+
+      <!-- Small Icon Button: Switch back to In-Page Studio (vice versa) -->
+      <button type="button" (click)="switchToInPage()"
+        data-testid="switch-to-inpage-microlesson-btn"
+        title="Switch to In-Page Studio (keep all changes)"
+        aria-label="Switch to In-Page Studio"
+        class="inline-flex items-center justify-center w-9 h-9 rounded-xl border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 hover:border-purple-300 transition-all cursor-pointer">
+        <mat-icon class="!text-lg leading-none">close_fullscreen</mat-icon>
+      </button>
+
+      <button type="button" (click)="closeWizard()"
+        class="inline-flex items-center justify-center w-9 h-9 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition cursor-pointer"
+        title="Close wizard and sync changes" aria-label="Close wizard">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+  </div>
+
+  <!-- Horizontal Stepper Bar -->
+  <div class="px-6 py-3 bg-white border-b border-slate-200 overflow-x-auto">
+    <div class="flex items-center justify-between gap-2 min-w-max">
+      @for (step of stepsList; track step.id; let idx = $index) {
+        <button type="button" (click)="goToStep(idx)"
+          [attr.data-testid]="'microlesson-wizard-step-' + idx"
+          class="flex items-center gap-2 px-3 py-2 rounded-xl border text-left transition-all cursor-pointer flex-1"
+          [ngClass]="{
+            'border-purple-600 bg-purple-50/70 text-purple-900 shadow-2xs': currentStep() === idx,
+            'border-emerald-200 bg-emerald-50/40 text-emerald-900': currentStep() > idx,
+            'border-slate-200 bg-slate-50/50 text-slate-600 hover:bg-slate-100': currentStep() < idx
+          }">
+          <div class="w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold shrink-0"
+            [ngClass]="{
+              'bg-purple-600 text-white': currentStep() === idx,
+              'bg-emerald-600 text-white': currentStep() > idx,
+              'bg-slate-200 text-slate-700': currentStep() < idx
+            }">
+            @if (currentStep() > idx) {
+              <mat-icon class="!text-xs leading-none">check</mat-icon>
+            } @else {
+              {{ step.stepNumber }}
+            }
+          </div>
+          <div class="min-w-0">
+            <div class="text-xs font-bold truncate">{{ step.title }}</div>
+            <div class="text-[10px] text-slate-500 truncate">{{ step.subtitle }}</div>
+          </div>
+        </button>
+      }
+    </div>
+  </div>
+
+  @if (validationError(); as err) {
+    <div class="mx-6 mt-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 text-xs font-medium flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <mat-icon class="!text-base text-rose-600">error_outline</mat-icon>
+        <span>{{ err }}</span>
+      </div>
+      <button type="button" (click)="validationError.set(null)" class="text-rose-600 hover:text-rose-800">
+        <mat-icon class="!text-sm">close</mat-icon>
+      </button>
+    </div>
+  }
+
+  <!-- Wizard Body -->
+  <div class="flex-1 overflow-y-auto p-6">
+    <div [ngClass]="showSidePreview() && !isLastStep() ? 'grid grid-cols-1 lg:grid-cols-12 gap-6 items-start' : 'space-y-6'">
+      <div [ngClass]="showSidePreview() && !isLastStep() ? 'lg:col-span-7 space-y-5' : 'space-y-5'">
+        @switch (currentStep()) {
+          @case (0) {
+            <app-lesson-metadata-bar
+              [subjects]="subjects()" [topics]="topics()" [subtopics]="subtopics()"
+              [selectedSubjectId]="selectedSubjectId()" [selectedTopicId]="selectedTopicId()" [selectedSubtopicId]="selectedSubtopicId()"
+              [customSubtopicName]="customSubtopicName()" [targetExam]="targetExam()" [lessonType]="lessonType()"
+              [difficultyLevel]="difficultyLevel()" [sequenceNo]="sequenceNo()" [estimatedMinutes]="estimatedMinutes()"
+              [status]="status()" [examOptions]="examOptions()"
+              (subjectChange)="onSubjectChange($event)" (topicChange)="onTopicChange($event)" (subtopicChange)="onSubtopicChange($event)"
+              (createSubject)="createQuickSubject($event)" (createTopic)="createQuickTopic($event)"
+              (customSubtopicNameChange)="customSubtopicName.set($event)" (targetExamChange)="targetExam.set($event)"
+              (lessonTypeChange)="onLessonTypeChange($event)" (difficultyLevelChange)="difficultyLevel.set($event)"
+              (sequenceNoChange)="sequenceNo.set($event)" (estimatedMinutesChange)="estimatedMinutes.set($event)"
+              (statusChange)="status.set($event)" />
+          }
+          @case (1) {
+            <app-core-concept-editor [coreConcept]="coreConcept()" (coreConceptChange)="coreConcept.set($event)" />
+          }
+          @case (2) {
+            <app-trap-alert-editor [trapAlert]="trapAlert()" (trapAlertChange)="trapAlert.set($event)" />
+          }
+          @case (3) {
+            <app-formula-sheet-builder
+              [formulas]="formulaEntries()" [required]="isFormulaRequired()"
+              [applicabilityMode]="formulaPolicy().mode" [applicabilityBadge]="formulaPolicy().badgeLabel"
+              [applicabilityReason]="formulaPolicy().reason" (formulasChange)="formulaEntries.set($event)" />
+          }
+          @case (4) {
+            <app-step-breakdown-builder
+              [problemStatement]="problemStatement()" [steps]="steps()" [finalAnswer]="finalAnswer()"
+              (problemStatementChange)="problemStatement.set($event)" (stepsChange)="steps.set($event)"
+              (finalAnswerChange)="finalAnswer.set($event)" />
+          }
+          @case (5) {
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              <div class="lg:col-span-7">
+                <app-quick-check-builder
+                  [keyTakeaways]="keyTakeaways()" [quickCheckItems]="quickCheckItems()" [reviewerNotes]="reviewerNotes()"
+                  (keyTakeawaysChange)="keyTakeaways.set($event)" (quickCheckItemsChange)="quickCheckItems.set($event)"
+                  (reviewerNotesChange)="reviewerNotes.set($event)" />
+              </div>
+              <div class="lg:col-span-5">
+                <app-lesson-live-preview
+                  [subjectName]="resolvedSubjectName()" [topicName]="resolvedTopicName()" [subtopicName]="resolvedSubtopicName()"
+                  [targetExam]="targetExam()" [lessonType]="lessonType()" [difficultyLevel]="difficultyLevel()"
+                  [estimatedMinutes]="estimatedMinutes()" [status]="status()" [coreConcept]="coreConcept()"
+                  [trapAlert]="trapAlert()" [formulas]="formulaEntries()" [formulaRequired]="isFormulaRequired()"
+                  [problemStatement]="problemStatement()" [steps]="steps()" [finalAnswer]="finalAnswer()"
+                  [keyTakeaways]="keyTakeaways()" [quickCheckItems]="quickCheckItems()" />
+              </div>
+            </div>
+          }
+        }
+      </div>
+
+      @if (showSidePreview() && !isLastStep()) {
+        <div class="lg:col-span-5">
+          <app-lesson-live-preview
+            [subjectName]="resolvedSubjectName()" [topicName]="resolvedTopicName()" [subtopicName]="resolvedSubtopicName()"
+            [targetExam]="targetExam()" [lessonType]="lessonType()" [difficultyLevel]="difficultyLevel()"
+            [estimatedMinutes]="estimatedMinutes()" [status]="status()" [coreConcept]="coreConcept()"
+            [trapAlert]="trapAlert()" [formulas]="formulaEntries()" [formulaRequired]="isFormulaRequired()"
+            [problemStatement]="problemStatement()" [steps]="steps()" [finalAnswer]="finalAnswer()"
+            [keyTakeaways]="keyTakeaways()" [quickCheckItems]="quickCheckItems()" />
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- Wizard Footer -->
+  <div class="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-t border-slate-200 bg-slate-50">
+    <button mat-stroked-button type="button" (click)="switchToInPage()" class="!text-xs font-semibold !border-slate-300">
+      <mat-icon class="!text-sm">close_fullscreen</mat-icon> Continue in In-Page Studio
+    </button>
+
+    <div class="flex items-center gap-2.5">
+      <button mat-stroked-button type="button" (click)="prevStep()" [disabled]="currentStep() === 0">
+        <mat-icon>arrow_back</mat-icon> Previous
+      </button>
+
+      @if (!isLastStep()) {
+        <button mat-flat-button color="primary" type="button" (click)="nextStep()" data-testid="microlesson-wizard-next-btn">
+          <span>Next Step</span> <mat-icon>arrow_forward</mat-icon>
+        </button>
+      }
+
+      <button mat-flat-button color="primary" type="button" (click)="saveFromWizard()" data-testid="microlesson-wizard-save-btn"
+        class="!bg-emerald-600 hover:!bg-emerald-700 !text-white">
+        <mat-icon>save</mat-icon>
+        {{ editingLessonId() ? 'Update Micro-Lesson' : 'Save Micro-Lesson' }}
+      </button>
+    </div>
+  </div>
+</div>
