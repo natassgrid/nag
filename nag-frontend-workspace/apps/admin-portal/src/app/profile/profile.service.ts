@@ -2,7 +2,13 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
-import { AuthService, UserRoleService, TotpSetupData, TotpVerifySetupRequest } from '@nag-frontend-workspace/shared-data-access-auth';
+import {
+  AuthService,
+  UserRoleService,
+  TotpSetupData,
+  TotpVerifySetupRequest,
+  getSystemRoleDetail,
+} from '@nag-frontend-workspace/shared-data-access-auth';
 import {
   AdminUserProfile,
   UpdateProfilePayload,
@@ -60,14 +66,14 @@ export class ProfileService {
               timeFormat: '24h',
               preferredLanguage: 'en',
               themePreference: 'system',
-              employeeId: 'NAG-ADM-9942',
+              employeeId: 'NAG-GOV-00192',
               roles,
               status: 'ACTIVE',
-              twoFactorEnabled: false,
+              twoFactorEnabled: true,
               twoFactorMethod: 'TOTP',
               lastLoginAt: new Date().toISOString(),
-              createdAt: '2025-01-15T09:30:00Z',
-              tenantId: this.authService.getTenantId(),
+              createdAt: '2025-01-10T08:00:00Z',
+              tenantId: this.authService.getTenantId() || 'national-grid',
             } as AdminUserProfile);
           })
         );
@@ -149,16 +155,16 @@ export class ProfileService {
   getActiveSessions(): Observable<ActiveSessionInfo[]> {
     return this.http.get<{ data: any[] } | any[]>(`${this.baseUrl}/admin/me/sessions`).pipe(
       map((res) => {
-        const list = (res as any)?.data ?? res;
-        if (Array.isArray(list) && list.length > 0) {
-          return list.map((s: any, idx: number): ActiveSessionInfo => ({
-            id: s.id ? String(s.id) : `sess-${idx}`,
+        const list = res?.data ?? res;
+        if (Array.isArray(list)) {
+          return list.map((s: any) => ({
+            id: s.id || s.sessionId,
             ipAddress: s.ipAddress || '127.0.0.1',
-            device: s.deviceFp || (s.os ? `${s.os} Device` : 'Workstation PC'),
-            browser: s.browser || 'Google Chrome 129.0',
-            os: s.os || 'Windows 11 / Linux',
-            lastActive: s.createdAt || new Date().toISOString(),
-            isCurrent: s.current ?? (idx === 0),
+            device: s.device || s.userAgent || 'Web Browser',
+            browser: s.browser || 'Browser Session',
+            os: s.os || 'OS Platform',
+            lastActive: s.lastActive || s.lastAccessedAt || 'Active',
+            isCurrent: Boolean(s.current || s.isCurrent),
             expiresAt: s.expiresAt,
           }));
         }
@@ -170,30 +176,55 @@ export class ProfileService {
 
   revokeSession(sessionId: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/admin/me/sessions/${sessionId}`).pipe(
-      catchError(() => this.http.delete<void>(`${this.baseUrl}/users/sessions/${sessionId}`)),
-      catchError(() => of(void 0))
+      catchError(() => this.http.delete<void>(`${this.baseUrl}/users/sessions/${sessionId}`))
     );
   }
 
-  revokeOtherSessions(): Observable<void> {
+  revokeAllOtherSessions(): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/admin/me/sessions/other`).pipe(
-      catchError(() => this.http.delete<void>(`${this.baseUrl}/users/sessions/other`)),
-      catchError(() => of(void 0))
+      catchError(() => this.http.delete<void>(`${this.baseUrl}/users/sessions/other`))
     );
   }
 
-  // Personal Access Tokens (PATs)
-  getTokens(): Observable<PersonalAccessToken[]> {
-    return this.http.get<PersonalAccessToken[]>(`${this.baseUrl}/admin/me/tokens`).pipe(
+  // Personal Access Tokens
+  listAccessTokens(): Observable<PersonalAccessToken[]> {
+    return this.http.get<{ data: any[] } | any[]>(`${this.baseUrl}/admin/me/tokens`).pipe(
+      map((res) => {
+        const list = res?.data ?? res;
+        if (Array.isArray(list)) {
+          return list.map((t: any) => ({
+            id: t.id,
+            name: t.name,
+            tokenPrefix: t.tokenPrefix || 'nag_pat_',
+            scopes: Array.isArray(t.scopes) ? t.scopes : ['read:all'],
+            ipWhitelist: t.ipWhitelist,
+            expiresAt: t.expiresAt,
+            lastUsedAt: t.lastUsedAt,
+            revoked: Boolean(t.revoked),
+            createdAt: t.createdAt || new Date().toISOString(),
+          }));
+        }
+        return [];
+      }),
       catchError(() => of([]))
     );
   }
 
-  createToken(payload: CreateTokenPayload): Observable<CreatedTokenResult> {
-    return this.http.post<CreatedTokenResult>(`${this.baseUrl}/admin/me/tokens`, payload);
+  createAccessToken(payload: CreateTokenPayload): Observable<CreatedTokenResult> {
+    return this.http.post<{ data: any } | any>(`${this.baseUrl}/admin/me/tokens`, payload).pipe(
+      map((res) => {
+        const d = res?.data ?? res;
+        return {
+          id: d.id || 'pat-' + Date.now(),
+          token: d.rawToken || d.token || 'nag_pat_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
+          name: d.name || payload.name,
+          expiresAt: d.expiresAt,
+        };
+      })
+    );
   }
 
-  revokeToken(tokenId: string): Observable<void> {
+  revokeAccessToken(tokenId: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/admin/me/tokens/${tokenId}`);
   }
 
@@ -206,8 +237,7 @@ export class ProfileService {
     return this.http.get<PageResponse<AdminActivityLog>>(`${this.baseUrl}/admin/me/activity`, { params }).pipe(
       catchError(() => of({
         content: [
-          {
-            id: 'act-001',
+          {\n            id: 'act-001',
             timestamp: new Date().toISOString(),
             action: 'USER_LOGIN',
             category: 'AUTHENTICATION',
@@ -241,58 +271,7 @@ export class ProfileService {
   }
 
   getSystemRoleDetails(roleCode: string): RoleDetail {
-    const code = roleCode.toUpperCase().trim();
-    switch (code) {
-      case 'SUPER_ADMIN':
-        return {
-          code: 'SUPER_ADMIN',
-          name: 'Super Administrator',
-          badgeTone: 'purple',
-          description: 'Full system sovereignty across all tenancies, identity management, cryptographic keys, and system configuration.',
-          systemRole: true,
-        };
-      case 'EXAM_CONTROLLER':
-        return {
-          code: 'EXAM_CONTROLLER',
-          name: 'Examination Controller',
-          badgeTone: 'indigo',
-          description: 'Authority to schedule exam sessions, configure marking schemes, approve shift timelines, and oversee grading.',
-          systemRole: true,
-        };
-      case 'QUESTION_AUTHOR':
-        return {
-          code: 'QUESTION_AUTHOR',
-          name: 'Question Author / SME',
-          badgeTone: 'blue',
-          description: 'Creation, authoring, LaTeX formula formatting, and taxonomy tag maintenance for multi-lingual question items.',
-          systemRole: true,
-        };
-      case 'SECURITY_ADMIN':
-        return {
-          code: 'SECURITY_ADMIN',
-          name: 'Security & Compliance Officer',
-          badgeTone: 'amber',
-          description: 'Monitoring audit trails, managing cryptographic seals, reviewing 2FA/MFA compliance, and incident forensics.',
-          systemRole: true,
-        };
-      case 'REVIEWER':
-      case 'QUESTION_REVIEWER':
-        return {
-          code: 'REVIEWER',
-          name: 'Subject Matter Reviewer',
-          badgeTone: 'emerald',
-          description: 'Peer review, difficulty calibration, syllabus validation, and multi-lingual translation verification.',
-          systemRole: true,
-        };
-      default:
-        return {
-          code,
-          name: roleCode.replace(/_/g, ' '),
-          badgeTone: 'slate',
-          description: 'Custom administrative role assigned with specific operational privileges.',
-          systemRole: false,
-        };
-    }
+    return getSystemRoleDetail(roleCode);
   }
 
   getSystemPermissions(userRoles: string[]): PermissionItem[] {

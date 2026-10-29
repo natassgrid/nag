@@ -20,6 +20,9 @@ import {
   AdminInvitePayload,
   CreateRolePayload,
   UserManagementKpiStats,
+  DEFAULT_SYSTEM_ROLES,
+  resolveAvailableRoles,
+  normalizeRoleKey,
 } from '@nag-frontend-workspace/shared-data-access-auth';
 import {
   UserKpiOverviewComponent,
@@ -68,9 +71,13 @@ export class AdminUserManagementComponent implements OnInit {
   editingRole = signal<RoleDefinition | null>(null);
 
   users = signal<AdminUserAccount[]>([]);
-  roles = signal<RoleDefinition[]>([]);
+  roles = signal<RoleDefinition[]>(DEFAULT_SYSTEM_ROLES);
   permissions = signal<PermissionDefinition[]>([]);
   invitations = signal<AdminInvitationItem[]>([]);
+
+  readonly availableFilterRoles = computed<RoleDefinition[]>(() => {
+    return resolveAvailableRoles(this.roles(), this.users());
+  });
 
   readonly kpiStats = computed<UserManagementKpiStats>(() => {
     const userList = this.users();
@@ -92,16 +99,19 @@ export class AdminUserManagementComponent implements OnInit {
   readonly filteredUsers = computed(() => {
     const q = this.searchQuery().toLowerCase().trim();
     const roleFilter = this.selectedRole();
+    const normFilter = normalizeRoleKey(roleFilter);
 
     return this.users().filter((user) => {
       const matchRole =
-        roleFilter === 'ALL' || user.roles.includes(roleFilter);
+        roleFilter === 'ALL' ||
+        (Array.isArray(user.roles) &&
+          user.roles.some((r) => normalizeRoleKey(r) === normFilter));
       const matchQ =
         !q ||
         user.fullName.toLowerCase().includes(q) ||
         user.email.toLowerCase().includes(q) ||
         (user.username && user.username.toLowerCase().includes(q)) ||
-        user.roles.some((r) => r.toLowerCase().includes(q));
+        (Array.isArray(user.roles) && user.roles.some((r) => r.toLowerCase().includes(q)));
 
       return matchRole && matchQ;
     });

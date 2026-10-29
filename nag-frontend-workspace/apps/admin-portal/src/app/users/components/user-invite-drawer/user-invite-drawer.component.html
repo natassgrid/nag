@@ -61,7 +61,7 @@
             Assign RBAC Authority Roles *
           </label>
           <div class="space-y-2">
-            @for (role of roles(); track role.id) {
+            @for (role of roles(); track (role.name || role.id)) {
               <div
                 (click)="toggleRole(role.name)"
                 [ngClass]="{
@@ -81,7 +81,7 @@
                 </div>
                 <div class="grow">
                   <div class="text-xs font-bold text-slate-900 flex items-center justify-between">
-                    <span>{{ role.displayName }}</span>
+                    <span>{{ role.displayName || role.name }}</span>
                     @if (role.systemRole) {
                       <span class="text-[9px] font-bold px-1.5 py-0.2 rounded bg-slate-200 text-slate-700">
                         SYSTEM

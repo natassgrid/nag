@@ -83,7 +83,7 @@
   @if (activeTab() === 'USERS') {
     <nag-user-table-view
       [users]="filteredUsers()"
-      [roles]="roles()"
+      [roles]="availableFilterRoles()"
       [searchQuery]="searchQuery()"
       [selectedRole]="selectedRole()"
       [loading]="loading()"
@@ -111,7 +111,7 @@
   @if (activeTab() === 'INVITATIONS') {
     <nag-invitation-table-view
       [invitations]="invitations()"
-      [roles]="roles()"
+      [roles]="availableFilterRoles()"
       [loading]="loading()"
       (inviteNew)="openInviteDrawer()"
       (resendInvite)="onResendInvite($event)"
@@ -123,7 +123,7 @@
   <nag-user-invite-drawer
     [isOpen]="isInviteDrawerOpen()"
     [isSubmitting]="isSubmittingInvite()"
-    [roles]="roles()"
+    [roles]="availableFilterRoles()"
     (closeDrawer)="closeInviteDrawer()"
     (submitInvite)="onSubmitInvite($event)"
   ></nag-user-invite-drawer>

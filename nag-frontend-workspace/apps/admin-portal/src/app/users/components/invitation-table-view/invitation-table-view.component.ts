@@ -11,6 +11,8 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import {
   AdminInvitationItem,
   RoleDefinition,
+  formatRoleDisplayName,
+  normalizeRoleKey,
 } from '@nag-frontend-workspace/shared-data-access-auth';
 
 @Component({
@@ -36,8 +38,9 @@ export class InvitationTableViewComponent {
   readonly revokeInvite = output<AdminInvitationItem>();
 
   getRoleName(roleKey: string): string {
-    const r = this.roles().find((item) => item.name === roleKey);
-    return r ? r.displayName : roleKey;
+    const norm = normalizeRoleKey(roleKey);
+    const r = this.roles().find((item) => normalizeRoleKey(item.name) === norm);
+    return r ? (r.displayName || r.name) : formatRoleDisplayName(roleKey);
   }
 
   copyToken(token?: string): void {

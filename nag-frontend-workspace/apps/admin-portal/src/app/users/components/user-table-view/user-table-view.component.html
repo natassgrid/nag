@@ -23,8 +23,8 @@
         class="px-3 py-2 text-xs border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500"
       >
         <option value="ALL">All Roles</option>
-        @for (r of roles(); track r.id) {
-          <option [value]="r.name">{{ r.displayName }}</option>
+        @for (r of filterRoles(); track (r.name || r.id)) {
+          <option [value]="r.name">{{ r.displayName || r.name }}</option>
         }
       </select>
 
