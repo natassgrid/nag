@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { UserRoleService } from './user-role.service';
 import { AdminCreateUserPayload, AdminInvitePayload } from '../models/user-management.model';
+import { DEFAULT_SYSTEM_ROLES } from '../models/system-roles.defaults';
 
 describe('UserRoleService', () => {
   let service: UserRoleService;
@@ -96,6 +97,30 @@ describe('UserRoleService', () => {
         },
       ],
     });
+  });
+
+  it('should fallback to DEFAULT_SYSTEM_ROLES when roles API returns empty', (done) => {
+    service.getRoles().subscribe((roles) => {
+      expect(roles.length).toBe(DEFAULT_SYSTEM_ROLES.length);
+      expect(roles.some((r) => r.name === 'SUPER_ADMIN')).toBe(true);
+      done();
+    });
+
+    const req = httpMock.expectOne('/api/v1/identity/roles/definitions?page=0&size=100');
+    expect(req.request.method).toBe('GET');
+    req.flush({ data: [] });
+  });
+
+  it('should fallback to DEFAULT_SYSTEM_ROLES when roles API returns error', (done) => {
+    service.getRoles().subscribe((roles) => {
+      expect(roles.length).toBe(DEFAULT_SYSTEM_ROLES.length);
+      expect(roles.some((r) => r.name === 'SUPER_ADMIN')).toBe(true);
+      done();
+    });
+
+    const req = httpMock.expectOne('/api/v1/identity/roles/definitions?page=0&size=100');
+    expect(req.request.method).toBe('GET');
+    req.error(new ProgressEvent('Network error'));
   });
 
   it('should send admin invite', (done) => {

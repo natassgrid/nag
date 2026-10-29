@@ -19,62 +19,30 @@
 
 package com.examplatform.identity.config;
 
-import com.examplatform.shared.redis.RedisSerializerUtils;
-import io.lettuce.core.ClientOptions;
-import io.lettuce.core.SocketOptions;
+import com.examplatform.shared.redis.RedisConfigUtils;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.serializer.RedisSerializer;
-import org.springframework.data.redis.serializer.StringRedisSerializer;
-
-import java.time.Duration;
 
 @Configuration
 public class RedisConfig {
 
     /**
      * Customise the Lettuce client to disable auto-reconnect.
-     *
-     * By default Lettuce keeps a background reconnect thread alive. When the
-     * service receives SIGTERM, graceful shutdown completes and the Docker
-     * network is torn down, but Lettuce's reconnect thread is still mid-flight
-     * and logs a WARN ("Cannot reconnect... Connection refused") that looks
-     * alarming but is harmless. Disabling auto-reconnect eliminates that noise
-     * because Lettuce will not attempt to re-establish a connection once the
-     * existing one is lost during shutdown.
+     * Eliminates warning noise during graceful container teardown.
      */
     @Bean
     @ConditionalOnMissingBean(LettuceClientConfiguration.class)
     public LettuceClientConfiguration lettuceClientConfiguration() {
-        ClientOptions clientOptions = ClientOptions.builder()
-                .autoReconnect(false)
-                .socketOptions(SocketOptions.builder()
-                        .connectTimeout(Duration.ofSeconds(5))
-                        .build())
-                .build();
-
-        return LettuceClientConfiguration.builder()
-                .clientOptions(clientOptions)
-                .commandTimeout(Duration.ofSeconds(2))
-                .build();
+        return RedisConfigUtils.createDefaultLettuceClientConfiguration();
     }
 
     @Bean
     @ConditionalOnMissingBean(name = "redisTemplate")
     public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory) {
-        RedisSerializer<Object> jsonSerializer = RedisSerializerUtils.jsonSerializer();
-
-        RedisTemplate<String, Object> template = new RedisTemplate<>();
-        template.setConnectionFactory(connectionFactory);
-        template.setKeySerializer(new StringRedisSerializer());
-        template.setValueSerializer(jsonSerializer);
-        template.setHashKeySerializer(new StringRedisSerializer());
-        template.setHashValueSerializer(jsonSerializer);
-        template.afterPropertiesSet();
-        return template;
+        return RedisConfigUtils.createRedisTemplate(connectionFactory);
     }
 }

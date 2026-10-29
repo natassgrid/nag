@@ -21,7 +21,7 @@
 
   <!-- Role Cards Grid -->
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-    @for (role of roles(); track role.id) {
+    @for (role of roles(); track (role.name || role.id)) {
       <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex flex-col justify-between space-y-4 hover:border-purple-300 transition-colors">
         <div class="space-y-2">
           <div class="flex items-center justify-between">
@@ -30,7 +30,7 @@
                 <mat-icon class="!text-lg">shield</mat-icon>
               </span>
               <div>
-                <h4 class="font-bold text-sm text-slate-900 leading-tight">{{ role.displayName }}</h4>
+                <h4 class="font-bold text-sm text-slate-900 leading-tight">{{ role.displayName || role.name }}</h4>
                 <span class="text-[10px] font-mono text-slate-400">{{ role.name }}</span>
               </div>
             </div>
@@ -46,36 +46,35 @@
             }
           </div>
 
-          <p class="text-xs text-slate-600 leading-relaxed min-h-[36px]">
-            {{ role.description }}
+          <p class="text-xs text-slate-600 line-clamp-2">
+            {{ role.description || 'No specific description provided for this operational role.' }}
           </p>
         </div>
 
-        <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
-          <div class="text-[11px] text-slate-500">
-            <span class="font-bold text-slate-800">{{ role.userCount ?? 0 }}</span> Assigned Users
-          </div>
+        <div class="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+          <span class="text-slate-500 font-medium">
+            <span class="font-bold text-slate-800">{{ role.permissions.length }}</span> capabilities
+          </span>
 
           <div class="flex items-center gap-1">
+            <button
+              mat-icon-button
+              (click)="editRole.emit(role)"
+              matTooltip="Edit Role Permissions & Details"
+              class="!w-7 !h-7 !leading-7 text-slate-400 hover:text-slate-700"
+            >
+              <mat-icon class="!text-sm">edit</mat-icon>
+            </button>
+
             @if (!role.systemRole) {
-              <button
-                mat-icon-button
-                (click)="editRole.emit(role)"
-                matTooltip="Edit Custom Role"
-                class="!text-slate-500 hover:!text-purple-600"
-              >
-                <mat-icon class="!text-base">edit</mat-icon>
-              </button>
               <button
                 mat-icon-button
                 (click)="deleteRole.emit(role)"
                 matTooltip="Delete Custom Role"
-                class="!text-slate-500 hover:!text-rose-600"
+                class="!w-7 !h-7 !leading-7 text-rose-400 hover:text-rose-700"
               >
-                <mat-icon class="!text-base">delete</mat-icon>
+                <mat-icon class="!text-sm">delete</mat-icon>
               </button>
-            } @else {
-              <span class="text-[10px] text-slate-400 font-medium italic">Immutable System Core</span>
             }
           </div>
         </div>
@@ -83,52 +82,39 @@
     }
   </div>
 
-  <!-- Permission Matrix Section -->
+  <!-- RBAC Permission Matrix Detailed Table -->
   <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
-    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-3 border-b border-slate-100">
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
       <div>
-        <h4 class="font-bold text-sm text-slate-900">Privilege &amp; Permission Matrix</h4>
-        <p class="text-xs text-slate-500">Cross-reference role authorizations across platform capabilities</p>
+        <h4 class="font-bold text-sm text-slate-900">Fine-Grained Permission Capability Matrix</h4>
+        <p class="text-xs text-slate-500">Cross-reference role grants across operational subsystems</p>
       </div>
 
-      <!-- Category Filter Pills -->
-      <div class="flex flex-wrap gap-1.5 bg-slate-100 p-1 rounded-xl">
-        <button
-          type="button"
-          (click)="selectedCategory.set('ALL')"
-          [ngClass]="{
-            'bg-white text-purple-900 shadow-xs font-bold': selectedCategory() === 'ALL',
-            'text-slate-600': selectedCategory() !== 'ALL'
-          }"
-          class="px-2.5 py-1 rounded-lg text-xs transition cursor-pointer"
+      <!-- Category Filter -->
+      <div class="flex items-center gap-2">
+        <label for="category-filter" class="text-xs text-slate-500 font-semibold">Subsystem:</label>
+        <select
+          id="category-filter"
+          [ngModel]="selectedCategory()"
+          (ngModelChange)="selectedCategory.set($event)"
+          class="px-3 py-1.5 text-xs border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-purple-500"
         >
-          All ({{ permissions().length }})
-        </button>
-        @for (cat of categories(); track cat) {
-          <button
-            type="button"
-            (click)="selectedCategory.set(cat)"
-            [ngClass]="{
-              'bg-white text-purple-900 shadow-xs font-bold': selectedCategory() === cat,
-              'text-slate-600': selectedCategory() !== cat
-            }"
-            class="px-2.5 py-1 rounded-lg text-xs transition cursor-pointer uppercase text-[11px]"
-          >
-            {{ cat }}
-          </button>
-        }
+          <option value="ALL">All Subsystems ({{ permissions().length }})</option>
+          @for (cat of categories(); track cat) {
+            <option [value]="cat">{{ cat }}</option>
+          }
+        </select>
       </div>
     </div>
 
-    <!-- Matrix Table -->
     <div class="overflow-x-auto rounded-xl border border-slate-200">
       <table class="w-full text-xs text-left">
         <thead class="bg-slate-50 text-slate-700 font-bold border-b border-slate-200 text-[10px] uppercase tracking-wider">
           <tr>
             <th class="py-3 px-4 min-w-[220px]">Permission Capability</th>
             <th class="py-3 px-4">Category</th>
-            @for (role of roles(); track role.id) {
-              <th class="py-3 px-3 text-center whitespace-nowrap">{{ role.displayName }}</th>
+            @for (role of roles(); track (role.name || role.id)) {
+              <th class="py-3 px-3 text-center whitespace-nowrap">{{ role.displayName || role.name }}</th>
             }
           </tr>
         </thead>
@@ -147,7 +133,7 @@
                 </span>
               </td>
 
-              @for (role of roles(); track role.id) {
+              @for (role of roles(); track (role.name || role.id)) {
                 <td class="py-3 px-3 text-center">
                   @if (hasPermission(role, perm.name)) {
                     <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 font-bold">

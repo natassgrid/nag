@@ -278,8 +278,8 @@ export class MicroLessonViewerComponent implements OnInit, OnDestroy {
 
   onApproachChange(approach: MicroTutorialApproach): void {
     this.activeApproachId.set(approach.id);
-    this.currentType.set(approach.lessonType);
-    this.currentDifficulty.set(approach.difficultyLevel);
+    this.currentType.set(approach.lessonType as LessonType);
+    this.currentDifficulty.set(approach.difficultyLevel as LessonDifficultyLevel);
     this.lesson.set(approach.lesson);
     this.resetSlideInteractiveState();
   }

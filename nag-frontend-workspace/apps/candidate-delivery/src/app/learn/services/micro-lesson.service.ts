@@ -10,8 +10,13 @@ import {
   QuickCheckItem,
   LessonSlide,
   MicroTutorialApproach,
+  LessonType,
+  LessonDifficultyLevel,
   extractStepsFromLesson,
   extractProblemStatementFromLesson,
+  parseFormulaEntries,
+  parseTrapAlert,
+  parseStepBreakdown,
 } from '../models/micro-lesson.model';
 
 export interface MicroLessonQueryParams {
@@ -33,7 +38,7 @@ export class MicroLessonService {
     subtopicId: number,
     paramsOrTargetExam?: string | MicroLessonQueryParams
   ): Observable<SubtopicMicroLesson[]> {
-    let params = this.buildParams(paramsOrTargetExam);
+    const params = this.buildParams(paramsOrTargetExam);
 
     return this.http
       .get<any>(`${this.apiUrl}/subtopic/${subtopicId}`, { params })
@@ -48,53 +53,60 @@ export class MicroLessonService {
       );
   }
 
-  getPublishedMicroLesson(
-    subtopicId: number,
-    paramsOrTargetExam?: string | MicroLessonQueryParams
-  ): Observable<SubtopicMicroLesson> {
-    const params = this.buildParams(paramsOrTargetExam);
-
+  getMicroLessonById(id: string): Observable<SubtopicMicroLesson> {
     return this.http
-      .get<any>(`${this.apiUrl}/subtopic/${subtopicId}`, { params })
+      .get<any>(`${this.apiUrl}/${id}`)
+      .pipe(map((raw) => this.normalizeMicroLesson(raw)));
+  }
+
+  getMicroLessonBySubtopicAndApproach(
+    subtopicId: number,
+    lessonType?: string,
+    difficulty?: string,
+    targetExam?: string
+  ): Observable<SubtopicMicroLesson> {
+    const query: MicroLessonQueryParams = {};
+    if (lessonType) query.lessonType = lessonType;
+    if (difficulty) query.difficulty = difficulty;
+    if (targetExam) query.targetExam = targetExam;
+
+    const params = this.buildParams(query);
+    return this.http
+      .get<any>(`${this.apiUrl}/subtopic/${subtopicId}/approach`, { params })
+      .pipe(map((raw) => this.normalizeMicroLesson(raw)));
+  }
+
+  getMicroLessonVariants(
+    lessonId: string
+  ): Observable<SubtopicMicroLesson[]> {
+    return this.http
+      .get<any[]>(`${this.apiUrl}/${lessonId}/variants`)
       .pipe(
-        map((raw) => {
-          if (Array.isArray(raw)) {
-            return this.normalizeMicroLesson(raw[0]);
-          }
-          return this.normalizeMicroLesson(raw);
-        })
+        map((rawList) =>
+          Array.isArray(rawList)
+            ? rawList.map((item) => this.normalizeMicroLesson(item))
+            : []
+        )
       );
   }
 
-  private buildParams(paramsOrTargetExam?: string | MicroLessonQueryParams): HttpParams {
+  private buildParams(
+    paramsOrTargetExam?: string | MicroLessonQueryParams
+  ): HttpParams {
     let params = new HttpParams();
+    if (!paramsOrTargetExam) return params;
+
     if (typeof paramsOrTargetExam === 'string') {
-      if (paramsOrTargetExam) {
-        params = params.set('targetExam', paramsOrTargetExam);
-      }
-    } else if (paramsOrTargetExam) {
-      if (paramsOrTargetExam.targetExam) {
-        params = params.set('targetExam', paramsOrTargetExam.targetExam);
-      }
-      if (paramsOrTargetExam.subtopicName) {
-        params = params.set('subtopicName', paramsOrTargetExam.subtopicName);
-      }
-      if (paramsOrTargetExam.topicName) {
-        params = params.set('topicName', paramsOrTargetExam.topicName);
-      }
-      if (paramsOrTargetExam.subjectName) {
-        params = params.set('subjectName', paramsOrTargetExam.subjectName);
-      }
-      if (paramsOrTargetExam.lang) {
-        params = params.set('lang', paramsOrTargetExam.lang);
-        params = params.set('language', paramsOrTargetExam.lang);
-      }
-      if (paramsOrTargetExam.lessonType) {
-        params = params.set('lessonType', paramsOrTargetExam.lessonType);
-      }
-      if (paramsOrTargetExam.difficulty) {
-        params = params.set('difficulty', paramsOrTargetExam.difficulty);
-      }
+      params = params.set('targetExam', paramsOrTargetExam);
+    } else {
+      const q = paramsOrTargetExam;
+      if (q.targetExam) params = params.set('targetExam', q.targetExam);
+      if (q.subtopicName) params = params.set('subtopicName', q.subtopicName);
+      if (q.topicName) params = params.set('topicName', q.topicName);
+      if (q.subjectName) params = params.set('subjectName', q.subjectName);
+      if (q.lang) params = params.set('lang', q.lang);
+      if (q.lessonType) params = params.set('lessonType', q.lessonType);
+      if (q.difficulty) params = params.set('difficulty', q.difficulty);
     }
     return params;
   }
@@ -118,167 +130,26 @@ export class MicroLessonService {
     // 1. Core concept
     const coreConcept: string = rawContent.coreConcept || raw.coreConcept || '';
 
-    // 2. Trap alert
-    let trapAlert: string | TrapAlert =
-      rawContent.trapAlert || raw.trapAlert || raw.trap || '';
-    if (raw.trap && typeof raw.trap === 'string' && !rawContent.trapAlert) {
-      trapAlert = {
-        title: 'Exam Trap & Common Pitfall',
-        description: raw.trap,
-        commonMistake: raw.trap,
-        correctApproach:
-          'Apply the governing formula and verify boundary conditions carefully.',
-      };
-    } else if (typeof trapAlert === 'string' && trapAlert) {
-      trapAlert = {
-        title: 'Exam Trap & Common Pitfall',
-        description: trapAlert,
-        commonMistake: trapAlert,
-        correctApproach:
-          'Apply the governing formula and verify boundary conditions carefully.',
-      };
-    }
+    // 2. Trap alert normalization via shared utility
+    const { trapAlert, structuredTrapAlert } = parseTrapAlert(
+      rawContent.trapAlert || raw.trapAlert || raw.trap,
+      rawContent.stepByStepBreakdown?.structuredTrapAlert || raw.stepByStepBreakdown?.structuredTrapAlert
+    );
 
-    // 3. Formula Cheat Sheet
-    let formulaCheatSheet: string | FormulaEntry[] = [];
-    const richFormulas =
-      Array.isArray(rawContent.formulaCheatSheet) && rawContent.formulaCheatSheet.length > 0
-        ? rawContent.formulaCheatSheet
-        : Array.isArray(raw.formulaCheatSheet) && raw.formulaCheatSheet.length > 0
-        ? raw.formulaCheatSheet
-        : null;
+    // 3. Formula Cheat Sheet normalization via shared utility
+    const { formulaCheatSheet, formulaEntries } = parseFormulaEntries(
+      rawContent.formulaCheatSheet || raw.formulaCheatSheet,
+      rawContent.cheatSheet || raw.cheatSheet
+    );
 
-    if (richFormulas) {
-      formulaCheatSheet = richFormulas.map((f: any, idx: number) => ({
-        name: f.name || f.title || f.namePart || `Formula ${idx + 1}`,
-        latex: f.latex || f.formula || f.expression || f.value || '',
-        description: f.description || f.note || f.usage || '',
-        variables: Array.isArray(f.variables) ? f.variables : [],
-      }));
-    } else if (Array.isArray(raw.cheatSheet) && raw.cheatSheet.length > 0) {
-      formulaCheatSheet = raw.cheatSheet.map((formulaStr: string, idx: number) => {
-        const item = (formulaStr || '').trim();
-        const colonIdx = item.indexOf(':');
-        const firstDollarIdx = item.indexOf('$');
-        const firstSlashIdx = item.indexOf('\\');
-        const hasColon = colonIdx > 0;
-        const colonBeforeDollar = firstDollarIdx === -1 || colonIdx < firstDollarIdx;
-        const colonBeforeSlash = firstSlashIdx === -1 || colonIdx < firstSlashIdx;
-
-        let name = `Key Formula ${idx + 1}`;
-        let latex = item;
-        let desc = '';
-
-        if (hasColon && colonBeforeDollar && colonBeforeSlash) {
-          const namePart = item.substring(0, colonIdx).trim();
-          const latexPart = item.substring(colonIdx + 1).trim();
-          if (namePart && !namePart.includes('$') && !namePart.includes('\\')) {
-            name = namePart;
-            latex = latexPart;
-            desc = namePart;
-          }
-        }
-        return {
-          name,
-          latex,
-          description: desc,
-          variables: [],
-        };
-      });
-    } else if (
-      typeof rawContent.formulaCheatSheet === 'string' &&
-      rawContent.formulaCheatSheet.trim()
-    ) {
-      formulaCheatSheet = rawContent.formulaCheatSheet.trim();
-    } else if (
-      typeof raw.formulaCheatSheet === 'string' &&
-      raw.formulaCheatSheet.trim()
-    ) {
-      formulaCheatSheet = raw.formulaCheatSheet.trim();
-    }
-
-    // 4. Step-by-Step Breakdown
-    const rawBreakdown =
-      rawContent.stepByStepBreakdown || raw.stepByStepBreakdown;
-    const topBreakdownObj =
-      raw.stepByStepBreakdown && !Array.isArray(raw.stepByStepBreakdown)
-        ? raw.stepByStepBreakdown
-        : null;
-    const contentBreakdownObj =
-      rawContent.stepByStepBreakdown && !Array.isArray(rawContent.stepByStepBreakdown)
-        ? rawContent.stepByStepBreakdown
-        : null;
-
-    let breakdown: StepByStepBreakdown = {
-      problemStatement: '',
-      steps: [],
-    };
-
-    if (rawBreakdown || rawContent.problemStatement || raw.problemStatement) {
-      const questionStem =
-        contentBreakdownObj?.questionStem ||
-        contentBreakdownObj?.problemStatement ||
-        rawContent.problemStatement ||
-        rawContent.questionStem ||
-        topBreakdownObj?.questionStem ||
-        topBreakdownObj?.problemStatement ||
-        raw.problemStatement ||
-        '';
-
-      let rawStepsSource: any[] = [];
-      if (Array.isArray(rawContent.stepByStepBreakdown)) {
-        rawStepsSource = rawContent.stepByStepBreakdown;
-      } else if (Array.isArray(contentBreakdownObj?.steps) && contentBreakdownObj.steps.length > 0) {
-        rawStepsSource = contentBreakdownObj.steps;
-      } else if (Array.isArray(contentBreakdownObj?.structuredSteps) && contentBreakdownObj.structuredSteps.length > 0) {
-        rawStepsSource = contentBreakdownObj.structuredSteps;
-      } else if (Array.isArray(raw.stepByStepBreakdown)) {
-        rawStepsSource = raw.stepByStepBreakdown;
-      } else if (Array.isArray(topBreakdownObj?.structuredSteps) && topBreakdownObj.structuredSteps.length > 0) {
-        rawStepsSource = topBreakdownObj.structuredSteps;
-      } else if (Array.isArray(topBreakdownObj?.steps)) {
-        rawStepsSource = topBreakdownObj.steps;
-      }
-
-      const steps: StepItem[] = rawStepsSource.map((st: any, idx: number) => {
-        if (typeof st === 'string') {
-          return {
-            stepNumber: idx + 1,
-            title: `Step ${idx + 1}`,
-            explanation: st,
-            formula: undefined,
-          };
-        }
-        return {
-          stepNumber: st?.stepNumber ?? idx + 1,
-          title: st?.title || `Step ${idx + 1}`,
-          explanation: st?.explanation || (typeof st === 'string' ? st : ''),
-          formula: st?.formula,
-          tip: st?.tip,
-        };
-      });
-
-      let finalAnswer =
-        contentBreakdownObj?.finalAnswer ||
-        rawContent.finalAnswer ||
-        topBreakdownObj?.finalAnswer ||
-        raw.finalAnswer ||
-        '';
-
-      if (!finalAnswer && steps.length > 0) {
-        const lastTip = steps[steps.length - 1].tip || '';
-        if (lastTip.toLowerCase().startsWith('final answer:')) {
-          finalAnswer = lastTip.substring('final answer:'.length).trim();
-        }
-      }
-
-      breakdown = {
-        problemStatement: questionStem,
-        questionStem,
-        steps,
-        finalAnswer,
-      };
-    }
+    // 4. Step-by-Step Breakdown normalization via shared utility
+    const rawBreakdown = rawContent.stepByStepBreakdown || raw.stepByStepBreakdown;
+    const breakdown = parseStepBreakdown(
+      rawBreakdown,
+      rawContent.problemStatement || raw.problemStatement,
+      rawContent.questionStem || raw.questionStem,
+      rawContent.finalAnswer || raw.finalAnswer
+    );
 
     // 5. Key takeaways
     let keyTakeaways: string[] = rawContent.keyTakeaways || [];
@@ -290,11 +161,9 @@ export class MicroLessonService {
           .filter((p: string) => p.length > 0);
         keyTakeaways = parts.slice(0, 3);
         const trapDesc =
-          typeof trapAlert === 'object' && trapAlert
-            ? trapAlert.description
-            : typeof trapAlert === 'string'
-            ? trapAlert
-            : '';
+          structuredTrapAlert?.description ||
+          (typeof trapAlert === 'string' ? trapAlert : '') ||
+          '';
         if (trapDesc) {
           keyTakeaways.push(`Watch out: ${trapDesc}`);
         }
@@ -380,7 +249,9 @@ export class MicroLessonService {
       content: {
         coreConcept,
         trapAlert,
+        structuredTrapAlert,
         formulaCheatSheet,
+        formulaEntries,
         stepByStepBreakdown: breakdown,
         keyTakeaways,
         quickCheckItems,
@@ -397,11 +268,12 @@ export class MicroLessonService {
     const approach = lesson.approachName || this.deriveApproachLabel(lesson.lessonType || 'CONCEPT');
 
     const trapText =
-      typeof lesson.content.trapAlert === 'object' && lesson.content.trapAlert
-        ? lesson.content.trapAlert.description
+      lesson.content.structuredTrapAlert?.description ||
+      (typeof lesson.content.trapAlert === 'object' && lesson.content.trapAlert
+        ? (lesson.content.trapAlert as any).description
         : typeof lesson.content.trapAlert === 'string'
         ? lesson.content.trapAlert
-        : '';
+        : '');
 
     const formulaCount = Array.isArray(lesson.content.formulaCheatSheet)
       ? lesson.content.formulaCheatSheet.length
@@ -495,8 +367,8 @@ export class MicroLessonService {
         description: item.subtopicName || '',
         icon: 'alt_route',
         badge: `Approach ${seq}`,
-        lessonType: item.lessonType || 'CONCEPT',
-        difficultyLevel: item.difficultyLevel || 'CORE',
+        lessonType: (item.lessonType as any) || 'CONCEPT',
+        difficultyLevel: (item.difficultyLevel as any) || 'CORE',
         estimatedMinutes: item.estimatedMinutes || 5,
         lesson: item,
       };

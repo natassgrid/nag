@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   input,
   output,
 } from '@angular/core';
@@ -12,6 +13,9 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import {
   AdminUserAccount,
   RoleDefinition,
+  resolveAvailableRoles,
+  formatRoleDisplayName,
+  normalizeRoleKey,
 } from '@nag-frontend-workspace/shared-data-access-auth';
 
 @Component({
@@ -41,8 +45,14 @@ export class UserTableViewComponent {
   readonly inviteUser = output<void>();
   readonly resetMfa = output<AdminUserAccount>();
 
+  readonly filterRoles = computed<RoleDefinition[]>(() => {
+    return resolveAvailableRoles(this.roles(), this.users());
+  });
+
   getRoleName(roleKey: string): string {
-    const r = this.roles().find((item) => item.name === roleKey);
-    return r ? r.displayName : roleKey;
+    const norm = normalizeRoleKey(roleKey);
+    const list = this.filterRoles();
+    const r = list.find((item) => normalizeRoleKey(item.name) === norm);
+    return r ? (r.displayName || r.name) : formatRoleDisplayName(roleKey);
   }
 }

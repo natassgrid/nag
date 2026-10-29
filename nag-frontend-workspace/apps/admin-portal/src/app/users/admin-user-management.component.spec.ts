@@ -25,9 +25,18 @@ describe('AdminUserManagementComponent', () => {
             username: 'superadmin',
             email: 'admin@nag.gov.in',
             fullName: 'Super Administrator',
-            roleName: 'ROLE_SUPER_ADMIN',
+            roles: ['ROLE_SUPER_ADMIN'],
             status: 'ACTIVE',
             twoFactorEnabled: true,
+          },
+          {
+            id: 'u-2',
+            username: 'controller',
+            email: 'controller@nag.gov.in',
+            fullName: 'Examination Officer',
+            roles: ['EXAM_CONTROLLER'],
+            status: 'ACTIVE',
+            twoFactorEnabled: false,
           },
         ])
       ),
@@ -36,6 +45,7 @@ describe('AdminUserManagementComponent', () => {
           {
             id: 'r-1',
             name: 'ROLE_SUPER_ADMIN',
+            displayName: 'Super Administrator',
             description: 'Full root platform access',
             isSystemRole: true,
             permissions: ['ALL'],
@@ -46,8 +56,8 @@ describe('AdminUserManagementComponent', () => {
       getInvitations: jest.fn().mockReturnValue(of([])),
       getStats: jest.fn().mockReturnValue(
         of({
-          totalUsers: 1,
-          activeUsers: 1,
+          totalUsers: 2,
+          activeUsers: 2,
           totalRoles: 1,
           pendingInvitations: 0,
         })
@@ -71,9 +81,9 @@ describe('AdminUserManagementComponent', () => {
   it('should initialize users, roles, and stats on load', () => {
     expect(mockUserRoleService.getUsers).toHaveBeenCalled();
     expect(mockUserRoleService.getRoles).toHaveBeenCalled();
-    expect(component.users().length).toBe(1);
+    expect(component.users().length).toBe(2);
     expect(component.roles().length).toBe(1);
-    expect(component.kpiStats().totalUsers).toBe(1);
+    expect(component.kpiStats().totalUsers).toBe(2);
   });
 
   it('should switch tabs between USERS, ROLES, and INVITATIONS', () => {
@@ -82,5 +92,26 @@ describe('AdminUserManagementComponent', () => {
 
     component.activeTab.set('INVITATIONS');
     expect(component.activeTab()).toBe('INVITATIONS');
+  });
+
+  it('should compute non-empty availableFilterRoles merging system roles and users', () => {
+    const filterRoles = component.availableFilterRoles();
+    expect(filterRoles.length).toBeGreaterThan(0);
+    const roleNames = filterRoles.map((r) => r.name);
+    expect(roleNames).toContain('SUPER_ADMIN');
+    expect(roleNames).toContain('EXAM_CONTROLLER');
+  });
+
+  it('should filter users by role matching with or without ROLE_ prefix', () => {
+    component.selectedRole.set('SUPER_ADMIN');
+    expect(component.filteredUsers().length).toBe(1);
+    expect(component.filteredUsers()[0].id).toBe('u-1');
+
+    component.selectedRole.set('EXAM_CONTROLLER');
+    expect(component.filteredUsers().length).toBe(1);
+    expect(component.filteredUsers()[0].id).toBe('u-2');
+
+    component.selectedRole.set('ALL');
+    expect(component.filteredUsers().length).toBe(2);
   });
 });

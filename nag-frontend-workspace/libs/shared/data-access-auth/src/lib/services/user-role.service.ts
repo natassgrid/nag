@@ -13,6 +13,10 @@ import {
   AdminInvitationItem,
   AdminInvitePayload,
 } from '../models/user-management.model';
+import {
+  DEFAULT_SYSTEM_ROLES,
+  formatRoleDisplayName,
+} from '../models/system-roles.defaults';
 
 function mapPermissionCategory(moduleStr: string): PermissionDefinition['category'] {
   const mod = (moduleStr || '').toUpperCase();
@@ -26,12 +30,15 @@ function mapPermissionCategory(moduleStr: string): PermissionDefinition['categor
 }
 
 function mapBackendRole(r: any): RoleDefinition {
+  const code = r.code || r.name || '';
+  const rawName = r.name || r.code || '';
+  const displayName = rawName && rawName !== code ? rawName : formatRoleDisplayName(code);
   return {
-    id: r.id ? String(r.id) : '',
-    name: r.code || r.name,
-    displayName: r.name || r.code,
+    id: r.id ? String(r.id) : `role-${code.toLowerCase()}`,
+    name: code,
+    displayName: displayName || code,
     description: r.description || '',
-    systemRole: Boolean(r.systemRole),
+    systemRole: Boolean(r.systemRole || r.isSystemRole),
     permissions: Array.isArray(r.permissions)
       ? r.permissions.map((p: any) => (typeof p === 'string' ? p : p.code || p.name))
       : [],
@@ -160,12 +167,12 @@ export class UserRoleService {
     return this.http.get<{ data: any } | any>('/api/v1/identity/roles/definitions?page=0&size=100').pipe(
       map((res) => {
         const list = (res as any)?.data?.content ?? (res as any)?.data ?? res;
-        if (Array.isArray(list)) {
+        if (Array.isArray(list) && list.length > 0) {
           return list.map(mapBackendRole);
         }
-        return [];
+        return DEFAULT_SYSTEM_ROLES;
       }),
-      catchError(() => of([]))
+      catchError(() => of(DEFAULT_SYSTEM_ROLES))
     );
   }
 
@@ -184,10 +191,10 @@ export class UserRoleService {
   }
 
   updateRole(roleId: string, payload: UpdateRolePayload): Observable<RoleDefinition> {
-    const body = {
-      name: payload.displayName,
-      description: payload.description,
-    };
+    const body: any = {};
+    if (payload.displayName) body.name = payload.displayName;
+    if (payload.description) body.description = payload.description;
+
     return this.http.put<{ data: any } | any>(`/api/v1/identity/roles/definitions/${roleId}`, body).pipe(
       map((res) => {
         const r = (res as any)?.data ?? res;
@@ -196,19 +203,16 @@ export class UserRoleService {
     );
   }
 
-  deleteRole(roleId: string): Observable<boolean> {
-    return this.http.delete<void>(`/api/v1/identity/roles/definitions/${roleId}`).pipe(
-      map(() => true),
-      catchError(() => of(false))
-    );
+  deleteRole(roleId: string): Observable<void> {
+    return this.http.delete<void>(`/api/v1/identity/roles/definitions/${roleId}`);
   }
 
-  // ─── Permissions API (Direct from backend /api/v1/identity/roles/permissions)
+  // ─── Permissions API ───────────────────────────────────────────────────────
 
   getPermissions(): Observable<PermissionDefinition[]> {
-    return this.http.get<{ data: any } | any>('/api/v1/identity/roles/permissions?page=0&size=100').pipe(
+    return this.http.get<{ data: any } | any>('/api/v1/identity/roles/permissions').pipe(
       map((res) => {
-        const list = (res as any)?.data?.content ?? (res as any)?.data ?? res;
+        const list = (res as any)?.data ?? res;
         if (Array.isArray(list)) {
           return list.map(mapBackendPermission);
         }
@@ -218,22 +222,36 @@ export class UserRoleService {
     );
   }
 
-  // ─── Invitations API ──────────────────────────────────────────────────────
+  // ─── User Role Assignments ─────────────────────────────────────────────────
+
+  assignRole(userId: string, roleCode: string): Observable<void> {
+    return this.http.post<void>(`/api/v1/identity/roles/users/${userId}/assign`, { roleCode });
+  }
+
+  revokeRole(userId: string, roleCode: string): Observable<void> {
+    return this.http.post<void>(`/api/v1/identity/roles/users/${userId}/revoke`, { roleCode });
+  }
+
+  // ─── Invitations API ───────────────────────────────────────────────────────
 
   getInvitations(): Observable<AdminInvitationItem[]> {
     return this.http.get<{ data: any[] } | any[]>('/api/v1/identity/invitations').pipe(
       map((res) => {
         const list = (res as any)?.data?.content ?? (res as any)?.data ?? res;
         if (Array.isArray(list)) {
-          return list.map((i: any) => ({
+          return list.map((i: any): AdminInvitationItem => ({
             id: i.id ? String(i.id) : '',
-            email: i.email || '',
-            fullName: i.fullName || '',
-            assignedRoles: Array.isArray(i.assignedRoles) ? i.assignedRoles : [],
+            email: i.email,
+            fullName: i.fullName || i.name || i.email,
+            assignedRoles: Array.isArray(i.roles)
+              ? i.roles
+              : Array.isArray(i.assignedRoles)
+              ? i.assignedRoles
+              : [],
             status: i.status || 'PENDING',
             expiresAt: i.expiresAt || '',
             createdAt: i.createdAt || '',
-            invitationToken: i.invitationToken || '',
+            invitationToken: i.invitationToken || i.token || '',
           }));
         }
         return [];
@@ -250,7 +268,7 @@ export class UserRoleService {
           id: i.id ? String(i.id) : '',
           email: i.email || payload.email,
           fullName: i.fullName || payload.fullName,
-          assignedRoles: i.assignedRoles || payload.assignedRoles,
+          assignedRoles: i.assignedRoles || payload.assignedRoles || [],
           status: i.status || 'PENDING',
           expiresAt: i.expiresAt || '',
           createdAt: i.createdAt || new Date().toISOString(),
@@ -260,10 +278,15 @@ export class UserRoleService {
     );
   }
 
-  revokeInvitation(invitationId: string): Observable<boolean> {
-    return this.http.delete<void>(`/api/v1/identity/invitations/${invitationId}`).pipe(
-      map(() => true),
-      catchError(() => of(false))
-    );
+  resendInvitation(invitationId: string): Observable<void> {
+    return this.http.post<void>(`/api/v1/identity/invitations/${invitationId}/resend`, {});
+  }
+
+  revokeInvitation(invitationId: string): Observable<void> {
+    return this.http.delete<void>(`/api/v1/identity/invitations/${invitationId}`);
+  }
+
+  resetUserMfa(userId: string): Observable<void> {
+    return this.http.post<void>(`/api/v1/identity/users/${userId}/mfa/reset`, {});
   }
 }
