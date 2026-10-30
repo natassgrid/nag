@@ -33,11 +33,12 @@ export function parseLessonForAuthoring(
 ): ParsedAuthoringLessonState {
   const coreConcept = lesson.content?.coreConcept || lesson.coreConcept || '';
 
+  const rawTrap = lesson.content?.trapAlert || lesson.trap || '';
   let trapAlert: TrapAlert = {
     title: 'Exam Trap & Common Pitfall',
-    description: lesson.content?.trapAlert || lesson.trap || '',
-    commonMistake: '',
-    correctApproach: '',
+    description: typeof rawTrap === 'string' ? rawTrap : rawTrap?.description || '',
+    commonMistake: typeof rawTrap === 'object' && rawTrap?.commonMistake ? rawTrap.commonMistake : '',
+    correctApproach: typeof rawTrap === 'object' && rawTrap?.correctApproach ? rawTrap.correctApproach : '',
   };
   if (lesson.content?.structuredTrapAlert) {
     trapAlert = {
@@ -56,12 +57,19 @@ export function parseLessonForAuthoring(
       description: f.description || '',
       variables: f.variables ? [...f.variables] : [],
     }));
-  } else if (lesson.content?.formulaCheatSheet) {
-    const blocks = lesson.content.formulaCheatSheet
+  } else if (Array.isArray(lesson.content?.formulaCheatSheet)) {
+    formulaEntries = (lesson.content.formulaCheatSheet as any[]).map((f: any, idx: number) => ({
+      name: f.name || `Formula ${idx + 1}`,
+      latex: f.latex || f.expression || (typeof f === 'string' ? f : ''),
+      description: f.description || f.notes || '',
+      variables: f.variables ? [...f.variables] : [],
+    }));
+  } else if (typeof lesson.content?.formulaCheatSheet === 'string') {
+    const blocks: string[] = lesson.content.formulaCheatSheet
       .split('\n\n')
-      .map((s) => s.trim())
+      .map((s: string) => s.trim())
       .filter(Boolean);
-    formulaEntries = blocks.map((b, idx) => {
+    formulaEntries = blocks.map((b: string, idx: number) => {
       const colonIdx = b.indexOf(':');
       const firstDollarIdx = b.indexOf('$');
       const firstSlashIdx = b.indexOf('\\');
@@ -108,7 +116,7 @@ export function parseLessonForAuthoring(
   const finalAnswer = bd?.finalAnswer || '';
   const steps: MicroLessonStep[] =
     bd?.steps && bd.steps.length > 0
-      ? bd.steps.map((s, idx) => ({
+      ? bd.steps.map((s: MicroLessonStep, idx: number) => ({
           stepNumber: idx + 1,
           title: s.title || `Step ${idx + 1}`,
           explanation: s.explanation || '',

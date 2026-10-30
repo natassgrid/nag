@@ -19,8 +19,8 @@ import {
   LearnerProfile,
   LearnerEducationLevel,
   LearnerPriorExperience,
-  LessonType,
 } from '../../models/learner.model';
+import { LessonType } from '../../models/micro-lesson.model';
 
 @Component({
   selector: 'app-onboarding-profile',

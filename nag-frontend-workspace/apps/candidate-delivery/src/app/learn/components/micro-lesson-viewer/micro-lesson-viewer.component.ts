@@ -28,8 +28,9 @@ import {
   TutorAvatarState,
   createSlidesFromLesson,
   extractStepsFromLesson,
+  LessonType,
+  LessonDifficultyLevel,
 } from '../../models/micro-lesson.model';
-import { LessonType, LessonDifficultyLevel } from '../../models/learner.model';
 import { MicroLessonService, MicroLessonQueryParams } from '../../services/micro-lesson.service';
 import { AdaptiveLearningService } from '../../services/adaptive-learning.service';
 import { LearningPathService } from '../../services/learning-path.service';
@@ -246,14 +247,14 @@ export class MicroLessonViewerComponent implements OnInit, OnDestroy {
 
   private fallbackPublishedLesson(subtopicId: number, params: MicroLessonQueryParams): void {
     this.microLessonService.getPublishedMicroLesson(subtopicId, params).subscribe({
-      next: (data) => {
+      next: (data: SubtopicMicroLesson) => {
         if (data) {
           this.allVariants.set([data]);
           this.applyActiveLesson(data, [data]);
         }
         this.loading.set(false);
       },
-      error: (err) => {
+      error: (err: any) => {
         this.error.set(err?.error?.message || 'Micro-lesson content is being generated for this subtopic.');
         this.loading.set(false);
       },

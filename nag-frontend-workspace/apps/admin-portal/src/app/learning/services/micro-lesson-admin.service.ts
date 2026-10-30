@@ -16,6 +16,7 @@ import {
   MicroLessonTranslation,
   MicroLessonBatchTranslationRequest,
   MicroLessonBatchTranslationJob,
+  FormulaEntry,
   adaptToReviewItem,
 } from '../models/micro-lesson.model';
 
@@ -181,19 +182,29 @@ export class MicroLessonAdminService {
     };
     if (req.updatedContent) {
       payload.coreConcept = req.updatedContent.coreConcept;
-      payload.trap = req.updatedContent.trapAlert;
-      payload.trapAlert = req.updatedContent.trapAlert;
+      if (req.updatedContent.trapAlert) {
+        payload.trapAlert = req.updatedContent.trapAlert;
+        payload.trap = typeof req.updatedContent.trapAlert === 'string'
+          ? req.updatedContent.trapAlert
+          : req.updatedContent.trapAlert.description;
+      }
       if (req.updatedContent.formulaCheatSheet) {
-        payload.cheatSheet = req.updatedContent.formulaCheatSheet
-          .split('\n\n')
-          .map((s) => s.trim())
-          .filter((s) => s.length > 0);
+        if (typeof req.updatedContent.formulaCheatSheet === 'string') {
+          payload.cheatSheet = req.updatedContent.formulaCheatSheet
+            .split('\n\n')
+            .map((s: string) => s.trim())
+            .filter((s: string) => s.length > 0);
+        } else if (Array.isArray(req.updatedContent.formulaCheatSheet)) {
+          payload.cheatSheet = req.updatedContent.formulaCheatSheet.map((f: FormulaEntry) =>
+            typeof f === 'string' ? f : `${f.name ? f.name + ': ' : ''}${f.latex || ''} ${f.description ? '(' + f.description + ')' : ''}`.trim()
+          );
+        }
       }
       if (req.updatedContent.stepByStepBreakdown) {
         payload.stepByStepBreakdown = {
           questionStem: req.updatedContent.stepByStepBreakdown.problemStatement,
           steps: req.updatedContent.stepByStepBreakdown.steps.map(
-            (s) => s.explanation || s.title
+            (s: any) => s.explanation || s.title || s
           ),
           finalAnswer: req.updatedContent.stepByStepBreakdown.finalAnswer,
         };
@@ -313,4 +324,3 @@ export class MicroLessonAdminService {
     );
   }
 }
-

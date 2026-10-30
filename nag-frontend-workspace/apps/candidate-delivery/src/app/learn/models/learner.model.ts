@@ -1,3 +1,5 @@
+import type { LessonType, LessonDifficultyLevel } from './micro-lesson.model';
+
 export type LearnerEducationLevel =
   | 'HIGH_SCHOOL'
   | 'UNDERGRADUATE'
@@ -6,16 +8,6 @@ export type LearnerEducationLevel =
   | 'OTHER';
 
 export type LearnerPriorExperience = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
-
-export type LessonType =
-  | 'CONCEPT'
-  | 'WORKED_EXAMPLES'
-  | 'TRAPS_AND_PITFALLS'
-  | 'CHEAT_SHEET'
-  | 'VISUAL'
-  | 'QUICK_RECAP';
-
-export type LessonDifficultyLevel = 'FOUNDATION' | 'CORE' | 'ADVANCED';
 
 export interface LearnerProfile {
   candidateId: string;

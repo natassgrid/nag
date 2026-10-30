@@ -121,11 +121,11 @@ export class MicroLessonTranslationPanelComponent {
           return [...filtered, translated];
         });
         this.translationUpdated.emit(translated);
-        this.statusMessage.set(`Successfully translated into ${this.activeLanguageObj().name} via IndicTrans2.`);
+        this.statusMessage.set(`Translation generated in ${this.activeLanguageObj().name}`);
       },
       error: (err) => {
         this.isTranslating.set(false);
-        this.statusMessage.set(err?.error?.message || 'Auto-translation failed.');
+        this.statusMessage.set(err?.error?.message || 'Failed to generate translation.');
       },
     });
   }
@@ -136,7 +136,7 @@ export class MicroLessonTranslationPanelComponent {
 
     this.isModerating.set(true);
     this.microLessonService
-      .approveTranslation(trans.id, this.reviewComments() || 'Approved by faculty.')
+      .approveTranslation(trans.id, this.reviewComments() || undefined)
       .subscribe({
         next: (updated) => {
           this.isModerating.set(false);
@@ -169,6 +169,31 @@ export class MicroLessonTranslationPanelComponent {
         this.statusMessage.set(err?.error?.message || 'Failed to reject translation.');
       },
     });
+  }
+
+  getTrapContent(item: MicroLessonReviewItem): string {
+    const trap = item.content?.trapAlert || item.trap;
+    if (typeof trap === 'string') return trap || '';
+    if (trap && typeof trap === 'object') return trap.description || '';
+    return '';
+  }
+
+  getFormulaContent(item: MicroLessonReviewItem): string {
+    const formulas = item.content?.formulaCheatSheet;
+    if (typeof formulas === 'string') return formulas || '';
+    if (Array.isArray(formulas)) {
+      return formulas
+        .map((f: any) =>
+          typeof f === 'string'
+            ? f
+            : `${f.name ? f.name + ': ' : ''}${f.latex || f.expression || ''}`.trim()
+        )
+        .join('\n\n');
+    }
+    if (Array.isArray(item.cheatSheet)) {
+      return item.cheatSheet.join('\n\n');
+    }
+    return '';
   }
 
   private updateTranslationInList(updated: MicroLessonTranslation): void {

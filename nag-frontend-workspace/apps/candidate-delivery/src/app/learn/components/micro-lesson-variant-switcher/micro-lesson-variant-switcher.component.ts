@@ -8,11 +8,12 @@ import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
-import { LessonType, LessonDifficultyLevel } from '../../models/learner.model';
 import {
   MicroTutorialApproach,
   SUPPORTED_MICROLESSON_LANGUAGES,
   MicroLessonLanguage,
+  LessonType,
+  LessonDifficultyLevel,
 } from '../../models/micro-lesson.model';
 
 @Component({

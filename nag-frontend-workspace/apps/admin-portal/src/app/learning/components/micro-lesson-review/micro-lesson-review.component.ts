@@ -574,11 +574,26 @@ export class MicroLessonReviewComponent implements OnInit, OnDestroy {
 
   startEditing(lesson: MicroLessonReviewItem) {
     this.editedCoreConcept.set(lesson.content?.coreConcept || lesson.coreConcept || '');
-    this.editedTrapAlert.set(lesson.content?.trapAlert || lesson.trap || '');
-    this.editedFormulaCheatSheet.set(
-      lesson.content?.formulaCheatSheet ||
-      (Array.isArray(lesson.cheatSheet) ? lesson.cheatSheet.join('\n\n') : '')
-    );
+    const rawTrap = lesson.content?.trapAlert || lesson.trap || '';
+    const trapText = typeof rawTrap === 'string' ? rawTrap : rawTrap?.description || '';
+    this.editedTrapAlert.set(trapText);
+
+    const rawFormula = lesson.content?.formulaCheatSheet;
+    let formulaText = '';
+    if (typeof rawFormula === 'string') {
+      formulaText = rawFormula;
+    } else if (Array.isArray(rawFormula)) {
+      formulaText = rawFormula
+        .map((f: any) =>
+          typeof f === 'string'
+            ? f
+            : `${f.name ? f.name + ': ' : ''}${f.latex || f.expression || ''}`.trim()
+        )
+        .join('\n\n');
+    } else if (Array.isArray(lesson.cheatSheet)) {
+      formulaText = lesson.cheatSheet.join('\n\n');
+    }
+    this.editedFormulaCheatSheet.set(formulaText);
     this.isEditingContent.set(true);
   }
 
