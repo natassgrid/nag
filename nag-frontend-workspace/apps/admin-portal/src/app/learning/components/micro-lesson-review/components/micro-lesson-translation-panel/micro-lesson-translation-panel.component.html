@@ -118,7 +118,7 @@
             <div>
               <p class="text-[10px] font-bold text-amber-600 uppercase">2. Trap Alert</p>
               <div class="text-xs text-slate-800 mt-1">
-                <nag-math-renderer [content]="item.content.trapAlert || item.trap || ''"></nag-math-renderer>
+                <nag-math-renderer [content]="getTrapContent(item)"></nag-math-renderer>
               </div>
             </div>
 
@@ -126,7 +126,7 @@
             <div>
               <p class="text-[10px] font-bold text-emerald-600 uppercase">3. Cheat Sheet</p>
               <div class="text-xs text-slate-800 mt-1">
-                <nag-math-renderer [content]="item.content.formulaCheatSheet || ''"></nag-math-renderer>
+                <nag-math-renderer [content]="getFormulaContent(item)"></nag-math-renderer>
               </div>
             </div>
           </div>

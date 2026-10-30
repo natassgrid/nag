@@ -34,6 +34,23 @@ export class MicroLessonService {
   private readonly http = inject(HttpClient);
   private readonly apiUrl = '/api/micro-lessons';
 
+  getPublishedMicroLesson(
+    subtopicId: number,
+    paramsOrTargetExam?: string | MicroLessonQueryParams
+  ): Observable<SubtopicMicroLesson> {
+    const params = this.buildParams(paramsOrTargetExam);
+    return this.http
+      .get<any>(`${this.apiUrl}/subtopic/${subtopicId}`, { params })
+      .pipe(
+        map((raw) => {
+          if (Array.isArray(raw)) {
+            return this.normalizeMicroLesson(raw[0]);
+          }
+          return this.normalizeMicroLesson(raw);
+        })
+      );
+  }
+
   getMicroLessonsBySubtopic(
     subtopicId: number,
     paramsOrTargetExam?: string | MicroLessonQueryParams

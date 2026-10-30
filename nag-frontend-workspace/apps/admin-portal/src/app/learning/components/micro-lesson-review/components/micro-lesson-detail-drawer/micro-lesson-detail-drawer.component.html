@@ -97,7 +97,7 @@
             </div>
           } @else {
             <div class="text-xs text-amber-900 leading-relaxed">
-              <nag-math-renderer [content]="item.content.trapAlert || item.trap || 'No trap warnings recorded.'"></nag-math-renderer>
+              <nag-math-renderer [content]="getTrapContent(item)"></nag-math-renderer>
             </div>
           }
         </div>
@@ -114,13 +114,13 @@
             </div>
           } @else {
             <div class="text-xs text-slate-800 leading-relaxed">
-              <nag-math-renderer [content]="item.content.formulaCheatSheet || 'No formulas provided.'"></nag-math-renderer>
+              <nag-math-renderer [content]="getFormulaContent(item)"></nag-math-renderer>
             </div>
           }
         </div>
 
         <!-- 4. Step-by-Step Breakdown -->
-        @if (item.content.stepByStepBreakdown; as breakdown) {
+        @if (parsedBreakdown(); as breakdown) {
           <div class="bg-purple-50/40 rounded-xl p-4 border border-purple-100 space-y-3">
             <h3 class="text-xs font-bold uppercase tracking-wider text-purple-700 flex items-center gap-1.5">
               <mat-icon class="!text-sm">format_list_numbered</mat-icon> 4. Exemplar Breakdown

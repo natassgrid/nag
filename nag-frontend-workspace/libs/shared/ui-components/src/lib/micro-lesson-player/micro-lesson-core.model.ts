@@ -108,7 +108,7 @@ export interface MicroLessonContent {
   structuredTrapAlert?: TrapAlert;
   formulaCheatSheet: string | FormulaEntry[];
   formulaEntries?: FormulaEntry[];
-  stepByStepBreakdown: StepByStepBreakdown | StepItem[];
+  stepByStepBreakdown?: StepByStepBreakdown;
   problemStatement?: string;
   questionStem?: string;
   finalAnswer?: string;

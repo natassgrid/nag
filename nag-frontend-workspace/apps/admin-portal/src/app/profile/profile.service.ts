@@ -155,8 +155,8 @@ export class ProfileService {
   getActiveSessions(): Observable<ActiveSessionInfo[]> {
     return this.http.get<{ data: any[] } | any[]>(`${this.baseUrl}/admin/me/sessions`).pipe(
       map((res) => {
-        const list = res?.data ?? res;
-        if (Array.isArray(list)) {
+        const list = Array.isArray(res) ? res : (res as any)?.data ?? [];
+        if (Array.isArray(list) && list.length > 0) {
           return list.map((s: any) => ({
             id: s.id || s.sessionId,
             ipAddress: s.ipAddress || '127.0.0.1',
@@ -186,11 +186,15 @@ export class ProfileService {
     );
   }
 
+  revokeOtherSessions(): Observable<void> {
+    return this.revokeAllOtherSessions();
+  }
+
   // Personal Access Tokens
   listAccessTokens(): Observable<PersonalAccessToken[]> {
     return this.http.get<{ data: any[] } | any[]>(`${this.baseUrl}/admin/me/tokens`).pipe(
       map((res) => {
-        const list = res?.data ?? res;
+        const list = Array.isArray(res) ? res : (res as any)?.data ?? [];
         if (Array.isArray(list)) {
           return list.map((t: any) => ({
             id: t.id,
@@ -210,22 +214,48 @@ export class ProfileService {
     );
   }
 
+  getTokens(): Observable<PersonalAccessToken[]> {
+    return this.listAccessTokens();
+  }
+
   createAccessToken(payload: CreateTokenPayload): Observable<CreatedTokenResult> {
     return this.http.post<{ data: any } | any>(`${this.baseUrl}/admin/me/tokens`, payload).pipe(
       map((res) => {
         const d = res?.data ?? res;
-        return {
+        const rawSecret =
+          d.rawToken ||
+          d.rawSecret ||
+          d.token ||
+          'nag_pat_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        const token: PersonalAccessToken = {
           id: d.id || 'pat-' + Date.now(),
-          token: d.rawToken || d.token || 'nag_pat_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
           name: d.name || payload.name,
+          tokenPrefix: d.tokenPrefix || 'nag_pat_',
+          scopes: Array.isArray(d.scopes) ? d.scopes : payload.scopes,
+          ipWhitelist: d.ipWhitelist || payload.ipWhitelist,
           expiresAt: d.expiresAt,
+          lastUsedAt: d.lastUsedAt,
+          revoked: Boolean(d.revoked),
+          createdAt: d.createdAt || new Date().toISOString(),
+        };
+        return {
+          token,
+          rawSecret,
         };
       })
     );
   }
 
+  createToken(payload: CreateTokenPayload): Observable<CreatedTokenResult> {
+    return this.createAccessToken(payload);
+  }
+
   revokeAccessToken(tokenId: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/admin/me/tokens/${tokenId}`);
+  }
+
+  revokeToken(tokenId: string): Observable<void> {
+    return this.revokeAccessToken(tokenId);
   }
 
   // Activity Timeline & Audit Logs
@@ -237,7 +267,8 @@ export class ProfileService {
     return this.http.get<PageResponse<AdminActivityLog>>(`${this.baseUrl}/admin/me/activity`, { params }).pipe(
       catchError(() => of({
         content: [
-          {\n            id: 'act-001',
+          {
+            id: 'act-001',
             timestamp: new Date().toISOString(),
             action: 'USER_LOGIN',
             category: 'AUTHENTICATION',
@@ -321,99 +352,113 @@ export class ProfileService {
       },
       {
         code: 'EXAM_SCHEDULE',
-        name: 'Shift Scheduling & Centre Allocations',
+        name: 'Schedule Live Exam Windows',
         category: 'EXAMINATIONS',
-        description: 'Manage session timing shifts, test centre venues, and student capacity.',
+        description: 'Publish exam slots, assign centers, and allocate regional capacity.',
         granted: isSuper || isController,
       },
       {
-        code: 'PAPER_GENERATE',
-        name: 'Algorithmic Paper Generation',
+        code: 'EXAM_MONITOR',
+        name: 'Live Proctoring & Session Surveillance',
         category: 'EXAMINATIONS',
-        description: 'Trigger deterministic question paper generation and encryption bundles.',
-        granted: isSuper || isController,
-      },
-      // Delivery & Evaluation
-      {
-        code: 'DELIVERY_MONITOR',
-        name: 'Live Examination Delivery Monitoring',
-        category: 'DELIVERY',
-        description: 'Supervise real-time candidate check-in, heartbeat telemetry, and shift locks.',
+        description: 'Real-time telemetry, active participant feeds, and lockouts.',
         granted: isSuper || isController || isSec,
       },
+      // Candidate Operations
       {
-        code: 'EVALUATION_GRADE',
-        name: 'Automated Evaluation & Score Normalization',
-        category: 'EVALUATION',
-        description: 'Execute response evaluation pipelines, equipercentile normalization, and merit ranking.',
+        code: 'CANDIDATE_VIEW',
+        name: 'Inspect Candidate Rosters',
+        category: 'DELIVERY',
+        description: 'Query candidate demographic profiles, registrations, and hall tickets.',
         granted: isSuper || isController,
       },
-      // Identity & Security
       {
-        code: 'USER_MANAGE',
-        name: 'Admin User & Officer Provisioning',
-        category: 'IDENTITY',
-        description: 'Invite officers, assign roles, and manage administrative privileges.',
-        granted: isSuper || isSec,
+        code: 'CANDIDATE_ACCOMMODATION',
+        name: 'Manage Special Accommodations',
+        category: 'DELIVERY',
+        description: 'Approve extra time, scribes, or high-contrast UI accessibility.',
+        granted: isSuper || isController,
+      },
+      // Evaluation & Results
+      {
+        code: 'EVAL_MANUAL_GRADE',
+        name: 'Descriptive & Subjective Grading',
+        category: 'EVALUATION',
+        description: 'Access blind double-marking rubrics for free-text answers.',
+        granted: isSuper || isRev,
       },
       {
-        code: 'ROLE_MANAGE',
-        name: 'Role & Permission Matrix Configuration',
+        code: 'EVAL_PUBLISH_RESULTS',
+        name: 'Certify & Publish Standardized Results',
+        category: 'EVALUATION',
+        description: 'Approve score normalizations, cutoffs, and percentile distributions.',
+        granted: isSuper || isController,
+      },
+      // System Administration
+      {
+        code: 'SYS_MANAGE_USERS',
+        name: 'Manage Administrative Officers',
         category: 'IDENTITY',
-        description: 'Define custom role templates and calibrate system access rights.',
+        description: 'Provision staff accounts, assign system roles, and revoke access.',
         granted: isSuper,
       },
       {
-        code: 'AUDIT_VIEW',
-        name: 'Immutable DPI Audit Trail Inspection',
+        code: 'SYS_AUDIT_LOGS',
+        name: 'Audit Log & Security Inspection',
         category: 'AUDIT',
-        description: 'Query cryptographic audit trails, DPI telemetry logs, and compliance records.',
+        description: 'View immutable system activity, IP traces, and tamper proofs.',
         granted: isSuper || isSec,
       },
       {
-        code: 'SECURITY_KEYS',
-        name: 'Cryptographic Keyring & Secret Vaults',
+        code: 'SYS_INTEGRATIONS',
+        name: 'Configure External Integrations & APIs',
         category: 'SECURITY',
-        description: 'Manage AES-256 / Ed25519 signing keys, HSM tokens, and tenant seals.',
-        granted: isSuper || isSec,
+        description: 'Generate service keys, webhooks, and DigiLocker credentials.',
+        granted: isSuper,
       },
     ];
 
     return allPermissions;
   }
 
-  private mapToAdminUserProfile(u: any): AdminUserProfile {
-    const username = u.username || u.email || 'admin';
-    const email = u.email || (username.includes('@') ? username : `${username}@nationalassessmentgrid.gov.in`);
-    const fullName = u.fullName || username.replace(/[@._]/g, ' ').toUpperCase();
-    const roles = Array.isArray(u.roles)
-      ? u.roles.map((r: any) => (typeof r === 'string' ? r : r.code || r.name))
-      : ['SUPER_ADMIN'];
+  private extractRoles(raw: any): string[] {
+    const rawRoles = raw?.roles || raw?.assignedRoles;
+    if (Array.isArray(rawRoles)) {
+      return rawRoles
+        .map((r: any) => (typeof r === "string" ? r : r.code || r.name || ""))
+        .filter(Boolean);
+    }
+    return [];
+  }
+
+  private mapToAdminUserProfile(raw: any): AdminUserProfile {
+    const roles = this.extractRoles(raw);
+    const primaryRole = roles[0] || 'SUPER_ADMIN';
+    const roleMeta = getSystemRoleDetail(primaryRole);
 
     return {
-      id: u.id ? String(u.id) : 'usr-admin-001',
-      username,
-      email,
-      fullName,
-      phoneNumber: u.phoneNumber ?? '+91 98765 43210',
-      specialization: u.specialization ?? 'Assessment System Administration',
-      department: u.department ?? 'National Examination Board',
-      designation: u.designation ?? 'Lead Systems Architect & Assessment Controller',
-      avatarUrl: u.avatarUrl ?? '',
-      timezone: u.timezone ?? 'Asia/Kolkata',
-      dateFormat: u.dateFormat ?? 'DD/MM/YYYY',
-      timeFormat: u.timeFormat ?? '24h',
-      preferredLanguage: u.preferredLanguage ?? 'en',
-      themePreference: u.themePreference ?? 'system',
-      employeeId: u.employeeId || 'NAG-ADM-9942',
+      id: raw.id || raw.userId || 'usr-admin-001',
+      username: raw.username || raw.email || 'admin@nationalassessmentgrid.gov.in',
+      email: raw.email || raw.username || 'admin@nationalassessmentgrid.gov.in',
+      fullName: raw.fullName || raw.name || 'System Administrator',
+      phoneNumber: raw.phoneNumber || raw.phone || '+91 98765 43210',
+      specialization: raw.specialization || raw.department || 'Central Assessment Authority & Question Review',
+      department: raw.department || 'National Examination Board / IT Operations',
+      designation: raw.designation || roleMeta.name,
+      avatarUrl: raw.avatarUrl || raw.profileImageUrl || '',
+      timezone: raw.timezone || 'Asia/Kolkata',
+      dateFormat: raw.dateFormat || 'DD/MM/YYYY',
+      timeFormat: raw.timeFormat || '24h',
+      preferredLanguage: raw.preferredLanguage || 'en',
+      themePreference: raw.themePreference || 'system',
+      employeeId: raw.employeeId || 'NAG-GOV-00192',
       roles: roles.length ? roles : ['SUPER_ADMIN'],
-      status: u.accountStatus || u.status || 'ACTIVE',
-      twoFactorEnabled: Boolean(u.mfaEnabled || u.twoFactorEnabled),
-      twoFactorMethod: u.twoFactorMethod || 'TOTP',
-      lastLoginAt: u.lastLoginAt || new Date().toISOString(),
-      createdAt: u.createdAt || '2025-01-15T09:30:00Z',
-      updatedAt: u.updatedAt,
-      tenantId: u.tenantId || this.authService.getTenantId(),
+      status: raw.status || 'ACTIVE',
+      twoFactorEnabled: raw.twoFactorEnabled !== undefined ? Boolean(raw.twoFactorEnabled) : true,
+      twoFactorMethod: raw.twoFactorMethod || 'TOTP',
+      lastLoginAt: raw.lastLoginAt || new Date().toISOString(),
+      createdAt: raw.createdAt || '2025-01-10T08:00:00Z',
+      tenantId: raw.tenantId || this.authService.getTenantId() || 'national-grid',
     };
   }
 
@@ -421,30 +466,33 @@ export class ProfileService {
     return [
       {
         id: 'sess-current',
-        ipAddress: '192.168.1.104',
-        device: 'Administrative Workstation (Win64)',
-        browser: 'Google Chrome 129.0',
-        os: 'Windows 11 Enterprise (DPI Secured)',
-        lastActive: 'Just now (Active)',
+        ipAddress: '103.21.126.14',
+        device: 'Desktop Workstation',
+        browser: 'Chrome 124.0.0',
+        os: 'Ubuntu Linux 24.04',
+        lastActive: 'Active Now',
         isCurrent: true,
+        expiresAt: new Date(Date.now() + 86400000).toISOString(),
       },
       {
-        id: 'sess-mobile-01',
-        ipAddress: '103.21.124.55',
-        device: 'Secure Tablet (Android 14)',
-        browser: 'Mobile Chrome 128.0',
-        os: 'Android 14 (Gov Secured Device)',
+        id: 'sess-sec-office',
+        ipAddress: '14.139.60.2',
+        device: 'Office Terminal B4',
+        browser: 'Firefox ESR 115',
+        os: 'Debian GNU/Linux',
         lastActive: '2 hours ago',
         isCurrent: false,
+        expiresAt: new Date(Date.now() + 43200000).toISOString(),
       },
       {
-        id: 'sess-backup-02',
-        ipAddress: '14.139.60.18',
-        device: 'NIC Datacenter Console',
-        browser: 'Firefox ESR 128.0',
-        os: 'Red Hat Enterprise Linux 9',
-        lastActive: '1 day ago',
+        id: 'sess-mobile-app',
+        ipAddress: '49.36.120.88',
+        device: 'Admin Mobile Device',
+        browser: 'NAG Authenticator / Android',
+        os: 'Android 14',
+        lastActive: 'Yesterday at 18:30',
         isCurrent: false,
+        expiresAt: new Date(Date.now() + 172800000).toISOString(),
       },
     ];
   }

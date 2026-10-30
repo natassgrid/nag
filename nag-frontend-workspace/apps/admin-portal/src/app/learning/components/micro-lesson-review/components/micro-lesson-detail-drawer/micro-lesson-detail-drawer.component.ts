@@ -1,10 +1,10 @@
-import { Component, ChangeDetectionStrategy, input, output, signal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, input, output, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MathRendererComponent } from '@nag-frontend-workspace/shared-ui-components';
-import { MicroLessonReviewItem } from '../../../../models/micro-lesson.model';
+import { MicroLessonReviewItem, StepByStepBreakdown } from '../../../../models/micro-lesson.model';
 import { MicroLessonTranslationPanelComponent } from '../micro-lesson-translation-panel/micro-lesson-translation-panel.component';
 
 @Component({
@@ -33,6 +33,18 @@ export class MicroLessonDetailDrawerComponent {
 
   readonly activeTab = signal<'CONTENT' | 'TRANSLATION'>('CONTENT');
 
+  readonly parsedBreakdown = computed<StepByStepBreakdown | null>(() => {
+    const raw = this.lesson()?.content?.stepByStepBreakdown;
+    if (!raw) return null;
+    if (Array.isArray(raw)) {
+      return {
+        problemStatement: this.lesson()?.content?.problemStatement || '',
+        steps: raw,
+        finalAnswer: this.lesson()?.content?.finalAnswer || '',
+      };
+    }
+    return raw;
+  });
 
   readonly close = output<void>();
   readonly startEdit = output<MicroLessonReviewItem>();
@@ -45,6 +57,32 @@ export class MicroLessonDetailDrawerComponent {
   readonly coreConceptChange = output<string>();
   readonly trapAlertChange = output<string>();
   readonly formulaCheatSheetChange = output<string>();
+
+  getTrapContent(item: MicroLessonReviewItem): string {
+    const trap = item.content?.trapAlert || item.trap;
+    if (typeof trap === 'string') return trap || 'No trap warnings recorded.';
+    if (trap && typeof trap === 'object') return trap.description || 'No trap warnings recorded.';
+    return 'No trap warnings recorded.';
+  }
+
+  getFormulaContent(item: MicroLessonReviewItem): string {
+    const formulas = item.content?.formulaCheatSheet;
+    if (typeof formulas === 'string') return formulas || 'No formulas provided.';
+    if (Array.isArray(formulas)) {
+      if (formulas.length === 0) return 'No formulas provided.';
+      return formulas
+        .map((f: any) =>
+          typeof f === 'string'
+            ? f
+            : `${f.name ? f.name + ': ' : ''}${f.latex || f.expression || ''}`.trim()
+        )
+        .join('\n\n');
+    }
+    if (Array.isArray(item.cheatSheet) && item.cheatSheet.length > 0) {
+      return item.cheatSheet.join('\n\n');
+    }
+    return 'No formulas provided.';
+  }
 
   getStatusBadgeClass(status: string): string {
     switch (status) {
