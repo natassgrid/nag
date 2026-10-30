@@ -66,7 +66,7 @@ public class QuestionSearchService {
         if (subject != null && !subject.isBlank() && !"%".equals(subject)) {
             try {
                 subjectId = Long.parseLong(subject.trim());
-            } catch (NumberFormatException e) {
+            } catch (NumberFormatException _) {
                 subjectId = subjectRepository.findByNameAndTenantId(subject.trim(), tenantId)
                         .or(() -> subjectRepository.findByNameAndTenantIdIsNull(subject.trim()))
                         .map(Subject::getId)
@@ -99,7 +99,7 @@ public class QuestionSearchService {
                         Math.min(end, filtered.size()))
                 .stream()
                 .map(this::toResponse)
-                .collect(Collectors.toList());
+                .toList();
 
         return new PageImpl<>(pageContent, PageRequest.of(page, size), filtered.size());
     }
