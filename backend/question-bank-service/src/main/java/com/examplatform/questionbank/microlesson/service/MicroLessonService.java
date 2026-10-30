@@ -204,7 +204,7 @@ public class MicroLessonService {
             if (!matchedSubjectIds.isEmpty()) {
                 predicates.add(root.get(FIELD_SUBJECT_ID).in(matchedSubjectIds));
                 if (matchedSubjectIds.size() == 1) {
-                    return matchedSubjectIds.get(0);
+                    return matchedSubjectIds.getFirst();
                 }
             } else {
                 predicates.add(cb.disjunction());
@@ -261,25 +261,46 @@ public class MicroLessonService {
         if (subjectRepository == null) {
             return Collections.emptyList();
         }
+        String trimmed = subjectStr.trim();
+        List<Long> exact = findExactSubjectIds(trimmed);
+        if (!exact.isEmpty()) {
+            return exact;
+        }
+        List<Long> ignoreCase = findCaseInsensitiveSubjectIds(trimmed);
+        if (!ignoreCase.isEmpty()) {
+            return ignoreCase;
+        }
+        return scanAllSubjectIds(trimmed);
+    }
+
+    private List<Long> findExactSubjectIds(String subjectStr) {
         try {
-            Optional<Subject> exact = subjectRepository.findByNameAndTenantIdIsNull(subjectStr.trim());
+            Optional<Subject> exact = subjectRepository.findByNameAndTenantIdIsNull(subjectStr);
             if (exact.isPresent()) {
                 return List.of(exact.get().getId());
             }
         } catch (Exception _) {
             // Fallback to case-insensitive lookup
         }
+        return Collections.emptyList();
+    }
+
+    private List<Long> findCaseInsensitiveSubjectIds(String subjectStr) {
         try {
-            List<Subject> byIgnoreCase = subjectRepository.findByNameIgnoreCaseAndTenantIdIsNull(subjectStr.trim());
+            List<Subject> byIgnoreCase = subjectRepository.findByNameIgnoreCaseAndTenantIdIsNull(subjectStr);
             if (!byIgnoreCase.isEmpty()) {
                 return byIgnoreCase.stream().map(Subject::getId).filter(Objects::nonNull).toList();
             }
         } catch (Exception _) {
             // Fallback to table scan
         }
+        return Collections.emptyList();
+    }
+
+    private List<Long> scanAllSubjectIds(String subjectStr) {
         try {
             return subjectRepository.findAll().stream()
-                    .filter(s -> s.getName() != null && s.getName().equalsIgnoreCase(subjectStr.trim()))
+                    .filter(s -> s.getName() != null && s.getName().equalsIgnoreCase(subjectStr))
                     .map(Subject::getId)
                     .filter(Objects::nonNull)
                     .toList();
@@ -298,9 +319,22 @@ public class MicroLessonService {
         if (topicRepository == null) {
             return Collections.emptyList();
         }
+        String trimmed = topicStr.trim();
+        List<Long> exact = findExactTopicIds(trimmed, subjectId);
+        if (!exact.isEmpty()) {
+            return exact;
+        }
+        List<Long> ignoreCase = findCaseInsensitiveTopicIds(trimmed, subjectId);
+        if (!ignoreCase.isEmpty()) {
+            return ignoreCase;
+        }
+        return scanAllTopicIds(trimmed, subjectId);
+    }
+
+    private List<Long> findExactTopicIds(String topicStr, Long subjectId) {
         try {
             if (subjectId != null) {
-                Optional<Topic> exact = topicRepository.findByNameAndSubjectIdAndTenantIdIsNull(topicStr.trim(), subjectId);
+                Optional<Topic> exact = topicRepository.findByNameAndSubjectIdAndTenantIdIsNull(topicStr, subjectId);
                 if (exact.isPresent()) {
                     return List.of(exact.get().getId());
                 }
@@ -308,8 +342,12 @@ public class MicroLessonService {
         } catch (Exception _) {
             // Fallback to case-insensitive topic search
         }
+        return Collections.emptyList();
+    }
+
+    private List<Long> findCaseInsensitiveTopicIds(String topicStr, Long subjectId) {
         try {
-            List<Topic> byIgnoreCase = topicRepository.findByNameIgnoreCaseAndTenantIdIsNull(topicStr.trim());
+            List<Topic> byIgnoreCase = topicRepository.findByNameIgnoreCaseAndTenantIdIsNull(topicStr);
             if (!byIgnoreCase.isEmpty()) {
                 return byIgnoreCase.stream()
                         .filter(t -> subjectId == null || subjectId.equals(t.getSubjectId()))
@@ -320,9 +358,13 @@ public class MicroLessonService {
         } catch (Exception _) {
             // Fallback to repository stream
         }
+        return Collections.emptyList();
+    }
+
+    private List<Long> scanAllTopicIds(String topicStr, Long subjectId) {
         try {
             return topicRepository.findAll().stream()
-                    .filter(t -> t.getName() != null && t.getName().equalsIgnoreCase(topicStr.trim()))
+                    .filter(t -> t.getName() != null && t.getName().equalsIgnoreCase(topicStr))
                     .filter(t -> subjectId == null || subjectId.equals(t.getSubjectId()))
                     .map(Topic::getId)
                     .filter(Objects::nonNull)
@@ -497,7 +539,8 @@ public class MicroLessonService {
 
         validateContentKaTex(coreConcept, trapText, cheatSheetStrings, breakdown, formulaRequired);
 
-        SubtopicMicroLesson entity = buildManualLessonEntity(request, taxonomy, authorId, coreConcept, trapText, cheatSheetStrings, breakdown, lessonType);
+        ManualLessonContent lessonContent = new ManualLessonContent(coreConcept, trapText, cheatSheetStrings, breakdown, lessonType);
+        SubtopicMicroLesson entity = buildManualLessonEntity(request, taxonomy, authorId, lessonContent);
         SubtopicMicroLesson saved = repository.save(entity);
         MicroLessonResponse response = toResponse(saved);
 
@@ -563,15 +606,19 @@ public class MicroLessonService {
         }
     }
 
-    private SubtopicMicroLesson buildManualLessonEntity(
-            CreateMicroLessonRequest request,
-            ResolvedTaxonomy taxonomy,
-            UUID authorId,
+    private record ManualLessonContent(
             String coreConcept,
             String trapText,
             List<String> cheatSheetStrings,
             StepByStepBreakdownDto breakdown,
-            String lessonType) {
+            String lessonType
+    ) {}
+
+    private SubtopicMicroLesson buildManualLessonEntity(
+            CreateMicroLessonRequest request,
+            ResolvedTaxonomy taxonomy,
+            UUID authorId,
+            ManualLessonContent content) {
 
         String targetStatus = (request.status() != null && !request.status().isBlank())
                 ? resolveStatus(request.status())
@@ -584,8 +631,8 @@ public class MicroLessonService {
         String cheatSheetJson;
         String stepByStepJson;
         try {
-            cheatSheetJson = objectMapper.writeValueAsString(cheatSheetStrings);
-            stepByStepJson = objectMapper.writeValueAsString(breakdown);
+            cheatSheetJson = objectMapper.writeValueAsString(content.cheatSheetStrings());
+            stepByStepJson = objectMapper.writeValueAsString(content.breakdown());
         } catch (JsonProcessingException _) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Failed to serialize micro-lesson content");
         }
@@ -601,8 +648,8 @@ public class MicroLessonService {
                 .subjectId(taxonomy.subjectId())
                 .topicId(taxonomy.topicId())
                 .subtopicId(taxonomy.subtopicId())
-                .coreConcept(coreConcept)
-                .trap(trapText)
+                .coreConcept(content.coreConcept())
+                .trap(content.trapText())
                 .cheatSheetJson(cheatSheetJson)
                 .stepByStepBreakdownJson(stepByStepJson)
                 .status(targetStatus)
@@ -610,7 +657,7 @@ public class MicroLessonService {
                 .reviewedAt(Instant.now())
                 .reviewComments(request.reviewComments())
                 .contentVersion(nextVersion)
-                .lessonType(lessonType)
+                .lessonType(content.lessonType())
                 .difficultyLevel(difficultyLevel)
                 .sequenceNo(seqNo)
                 .prerequisiteLessonId(request.prerequisiteLessonId())
@@ -986,27 +1033,32 @@ public class MicroLessonService {
         return new ResolvedTopic(resId, resName);
     }
 
+    private String resolveSubtopicNameFromRepo(Long subtopicId, Long expectedTopicId) {
+        if (subtopicRepository == null || subtopicId == null) {
+            return null;
+        }
+        Subtopic st = subtopicRepository.findById(subtopicId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Subtopic not found: " + subtopicId));
+        if (st.getTopicId() != null && expectedTopicId != null && !st.getTopicId().equals(expectedTopicId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Subtopic does not belong to specified topic");
+        }
+        return st.getName();
+    }
+
+    private static long computeSubtopicFallbackId(String subtopicName) {
+        long hash = subtopicName.toLowerCase().trim().hashCode() & 0x7FFFFFFFL;
+        return hash > 0 ? hash : 1L;
+    }
+
     private ResolvedSubtopic resolveSubtopic(Long subtopicId, String subtopicName, Long topicId) {
         String resName = (subtopicName != null && !subtopicName.isBlank()) ? subtopicName.trim() : null;
-
-        if (resName == null && subtopicRepository != null && subtopicId != null) {
-            Subtopic st = subtopicRepository.findById(subtopicId)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Subtopic not found: " + subtopicId));
-            if (st.getTopicId() != null && topicId != null && !st.getTopicId().equals(topicId)) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Subtopic does not belong to specified topic");
-            }
-            resName = st.getName();
+        if (resName == null) {
+            resName = resolveSubtopicNameFromRepo(subtopicId, topicId);
         }
         if (resName == null || resName.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Subtopic is required");
         }
-        Long resId;
-        if (subtopicId != null) {
-            resId = subtopicId;
-        } else {
-            long hash = (long) (resName.toLowerCase().hashCode() & 0x7FFFFFFF);
-            resId = hash > 0 ? hash : 1L;
-        }
+        long resId = subtopicId != null ? subtopicId : computeSubtopicFallbackId(resName);
         return new ResolvedSubtopic(resId, resName);
     }
 
@@ -1063,23 +1115,20 @@ public class MicroLessonService {
     }
 
     private List<String> resolveCheatSheetStrings(List<String> rawCheatSheet, List<FormulaEntryDto> formulaEntries) {
-        List<String> result = new ArrayList<>();
         if (formulaEntries != null && !formulaEntries.isEmpty()) {
-            for (FormulaEntryDto f : formulaEntries) {
-                if (f == null) continue;
-                String formatted = formatFormulaEntry(f);
-                if (!formatted.isEmpty()) {
-                    result.add(formatted);
-                }
-            }
-        } else if (rawCheatSheet != null) {
-            for (String item : rawCheatSheet) {
-                if (item != null && !item.isBlank()) {
-                    result.add(item.trim());
-                }
-            }
+            return formulaEntries.stream()
+                    .filter(Objects::nonNull)
+                    .map(this::formatFormulaEntry)
+                    .filter(s -> !s.isEmpty())
+                    .toList();
         }
-        return result;
+        if (rawCheatSheet != null) {
+            return rawCheatSheet.stream()
+                    .filter(item -> item != null && !item.isBlank())
+                    .map(String::trim)
+                    .toList();
+        }
+        return Collections.emptyList();
     }
 
     private String formatFormulaEntry(FormulaEntryDto f) {
@@ -1128,23 +1177,20 @@ public class MicroLessonService {
     }
 
     private List<String> buildRawSteps(StepByStepBreakdownDto breakdown, List<StepItemDto> structuredSteps) {
-        List<String> rawSteps = new ArrayList<>();
         if (breakdown != null && breakdown.steps() != null && !breakdown.steps().isEmpty()) {
-            for (String s : breakdown.steps()) {
-                if (s != null && !s.isBlank()) {
-                    rawSteps.add(s.trim());
-                }
-            }
-        } else if (structuredSteps != null && !structuredSteps.isEmpty()) {
-            for (StepItemDto item : structuredSteps) {
-                if (item == null) continue;
-                String stepText = formatStepItem(item);
-                if (!stepText.isEmpty()) {
-                    rawSteps.add(stepText);
-                }
-            }
+            return breakdown.steps().stream()
+                    .filter(s -> s != null && !s.isBlank())
+                    .map(String::trim)
+                    .toList();
         }
-        return rawSteps;
+        if (structuredSteps != null && !structuredSteps.isEmpty()) {
+            return structuredSteps.stream()
+                    .filter(Objects::nonNull)
+                    .map(this::formatStepItem)
+                    .filter(s -> !s.isEmpty())
+                    .toList();
+        }
+        return Collections.emptyList();
     }
 
     private String formatStepItem(StepItemDto item) {
@@ -1173,10 +1219,10 @@ public class MicroLessonService {
         String finalAns = firstNonBlank(breakdown != null ? breakdown.finalAnswer() : null, fallback);
         if ((finalAns == null || finalAns.isBlank()) && !rawSteps.isEmpty()) {
             if (structuredSteps != null && !structuredSteps.isEmpty()) {
-                StepItemDto last = structuredSteps.get(structuredSteps.size() - 1);
+                StepItemDto last = structuredSteps.getLast();
                 return firstNonBlank(last.tip(), last.formula(), last.explanation(), "Verified solution");
             }
-            return rawSteps.get(rawSteps.size() - 1);
+            return rawSteps.getLast();
         }
         return finalAns;
     }
@@ -1513,79 +1559,80 @@ public class MicroLessonService {
             String subtopic
     ) {}
 
+    private record SubtopicTaxonomyResolution(Long subjectId, String subject, Long topicId, String topic, String subtopic) {}
+
+    private SubtopicTaxonomyResolution resolveTaxonomyFromSubtopicRepo(Long subtopicId, String currentSubject, String currentTopic, String currentSubtopic) {
+        if (subtopicRepository == null || subtopicId == null) {
+            return new SubtopicTaxonomyResolution(1L, currentSubject, 1L, currentTopic, currentSubtopic);
+        }
+        try {
+            Optional<Subtopic> stOpt = subtopicRepository.findById(subtopicId);
+            if (stOpt.isEmpty()) {
+                return new SubtopicTaxonomyResolution(1L, currentSubject, 1L, currentTopic, currentSubtopic);
+            }
+            Subtopic st = stOpt.get();
+            String subtopic = currentSubtopic != null ? currentSubtopic : st.getName();
+            if (st.getTopicId() == null) {
+                return new SubtopicTaxonomyResolution(1L, currentSubject, 1L, currentTopic, subtopic);
+            }
+            ResolvedHierarchy hierarchy = loadParentHierarchy(st.getTopicId(), currentSubject, currentTopic);
+            return new SubtopicTaxonomyResolution(hierarchy.subjectId(), hierarchy.subject(), st.getTopicId(), hierarchy.topic(), subtopic);
+        } catch (Exception ex) {
+            log.debug("Could not resolve subtopic from DB repository for ID {}: {}", subtopicId, ex.getMessage());
+            return new SubtopicTaxonomyResolution(1L, currentSubject, 1L, currentTopic, currentSubtopic);
+        }
+    }
+
     private ResolvedTaxonomyContext resolveTaxonomyContext(Long subtopicId, String subjectName, String topicName, String subtopicName) {
-        Long resSubId = 1L;
         String resSubject = (subjectName != null && !subjectName.isBlank()) ? subjectName.trim() : null;
-        Long resTopicId = 1L;
         String resTopic = (topicName != null && !topicName.isBlank()) ? topicName.trim() : null;
         String resSubtopic = (subtopicName != null && !subtopicName.isBlank()) ? subtopicName.trim() : null;
         Long effectiveSubtopicId = (subtopicId != null && subtopicId > 0) ? subtopicId : null;
 
-        if (subtopicRepository != null && effectiveSubtopicId != null) {
-            try {
-                Optional<Subtopic> stOpt = subtopicRepository.findById(effectiveSubtopicId);
-                if (stOpt.isPresent()) {
-                    Subtopic st = stOpt.get();
-                    if (resSubtopic == null) {
-                        resSubtopic = st.getName();
-                    }
-                    if (st.getTopicId() != null) {
-                        resTopicId = st.getTopicId();
-                        ResolvedHierarchy hierarchy = loadParentHierarchy(resTopicId, resSubject, resTopic);
-                        resSubject = hierarchy.subject();
-                        resTopic = hierarchy.topic();
-                        resSubId = hierarchy.subjectId();
-                    }
-                }
-            } catch (Exception ex) {
-                log.debug("Could not resolve subtopic from DB repository for ID {}: {}", effectiveSubtopicId, ex.getMessage());
-            }
-        }
+        SubtopicTaxonomyResolution res = resolveTaxonomyFromSubtopicRepo(effectiveSubtopicId, resSubject, resTopic, resSubtopic);
+        Long resSubId = res.subjectId();
+        resSubject = res.subject();
+        Long resTopicId = res.topicId();
+        resTopic = res.topic();
+        resSubtopic = res.subtopic();
 
         if (resSubtopic == null || resSubtopic.isBlank()) {
             return new ResolvedTaxonomyContext(resSubId, resSubject, resTopicId, resTopic, effectiveSubtopicId, null);
         }
 
         if (effectiveSubtopicId == null) {
-            long hash = (long) (resSubtopic.toLowerCase().trim().hashCode() & 0x7FFFFFFF);
-            effectiveSubtopicId = hash > 0 ? hash : 1L;
+            effectiveSubtopicId = computeSubtopicFallbackId(resSubtopic);
         }
 
-        if (resSubject == null || resSubject.isBlank()) {
-            resSubject = DEFAULT_GENERAL;
-        }
-        if (resTopic == null || resTopic.isBlank()) {
-            resTopic = DEFAULT_GENERAL;
-        }
+        resSubject = firstNonBlank(resSubject, DEFAULT_GENERAL);
+        resTopic = firstNonBlank(resTopic, DEFAULT_GENERAL);
 
         return new ResolvedTaxonomyContext(resSubId, resSubject, resTopicId, resTopic, effectiveSubtopicId, resSubtopic);
     }
 
     private record ResolvedHierarchy(Long subjectId, String subject, String topic) {}
 
-    private ResolvedHierarchy loadParentHierarchy(Long topicId, String existingSubject, String existingTopic) {
-        Long subId = 1L;
-        String subj = existingSubject;
-        String topName = existingTopic;
-
-        if (topicRepository != null) {
-            Optional<Topic> topOpt = topicRepository.findById(topicId);
-            if (topOpt.isPresent()) {
-                Topic top = topOpt.get();
-                if (topName == null) {
-                    topName = top.getName();
-                }
-                if (top.getSubjectId() != null) {
-                    subId = top.getSubjectId();
-                    if (subjectRepository != null) {
-                        Optional<Subject> subOpt = subjectRepository.findById(subId);
-                        if (subOpt.isPresent() && subj == null) {
-                            subj = subOpt.get().getName();
-                        }
-                    }
-                }
-            }
+    private String resolveSubjectNameById(Long subjectId) {
+        if (subjectRepository == null || subjectId == null) {
+            return null;
         }
+        return subjectRepository.findById(subjectId)
+                .map(Subject::getName)
+                .orElse(null);
+    }
+
+    private ResolvedHierarchy loadParentHierarchy(Long topicId, String existingSubject, String existingTopic) {
+        if (topicRepository == null || topicId == null) {
+            return new ResolvedHierarchy(1L, existingSubject, existingTopic);
+        }
+        Optional<Topic> topOpt = topicRepository.findById(topicId);
+        if (topOpt.isEmpty()) {
+            return new ResolvedHierarchy(1L, existingSubject, existingTopic);
+        }
+        Topic top = topOpt.get();
+        String topName = existingTopic != null ? existingTopic : top.getName();
+        Long subId = top.getSubjectId() != null ? top.getSubjectId() : 1L;
+        String subj = existingSubject != null ? existingSubject : resolveSubjectNameById(top.getSubjectId());
         return new ResolvedHierarchy(subId, subj, topName);
     }
 
