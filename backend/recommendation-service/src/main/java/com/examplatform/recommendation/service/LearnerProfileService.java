@@ -134,9 +134,10 @@ public class LearnerProfileService {
                             LearnerSubtopicPerformance p = LearnerSubtopicPerformance.builder()
                                     .candidateId(candidateId)
                                     .subjectId(dto.subjectId())
-                                    .subjectName(dto.subjectName() != null ? dto.subjectName() : "General")
+                                    .subjectName(dto.subjectName() != null ? dto.subjectName() :
+                                        SharedConstants.GENERAL)
                                     .topicId(dto.topicId())
-                                    .topicName(dto.topicName() != null ? dto.topicName() : "General")
+                                    .topicName(dto.topicName() != null ? dto.topicName() : SharedConstants.GENERAL)
                                     .subtopicId(dto.subtopicId())
                                     .subtopicName(dto.subtopicName())
                                     .build();

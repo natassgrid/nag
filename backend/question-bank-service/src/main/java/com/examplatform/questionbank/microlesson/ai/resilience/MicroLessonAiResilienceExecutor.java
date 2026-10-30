@@ -119,38 +119,43 @@ public class MicroLessonAiResilienceExecutor {
      */
     @io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker(name = SERVICE_NAME, fallbackMethod = "handleAiFallback")
     public String executeChatCall(Callable<String> llmSupplier) throws Exception {
-        return retry.executeCallable(() -> circuitBreaker.executeCallable(() -> {
-            try {
-                return CompletableFuture.supplyAsync(() -> {
-                    try {
-                        return llmSupplier.call();
-                    } catch (RuntimeException re) {
-                        throw re;
-                    } catch (Exception e) {
-                        throw new CompletionException(e);
-                    }
-                }).get(callTimeoutSeconds, TimeUnit.SECONDS);
-            } catch (ExecutionException ee) {
-                Throwable cause = ee.getCause();
-                if (cause instanceof Exception ex) {
-                    throw ex;
-                }
-                throw new RuntimeException(cause);
-            } catch (TimeoutException te) {
-                throw new TimeoutException("AI call timed out after " + callTimeoutSeconds + " seconds");
+        return retry.executeCallable(() -> circuitBreaker.executeCallable(() -> executeWithTimeout(llmSupplier)));
+    }
+
+    private String executeWithTimeout(Callable<String> llmSupplier) throws Exception {
+        try {
+            return CompletableFuture.supplyAsync(() -> invokeSupplier(llmSupplier))
+                    .get(callTimeoutSeconds, TimeUnit.SECONDS);
+        } catch (ExecutionException ee) {
+            Throwable cause = ee.getCause();
+            if (cause instanceof Exception ex) {
+                throw ex;
             }
-        }));
+            throw new IllegalStateException(cause);
+        } catch (TimeoutException _) {
+            throw new TimeoutException("AI call timed out after " + callTimeoutSeconds + " seconds");
+        }
+    }
+
+    private String invokeSupplier(Callable<String> llmSupplier) {
+        try {
+            return llmSupplier.call();
+        } catch (RuntimeException re) {
+            throw re;
+        } catch (Exception e) {
+            throw new CompletionException(e);
+        }
     }
 
     /**
      * Fallback handler invoked when circuit breaker trips or downstream failure propagates.
      */
-    public String handleAiFallback(Callable<String> llmSupplier, Throwable t) throws Exception {
+    public String handleAiFallback(Throwable t) {
         log.warn("Circuit breaker fallback triggered for AI call: {}", t.getMessage());
-        if (t instanceof Exception ex) {
-            throw ex;
+        if (t instanceof RuntimeException re) {
+            throw re;
         }
-        throw new RuntimeException(t);
+        throw new IllegalStateException("AI service execution failed: " + t.getMessage(), t);
     }
 
     public CircuitBreaker getCircuitBreaker() {

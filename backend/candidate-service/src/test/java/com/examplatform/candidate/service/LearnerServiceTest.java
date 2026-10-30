@@ -20,6 +20,7 @@ import com.examplatform.candidate.exception.LearnerDomainException;
 import com.examplatform.candidate.repository.DiagnosticSessionRepository;
 import com.examplatform.candidate.repository.LearnerEnrollmentRepository;
 import com.examplatform.candidate.repository.LearnerProfileRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -214,7 +215,7 @@ class LearnerServiceTest {
             when(profileRepository.findByCandidateId(candidateId)).thenReturn(Optional.of(complete));
 
             PublishedExamDto publishedExam = new PublishedExamDto(
-                    examId, "JEE_MAIN", "JEE Main", "Desc", "PUBLISHED", 180, 300, UUID.randomUUID(), 3, 30
+                    examId, SharedConstants.JEE_MAIN, "JEE Main", "Desc", "PUBLISHED", 180, 300, UUID.randomUUID(), 3, 30
             );
             when(examinationClient.getExam(examId, "default")).thenReturn(Optional.of(publishedExam));
 
@@ -272,10 +273,10 @@ class LearnerServiceTest {
             DiagnosticSessionResponse res = learnerService.startDiagnostic(candidateId, enrollmentId, "default");
 
             assertThat(res).isNotNull();
-            assertThat(res.status()).isEqualTo("IN_PROGRESS");
+            assertThat(res.status()).isEqualTo(SharedConstants.IN_PROGRESS);
             assertThat(res.questions()).isNotEmpty();
             assertThat(res.totalQuestions()).isGreaterThan(0);
-            assertThat(enrollment.getDiagnosticStatus()).isEqualTo("IN_PROGRESS");
+            assertThat(enrollment.getDiagnosticStatus()).isEqualTo(SharedConstants.IN_PROGRESS);
         }
 
         @Test
@@ -292,7 +293,7 @@ class LearnerServiceTest {
                     .enrollmentId(enrollmentId)
                     .candidateId(candidateId)
                     .examinationId(examId)
-                    .status("IN_PROGRESS")
+                    .status(SharedConstants.IN_PROGRESS)
                     .build();
             session.setId(UUID.randomUUID());
 
@@ -327,7 +328,7 @@ class LearnerServiceTest {
                     .candidateId(candidateId)
                     .examinationId(examId)
                     .totalQuestions(2)
-                    .status("IN_PROGRESS")
+                    .status(SharedConstants.IN_PROGRESS)
                     .build();
             session.setId(UUID.randomUUID());
 
@@ -350,7 +351,7 @@ class LearnerServiceTest {
 
             DiagnosticResultResponse res = learnerService.submitDiagnostic(candidateId, enrollmentId, req, "default");
 
-            assertThat(res.status()).isEqualTo("COMPLETED");
+            assertThat(res.status()).isEqualTo(SharedConstants.COMPLETED);
             assertThat(res.correctCount()).isEqualTo(1);
             assertThat(res.correctAnswers()).isEqualTo(1);
             assertThat(res.score()).isEqualTo(2.0);
@@ -359,7 +360,7 @@ class LearnerServiceTest {
             assertThat(res.strengths()).containsExactly("Syllogisms");
             assertThat(res.weaknesses()).containsExactly("Logical Deductions");
             assertThat(res.baselineLabel()).isEqualTo("Calibrated Diagnostic Baseline");
-            assertThat(enrollment.getDiagnosticStatus()).isEqualTo("COMPLETED");
+            assertThat(enrollment.getDiagnosticStatus()).isEqualTo(SharedConstants.COMPLETED);
         }
 
         @Test
@@ -385,7 +386,7 @@ class LearnerServiceTest {
                     .examinationId(examId)
                     .questionsJson(objectMapper.writeValueAsString(sessionQuestions))
                     .totalQuestions(2)
-                    .status("IN_PROGRESS")
+                    .status(SharedConstants.IN_PROGRESS)
                     .build();
             session.setId(UUID.randomUUID());
 
@@ -405,7 +406,7 @@ class LearnerServiceTest {
 
             DiagnosticResultResponse res = learnerService.submitDiagnostic(candidateId, enrollmentId, req, "default");
 
-            assertThat(res.status()).isEqualTo("COMPLETED");
+            assertThat(res.status()).isEqualTo(SharedConstants.COMPLETED);
             assertThat(res.correctAnswers()).isEqualTo(2);
             assertThat(res.initialReadinessScore()).isEqualTo(100);
             assertThat(res.strengths()).containsExactly("Syllogisms", "Percentages");

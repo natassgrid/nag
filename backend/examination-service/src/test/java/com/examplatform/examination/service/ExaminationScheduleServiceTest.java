@@ -30,6 +30,7 @@ import com.examplatform.examination.repository.ExamShiftRepository;
 import com.examplatform.examination.repository.ExaminationRepository;
 import com.examplatform.examination.repository.ExaminationScheduleRepository;
 import com.examplatform.shared.constants.QuestionStateConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.messaging.EventPublisher;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -172,10 +173,10 @@ class ExaminationScheduleServiceTest {
 
             ScheduleResponse resp = service.transitionSchedule(
                     schedule.getId(),
-                    ScheduleTransitionRequest.builder().targetStatus("CANCELLED").build(),
+                    ScheduleTransitionRequest.builder().targetStatus(SharedConstants.CANCELLED).build(),
                     ACTOR_ID, Set.of("EXAM_CONTROLLER"), TENANT);
 
-            assertThat(resp.getStatus()).isEqualTo("CANCELLED");
+            assertThat(resp.getStatus()).isEqualTo(SharedConstants.CANCELLED);
         }
 
         @Test

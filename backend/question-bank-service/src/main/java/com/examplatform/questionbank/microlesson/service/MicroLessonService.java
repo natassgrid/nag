@@ -8,6 +8,7 @@ import com.examplatform.questionbank.microlesson.domain.MicroLessonStatus;
 import com.examplatform.questionbank.microlesson.domain.SubtopicMicroLesson;
 import com.examplatform.questionbank.microlesson.dto.*;
 import com.examplatform.questionbank.microlesson.repository.SubtopicMicroLessonRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -50,7 +51,7 @@ import java.util.stream.Collectors;
 public class MicroLessonService {
 
     private static final String FIELD_SUBJECT_ID = "subjectId";
-    private static final String DEFAULT_GENERAL = "General";
+    private static final String DEFAULT_GENERAL = SharedConstants.GENERAL;
     private static final String ERR_MICRO_LESSON_NOT_FOUND = "Micro-lesson not found";
 
     private final SubtopicMicroLessonRepository repository;
@@ -955,7 +956,8 @@ public class MicroLessonService {
         Long topicId = request.topicId() != null ? request.topicId() : 1L;
         String topic = (request.topic() != null && !request.topic().isBlank()) ? request.topic() : DEFAULT_GENERAL;
         Long subtopicId = request.subtopicId() != null ? request.subtopicId() : (long) (request.subtopic().hashCode() & 0x7FFFFFFF);
-        String targetExam = (request.targetExam() != null && !request.targetExam().isBlank()) ? request.targetExam() : "JEE_MAIN";
+        String targetExam = (request.targetExam() != null && !request.targetExam().isBlank()) ? request.targetExam() :
+            SharedConstants.JEE_MAIN;
 
         String reference = request.referenceText();
         if (reference == null || reference.isBlank()) {
@@ -1517,7 +1519,7 @@ public class MicroLessonService {
             return existing;
         }
 
-        String exam = (targetExam != null && !targetExam.isBlank()) ? targetExam : "JEE_MAIN";
+        String exam = (targetExam != null && !targetExam.isBlank()) ? targetExam : SharedConstants.JEE_MAIN;
         ResolvedTaxonomyContext taxCtx = resolveTaxonomyContext(subtopicId, subjectName, topicName, subtopicName);
 
         if (taxCtx.subtopic() == null || taxCtx.subtopic().isBlank()) {
@@ -1778,7 +1780,7 @@ public class MicroLessonService {
     @Transactional
     public void recordProgress(LessonProgressRequest request) {
         if (request == null || request.getLessonId() == null) return;
-        if ("COMPLETED".equalsIgnoreCase(request.getStatus())) {
+        if (SharedConstants.COMPLETED.equalsIgnoreCase(request.getStatus())) {
             self.recordLessonCompletion(request.getLessonId(), request.getPostAccuracyDelta());
         } else {
             self.recordLessonView(request.getLessonId());

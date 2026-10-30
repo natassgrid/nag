@@ -23,6 +23,7 @@ import com.examplatform.papergenerator.dto.BatchTranslationJobResponseDto;
 import com.examplatform.papergenerator.dto.QuestionSummary;
 import com.examplatform.questionbank.grpc.*;
 import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
@@ -433,7 +434,7 @@ class QuestionBankClientImplTest {
 
         assertThat(dto).isNotNull();
         assertThat(dto.getId()).isEqualTo(jobId);
-        assertThat(dto.getStatus()).isEqualTo("IN_PROGRESS");
+        assertThat(dto.getStatus()).isEqualTo(SharedConstants.IN_PROGRESS);
         assertThat(dto.getProgressPercentage()).isEqualTo(50.0);
         mockServer.verify();
     }
@@ -467,7 +468,7 @@ class QuestionBankClientImplTest {
 
         assertThat(list).hasSize(1);
         assertThat(list.get(0).getId()).isEqualTo(jobId);
-        assertThat(list.get(0).getStatus()).isEqualTo("COMPLETED");
+        assertThat(list.get(0).getStatus()).isEqualTo(SharedConstants.COMPLETED);
         mockServer.verify();
     }
 }

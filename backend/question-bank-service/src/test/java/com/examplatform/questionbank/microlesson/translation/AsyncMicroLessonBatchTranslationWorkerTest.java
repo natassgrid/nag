@@ -28,6 +28,7 @@ import com.examplatform.questionbank.microlesson.translation.repository.MicroLes
 import com.examplatform.questionbank.microlesson.translation.service.AsyncMicroLessonBatchTranslationWorker;
 import com.examplatform.questionbank.microlesson.translation.service.MicroLessonTranslationPayloadService;
 import com.examplatform.questionbank.microlesson.translation.service.MicroLessonTranslationWorkflowService;
+import com.examplatform.shared.constants.SharedConstants;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -112,7 +113,7 @@ class AsyncMicroLessonBatchTranslationWorkerTest {
         verify(workflowService, times(2)).upsertTranslation(
                 any(), eq("hi"), any(), any(), any(), any(), eq("PUBLISHED"), any(), any(), any(), eq(1), eq("default"));
         verify(jobRepository, times(2)).incrementSuccess(jobId);
-        assertThat(job.getStatus()).isEqualTo("COMPLETED");
+        assertThat(job.getStatus()).isEqualTo(SharedConstants.COMPLETED);
         assertThat(job.getCompletedAt()).isNotNull();
     }
 
@@ -157,7 +158,7 @@ class AsyncMicroLessonBatchTranslationWorkerTest {
         // Success incremented for lesson 2
         verify(jobRepository).incrementSuccess(jobId);
         // Batch completed successfully despite individual failure
-        assertThat(job.getStatus()).isEqualTo("COMPLETED");
+        assertThat(job.getStatus()).isEqualTo(SharedConstants.COMPLETED);
     }
 
     @Test
@@ -193,7 +194,7 @@ class AsyncMicroLessonBatchTranslationWorkerTest {
         verifyNoInteractions(workflowService);
         // Direct success increment
         verify(jobRepository).incrementSuccess(jobId);
-        assertThat(job.getStatus()).isEqualTo("COMPLETED");
+        assertThat(job.getStatus()).isEqualTo(SharedConstants.COMPLETED);
     }
 
     @Test
@@ -213,7 +214,7 @@ class AsyncMicroLessonBatchTranslationWorkerTest {
         ReflectionTestUtils.setField(job, "id", jobId);
 
         MicroLessonBatchTranslationJob cancelledJob = MicroLessonBatchTranslationJob.builder()
-                .status("CANCELLED")
+                .status(SharedConstants.CANCELLED)
                 .build();
         ReflectionTestUtils.setField(cancelledJob, "id", jobId);
 

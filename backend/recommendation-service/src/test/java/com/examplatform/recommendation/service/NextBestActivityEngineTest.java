@@ -27,6 +27,7 @@ import com.examplatform.recommendation.mastery.MasteryModel;
 import com.examplatform.recommendation.repository.DynamicLearningPathRepository;
 import com.examplatform.recommendation.repository.LearnerLessonProgressRepository;
 import com.examplatform.recommendation.repository.LearnerSubtopicStateRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -175,7 +176,7 @@ class NextBestActivityEngineTest {
                 .lessonId(conceptLessonId)
                 .subtopicId(101L)
                 .lessonType("CONCEPT")
-                .status("COMPLETED")
+                .status(SharedConstants.COMPLETED)
                 .build();
         when(lessonProgressRepository.findByEnrollmentId(enrollmentId)).thenReturn(List.of(seenConcept));
 
@@ -218,7 +219,7 @@ class NextBestActivityEngineTest {
                 .lessonId(conceptLessonId)
                 .subtopicId(101L)
                 .lessonType("CONCEPT")
-                .status("COMPLETED")
+                .status(SharedConstants.COMPLETED)
                 .build();
         when(lessonProgressRepository.findByEnrollmentId(enrollmentId)).thenReturn(List.of(seenConcept));
 

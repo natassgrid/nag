@@ -76,7 +76,7 @@ public class MicroLessonBatchRunner {
 
         public void cancel() {
             this.cancelled.set(true);
-            this.status = "CANCELLED";
+            this.status = SharedConstants.CANCELLED;
             this.message = "Generation cancelled by user.";
             this.completedTime = Instant.now();
         }
@@ -85,7 +85,7 @@ public class MicroLessonBatchRunner {
             int queued = totalQueued;
             int gen = totalGenerated.get();
             int fail = totalFailed.get();
-            int percent = queued > 0 ? (gen + fail) * 100 / queued : (("COMPLETED".equals(status)) ? 100 : 0);
+            int percent = queued > 0 ? (gen + fail) * 100 / queued : ((SharedConstants.COMPLETED.equals(status)) ? 100 : 0);
             if (percent > 100) percent = 100;
 
             return new BatchGenerateResponse(
@@ -149,7 +149,7 @@ public class MicroLessonBatchRunner {
     public BatchGenerateResponse startBatchJob(BatchGenerateMicroLessonsRequest request) {
         String targetExam = (request != null && request.targetExam() != null && !request.targetExam().isBlank())
                 ? request.targetExam()
-                : "JEE_MAIN";
+                : SharedConstants.JEE_MAIN;
 
         int max = (request != null && request.maxCount() != null && request.maxCount() > 0)
                 ? request.maxCount()
@@ -165,7 +165,7 @@ public class MicroLessonBatchRunner {
                     batchId,
                     targetExam,
                     0,
-                    "COMPLETED",
+                SharedConstants.COMPLETED,
                     "No subtopics require generation for the chosen criteria (all already covered)."
             );
             emptyJob.setCompletedTime(Instant.now());
@@ -178,7 +178,7 @@ public class MicroLessonBatchRunner {
                 batchId,
                 targetExam,
                 candidates.size(),
-                "IN_PROGRESS",
+            SharedConstants.IN_PROGRESS,
                 String.format("Batch job queued with %d subtopics for %s", candidates.size(), targetExam)
         );
         jobStates.put(batchId, jobState);
@@ -224,7 +224,7 @@ public class MicroLessonBatchRunner {
             }
 
             state.setCurrentSubtopic(null);
-            state.setStatus("COMPLETED");
+            state.setStatus(SharedConstants.COMPLETED);
             state.setMessage(String.format("Batch completed: %d generated, %d failed out of %d processed for exam %s",
                     state.getTotalGenerated().get(), state.getTotalFailed().get(), state.getTotalQueued(), targetExam));
         } catch (Exception e) {
@@ -258,7 +258,7 @@ public class MicroLessonBatchRunner {
             return null;
         }
 
-        if ("IN_PROGRESS".equals(state.getStatus()) || "QUEUED".equals(state.getStatus())) {
+        if (SharedConstants.IN_PROGRESS.equals(state.getStatus()) || "QUEUED".equals(state.getStatus())) {
             return state.toResponse();
         }
 
@@ -297,7 +297,8 @@ public class MicroLessonBatchRunner {
     public void runNightlyBatchJob() {
         log.info("Starting nightly automated micro-lesson generation task...");
         try {
-            BatchGenerateResponse response = runBatchGeneration(new BatchGenerateMicroLessonsRequest(null, null, null, "JEE_MAIN", 50));
+            BatchGenerateResponse response = runBatchGeneration(new BatchGenerateMicroLessonsRequest(null, null, null,
+                SharedConstants.JEE_MAIN, 50));
             log.info("Nightly micro-lesson batch triggered: {}", response.message());
         } catch (Exception e) {
             log.error("Nightly micro-lesson generation failed: {}", e.getMessage(), e);

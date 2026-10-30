@@ -18,6 +18,7 @@ import com.examplatform.questionbank.microlesson.domain.SubtopicMicroLesson;
 import com.examplatform.questionbank.microlesson.dto.MicroLessonContentDto;
 import com.examplatform.questionbank.microlesson.dto.StepByStepBreakdownDto;
 import com.examplatform.questionbank.microlesson.repository.SubtopicMicroLessonRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
@@ -187,7 +188,7 @@ class MicroLessonAiResilienceTest {
                 1L, "Physics",
                 10L, "Mechanics",
                 101L, "Angular Momentum",
-                "JEE_MAIN"
+            SharedConstants.JEE_MAIN
         );
 
         assertThat(result).isNotNull();
@@ -208,7 +209,7 @@ class MicroLessonAiResilienceTest {
                 1L, attackSubject,
                 10L, "Mechanics",
                 100L, "Kinematics",
-                "JEE_MAIN"
+            SharedConstants.JEE_MAIN
         )).isInstanceOf(AiSecurityException.class)
           .hasMessageContaining("AI security violation");
 
@@ -243,7 +244,7 @@ class MicroLessonAiResilienceTest {
                 1L, "Physics",
                 10L, "Mechanics",
                 100L, "Kinematics",
-                "JEE_MAIN"
+            SharedConstants.JEE_MAIN
         )).isInstanceOf(AiSecurityException.class)
           .hasMessageContaining("Sensitive credential or secret key disclosure");
 
@@ -287,7 +288,7 @@ class MicroLessonAiResilienceTest {
         when(repository.save(any(SubtopicMicroLesson.class))).thenAnswer(inv -> inv.getArgument(0));
 
         SubtopicMicroLesson result = service.generateForSubtopic(
-                1L, "Physics", 10L, "Mechanics", 100L, "Kinematics", "JEE_MAIN"
+                1L, "Physics", 10L, "Mechanics", 100L, "Kinematics", SharedConstants.JEE_MAIN
         );
 
         assertThat(result).isNotNull();

@@ -10,6 +10,7 @@ import com.examplatform.questionbank.microlesson.dto.MicroLessonResponse;
 import com.examplatform.questionbank.microlesson.dto.StepByStepBreakdownDto;
 import com.examplatform.questionbank.microlesson.repository.SubtopicMicroLessonRepository;
 import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.json.JsonReadFeature;
@@ -149,7 +150,7 @@ public class MicroLessonGeneratorService {
         if (exam.contains("JEE_ADV") || exam.contains("GATE") || exam.contains("UPSC") || exam.contains("CAT")) {
             return QuestionTaxonomyConstants.Difficulty.HARD;
         }
-        if (exam.contains("JEE_MAIN") || exam.contains("NEET") || exam.contains("SSC")
+        if (exam.contains(SharedConstants.JEE_MAIN) || exam.contains("NEET") || exam.contains("SSC")
                 || exam.contains("RRB") || exam.contains("BANK") || exam.contains("IBPS")
                 || exam.contains("SBI") || exam.contains("DEFICIT")) {
             return QuestionTaxonomyConstants.Difficulty.MEDIUM;
@@ -212,7 +213,7 @@ public class MicroLessonGeneratorService {
             inputGuardrail.validateAndSanitize("referenceText", referenceText);
         }
 
-        String exam = (targetExam != null && !targetExam.isBlank()) ? targetExam : "JEE_MAIN";
+        String exam = (targetExam != null && !targetExam.isBlank()) ? targetExam : SharedConstants.JEE_MAIN;
         String difficulty = resolveDifficulty(subject, topic, subtopic, exam);
         String targetModel = (modelRouter != null) ? modelRouter.selectModel(difficulty) : null;
 
@@ -311,7 +312,7 @@ public class MicroLessonGeneratorService {
             boolean hasDomainIssue = criticResult.issues() != null
                     && criticResult.issues().stream().anyMatch(i -> i != null && i.startsWith("Rubric 3:"));
             MicroLessonContentDto domainFallback = hasDomainIssue
-                    ? buildFallbackContent(subject, topic, subtopic, "JEE_MAIN")
+                    ? buildFallbackContent(subject, topic, subtopic, SharedConstants.JEE_MAIN)
                     : null;
             content = refinementAgent.refine(content, criticResult, domainFallback);
         }

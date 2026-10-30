@@ -11,6 +11,7 @@
 
 package com.examplatform.candidate.domain;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -47,7 +48,7 @@ public class DiagnosticSession extends BaseEntity {
 
     @Column(name = "status", nullable = false, length = 30)
     @Builder.Default
-    private String status = "IN_PROGRESS"; // IN_PROGRESS | COMPLETED | SKIPPED
+    private String status = SharedConstants.IN_PROGRESS; // IN_PROGRESS | COMPLETED | SKIPPED
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "questions_json", columnDefinition = "jsonb")

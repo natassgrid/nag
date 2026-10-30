@@ -4,6 +4,7 @@ package com.examplatform.questionbank.microlesson.ai;
 import com.examplatform.questionbank.ai.prompt.PromptTemplateService;
 import com.examplatform.questionbank.microlesson.ai.agent.MicroLessonBlueprint;
 import com.examplatform.questionbank.microlesson.ai.guardrails.InputGuardrail;
+import com.examplatform.shared.constants.SharedConstants;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -119,10 +120,11 @@ public class MicroLessonPromptBuilder {
         String validExam = inputGuardrail.validateAndSanitize("targetExam", targetExam);
         String validRef = inputGuardrail.validateAndSanitize("referenceText", referenceText);
 
-        String exam = (validExam != null && !validExam.isBlank()) ? validExam : "JEE_MAIN";
-        String sSubject = (validSubject != null && !validSubject.isBlank()) ? validSubject : "General";
-        String sTopic = (validTopic != null && !validTopic.isBlank()) ? validTopic : "General";
-        String sSubtopic = (validSubtopic != null && !validSubtopic.isBlank()) ? validSubtopic : "General";
+        String exam = (validExam != null && !validExam.isBlank()) ? validExam : SharedConstants.JEE_MAIN;
+        String sSubject = (validSubject != null && !validSubject.isBlank()) ? validSubject : SharedConstants.GENERAL;
+        String sTopic = (validTopic != null && !validTopic.isBlank()) ? validTopic : SharedConstants.GENERAL;
+        String sSubtopic = (validSubtopic != null && !validSubtopic.isBlank()) ? validSubtopic :
+            SharedConstants.GENERAL;
 
         StringBuilder extraContext = new StringBuilder();
         if (blueprint != null && blueprint.formattedBlueprintPrompt() != null && !blueprint.formattedBlueprintPrompt().isBlank()) {

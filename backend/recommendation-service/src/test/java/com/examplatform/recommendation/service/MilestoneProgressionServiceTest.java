@@ -7,6 +7,7 @@ import com.examplatform.recommendation.dto.*;
 import com.examplatform.recommendation.repository.DynamicLearningPathRepository;
 import com.examplatform.practice.service.AdaptiveQuizGenerator;
 import com.examplatform.practice.dto.PracticeSetDto;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -100,18 +101,18 @@ class MilestoneProgressionServiceTest {
         );
 
         String currentPhase = "PHASE_1_REMEDIATION";
-        if ("COMPLETED".equals(p1Status) && "IN_PROGRESS".equals(p2Status)) currentPhase = "PHASE_2_ADAPTIVE_QUIZ";
-        if ("COMPLETED".equals(p2Status) && "IN_PROGRESS".equals(p3Status)) currentPhase = "PHASE_3_GATEKEEPER";
-        if ("COMPLETED".equals(p3Status)) currentPhase = "COMPLETED";
+        if (SharedConstants.COMPLETED.equals(p1Status) && SharedConstants.IN_PROGRESS.equals(p2Status)) currentPhase = "PHASE_2_ADAPTIVE_QUIZ";
+        if (SharedConstants.COMPLETED.equals(p2Status) && SharedConstants.IN_PROGRESS.equals(p3Status)) currentPhase = "PHASE_3_GATEKEEPER";
+        if (SharedConstants.COMPLETED.equals(p3Status)) currentPhase = SharedConstants.COMPLETED;
 
         MilestoneGraphDto graph = new MilestoneGraphDto(
-                currentPhase, "JEE_MAIN", "COMPLETED".equals(p3Status),
+                currentPhase, SharedConstants.JEE_MAIN, SharedConstants.COMPLETED.equals(p3Status),
                 List.of(phase1, phase2, phase3), List.of(gap), List.of(), List.of(), 1, 0.0
         );
 
         return DynamicLearningPath.builder()
                 .candidateId(CANDIDATE_ID)
-                .examTarget("JEE_MAIN")
+                .examTarget(SharedConstants.JEE_MAIN)
                 .status("ACTIVE")
                 .milestoneGraphJson(objectMapper.writeValueAsString(graph))
                 .build();
@@ -120,7 +121,7 @@ class MilestoneProgressionServiceTest {
     @Test
     @DisplayName("Completing all Phase 1 milestones promotes DLP to Phase 2 Adaptive Quizzing")
     void testCompleteMilestoneUnlocksPhase2() throws Exception {
-        DynamicLearningPath dlp = createSampleDlp("IN_PROGRESS", "LOCKED", "LOCKED", false);
+        DynamicLearningPath dlp = createSampleDlp(SharedConstants.IN_PROGRESS, "LOCKED", "LOCKED", false);
         when(dlpRepository.findFirstByCandidateIdAndStatusOrderByCreatedAtDesc(CANDIDATE_ID, "ACTIVE"))
                 .thenReturn(Optional.of(dlp));
         when(generatorService.toResponse(any())).thenReturn(null);
@@ -130,14 +131,14 @@ class MilestoneProgressionServiceTest {
         verify(dlpRepository).save(dlp);
         MilestoneGraphDto updatedGraph = objectMapper.readValue(dlp.getMilestoneGraphJson(), MilestoneGraphDto.class);
         assertThat(updatedGraph.currentPhase()).isEqualTo("PHASE_2_ADAPTIVE_QUIZ");
-        assertThat(updatedGraph.phases().get(0).status()).isEqualTo("COMPLETED");
-        assertThat(updatedGraph.phases().get(1).status()).isEqualTo("IN_PROGRESS");
+        assertThat(updatedGraph.phases().get(0).status()).isEqualTo(SharedConstants.COMPLETED);
+        assertThat(updatedGraph.phases().get(1).status()).isEqualTo(SharedConstants.IN_PROGRESS);
     }
 
     @Test
     @DisplayName("Starting Adaptive Quiz before Phase 1 completion throws 400 Bad Request")
     void testStartAdaptiveQuizBeforePhase1CompleteThrows() throws Exception {
-        DynamicLearningPath dlp = createSampleDlp("IN_PROGRESS", "LOCKED", "LOCKED", false);
+        DynamicLearningPath dlp = createSampleDlp(SharedConstants.IN_PROGRESS, "LOCKED", "LOCKED", false);
         when(dlpRepository.findFirstByCandidateIdAndStatusOrderByCreatedAtDesc(CANDIDATE_ID, "ACTIVE"))
                 .thenReturn(Optional.of(dlp));
 
@@ -149,7 +150,7 @@ class MilestoneProgressionServiceTest {
     @Test
     @DisplayName("Submitting Adaptive Quiz with >= 70% accuracy promotes candidate to Phase 3 Gatekeeper")
     void testSubmitAdaptiveQuizPassPromotesToPhase3() throws Exception {
-        DynamicLearningPath dlp = createSampleDlp("COMPLETED", "IN_PROGRESS", "LOCKED", true);
+        DynamicLearningPath dlp = createSampleDlp(SharedConstants.COMPLETED, SharedConstants.IN_PROGRESS, "LOCKED", true);
         when(dlpRepository.findFirstByCandidateIdAndStatusOrderByCreatedAtDesc(CANDIDATE_ID, "ACTIVE"))
                 .thenReturn(Optional.of(dlp));
         when(generatorService.toResponse(any())).thenReturn(null);
@@ -159,14 +160,15 @@ class MilestoneProgressionServiceTest {
         verify(dlpRepository).save(dlp);
         MilestoneGraphDto updatedGraph = objectMapper.readValue(dlp.getMilestoneGraphJson(), MilestoneGraphDto.class);
         assertThat(updatedGraph.currentPhase()).isEqualTo("PHASE_3_GATEKEEPER");
-        assertThat(updatedGraph.phases().get(1).status()).isEqualTo("COMPLETED");
-        assertThat(updatedGraph.phases().get(2).status()).isEqualTo("IN_PROGRESS");
+        assertThat(updatedGraph.phases().get(1).status()).isEqualTo(SharedConstants.COMPLETED);
+        assertThat(updatedGraph.phases().get(2).status()).isEqualTo(SharedConstants.IN_PROGRESS);
     }
 
     @Test
     @DisplayName("Submitting Gatekeeper with >= 75% score unlocks full mock exam permissions")
     void testSubmitGatekeeperPassRestoresMockAccess() throws Exception {
-        DynamicLearningPath dlp = createSampleDlp("COMPLETED", "COMPLETED", "IN_PROGRESS", true);
+        DynamicLearningPath dlp = createSampleDlp(SharedConstants.COMPLETED, SharedConstants.COMPLETED,
+            SharedConstants.IN_PROGRESS, true);
         when(dlpRepository.findFirstByCandidateIdAndStatusOrderByCreatedAtDesc(CANDIDATE_ID, "ACTIVE"))
                 .thenReturn(Optional.of(dlp));
         when(generatorService.toResponse(any())).thenReturn(null);
@@ -176,15 +178,15 @@ class MilestoneProgressionServiceTest {
         verify(dlpRepository).save(dlp);
         MilestoneGraphDto updatedGraph = objectMapper.readValue(dlp.getMilestoneGraphJson(), MilestoneGraphDto.class);
         assertThat(updatedGraph.gatekeeperPassed()).isTrue();
-        assertThat(updatedGraph.currentPhase()).isEqualTo("COMPLETED");
-        assertThat(updatedGraph.phases().get(2).status()).isEqualTo("COMPLETED");
+        assertThat(updatedGraph.currentPhase()).isEqualTo(SharedConstants.COMPLETED);
+        assertThat(updatedGraph.phases().get(2).status()).isEqualTo(SharedConstants.COMPLETED);
         assertThat(updatedGraph.phases().get(2).passed()).isTrue();
     }
 
     @Test
     @DisplayName("Gatekeeper status blocks full mocks until Phase 3 test is passed")
     void testGatekeeperStatusCheck() throws Exception {
-        DynamicLearningPath dlp = createSampleDlp("IN_PROGRESS", "LOCKED", "LOCKED", false);
+        DynamicLearningPath dlp = createSampleDlp(SharedConstants.IN_PROGRESS, "LOCKED", "LOCKED", false);
         when(dlpRepository.findFirstByCandidateIdAndStatusOrderByCreatedAtDesc(CANDIDATE_ID, "ACTIVE"))
                 .thenReturn(Optional.of(dlp));
 
@@ -198,7 +200,7 @@ class MilestoneProgressionServiceTest {
     @Test
     @DisplayName("startAdaptiveQuiz invokes AdaptiveQuizGenerator when present and sets practiceSetId")
     void testStartAdaptiveQuizWithGenerator() throws Exception {
-        DynamicLearningPath dlp = createSampleDlp("COMPLETED", "IN_PROGRESS", "LOCKED", false);
+        DynamicLearningPath dlp = createSampleDlp(SharedConstants.COMPLETED, SharedConstants.IN_PROGRESS, "LOCKED", false);
         when(dlpRepository.findFirstByCandidateIdAndStatusOrderByCreatedAtDesc(CANDIDATE_ID, "ACTIVE"))
                 .thenReturn(Optional.of(dlp));
 
@@ -226,7 +228,8 @@ class MilestoneProgressionServiceTest {
     @Test
     @DisplayName("startGatekeeperTest invokes AdaptiveQuizGenerator with isGatekeeper=true and sets practiceSetId")
     void testStartGatekeeperTestWithGenerator() throws Exception {
-        DynamicLearningPath dlp = createSampleDlp("COMPLETED", "COMPLETED", "IN_PROGRESS", true);
+        DynamicLearningPath dlp = createSampleDlp(SharedConstants.COMPLETED, SharedConstants.COMPLETED,
+            SharedConstants.IN_PROGRESS, true);
         when(dlpRepository.findFirstByCandidateIdAndStatusOrderByCreatedAtDesc(CANDIDATE_ID, "ACTIVE"))
                 .thenReturn(Optional.of(dlp));
 
@@ -256,7 +259,7 @@ class MilestoneProgressionServiceTest {
     void testGatekeeperStatusDiagnosticRequired() throws Exception {
         MilestoneGraphDto diagGraph = new MilestoneGraphDto(
                 "DIAGNOSTIC_REQUIRED",
-                "JEE_MAIN",
+            SharedConstants.JEE_MAIN,
                 false,
                 List.of(),
                 List.of(),
@@ -283,7 +286,7 @@ class MilestoneProgressionServiceTest {
     @Test
     @DisplayName("getGatekeeperStatus populates conceptualGaps and applicationGaps")
     void testGatekeeperStatusPopulatesGaps() throws Exception {
-        DynamicLearningPath dlp = createSampleDlp("IN_PROGRESS", "LOCKED", "LOCKED", false);
+        DynamicLearningPath dlp = createSampleDlp(SharedConstants.IN_PROGRESS, "LOCKED", "LOCKED", false);
         when(dlpRepository.findFirstByCandidateIdAndStatusOrderByCreatedAtDesc(CANDIDATE_ID, "ACTIVE"))
                 .thenReturn(Optional.of(dlp));
 
@@ -299,7 +302,7 @@ class MilestoneProgressionServiceTest {
     @DisplayName("handleCompletedSessionIfApplicable completes Phase 2 quiz when in PHASE_2_ADAPTIVE_QUIZ")
     void testHandleCompletedSessionPhase2() throws Exception {
         UUID quizSessionId = UUID.randomUUID();
-        DynamicLearningPath dlp = createSampleDlp("COMPLETED", "IN_PROGRESS", "LOCKED", true);
+        DynamicLearningPath dlp = createSampleDlp(SharedConstants.COMPLETED, SharedConstants.IN_PROGRESS, "LOCKED", true);
 
         // Update phase2 with quizSessionId
         MilestoneGraphDto graph = objectMapper.readValue(dlp.getMilestoneGraphJson(), MilestoneGraphDto.class);
@@ -330,14 +333,14 @@ class MilestoneProgressionServiceTest {
         assertThat(handled).isTrue();
 
         MilestoneGraphDto savedGraph = objectMapper.readValue(dlp.getMilestoneGraphJson(), MilestoneGraphDto.class);
-        assertThat(savedGraph.getPhase2().status()).isEqualTo("COMPLETED");
+        assertThat(savedGraph.getPhase2().status()).isEqualTo(SharedConstants.COMPLETED);
         assertThat(savedGraph.currentPhase()).isEqualTo("PHASE_3_GATEKEEPER");
     }
 
     @Test
     @DisplayName("handleCompletedSessionIfApplicable returns false when in Phase 1")
     void testHandleCompletedSessionPhase1ReturnsFalse() throws Exception {
-        DynamicLearningPath dlp = createSampleDlp("IN_PROGRESS", "LOCKED", "LOCKED", false);
+        DynamicLearningPath dlp = createSampleDlp(SharedConstants.IN_PROGRESS, "LOCKED", "LOCKED", false);
         when(dlpRepository.findFirstByCandidateIdAndStatusOrderByCreatedAtDesc(CANDIDATE_ID, "ACTIVE"))
                 .thenReturn(Optional.of(dlp));
 

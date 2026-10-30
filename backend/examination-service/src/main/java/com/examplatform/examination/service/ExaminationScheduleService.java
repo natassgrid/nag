@@ -79,7 +79,7 @@ public class ExaminationScheduleService {
             "SECURITY_REVIEW",     Set.of("SECURITY_ADMIN", "SUPER_ADMIN"),
             "CHAIRMAN_APPROVED",   Set.of("SUPER_ADMIN"),
         QuestionStateConstants.PUBLISHED,           Set.of("SUPER_ADMIN"),
-            "CANCELLED",           Set.of("EXAM_CONTROLLER", "SUPER_ADMIN", "SECURITY_ADMIN")
+        SharedConstants.CANCELLED,           Set.of("EXAM_CONTROLLER", "SUPER_ADMIN", "SECURITY_ADMIN")
     );
 
     private final ExaminationRepository examinationRepository;
@@ -371,11 +371,11 @@ public class ExaminationScheduleService {
 
     private void validateTransition(String current, String target, Set<String> actorRoles) {
         // CANCELLED is always allowed from any non-CANCELLED state
-        if ("CANCELLED".equals(target)) {
-            if ("CANCELLED".equals(current)) {
+        if (SharedConstants.CANCELLED.equals(target)) {
+            if (SharedConstants.CANCELLED.equals(current)) {
                 throw new ScheduleWorkflowException(current, target);
             }
-            Set<String> allowed = TRANSITION_ROLES.getOrDefault("CANCELLED", Set.of());
+            Set<String> allowed = TRANSITION_ROLES.getOrDefault(SharedConstants.CANCELLED, Set.of());
             if (actorRoles.stream().noneMatch(allowed::contains)) {
                 throw new AccessDeniedException(
                         "Role not permitted to cancel schedule. Required one of: " + allowed);

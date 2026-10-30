@@ -4,6 +4,7 @@ package com.examplatform.questionbank.microlesson.ai.agent;
 import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.microlesson.ai.KaTexValidator;
 import com.examplatform.questionbank.microlesson.dto.MicroLessonContentDto;
+import com.examplatform.shared.constants.SharedConstants;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -64,7 +65,8 @@ class DeterministicMicroLessonAgentTest {
     @Test
     @DisplayName("Acids, Bases, Salts & pH: Produces valid micro-lesson with zero KaTeX errors")
     void testAcidsBasesPhSynthesis() {
-        MicroLessonContentDto content = agent.synthesize("Chemistry", "Physical", "Acids, Bases, Salts and pH Scale", "JEE_MAIN");
+        MicroLessonContentDto content = agent.synthesize("Chemistry", "Physical", "Acids, Bases, Salts and pH Scale",
+            SharedConstants.JEE_MAIN);
         assertValidAndZeroErrors(content);
         assertThat(content.coreConcept()).contains("Sørensen");
         assertThat(content.coreConcept()).contains("meetha soda");
@@ -74,7 +76,8 @@ class DeterministicMicroLessonAgentTest {
     @Test
     @DisplayName("Mole Concept & Stoichiometry: Produces valid micro-lesson with zero KaTeX errors")
     void testMoleConceptSynthesis() {
-        MicroLessonContentDto content = agent.synthesize("Chemistry", "Physical Chemistry", "Mole Concept and Stoichiometry", "JEE_MAIN");
+        MicroLessonContentDto content = agent.synthesize("Chemistry", "Physical Chemistry", "Mole Concept and Stoichiometry",
+            SharedConstants.JEE_MAIN);
         assertValidAndZeroErrors(content);
         assertThat(content.coreConcept()).contains("Avogadro");
         assertThat(content.stepByStepBreakdown().finalAnswer()).contains("5.0");
@@ -92,7 +95,8 @@ class DeterministicMicroLessonAgentTest {
     @Test
     @DisplayName("Mechanics & Kinematics: Produces valid micro-lesson with zero KaTeX errors")
     void testMechanicsKinematicsSynthesis() {
-        MicroLessonContentDto content = agent.synthesize("Physics", "Mechanics", "Kinematics in One Dimension", "JEE_MAIN");
+        MicroLessonContentDto content = agent.synthesize("Physics", "Mechanics", "Kinematics in One Dimension",
+            SharedConstants.JEE_MAIN);
         assertValidAndZeroErrors(content);
         assertThat(content.coreConcept()).contains("auto-rickshaw");
         assertThat(content.stepByStepBreakdown().finalAnswer()).contains("50");
@@ -110,7 +114,8 @@ class DeterministicMicroLessonAgentTest {
     @Test
     @DisplayName("Electricity & Circuits: Produces valid micro-lesson with zero KaTeX errors")
     void testElectricitySynthesis() {
-        MicroLessonContentDto content = agent.synthesize("Physics", "Current Electricity", "Electric Circuits and Ohm's Law", "JEE_MAIN");
+        MicroLessonContentDto content = agent.synthesize("Physics", "Current Electricity", "Electric Circuits and Ohm's Law",
+            SharedConstants.JEE_MAIN);
         assertValidAndZeroErrors(content);
         assertThat(content.coreConcept()).contains("toll plaza");
         assertThat(content.stepByStepBreakdown().finalAnswer()).contains("6");
@@ -174,7 +179,8 @@ class DeterministicMicroLessonAgentTest {
     @Test
     @DisplayName("Algebra & Quadratics: Produces valid micro-lesson with zero KaTeX errors")
     void testAlgebraQuadraticsSynthesis() {
-        MicroLessonContentDto content = agent.synthesize("Mathematics", "Algebra", "Quadratic Equations and Roots", "JEE_MAIN");
+        MicroLessonContentDto content = agent.synthesize("Mathematics", "Algebra", "Quadratic Equations and Roots",
+            SharedConstants.JEE_MAIN);
         assertValidAndZeroErrors(content);
         assertThat(content.coreConcept()).contains("parabolic");
         assertThat(content.stepByStepBreakdown().finalAnswer()).contains("9.25");
@@ -287,7 +293,7 @@ class DeterministicMicroLessonAgentTest {
                 "Physics",
                 "Mechanics",
                 "Moment of Inertia",
-                "JEE_MAIN",
+            SharedConstants.JEE_MAIN,
                 "MEDIUM",
                 "Directive",
                 List.of(sampleQuestion),

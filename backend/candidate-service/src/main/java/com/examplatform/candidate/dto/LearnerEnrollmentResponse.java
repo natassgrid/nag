@@ -11,6 +11,7 @@
 
 package com.examplatform.candidate.dto;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 import java.time.Instant;
@@ -55,7 +56,7 @@ public record LearnerEnrollmentResponse(
                 targetDate,
                 status,
                 diagnosticStatus,
-                "COMPLETED".equalsIgnoreCase(diagnosticStatus) || "SKIPPED".equalsIgnoreCase(diagnosticStatus),
+                SharedConstants.COMPLETED.equalsIgnoreCase(diagnosticStatus) || "SKIPPED".equalsIgnoreCase(diagnosticStatus),
                 diagnosticSessionId,
                 "SKIPPED".equalsIgnoreCase(diagnosticStatus) ? 50 : 0,
                 startedAt,

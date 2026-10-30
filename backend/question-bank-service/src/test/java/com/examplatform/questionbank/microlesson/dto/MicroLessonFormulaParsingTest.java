@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.examplatform.questionbank.microlesson.dto;
 
+import com.examplatform.shared.constants.SharedConstants;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -21,7 +22,7 @@ class MicroLessonFormulaParsingTest {
                 UUID.randomUUID(),
                 1L, 1L, 1L,
                 "Physics", "Mechanics", "Dimensional Analysis",
-                "JEE_MAIN",
+            SharedConstants.JEE_MAIN,
                 "Core Concept",
                 "Common Trap",
                 List.of(formulaWithColonInsideMath),
@@ -49,7 +50,7 @@ class MicroLessonFormulaParsingTest {
                 UUID.randomUUID(),
                 1L, 1L, 1L,
                 "Physics", "Current Electricity", "Ohm's Law",
-                "JEE_MAIN",
+            SharedConstants.JEE_MAIN,
                 "Core Concept",
                 "Common Trap",
                 List.of(namedFormula),
@@ -94,7 +95,7 @@ class MicroLessonFormulaParsingTest {
     @DisplayName("MicroLessonResponse should compute approachName and title correctly for all lesson types")
     void shouldComputeApproachNameAndTitle() {
         MicroLessonResponse concept = new MicroLessonResponse(
-                UUID.randomUUID(), 1L, 1L, 1L, "Physics", "Mechanics", "Torque", "JEE_MAIN",
+                UUID.randomUUID(), 1L, 1L, 1L, "Physics", "Mechanics", "Torque", SharedConstants.JEE_MAIN,
                 "Concept", "Trap", List.of(), null, "PUBLISHED", null, null, null, 1, null, null,
                 "en", false, "CONCEPT", "CORE", 1, null, 5, null
         );
@@ -102,7 +103,7 @@ class MicroLessonFormulaParsingTest {
         assertThat(concept.getTitle()).isEqualTo("Approach 1: Conceptual Foundation");
 
         MicroLessonResponse worked = new MicroLessonResponse(
-                UUID.randomUUID(), 1L, 1L, 1L, "Physics", "Mechanics", "Torque", "JEE_MAIN",
+                UUID.randomUUID(), 1L, 1L, 1L, "Physics", "Mechanics", "Torque", SharedConstants.JEE_MAIN,
                 "Concept", "Trap", List.of(), null, "PUBLISHED", null, null, null, 1, null, null,
                 "en", false, "WORKED_EXAMPLES", "CORE", 2, null, 5, null
         );
@@ -110,7 +111,7 @@ class MicroLessonFormulaParsingTest {
         assertThat(worked.getTitle()).isEqualTo("Approach 2: Step-by-Step Worked Method");
 
         MicroLessonResponse traps = new MicroLessonResponse(
-                UUID.randomUUID(), 1L, 1L, 1L, "Physics", "Mechanics", "Torque", "JEE_MAIN",
+                UUID.randomUUID(), 1L, 1L, 1L, "Physics", "Mechanics", "Torque", SharedConstants.JEE_MAIN,
                 "Concept", "Trap", List.of(), null, "PUBLISHED", null, null, null, 1, null, null,
                 "en", false, "TRAPS_AND_PITFALLS", "CORE", 3, null, 5, null
         );
@@ -118,7 +119,7 @@ class MicroLessonFormulaParsingTest {
         assertThat(traps.getTitle()).isEqualTo("Approach 3: Exam Traps & Elimination");
 
         MicroLessonResponse visual = new MicroLessonResponse(
-                UUID.randomUUID(), 1L, 1L, 1L, "Physics", "Mechanics", "Torque", "JEE_MAIN",
+                UUID.randomUUID(), 1L, 1L, 1L, "Physics", "Mechanics", "Torque", SharedConstants.JEE_MAIN,
                 "Concept", "Trap", List.of(), null, "PUBLISHED", null, null, null, 1, null, null,
                 "en", false, "VISUAL", "CORE", 4, null, 5, null
         );
@@ -126,7 +127,7 @@ class MicroLessonFormulaParsingTest {
         assertThat(visual.getTitle()).isEqualTo("Approach 4: Visual & Intuitive Model");
 
         MicroLessonResponse cheat = new MicroLessonResponse(
-                UUID.randomUUID(), 1L, 1L, 1L, "Physics", "Mechanics", "Torque", "JEE_MAIN",
+                UUID.randomUUID(), 1L, 1L, 1L, "Physics", "Mechanics", "Torque", SharedConstants.JEE_MAIN,
                 "Concept", "Trap", List.of(), null, "PUBLISHED", null, null, null, 1, null, null,
                 "en", false, "CHEAT_SHEET", "CORE", 5, null, 5, null
         );
@@ -134,7 +135,7 @@ class MicroLessonFormulaParsingTest {
         assertThat(cheat.getTitle()).isEqualTo("Approach 5: Formula & Shortcut Sheet");
 
         MicroLessonResponse recap = new MicroLessonResponse(
-                UUID.randomUUID(), 1L, 1L, 1L, "Physics", "Mechanics", "Torque", "JEE_MAIN",
+                UUID.randomUUID(), 1L, 1L, 1L, "Physics", "Mechanics", "Torque", SharedConstants.JEE_MAIN,
                 "Concept", "Trap", List.of(), null, "PUBLISHED", null, null, null, 1, null, null,
                 "en", false, "QUICK_RECAP", "CORE", 6, null, 5, null
         );

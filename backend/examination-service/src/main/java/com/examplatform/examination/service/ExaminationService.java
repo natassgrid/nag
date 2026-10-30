@@ -522,10 +522,10 @@ public class ExaminationService {
     @Transactional(readOnly = true)
     public Map<String, Object> getExaminationStatusBreakdown(String tenantId) {
         long scheduled = examinationRepository.countByStatusAndTenantId(QuestionStateConstants.PUBLISHED, tenantId);
-        long live = examinationRepository.countByStatusAndTenantId("IN_PROGRESS", tenantId);
+        long live = examinationRepository.countByStatusAndTenantId(SharedConstants.IN_PROGRESS, tenantId);
         long completed = examinationRepository.countByStatusAndTenantId("CLOSED", tenantId)
                 + examinationRepository.countByStatusAndTenantId(QuestionStateConstants.ARCHIVED, tenantId);
-        long cancelled = examinationRepository.countByStatusAndTenantId("CANCELLED", tenantId);
+        long cancelled = examinationRepository.countByStatusAndTenantId(SharedConstants.CANCELLED, tenantId);
 
         return Map.of(
                 "scheduled", scheduled,

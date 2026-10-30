@@ -6,6 +6,7 @@ import com.examplatform.practice.domain.PracticeResponse;
 import com.examplatform.practice.domain.PracticeSession;
 import com.examplatform.practice.domain.PracticeSet;
 import com.examplatform.practice.dto.*;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.event.PracticeSessionCompletedEvent;
 import com.examplatform.practice.exception.PracticeSessionNotFoundException;
 import com.examplatform.practice.exception.PracticeSetNotFoundException;
@@ -108,7 +109,7 @@ public class PracticeSessionService {
                 .enrollmentId(req.enrollmentId())
                 .examId(req.examId())
                 .mode(mode)
-                .status("IN_PROGRESS")
+                .status(SharedConstants.IN_PROGRESS)
                 .startedAt(Instant.now())
                 .totalQuestions(totalQuestions)
                 .durationMinutes(practiceSet.getDurationMinutes())
@@ -242,7 +243,7 @@ public class PracticeSessionService {
         String practiceSetSource = practiceSet != null ? practiceSet.getSource() : null;
         String targetExam = (practiceSet != null && practiceSet.getExamTitle() != null && !practiceSet.getExamTitle().isBlank())
                 ? practiceSet.getExamTitle()
-                : "JEE_MAIN";
+                : SharedConstants.JEE_MAIN;
 
         eventPublisher.publishEvent(new PracticeSessionCompletedEvent(
                 sessionId, candidateId, evaluated.getPracticeSetId(),

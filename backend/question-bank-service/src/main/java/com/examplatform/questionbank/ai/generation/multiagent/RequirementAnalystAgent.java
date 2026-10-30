@@ -21,6 +21,7 @@ import com.examplatform.questionbank.ai.generation.QuestionGenerationRequest;
 import com.examplatform.questionbank.ai.generation.QuestionPromptFormatter;
 import com.examplatform.questionbank.ai.parser.NormalizedSampleQuestion;
 import com.examplatform.shared.constants.QuestionTypeConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -106,7 +107,8 @@ public class RequirementAnalystAgent {
         }
 
         String blueprint = String.format("Target standard: %s | Subject: %s | Topic: %s",
-                targetExam, request.getSubject(), request.getTopic() != null ? request.getTopic() : "General");
+                targetExam, request.getSubject(), request.getTopic() != null ? request.getTopic() :
+                SharedConstants.GENERAL);
 
         return ClarifyRequirementsResponse.builder()
                 .clarificationNeeded(ambiguous)

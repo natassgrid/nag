@@ -207,7 +207,7 @@ class TranslationControllerIntegrationTest extends AbstractIntegrationTest {
             mockMvc.perform(post("/api/v1/translations/batch/{jobId}/cancel", JOB_ID)
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.status").value("CANCELLED"));
+                    .andExpect(jsonPath("$.status").value(SharedConstants.CANCELLED));
         }
 
         @Test
@@ -232,7 +232,7 @@ class TranslationControllerIntegrationTest extends AbstractIntegrationTest {
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.content[0].id").value(JOB_ID.toString()))
-                    .andExpect(jsonPath("$.content[0].status").value("COMPLETED"))
+                    .andExpect(jsonPath("$.content[0].status").value(SharedConstants.COMPLETED))
                     .andExpect(jsonPath("$.totalElements").value(1));
         }
 

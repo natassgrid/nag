@@ -147,8 +147,11 @@ public class AdminMicroLessonController {
         if (userId != null) {
             return userId;
         }
-        if (jwt != null && jwt.getSubject() != null && !jwt.getSubject().isBlank()) {
-            return UUID.nameUUIDFromBytes(jwt.getSubject().getBytes(StandardCharsets.UTF_8));
+        if (jwt != null) {
+            String subject = jwt.getSubject();
+            if (subject != null && !subject.isBlank()) {
+                return UUID.nameUUIDFromBytes(subject.getBytes(StandardCharsets.UTF_8));
+            }
         }
         return null;
     }

@@ -3,6 +3,7 @@ package com.examplatform.questionbank.microlesson.ai.agent;
 
 import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.repository.QuestionRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -108,7 +109,7 @@ class MicroLessonBlueprintAgentTest {
         when(questionRepository.findAll(any(Specification.class))).thenReturn(List.of(q));
 
         MicroLessonBlueprint blueprint = agentWithRepo.createBlueprint(
-                "Physics", "Mechanics", "Moment of Inertia", "JEE_MAIN"
+                "Physics", "Mechanics", "Moment of Inertia", SharedConstants.JEE_MAIN
         );
 
         assertThat(blueprint.sampleQuestions()).hasSize(1);

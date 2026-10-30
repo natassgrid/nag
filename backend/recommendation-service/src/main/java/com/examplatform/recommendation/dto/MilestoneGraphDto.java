@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.examplatform.recommendation.dto;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -31,7 +32,7 @@ public record MilestoneGraphDto(
             case "PHASE_1_REMEDIATION" -> 1;
             case "PHASE_2_ADAPTIVE_QUIZ" -> 2;
             case "PHASE_3_GATEKEEPER" -> 3;
-            case "COMPLETED" -> 4;
+            case SharedConstants.COMPLETED -> 4;
             default -> 1;
         };
     }
@@ -75,7 +76,7 @@ public record MilestoneGraphDto(
         this(
                 resolveInitialPhase(phases),
                 "GENERAL_COMPETITIVE",
-                phases != null && phases.stream().allMatch(p -> "COMPLETED".equalsIgnoreCase(p.status())),
+                phases != null && phases.stream().allMatch(p -> SharedConstants.COMPLETED.equalsIgnoreCase(p.status())),
                 phases,
                 conceptualGaps,
                 applicationGaps,
@@ -86,12 +87,12 @@ public record MilestoneGraphDto(
     }
 
     private static String resolveInitialPhase(List<MilestonePhaseDto> phases) {
-        if (phases == null || phases.isEmpty()) return "COMPLETED";
+        if (phases == null || phases.isEmpty()) return SharedConstants.COMPLETED;
         for (MilestonePhaseDto p : phases) {
-            if ("IN_PROGRESS".equalsIgnoreCase(p.status())) {
+            if (SharedConstants.IN_PROGRESS.equalsIgnoreCase(p.status())) {
                 return "PHASE_" + p.phaseNumber() + "_" + (p.phaseNumber() == 1 ? "REMEDIATION" : p.phaseNumber() == 2 ? "ADAPTIVE_QUIZ" : "GATEKEEPER");
             }
         }
-        return "COMPLETED";
+        return SharedConstants.COMPLETED;
     }
 }

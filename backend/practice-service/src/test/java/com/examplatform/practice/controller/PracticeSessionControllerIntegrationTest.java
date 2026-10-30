@@ -28,6 +28,7 @@ import com.examplatform.practice.repository.PracticeSetRepository;
 import com.examplatform.practice.support.AbstractIntegrationTest;
 import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import com.examplatform.shared.constants.QuestionTypeConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -119,7 +120,7 @@ class PracticeSessionControllerIntegrationTest extends AbstractIntegrationTest {
                     )
                     .andExpect(jsonPath("$.practiceSetId").value(practiceSet.getId().toString()))
                     .andExpect(jsonPath("$.mode").value("TIMED"))
-                    .andExpect(jsonPath("$.status").value("IN_PROGRESS"));
+                    .andExpect(jsonPath("$.status").value(SharedConstants.IN_PROGRESS));
         }
 
         @Test
@@ -178,7 +179,7 @@ class PracticeSessionControllerIntegrationTest extends AbstractIntegrationTest {
                                     .jwt(j -> j.subject(CANDIDATE_ID.toString()).claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.id").value(sessionId.toString()))
-                    .andExpect(jsonPath("$.status").value("IN_PROGRESS"));
+                    .andExpect(jsonPath("$.status").value(SharedConstants.IN_PROGRESS));
         }
 
         @Test

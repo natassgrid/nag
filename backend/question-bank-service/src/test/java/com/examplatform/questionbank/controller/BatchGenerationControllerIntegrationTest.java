@@ -23,6 +23,7 @@ import com.examplatform.questionbank.ai.batch.*;
 import com.examplatform.questionbank.support.AbstractIntegrationTest;
 import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import com.examplatform.shared.constants.QuestionTypeConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -178,7 +179,7 @@ class BatchGenerationControllerIntegrationTest extends AbstractIntegrationTest {
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_QUESTION_AUTHOR"))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("success"))
-                    .andExpect(jsonPath("$.data.status").value("CANCELLED"));
+                    .andExpect(jsonPath("$.data.status").value(SharedConstants.CANCELLED));
         }
     }
 }

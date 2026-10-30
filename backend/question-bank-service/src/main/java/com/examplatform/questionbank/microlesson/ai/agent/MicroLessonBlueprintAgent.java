@@ -4,6 +4,7 @@ package com.examplatform.questionbank.microlesson.ai.agent;
 import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.repository.QuestionRepository;
 import com.examplatform.shared.constants.QuestionStateConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import jakarta.persistence.criteria.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -356,10 +357,10 @@ public class MicroLessonBlueprintAgent {
                 %s
                 """,
                 domainCategory.name(),
-                subject != null ? subject : "General",
-                topic != null ? topic : "General",
-                subtopic != null ? subtopic : "General",
-                targetExam != null ? targetExam : "JEE_MAIN",
+                subject != null ? subject : SharedConstants.GENERAL,
+                topic != null ? topic : SharedConstants.GENERAL,
+                subtopic != null ? subtopic : SharedConstants.GENERAL,
+                targetExam != null ? targetExam : SharedConstants.JEE_MAIN,
                 difficulty != null ? difficulty : "MEDIUM",
                 domainDirective));
 

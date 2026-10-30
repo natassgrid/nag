@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.examplatform.questionbank.microlesson.ai;
 
+import com.examplatform.shared.constants.SharedConstants;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -36,7 +37,7 @@ class MicroLessonPromptBuilderTest {
         assertThat(userPrompt).contains("Physics");
         assertThat(userPrompt).contains("Mechanics");
         assertThat(userPrompt).contains("Rotational Dynamics");
-        assertThat(userPrompt).contains("JEE_MAIN"); // default
+        assertThat(userPrompt).contains(SharedConstants.JEE_MAIN); // default
     }
 
     @Test

@@ -12,6 +12,7 @@ import com.examplatform.practice.repository.PracticeSetRepository;
 import com.examplatform.practice.util.PracticeQuestionUtils;
 import com.examplatform.shared.constants.QuestionTaxonomyConstants;
 import com.examplatform.shared.constants.QuestionTypeConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.dto.SubtopicPerformanceDto;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -106,7 +107,7 @@ public class PracticeEvaluationService {
                     correct++;
                     resp.setMarksAwarded(marks);
                     obtained += marks;
-                    String topic = ak.topicName() != null ? ak.topicName() : "General";
+                    String topic = ak.topicName() != null ? ak.topicName() : SharedConstants.GENERAL;
                     topicBreakdown.computeIfAbsent(topic, k -> new HashMap<>())
                             .merge("correct", 1, Integer::sum);
                     topicBreakdown.computeIfAbsent(topic, k -> new HashMap<>())
@@ -120,7 +121,7 @@ public class PracticeEvaluationService {
                     incorrect++;
                     resp.setMarksAwarded(penalty);
                     obtained += penalty;
-                    String topic = ak.topicName() != null ? ak.topicName() : "General";
+                    String topic = ak.topicName() != null ? ak.topicName() : SharedConstants.GENERAL;
                     topicBreakdown.computeIfAbsent(topic, k -> new HashMap<>())
                             .merge("total", 1, Integer::sum);
                     String diff = ak.difficulty() != null ? ak.difficulty() :
@@ -143,17 +144,17 @@ public class PracticeEvaluationService {
             AnswerKeyDto ak = answerKeys.get(qId);
             String subKey = (ak != null && ak.subtopicName() != null && !ak.subtopicName().isBlank())
                     ? ak.subtopicName()
-                    : (ak != null && ak.topicName() != null ? ak.topicName() : "General");
+                    : (ak != null && ak.topicName() != null ? ak.topicName() : SharedConstants.GENERAL);
 
             SubtopicAccumulator acc = subtopicMap.computeIfAbsent(subKey, k -> {
                 SubtopicAccumulator a = new SubtopicAccumulator();
                 if (ak != null) {
                     a.subjectId = ak.subjectId();
-                    a.subjectName = ak.subject() != null ? ak.subject() : "General";
+                    a.subjectName = ak.subject() != null ? ak.subject() : SharedConstants.GENERAL;
                     try {
                         a.topicId = ak.topicId() != null ? Long.parseLong(ak.topicId()) : null;
                     } catch (NumberFormatException ignored) {}
-                    a.topicName = ak.topicName() != null ? ak.topicName() : "General";
+                    a.topicName = ak.topicName() != null ? ak.topicName() : SharedConstants.GENERAL;
                     Long subId = ak.subtopicId();
                     if ((subId == null || subId <= 0) && subKey != null && !subKey.isBlank()) {
                         long hash = Math.abs((long) subKey.toLowerCase(Locale.ROOT).trim().hashCode());
@@ -161,8 +162,8 @@ public class PracticeEvaluationService {
                     }
                     a.subtopicId = subId;
                 } else {
-                    a.subjectName = "General";
-                    a.topicName = "General";
+                    a.subjectName = SharedConstants.GENERAL;
+                    a.topicName = SharedConstants.GENERAL;
                     if (subKey != null && !subKey.isBlank()) {
                         long hash = Math.abs((long) subKey.toLowerCase(Locale.ROOT).trim().hashCode());
                         a.subtopicId = hash > 0 ? hash : 1L;

@@ -12,6 +12,7 @@ import com.examplatform.questionbank.microlesson.repository.SubtopicMicroLessonR
 import com.examplatform.questionbank.repository.SubjectRepository;
 import com.examplatform.questionbank.repository.SubtopicRepository;
 import com.examplatform.questionbank.repository.TopicRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -118,7 +119,7 @@ class MicroLessonServiceTest {
                     .subjectId(1L)
                     .topicId(10L)
                     .subtopicId(100L)
-                    .targetExam("JEE_MAIN")
+                    .targetExam(SharedConstants.JEE_MAIN)
                     .coreConcept("Moment of inertia $$I = \\sum m_i r_i^2$$ measures resistance to angular acceleration.")
                     .trapAlert(new TrapAlertDto(
                             "Axis Selection Pitfall",
@@ -191,7 +192,7 @@ class MicroLessonServiceTest {
                     .subjectId(1L)
                     .topicId(10L)
                     .subtopicId(100L)
-                    .targetExam("JEE_MAIN")
+                    .targetExam(SharedConstants.JEE_MAIN)
                     .coreConcept("Core concept with valid math $$E = mc^2$$.")
                     .trap("Common trap in relativistic energy.")
                     .cheatSheet(List.of("$$E = \\gamma m c^2$$"))
@@ -215,7 +216,7 @@ class MicroLessonServiceTest {
                     .subjectId(999L)
                     .topicId(10L)
                     .subtopicId(100L)
-                    .targetExam("JEE_MAIN")
+                    .targetExam(SharedConstants.JEE_MAIN)
                     .coreConcept("Valid concept")
                     .trap("Valid trap")
                     .cheatSheet(List.of("$$a = b$$"))
@@ -240,7 +241,7 @@ class MicroLessonServiceTest {
                     .subjectId(1L)
                     .topicId(10L)
                     .subtopicId(100L)
-                    .targetExam("JEE_MAIN")
+                    .targetExam(SharedConstants.JEE_MAIN)
                     .coreConcept("Broken formula $$\\frac{a}{b$$ with unclosed brace and delimiter.")
                     .trap("Valid trap")
                     .cheatSheet(List.of("$$I = \\frac{1}{2}MR^2$$"))
@@ -312,7 +313,7 @@ class MicroLessonServiceTest {
                     .subjectId(1L)
                     .topicId(10L)
                     .subtopicId(100L)
-                    .targetExam("JEE_MAIN")
+                    .targetExam(SharedConstants.JEE_MAIN)
                     .coreConcept("Moment of inertia $$I = \\sum m_i r_i^2$$ measures rotational inertia.")
                     .trap("Using wrong axis without parallel axis shift.")
                     .cheatSheet(List.of())

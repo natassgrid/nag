@@ -300,7 +300,7 @@ public class QuestionDeliveryRepository {
                 .subjectId(subjectId)
                 .subject(subject)
                 .topicId(topicId)
-                .topic(topic != null ? topic : "General")
+                .topic(topic != null ? topic : SharedConstants.GENERAL)
                 .subtopicId(subtopicId)
                 .subtopic(subtopic)
                 .correctOptionIndex(parsedOptions.correctOptionIndex())

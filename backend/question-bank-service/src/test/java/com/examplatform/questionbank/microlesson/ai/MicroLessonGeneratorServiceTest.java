@@ -8,6 +8,7 @@ import com.examplatform.questionbank.microlesson.dto.MicroLessonResponse;
 import com.examplatform.questionbank.microlesson.dto.StepByStepBreakdownDto;
 import com.examplatform.questionbank.microlesson.repository.SubtopicMicroLessonRepository;
 import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -119,7 +120,7 @@ class MicroLessonGeneratorServiceTest {
         assertThat(service.resolveDifficulty("Engineering", "Computer Science", "Algorithms", "GATE_CS"))
                 .isEqualTo(QuestionTaxonomyConstants.Difficulty.HARD);
 
-        assertThat(service.resolveDifficulty("Chemistry", "Physical", "Thermodynamics", "JEE_MAIN"))
+        assertThat(service.resolveDifficulty("Chemistry", "Physical", "Thermodynamics", SharedConstants.JEE_MAIN))
                 .isEqualTo(QuestionTaxonomyConstants.Difficulty.MEDIUM);
         assertThat(service.resolveDifficulty("Biology", "Zoology", "Human Physiology", "NEET_UG"))
                 .isEqualTo(QuestionTaxonomyConstants.Difficulty.MEDIUM);
@@ -185,7 +186,7 @@ class MicroLessonGeneratorServiceTest {
         when(repository.save(any(SubtopicMicroLesson.class))).thenAnswer(inv -> inv.getArgument(0));
 
         SubtopicMicroLesson result = legacyService.generateForSubtopic(
-                1L, "Physics", 10L, "Mechanics", 100L, "Kinematics", "JEE_MAIN"
+                1L, "Physics", 10L, "Mechanics", 100L, "Kinematics", SharedConstants.JEE_MAIN
         );
 
         assertThat(result).isNotNull();
@@ -220,7 +221,7 @@ class MicroLessonGeneratorServiceTest {
         when(repository.save(any(SubtopicMicroLesson.class))).thenAnswer(inv -> inv.getArgument(0));
 
         SubtopicMicroLesson result = service.generateForSubtopic(
-                8L, "Mathematics", 80L, "Arithmetic", 176L, "Percentage", "JEE_MAIN"
+                8L, "Mathematics", 80L, "Arithmetic", 176L, "Percentage", SharedConstants.JEE_MAIN
         );
 
         assertThat(result).isNotNull();

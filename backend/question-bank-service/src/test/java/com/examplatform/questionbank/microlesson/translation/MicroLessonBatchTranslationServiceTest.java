@@ -25,6 +25,7 @@ import com.examplatform.questionbank.microlesson.translation.dto.MicroLessonBatc
 import com.examplatform.questionbank.microlesson.translation.repository.MicroLessonBatchTranslationJobRepository;
 import com.examplatform.questionbank.microlesson.translation.service.AsyncMicroLessonBatchTranslationWorker;
 import com.examplatform.questionbank.microlesson.translation.service.MicroLessonBatchTranslationService;
+import com.examplatform.shared.constants.SharedConstants;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -67,7 +68,7 @@ class MicroLessonBatchTranslationServiceTest {
         MicroLessonBatchTranslationRequest request = MicroLessonBatchTranslationRequest.builder()
                 .subject("Physics")
                 .topic("Mechanics")
-                .targetExam("JEE_MAIN")
+                .targetExam(SharedConstants.JEE_MAIN)
                 .targetLanguage("hi")
                 .lessonIds(List.of(lessonId))
                 .batchSize(20)
@@ -115,7 +116,7 @@ class MicroLessonBatchTranslationServiceTest {
     void shouldGetBatchJobStatusAndCalculateProgress() {
         UUID jobId = UUID.randomUUID();
         MicroLessonBatchTranslationJob job = MicroLessonBatchTranslationJob.builder()
-                .status("IN_PROGRESS")
+                .status(SharedConstants.IN_PROGRESS)
                 .targetLanguage("bn")
                 .totalLessons(50)
                 .processedLessons(25)
@@ -129,7 +130,7 @@ class MicroLessonBatchTranslationServiceTest {
 
         MicroLessonBatchTranslationJobResponse response = batchService.getJobStatus(jobId, "default");
 
-        assertThat(response.getStatus()).isEqualTo("IN_PROGRESS");
+        assertThat(response.getStatus()).isEqualTo(SharedConstants.IN_PROGRESS);
         assertThat(response.getTotalLessons()).isEqualTo(50);
         assertThat(response.getProcessedLessons()).isEqualTo(25);
         assertThat(response.getProgressPercentage()).isEqualTo(50.0);
@@ -140,7 +141,7 @@ class MicroLessonBatchTranslationServiceTest {
     void shouldCancelRunningBatchJob() {
         UUID jobId = UUID.randomUUID();
         MicroLessonBatchTranslationJob job = MicroLessonBatchTranslationJob.builder()
-                .status("IN_PROGRESS")
+                .status(SharedConstants.IN_PROGRESS)
                 .build();
         ReflectionTestUtils.setField(job, "id", jobId);
         job.setTenantId("default");
@@ -150,7 +151,7 @@ class MicroLessonBatchTranslationServiceTest {
 
         MicroLessonBatchTranslationJobResponse response = batchService.cancelJob(jobId, "default");
 
-        assertThat(response.getStatus()).isEqualTo("CANCELLED");
+        assertThat(response.getStatus()).isEqualTo(SharedConstants.CANCELLED);
         assertThat(response.getCompletedAt()).isNotNull();
         verify(jobRepository).save(job);
     }

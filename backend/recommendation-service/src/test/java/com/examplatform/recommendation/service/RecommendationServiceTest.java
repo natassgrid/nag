@@ -7,6 +7,7 @@ import com.examplatform.recommendation.dto.RecommendationDto;
 import com.examplatform.recommendation.dto.RecommendationResponse;
 import com.examplatform.recommendation.repository.LearnerProfileRepository;
 import com.examplatform.recommendation.repository.RecommendationRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.event.PracticeSessionCompletedEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -145,9 +146,9 @@ class RecommendationServiceTest {
                 .status("GENERATED")
                 .motivationalMessage("Custom message")
                 .build();
-        when(recommendationAiService.generateOnDemand(profile, "JEE_MAIN")).thenReturn(rec);
+        when(recommendationAiService.generateOnDemand(profile, SharedConstants.JEE_MAIN)).thenReturn(rec);
 
-        RecommendationDto result = recommendationService.generateOrRefresh(CANDIDATE_ID, "JEE_MAIN");
+        RecommendationDto result = recommendationService.generateOrRefresh(CANDIDATE_ID, SharedConstants.JEE_MAIN);
 
         assertThat(result).isNotNull();
         assertThat(result.candidateId()).isEqualTo(CANDIDATE_ID);

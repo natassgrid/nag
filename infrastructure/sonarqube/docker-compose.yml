@@ -1,0 +1,77 @@
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# NextGen Assessment Grid (NAG) - Open Digital Public Infrastructure (DPI) Platform
+# Copyright (C) 2026 NAG Contributors
+
+# =============================================================================
+# SonarQube Server Local Stack
+# Community Edition with Dedicated PostgreSQL Persistence
+# =============================================================================
+
+version: "3.8"
+
+networks:
+  sonar-network:
+    name: exam-sonar-network
+    driver: bridge
+
+volumes:
+  sonarqube_data:
+    name: exam_sonarqube_data
+  sonarqube_extensions:
+    name: exam_sonarqube_extensions
+  sonarqube_logs:
+    name: exam_sonarqube_logs
+  sonar_db_data:
+    name: exam_sonar_db_data
+
+services:
+  # ===========================================================================
+  # PostgreSQL 16 — Dedicated backend database for SonarQube
+  # ===========================================================================
+  sonar-db:
+    image: postgres:16-alpine
+    container_name: exam-sonarqube-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${SONAR_DB_USER:-sonar}
+      POSTGRES_PASSWORD: ${SONAR_DB_PASSWORD:-sonar_secure_pass}
+      POSTGRES_DB: ${SONAR_DB_NAME:-sonar}
+    volumes:
+      - sonar_db_data:/var/lib/postgresql/data
+    networks:
+      - sonar-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${SONAR_DB_USER:-sonar} -d ${SONAR_DB_NAME:-sonar}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  # ===========================================================================
+  # SonarQube Community Edition Server
+  # Default web UI access: http://localhost:9000 (admin / admin)
+  # ===========================================================================
+  sonarqube:
+    image: sonarqube:community
+    container_name: exam-sonarqube
+    restart: unless-stopped
+    depends_on:
+      sonar-db:
+        condition: service_healthy
+    ports:
+      - "${SONARQUBE_PORT:-9000}:9000"
+    environment:
+      SONAR_JDBC_USERNAME: ${SONAR_DB_USER:-sonar}
+      SONAR_JDBC_PASSWORD: ${SONAR_DB_PASSWORD:-sonar_secure_pass}
+      SONAR_JDBC_URL: jdbc:postgresql://sonar-db:5432/${SONAR_DB_NAME:-sonar}
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_extensions:/opt/sonarqube/extensions
+      - sonarqube_logs:/opt/sonarqube/logs
+    networks:
+      - sonar-network

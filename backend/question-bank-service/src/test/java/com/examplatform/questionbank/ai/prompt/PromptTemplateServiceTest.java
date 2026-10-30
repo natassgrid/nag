@@ -16,6 +16,7 @@
 package com.examplatform.questionbank.ai.prompt;
 
 import com.examplatform.questionbank.microlesson.ai.MicroLessonPromptBuilder;
+import com.examplatform.shared.constants.SharedConstants;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -183,7 +184,7 @@ class PromptTemplateServiceTest {
         String sys = builder.getSystemPrompt();
         assertThat(sys).isEqualTo(MicroLessonPromptBuilder.SYSTEM_PROMPT);
 
-        String user = builder.buildUserPrompt("Physics", "Kinematics", "Projectile Motion", "JEE_MAIN");
+        String user = builder.buildUserPrompt("Physics", "Kinematics", "Projectile Motion", SharedConstants.JEE_MAIN);
         assertThat(user).contains("Physics");
         assertThat(user).contains("Kinematics");
     }
