@@ -126,6 +126,12 @@
                     <mat-icon class="!text-base">{{ showPassword() ? 'visibility_off' : 'visibility' }}</mat-icon>
                   </button>
                 </div>
+                @if (fieldErrors()['password']) {
+                  <p class="text-xs text-rose-600 mt-1 flex items-center gap-1" data-testid="password-error">
+                    <mat-icon class="!text-sm leading-none">error_outline</mat-icon>
+                    <span>{{ fieldErrors()['password'] }}</span>
+                  </p>
+                }
               </div>
 
               <div>
@@ -143,6 +149,12 @@
                   class="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
                   data-testid="invite-confirm-password-input"
                 />
+                @if (fieldErrors()['confirmPassword']) {
+                  <p class="text-xs text-rose-600 mt-1 flex items-center gap-1" data-testid="confirm-password-error">
+                    <mat-icon class="!text-sm leading-none">error_outline</mat-icon>
+                    <span>{{ fieldErrors()['confirmPassword'] }}</span>
+                  </p>
+                }
               </div>
             </div>
           </div>
@@ -212,6 +224,12 @@
                 class="w-full py-3 text-center text-xl font-mono tracking-[0.5em] font-bold border-2 border-indigo-300 rounded-xl focus:ring-2 focus:ring-indigo-600"
                 data-testid="invite-totp-input"
               />
+              @if (fieldErrors()['totpCode']) {
+                <p class="text-xs text-rose-600 mt-1 flex items-center gap-1 justify-center" data-testid="totp-error">
+                  <mat-icon class="!text-sm leading-none">error_outline</mat-icon>
+                  <span>{{ fieldErrors()['totpCode'] }}</span>
+                </p>
+              }
             </div>
 
             <div class="text-center">
@@ -253,7 +271,7 @@
             type="submit"
             mat-flat-button
             color="primary"
-            [disabled]="submitting() || !password || password.length < 8 || !totpCode || totpCode.trim().length !== 6"
+            [disabled]="submitting()"
             class="w-full !py-3 !rounded-xl !text-sm font-bold shadow-md !bg-slate-900 hover:!bg-black !text-white cursor-pointer"
             data-testid="complete-onboarding-button"
           >

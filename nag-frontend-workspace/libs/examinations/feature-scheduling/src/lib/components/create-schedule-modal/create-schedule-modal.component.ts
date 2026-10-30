@@ -4,6 +4,7 @@ import {
   input,
   output,
   effect,
+  signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -26,6 +27,8 @@ export class CreateScheduleModalComponent {
   closeModal = output<void>();
   submitSchedule = output<CreateScheduleRequest>();
 
+  readonly validationError = signal<string | null>(null);
+
   scheduleName = '';
   notificationNumber = '';
   examDate = '';
@@ -35,6 +38,7 @@ export class CreateScheduleModalComponent {
   constructor() {
     effect(() => {
       if (this.isOpen()) {
+        this.validationError.set(null);
         const today = new Date();
         const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 15);
         const reserve = new Date(today.getFullYear(), today.getMonth() + 1, 16);
@@ -49,11 +53,20 @@ export class CreateScheduleModalComponent {
   }
 
   onClose(): void {
+    this.validationError.set(null);
     this.closeModal.emit();
   }
 
   onSubmit(): void {
-    if (!this.scheduleName.trim() || !this.examDate) return;
+    this.validationError.set(null);
+    if (!this.scheduleName.trim()) {
+      this.validationError.set('Schedule name is required.');
+      return;
+    }
+    if (!this.examDate) {
+      this.validationError.set('Exam date is required.');
+      return;
+    }
 
     this.submitSchedule.emit({
       scheduleName: this.scheduleName.trim(),

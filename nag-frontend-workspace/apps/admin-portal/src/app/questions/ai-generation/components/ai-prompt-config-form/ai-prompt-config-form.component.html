@@ -46,6 +46,9 @@
           <option [value]="sub.id">{{ sub.name }}</option>
         }
       </select>
+      @if (form().get('subjectId')?.touched && form().get('subjectId')?.invalid) {
+        <p class="text-xs text-rose-600 font-medium mt-1">Subject is required.</p>
+      }
     </div>
 
     <!-- Topic (cascading, disabled until subject chosen) -->
@@ -64,6 +67,9 @@
           <option [value]="t.id">{{ t.name }}</option>
         }
       </select>
+      @if (form().get('topicId')?.touched && form().get('topicId')?.invalid) {
+        <p class="text-xs text-rose-600 font-medium mt-1">Topic is required.</p>
+      }
     </div>
 
     <!-- Subtopic (optional, cascading) -->
@@ -203,7 +209,7 @@
       <button
         type="button"
         (click)="onGenerate()"
-        [disabled]="generating() || form().invalid || taxonomyLoading()"
+        [disabled]="generating() || taxonomyLoading()"
         class="w-full py-3 px-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20 transition cursor-pointer disabled:opacity-60"
         aria-label="Synthesize questions now"
       >
@@ -219,7 +225,7 @@
       <button
         type="button"
         (click)="onAddToBatch()"
-        [disabled]="form().invalid || taxonomyLoading()"
+        [disabled]="taxonomyLoading()"
         class="w-full py-2 px-3 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-60"
       >
         <mat-icon class="!text-sm">playlist_add</mat-icon>

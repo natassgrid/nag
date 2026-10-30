@@ -70,6 +70,14 @@ describe('Candidate VerifyOtpComponent', () => {
     expect(mockAuthService.verifyOtp).not.toHaveBeenCalled();
   });
 
+  it('should reject non-numeric 6-character OTP codes', () => {
+    component.otpCode = '123ABC';
+    component.handleVerifyOtp();
+
+    expect(component.errorMessage()).toBe('Please enter a valid 6-digit numeric OTP code.');
+    expect(mockAuthService.verifyOtp).not.toHaveBeenCalled();
+  });
+
   it('should call verifyOtp and navigate on valid 6-digit code', () => {
     component.otpCode = '123456';
     component.handleVerifyOtp();
@@ -81,6 +89,20 @@ describe('Candidate VerifyOtpComponent', () => {
       otp: '123456',
     });
     expect(mockAuthFlowService.navigateToDashboard).toHaveBeenCalled();
+  });
+
+  it('should parse backend HTTP error response on verification failure', () => {
+    mockAuthService.verifyOtp.mockReturnValue(
+      throwError(() => ({
+        status: 400,
+        error: { message: 'Incorrect OTP entered. 2 attempts remaining.' },
+      }))
+    );
+
+    component.otpCode = '123456';
+    component.handleVerifyOtp();
+
+    expect(component.errorMessage()).toBe('Incorrect OTP entered. 2 attempts remaining.');
   });
 
   it('should switch between Email and Mobile tabs and decrement weekly SMS quota on SMS dispatch', () => {

@@ -59,6 +59,8 @@ describe('CandidateProfileComponent', () => {
       candidateId: 'cand-001',
       fullName: 'Aarav Kumar',
       email: 'aarav@example.com',
+      mobile: '9876543210',
+      identityDocNumber: '123456789012',
       gender: 'MALE',
       category: 'GENERAL',
       kycStatus: 'VERIFIED',
@@ -95,11 +97,48 @@ describe('CandidateProfileComponent', () => {
     expect(component.successMessage()).toBeNull();
   });
 
+  it('should validate required fields before saving profile', () => {
+    const req = httpMock.expectOne('/api/v1/candidates/cand-001');
+    req.flush({});
+
+    // 1. fullName < 3 chars
+    component.profile.update((p) => ({ ...p, fullName: 'Al' }));
+    component.saveProfile();
+    expect(component.errorMessage()).toBe('Full legal name must be at least 3 characters long.');
+
+    // 2. mobile invalid
+    component.profile.update((p) => ({ ...p, fullName: 'Aarav Sharma', mobile: '12345' }));
+    component.saveProfile();
+    expect(component.errorMessage()).toBe(
+      'Mobile number must be a valid 10-digit Indian number starting with 6, 7, 8, or 9.'
+    );
+
+    // 3. identityDocNumber missing
+    component.profile.update((p) => ({ ...p, mobile: '9876543210', identityDocNumber: '' }));
+    component.saveProfile();
+    expect(component.errorMessage()).toBe('Identity document number is required.');
+
+    // 4. pinCode invalid
+    component.profile.update((p) => ({
+      ...p,
+      identityDocNumber: '123456789012',
+      pinCode: '012345',
+    }));
+    component.saveProfile();
+    expect(component.errorMessage()).toBe('PIN Code must be a valid 6-digit postal code.');
+  });
+
   it('should POST new profile when existsOnServer is false and sync preferredLanguage to UserAccount', () => {
     const initReq = httpMock.expectOne('/api/v1/candidates/cand-001');
     initReq.error(new ProgressEvent('error'), { status: 404, statusText: 'Not Found' });
 
-    component.profile.update((p) => ({ ...p, fullName: 'New Candidate', preferredLanguage: 'hi' }));
+    component.profile.update((p) => ({
+      ...p,
+      fullName: 'New Candidate',
+      mobile: '9876543210',
+      identityDocNumber: '123456789012',
+      preferredLanguage: 'hi',
+    }));
     component.saveProfile();
     expect(component.saving()).toBe(true);
 
@@ -124,6 +163,8 @@ describe('CandidateProfileComponent', () => {
     initReq.flush({
       candidateId: 'cand-001',
       fullName: 'Aarav Kumar',
+      mobile: '9876543210',
+      identityDocNumber: '123456789012',
       address: 'Old Address',
     });
 
@@ -146,7 +187,13 @@ describe('CandidateProfileComponent', () => {
 
   it('should configure preferredLanguage and update identity UserAccount and i18n service', () => {
     const initReq = httpMock.expectOne('/api/v1/candidates/cand-001');
-    initReq.flush({ candidateId: 'cand-001', preferredLanguage: 'en' });
+    initReq.flush({
+      candidateId: 'cand-001',
+      fullName: 'Aarav Kumar',
+      mobile: '9876543210',
+      identityDocNumber: '123456789012',
+      preferredLanguage: 'en',
+    });
 
     component.onPreferredLanguageChange('ta');
     expect(component.profile().preferredLanguage).toBe('ta');
@@ -163,9 +210,14 @@ describe('CandidateProfileComponent', () => {
     idReq.flush({ success: true });
   });
 
-  it('should display error message if saving profile fails', () => {
+  it('should display error message if saving profile fails using parseHttpError', () => {
     const initReq = httpMock.expectOne('/api/v1/candidates/cand-001');
-    initReq.flush({ candidateId: 'cand-001' });
+    initReq.flush({
+      candidateId: 'cand-001',
+      fullName: 'Aarav Kumar',
+      mobile: '9876543210',
+      identityDocNumber: '123456789012',
+    });
 
     component.saveProfile();
 
@@ -178,7 +230,12 @@ describe('CandidateProfileComponent', () => {
 
   it('should handle adding new education entry and auto-save', () => {
     const initReq = httpMock.expectOne('/api/v1/candidates/cand-001');
-    initReq.flush({ candidateId: 'cand-001' });
+    initReq.flush({
+      candidateId: 'cand-001',
+      fullName: 'Aarav Kumar',
+      mobile: '9876543210',
+      identityDocNumber: '123456789012',
+    });
 
     const newEdu: EducationEntry = {
       id: 'edu-101',
@@ -211,7 +268,13 @@ describe('CandidateProfileComponent', () => {
     };
 
     const initReq = httpMock.expectOne('/api/v1/candidates/cand-001');
-    initReq.flush({ candidateId: 'cand-001', education: [existingEdu] });
+    initReq.flush({
+      candidateId: 'cand-001',
+      fullName: 'Aarav Kumar',
+      mobile: '9876543210',
+      identityDocNumber: '123456789012',
+      education: [existingEdu],
+    });
 
     const updatedEdu: EducationEntry = {
       ...existingEdu,
@@ -238,7 +301,13 @@ describe('CandidateProfileComponent', () => {
     };
 
     const initReq = httpMock.expectOne('/api/v1/candidates/cand-001');
-    initReq.flush({ candidateId: 'cand-001', education: [existingEdu] });
+    initReq.flush({
+      candidateId: 'cand-001',
+      fullName: 'Aarav Kumar',
+      mobile: '9876543210',
+      identityDocNumber: '123456789012',
+      education: [existingEdu],
+    });
 
     component.handleDeleteEducation('edu-101');
 

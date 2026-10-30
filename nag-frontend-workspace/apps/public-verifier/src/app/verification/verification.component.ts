@@ -9,6 +9,7 @@ import {
   PageHeaderComponent,
   StatCardComponent,
   StatusBadgeComponent,
+  extractHttpErrorMessage,
 } from '@nag-frontend-workspace/shared-ui-components';
 import { verifyMerkleProof, MerkleProofStep } from '@nag-frontend-workspace/shared-util-crypto';
 
@@ -70,6 +71,7 @@ export class VerificationComponent implements OnInit {
   searchQuery = '';
   verifying = signal<boolean>(false);
   errorMessage = signal<string | null>(null);
+  searchError = signal<string | null>(null);
 
   // Candidate Credential State
   verifiedCandidateResult = signal<VerifiedCertificate | null>(null);
@@ -82,7 +84,6 @@ export class VerificationComponent implements OnInit {
   inspectingLeaf = signal<boolean>(false);
   leafVerificationStatus = signal<'IDLE' | 'VALID' | 'INVALID'>('IDLE');
 
-  
   ngOnInit(): void {
     this.route.queryParams.subscribe((params) => {
       const hash = params["hash"] || params["paperHash"] || params["rootHash"];
@@ -98,11 +99,33 @@ export class VerificationComponent implements OnInit {
     this.activeTab.set(tab);
     this.searchQuery = '';
     this.errorMessage.set(null);
+    this.searchError.set(null);
+  }
+
+  onSearchQueryChange(val: string): void {
+    this.searchQuery = val;
+    if (this.searchError()) {
+      this.validateSearch();
+    }
+  }
+
+  validateSearch(): boolean {
+    const query = (this.searchQuery || '').trim();
+    if (!query) {
+      this.searchError.set('Please enter a search query or hash.');
+      return false;
+    }
+    if (query.length < 4) {
+      this.searchError.set('Search query must be at least 4 characters long.');
+      return false;
+    }
+    this.searchError.set(null);
+    return true;
   }
 
   verify(): void {
-    const query = (this.searchQuery || '').trim();
-    if (!query) return;
+    if (!this.validateSearch()) return;
+    const query = this.searchQuery.trim();
 
     this.verifying.set(true);
     this.errorMessage.set(null);
@@ -126,7 +149,14 @@ export class VerificationComponent implements OnInit {
           this.verifiedPaperResult.set(null);
         }
       },
-      error: () => {
+      error: (err) => {
+        if (err && (err.status === 400 || err.status === 422)) {
+          this.verifying.set(false);
+          this.verifiedPaperResult.set(null);
+          this.errorMessage.set(extractHttpErrorMessage(err, 'Invalid hash or verification query format.'));
+          return;
+        }
+
         // Fallback simulator for offline/mock verification
         setTimeout(() => {
           this.verifying.set(false);

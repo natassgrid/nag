@@ -12,6 +12,7 @@ import { MatIconModule } from '@angular/material/icon';
 import {
   PageHeaderComponent,
   NotificationService,
+  extractHttpErrorMessage,
 } from '@nag-frontend-workspace/shared-ui-components';
 import { ProfileService } from './profile.service';
 import {
@@ -120,7 +121,7 @@ export class AdminProfileComponent implements OnInit {
         this.loading.set(false);
       },
       error: (err) => {
-        this.notificationService.error(err?.message || 'Failed to load user profile');
+        this.notificationService.error(extractHttpErrorMessage(err, 'Failed to load user profile'));
         this.loading.set(false);
       },
     });
@@ -164,7 +165,7 @@ export class AdminProfileComponent implements OnInit {
         this.savingProfile.set(false);
       },
       error: (err) => {
-        this.notificationService.error(err?.message || 'Failed to update profile');
+        this.notificationService.error(extractHttpErrorMessage(err, 'Failed to update profile'));
         this.savingProfile.set(false);
       },
     });
@@ -178,7 +179,7 @@ export class AdminProfileComponent implements OnInit {
         this.changingPassword.set(false);
       },
       error: (err) => {
-        this.notificationService.error(err?.message || 'Failed to change password. Please check your current password.');
+        this.notificationService.error(extractHttpErrorMessage(err, 'Failed to change password. Please check your current password.'));
         this.changingPassword.set(false);
       },
     });
@@ -192,7 +193,7 @@ export class AdminProfileComponent implements OnInit {
         this.processingTotp.set(false);
       },
       error: (err) => {
-        this.notificationService.error(err?.message || 'Failed to initiate 2FA setup');
+        this.notificationService.error(extractHttpErrorMessage(err, 'Failed to initiate 2FA setup'));
         this.processingTotp.set(false);
       },
     });
@@ -210,7 +211,7 @@ export class AdminProfileComponent implements OnInit {
         this.processingTotp.set(false);
       },
       error: (err) => {
-        this.notificationService.error(err?.message || 'Invalid verification code. Please check your authenticator app.');
+        this.notificationService.error(extractHttpErrorMessage(err, 'Invalid verification code. Please check your authenticator app.'));
         this.processingTotp.set(false);
       },
     });
@@ -227,7 +228,7 @@ export class AdminProfileComponent implements OnInit {
         this.processingTotp.set(false);
       },
       error: (err) => {
-        this.notificationService.error(err?.message || 'Failed to disable 2FA');
+        this.notificationService.error(extractHttpErrorMessage(err, 'Failed to disable 2FA'));
         this.processingTotp.set(false);
       },
     });
@@ -242,7 +243,7 @@ export class AdminProfileComponent implements OnInit {
         this.revokingSession.set(false);
       },
       error: (err) => {
-        this.notificationService.error(err?.message || 'Failed to terminate session');
+        this.notificationService.error(extractHttpErrorMessage(err, 'Failed to terminate session'));
         this.revokingSession.set(false);
       },
     });
@@ -257,7 +258,7 @@ export class AdminProfileComponent implements OnInit {
         this.revokingSession.set(false);
       },
       error: (err) => {
-        this.notificationService.error(err?.message || 'Failed to invalidate other sessions');
+        this.notificationService.error(extractHttpErrorMessage(err, 'Failed to invalidate other sessions'));
         this.revokingSession.set(false);
       },
     });
@@ -274,7 +275,7 @@ export class AdminProfileComponent implements OnInit {
         this.tokenCreating.set(false);
       },
       error: (err) => {
-        this.notificationService.error(err?.message || 'Failed to create access token');
+        this.notificationService.error(extractHttpErrorMessage(err, 'Failed to create access token'));
         this.tokenCreating.set(false);
       },
     });
@@ -289,7 +290,7 @@ export class AdminProfileComponent implements OnInit {
         this.notificationService.success('Token revoked successfully');
       },
       error: (err) => {
-        this.notificationService.error(err?.message || 'Failed to revoke token');
+        this.notificationService.error(extractHttpErrorMessage(err, 'Failed to revoke token'));
       },
     });
   }
@@ -317,8 +318,8 @@ export class AdminProfileComponent implements OnInit {
         window.URL.revokeObjectURL(url);
         this.notificationService.success(`Activity log ${format.toUpperCase()} export downloaded`);
       },
-      error: () => {
-        this.notificationService.error('Failed to download activity log export');
+      error: (err) => {
+        this.notificationService.error(extractHttpErrorMessage(err, 'Failed to download activity log export'));
       },
     });
   }

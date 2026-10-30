@@ -114,10 +114,14 @@ public class GlobalExceptionHandler {
             fieldErrors.put(error.getField(), error.getDefaultMessage());
         }
 
+        String summaryDetail = fieldErrors.isEmpty()
+                ? "One or more request fields failed validation."
+                : String.join("; ", fieldErrors.values());
+
         ProblemDetail problem = ProblemDetailBuilder
                 .forStatus(HttpStatus.BAD_REQUEST)
                 .withTitle("Validation Failed")
-                .withDetail("One or more request fields failed validation.")
+                .withDetail(summaryDetail)
                 .withProperty("fieldErrors", fieldErrors)
                 .build();
 

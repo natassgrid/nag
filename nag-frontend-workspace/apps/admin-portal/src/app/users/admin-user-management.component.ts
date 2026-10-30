@@ -10,7 +10,11 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { PageHeaderComponent } from '@nag-frontend-workspace/shared-ui-components';
+import {
+  PageHeaderComponent,
+  NotificationService,
+  extractHttpErrorMessage,
+} from '@nag-frontend-workspace/shared-ui-components';
 import {
   UserRoleService,
   AdminUserAccount,
@@ -57,6 +61,7 @@ export type UserManagementTab = 'USERS' | 'ROLES' | 'INVITATIONS';
 })
 export class AdminUserManagementComponent implements OnInit {
   private readonly userRoleService = inject(UserRoleService);
+  private readonly notificationService = inject(NotificationService);
 
   activeTab = signal<UserManagementTab>('USERS');
   loading = signal<boolean>(false);
@@ -161,9 +166,12 @@ export class AdminUserManagementComponent implements OnInit {
         this.invitations.update((list) => [newInv, ...list]);
         this.isSubmittingInvite.set(false);
         this.closeInviteDrawer();
+        this.notificationService.success('Invitation Dispatched', `Invitation successfully sent to ${payload.email}`);
       },
-      error: () => {
+      error: (err) => {
         this.isSubmittingInvite.set(false);
+        const errorMsg = extractHttpErrorMessage(err, 'Failed to dispatch authority invitation.');
+        this.notificationService.error('Invitation Failed', errorMsg);
       },
     });
   }
@@ -262,8 +270,13 @@ export class AdminUserManagementComponent implements OnInit {
             );
             this.isSubmittingRole.set(false);
             this.closeRoleDrawer();
+            this.notificationService.success('Role Updated', `Role ${updated.displayName} updated successfully.`);
           },
-          error: () => this.isSubmittingRole.set(false),
+          error: (err) => {
+            this.isSubmittingRole.set(false);
+            const errorMsg = extractHttpErrorMessage(err, 'Failed to update custom role.');
+            this.notificationService.error('Update Role Failed', errorMsg);
+          },
         });
     } else {
       this.userRoleService.createRole(payload).subscribe({
@@ -271,8 +284,13 @@ export class AdminUserManagementComponent implements OnInit {
           this.roles.update((list) => [...list, newRole]);
           this.isSubmittingRole.set(false);
           this.closeRoleDrawer();
+          this.notificationService.success('Role Created', `Role ${newRole.displayName} created successfully.`);
         },
-        error: () => this.isSubmittingRole.set(false),
+        error: (err) => {
+          this.isSubmittingRole.set(false);
+          const errorMsg = extractHttpErrorMessage(err, 'Failed to create custom role.');
+          this.notificationService.error('Create Role Failed', errorMsg);
+        },
       });
     }
   }

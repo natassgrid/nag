@@ -24,6 +24,7 @@ import { HttpEventType } from '@angular/common/http';
 import {
   NotificationService,
   PageHeaderComponent,
+  extractHttpErrorMessage,
 } from '@nag-frontend-workspace/shared-ui-components';
 import { AssetService } from './asset.service';
 import { AssetResponse, AssetType, AssetStatus } from './asset.model';
@@ -140,7 +141,7 @@ export class AdminAssetsComponent implements OnInit {
           this.totalPages.set(0);
           if (err?.status !== 404) {
             this.snackBar.open(
-              err?.error?.message || 'Failed to load media assets from server.',
+              extractHttpErrorMessage(err, 'Failed to load media assets from server.'),
               'Dismiss',
               { duration: 4000 }
             );
@@ -233,7 +234,7 @@ export class AdminAssetsComponent implements OnInit {
         }
       },
       error: (err) => {
-        this.snackBar.open(err?.error?.message || 'Failed to replace file content.', 'Dismiss', { duration: 4000 });
+        this.snackBar.open(extractHttpErrorMessage(err, 'Failed to replace file content.'), 'Dismiss', { duration: 4000 });
       },
     });
     input.value = '';
@@ -278,7 +279,7 @@ export class AdminAssetsComponent implements OnInit {
       },
       error: (err) => {
         this.snackBar.open(
-          err?.error?.message || 'Failed to archive asset.',
+          extractHttpErrorMessage(err, 'Failed to archive asset.'),
           'Dismiss',
           { duration: 4000 }
         );
@@ -298,7 +299,7 @@ export class AdminAssetsComponent implements OnInit {
       },
       error: (err) => {
         this.snackBar.open(
-          err?.error?.message || 'Failed to restore asset.',
+          extractHttpErrorMessage(err, 'Failed to restore asset.'),
           'Dismiss',
           { duration: 4000 }
         );

@@ -28,6 +28,9 @@
           placeholder="e.g. Advanced Physics &amp; Quantum Optics"
           class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
         />
+        @if (validationError()) {
+          <p class="text-xs text-rose-600 font-medium mt-1">{{ validationError() }}</p>
+        }
       </div>
 
       <div>
@@ -68,7 +71,7 @@
       <button
         mat-flat-button
         color="primary"
-        [disabled]="creating() || !name.trim()"
+        [disabled]="creating()"
         (click)="onSave()"
       >
         <mat-icon>save</mat-icon>

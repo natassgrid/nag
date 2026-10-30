@@ -15,6 +15,7 @@ import {
   FormsModule,
   ReactiveFormsModule,
   FormBuilder,
+  Validators,
 } from '@angular/forms';
 import {
   MAT_DIALOG_DATA,
@@ -26,6 +27,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { extractHttpErrorMessage } from '@nag-frontend-workspace/shared-ui-components';
 import { AssetService } from './asset.service';
 import { AssetResponse, AssetMetadataUpdate } from './asset.model';
 
@@ -60,7 +62,7 @@ export class AssetMetadataDialogComponent implements OnInit {
   errorMessage = '';
 
   metadataForm = this.fb.group({
-    title: [''],
+    title: ['', [Validators.required, Validators.maxLength(150)]],
     description: [''],
     altText: [''],
     tags: [''],
@@ -79,6 +81,11 @@ export class AssetMetadataDialogComponent implements OnInit {
   }
 
   save(): void {
+    if (this.metadataForm.invalid) {
+      this.metadataForm.markAllAsTouched();
+      return;
+    }
+
     this.saving = true;
     this.errorMessage = '';
 
@@ -97,10 +104,7 @@ export class AssetMetadataDialogComponent implements OnInit {
       },
       error: (err) => {
         this.saving = false;
-        this.errorMessage =
-          err?.error?.message ||
-          err?.error?.detail ||
-          'Failed to update metadata. Please try again.';
+        this.errorMessage = extractHttpErrorMessage(err, 'Failed to update metadata. Please try again.');
       },
     });
   }

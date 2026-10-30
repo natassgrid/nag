@@ -3,6 +3,7 @@ import {
   Component,
   input,
   output,
+  signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -25,11 +26,17 @@ export class SubjectTopicFormComponent {
   readonly closeForm = output<void>();
   readonly saveTopic = output<CreateTopicDto>();
 
+  readonly validationError = signal<string | null>(null);
+
   newTopicName = '';
   newTopicDescription = '';
 
   onSave(): void {
-    if (!this.newTopicName.trim()) return;
+    this.validationError.set(null);
+    if (!this.newTopicName.trim()) {
+      this.validationError.set('Topic name is required.');
+      return;
+    }
     this.saveTopic.emit({
       name: this.newTopicName.trim(),
       description: this.newTopicDescription.trim() || undefined,
@@ -39,6 +46,7 @@ export class SubjectTopicFormComponent {
   }
 
   onClose(): void {
+    this.validationError.set(null);
     this.newTopicName = '';
     this.newTopicDescription = '';
     this.closeForm.emit();

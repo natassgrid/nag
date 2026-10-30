@@ -9,9 +9,11 @@ import { CommonModule } from '@angular/common';
 import { forkJoin } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import {
   PageHeaderComponent,
   EmptyStateComponent,
+  extractHttpErrorMessage,
 } from '@nag-frontend-workspace/shared-ui-components';
 import {
   EvaluationService,
@@ -33,6 +35,7 @@ import { EvaluationActiveTab, GradeSubmissionPayload } from '../models';
     CommonModule,
     MatButtonModule,
     MatIconModule,
+    MatSnackBarModule,
     PageHeaderComponent,
     EmptyStateComponent,
     EvaluationKpiSummaryComponent,
@@ -45,6 +48,7 @@ import { EvaluationActiveTab, GradeSubmissionPayload } from '../models';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class EvaluationFeatureGrading implements OnInit {
+  private readonly snackBar = inject(MatSnackBar);
   readonly evalService = inject(EvaluationService);
 
   readonly activeTab = signal<EvaluationActiveTab>('grading');
@@ -68,8 +72,14 @@ export class EvaluationFeatureGrading implements OnInit {
         next: () => {
           this.submittingScore.set(false);
           this.selectedTask.set(null);
+          this.snackBar.open('Grade submitted successfully.', 'OK', { duration: 3000 });
         },
-        error: () => this.submittingScore.set(false),
+        error: (err) => {
+          this.submittingScore.set(false);
+          this.snackBar.open(extractHttpErrorMessage(err, 'Failed to submit grade.'), 'Dismiss', {
+            duration: 5000,
+          });
+        },
       });
   }
 
@@ -80,7 +90,16 @@ export class EvaluationFeatureGrading implements OnInit {
         event.resolution,
         `Dispute ${event.resolution.toLowerCase()} by evaluator desk`
       )
-      .subscribe();
+      .subscribe({
+        next: () => {
+          this.snackBar.open(`Dispute ${event.resolution.toLowerCase()} successfully.`, 'OK', { duration: 3000 });
+        },
+        error: (err) => {
+          this.snackBar.open(extractHttpErrorMessage(err, 'Failed to resolve dispute.'), 'Dismiss', {
+            duration: 5000,
+          });
+        },
+      });
   }
 
   handleBulkResolveDisputes(event: {

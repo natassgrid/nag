@@ -19,8 +19,10 @@
 
 package com.examplatform.candidate.dto;
 
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -39,27 +41,29 @@ import java.util.UUID;
 @AllArgsConstructor
 public class CreateCandidateProfileRequest {
 
-    @NotNull
+    @NotNull(message = "User ID is required")
     private UUID userId;
 
-    @NotBlank
+    @NotBlank(message = "Full name is required")
     private String fullName;
 
-    @NotBlank
+    @NotBlank(message = "Date of birth is required")
     private String dateOfBirth;
 
-    @NotBlank
+    @NotBlank(message = "Gender is required")
     private String gender;
 
-    @NotBlank
+    @NotBlank(message = "Nationality is required")
     private String nationality;
 
     private String category;
 
-    @NotBlank
+    @NotBlank(message = "Mobile number is required")
+    @Pattern(regexp = "^[6-9]\\d{9}$", message = "Mobile number must be a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9")
     private String mobile;
 
-    @NotBlank
+    @NotBlank(message = "Email address is required")
+    @Email(message = "Please enter a valid email address")
     private String email;
 
     private String address;
@@ -76,6 +80,6 @@ public class CreateCandidateProfileRequest {
 
     private String reservationCategory;
 
-    @NotBlank
+    @NotBlank(message = "Identity document number is required")
     private String identityDocNumber;
 }

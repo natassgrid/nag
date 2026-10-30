@@ -50,7 +50,8 @@
     <div class="flex flex-col sm:flex-row gap-3 pt-2">
       <input
         type="text"
-        [(ngModel)]="searchQuery"
+        [ngModel]="searchQuery"
+        (ngModelChange)="onSearchQueryChange($event)"
         [placeholder]="
           activeTab() === 'paper'
             ? 'e.g. 0xe3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
@@ -63,13 +64,20 @@
         mat-flat-button
         color="primary"
         (click)="verify()"
-        [disabled]="verifying() || !searchQuery.trim()"
+        [disabled]="verifying()"
         class="!py-3 !px-6 !rounded-xl !text-sm font-semibold"
       >
         <mat-icon>{{ verifying() ? 'sync' : 'verified_user' }}</mat-icon>
         {{ verifying() ? 'Verifying on Ledger...' : 'Verify Proof' }}
       </button>
     </div>
+
+    @if (searchError()) {
+      <div class="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl flex items-center gap-2" data-testid="search-error">
+        <mat-icon class="!text-base">error_outline</mat-icon>
+        {{ searchError() }}
+      </div>
+    }
 
     @if (errorMessage()) {
       <div class="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl flex items-center gap-2">

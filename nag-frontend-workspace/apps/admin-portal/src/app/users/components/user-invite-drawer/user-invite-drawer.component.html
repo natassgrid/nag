@@ -34,10 +34,17 @@
             id="invite-name"
             type="text"
             [ngModel]="formFullName()"
-            (ngModelChange)="formFullName.set($event)"
+            (ngModelChange)="onFullNameChange($event)"
+            (blur)="validateField('fullName')"
             placeholder="e.g. Dr. Rajesh Kumar Verma"
             class="w-full px-3 py-2.5 text-xs bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-medium"
           />
+          @if (fieldErrors()['fullName']) {
+            <p class="text-xs text-rose-600 mt-1 flex items-center gap-1" data-testid="fullname-error">
+              <mat-icon class="!text-sm leading-none">error_outline</mat-icon>
+              <span>{{ fieldErrors()['fullName'] }}</span>
+            </p>
+          }
         </div>
 
         <!-- Official Email -->
@@ -49,10 +56,17 @@
             id="invite-email"
             type="email"
             [ngModel]="formEmail()"
-            (ngModelChange)="formEmail.set($event)"
+            (ngModelChange)="onEmailChange($event)"
+            (blur)="validateField('email')"
             placeholder="e.g. rajesh.verma@nag.gov.in"
             class="w-full px-3 py-2.5 text-xs bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-medium font-mono"
           />
+          @if (fieldErrors()['email']) {
+            <p class="text-xs text-rose-600 mt-1 flex items-center gap-1" data-testid="email-error">
+              <mat-icon class="!text-sm leading-none">error_outline</mat-icon>
+              <span>{{ fieldErrors()['email'] }}</span>
+            </p>
+          }
         </div>
 
         <!-- Role Assignment Selection -->
@@ -60,6 +74,12 @@
           <label class="block text-xs font-bold text-slate-700 uppercase mb-2">
             Assign RBAC Authority Roles *
           </label>
+          @if (fieldErrors()['roles']) {
+            <p class="text-xs text-rose-600 mb-2 flex items-center gap-1" data-testid="roles-error">
+              <mat-icon class="!text-sm leading-none">error_outline</mat-icon>
+              <span>{{ fieldErrors()['roles'] }}</span>
+            </p>
+          }
           <div class="space-y-2">
             @for (role of roles(); track (role.name || role.id)) {
               <div
@@ -129,7 +149,7 @@
         <button
           mat-flat-button
           color="primary"
-          [disabled]="isSubmitting() || !formFullName().trim() || !formEmail().trim()"
+          [disabled]="isSubmitting()"
           (click)="onSubmit()"
           class="cursor-pointer !rounded-xl !bg-indigo-600 hover:!bg-indigo-700 !text-white"
         >

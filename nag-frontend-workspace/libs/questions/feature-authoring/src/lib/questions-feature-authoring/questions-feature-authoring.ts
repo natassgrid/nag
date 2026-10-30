@@ -12,6 +12,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import {
   PageHeaderComponent,
+  extractHttpErrorMessage,
 } from '@nag-frontend-workspace/shared-ui-components';
 import {
   QuestionBankService,
@@ -288,7 +289,7 @@ export class QuestionsFeatureAuthoring implements OnInit {
         this.editingQuestionId.set(null);
         this.feedback.set({
           type: 'error',
-          message: err?.error?.message || `Could not load question ${id} for editing.`,
+          message: extractHttpErrorMessage(err, `Could not load question ${id} for editing.`),
         });
       },
     });
@@ -803,7 +804,7 @@ export class QuestionsFeatureAuthoring implements OnInit {
           this.saving.set(false);
           this.feedback.set({
             type: 'error',
-            message: err?.error?.message || 'Failed to update question. Please verify all fields and retry.',
+            message: extractHttpErrorMessage(err, 'Failed to update question. Please verify all fields and retry.'),
           });
         },
       });
@@ -821,7 +822,7 @@ export class QuestionsFeatureAuthoring implements OnInit {
           this.saving.set(false);
           this.feedback.set({
             type: 'error',
-            message: err?.error?.message || 'Failed to persist question. Please verify all fields and retry.',
+            message: extractHttpErrorMessage(err, 'Failed to persist question. Please verify all fields and retry.'),
           });
         },
       });
@@ -936,7 +937,7 @@ export class QuestionsFeatureAuthoring implements OnInit {
         this.saving.set(false);
         this.feedback.set({
           type: 'error',
-          message: err?.error?.message || 'Failed to persist passage set. Please verify all inputs and retry.',
+          message: extractHttpErrorMessage(err, 'Failed to persist passage set. Please verify all inputs and retry.'),
         });
       },
     });

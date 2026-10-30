@@ -6,6 +6,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { extractHttpErrorMessage } from '@nag-frontend-workspace/shared-ui-components';
 import {
   SubjectTopicService,
   SubjectHierarchy,
@@ -132,7 +133,7 @@ export class AdminSubjectManagementComponent implements OnInit {
       error: (err) => {
         this.loading.set(false);
         this.snackBar.open(
-          err?.error?.message || 'Failed to load subject taxonomy hierarchy',
+          extractHttpErrorMessage(err, 'Failed to load subject taxonomy hierarchy'),
           'Dismiss',
           { duration: 4000 }
         );
@@ -197,7 +198,7 @@ export class AdminSubjectManagementComponent implements OnInit {
       error: (err) => {
         this.creating.set(false);
         this.snackBar.open(
-          err?.error?.message || 'Failed to create subject',
+          extractHttpErrorMessage(err, 'Failed to create subject'),
           'Dismiss',
           { duration: 4000 }
         );
@@ -235,7 +236,7 @@ export class AdminSubjectManagementComponent implements OnInit {
       error: (err) => {
         this.creating.set(false);
         this.snackBar.open(
-          err?.error?.message || 'Failed to create topic',
+          extractHttpErrorMessage(err, 'Failed to create topic'),
           'Dismiss',
           { duration: 4000 }
         );
@@ -273,7 +274,7 @@ export class AdminSubjectManagementComponent implements OnInit {
       error: (err) => {
         this.creating.set(false);
         this.snackBar.open(
-          err?.error?.message || 'Failed to create subtopic',
+          extractHttpErrorMessage(err, 'Failed to create subtopic'),
           'Dismiss',
           { duration: 4000 }
         );

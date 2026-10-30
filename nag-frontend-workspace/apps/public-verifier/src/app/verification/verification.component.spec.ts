@@ -45,8 +45,31 @@ describe('VerificationComponent', () => {
     component.searchQuery = '  ';
     component.verify();
     expect(component.verifying()).toBe(false);
+    expect(component.searchError()).toBeTruthy();
     expect(component.verifiedPaperResult()).toBeNull();
   });
+
+  it('should not verify if searchQuery is shorter than 4 characters', () => {
+    component.searchQuery = '123';
+    component.verify();
+    expect(component.verifying()).toBe(false);
+    expect(component.searchError()).toContain('at least 4 characters');
+    expect(component.verifiedPaperResult()).toBeNull();
+  });
+
+  it('should display error message on 400 bad request without falling back to mock proof', fakeAsync(() => {
+    const hash = 'invalid-hash-query';
+    component.setTab('paper');
+    component.searchQuery = hash;
+    component.verify();
+
+    const req = httpMock.expectOne(`/api/v1/papers/public/verify?hash=${encodeURIComponent(hash)}`);
+    req.flush({ message: 'Paper hash format invalid.' }, { status: 400, statusText: 'Bad Request' });
+
+    expect(component.verifying()).toBe(false);
+    expect(component.verifiedPaperResult()).toBeNull();
+    expect(component.errorMessage()).toContain('Paper hash format invalid');
+  }));
 
   it('should verify paper root hash and produce ledger proof via API', fakeAsync(() => {
     const hash = '0xe3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';

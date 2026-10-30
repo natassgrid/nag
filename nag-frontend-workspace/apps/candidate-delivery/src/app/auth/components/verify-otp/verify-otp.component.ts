@@ -12,6 +12,7 @@ import { RouterModule, ActivatedRoute } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { AuthService } from '@nag-frontend-workspace/shared-data-access-auth';
+import { parseHttpError } from '@nag-frontend-workspace/shared-ui-components';
 import { AuthBrandHeaderComponent } from '../auth-brand-header/auth-brand-header.component';
 import { AuthFlowService } from '../../services/auth-flow.service';
 
@@ -176,12 +177,11 @@ export class VerifyOtpComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.resending.set(false);
-        const detail =
-          err?.error?.detail ||
-          err?.error?.message ||
-          err?.message ||
-          'Failed to resend verification code. Please try again.';
-        this.errorMessage.set(detail);
+        const parsed = parseHttpError(
+          err,
+          'Failed to resend verification code. Please try again.'
+        );
+        this.errorMessage.set(parsed.message);
 
         if (err?.error?.retryAfterSeconds) {
           this.startResendTimer(err.error.retryAfterSeconds);
@@ -224,12 +224,11 @@ export class VerifyOtpComponent implements OnInit, OnDestroy {
             'Weekly SMS limit reached (429: Too Many Requests). Please switch to Email verification.'
           );
         } else {
-          const detail =
-            err?.error?.detail ||
-            err?.error?.message ||
-            err?.message ||
-            'Failed to dispatch SMS OTP. Please check mobile connection or verify with Email.';
-          this.errorMessage.set(detail);
+          const parsed = parseHttpError(
+            err,
+            'Failed to dispatch SMS OTP. Please check mobile connection or verify with Email.'
+          );
+          this.errorMessage.set(parsed.message);
         }
       },
     });
@@ -241,8 +240,9 @@ export class VerifyOtpComponent implements OnInit, OnDestroy {
   }
 
   handleVerifyOtp(): void {
-    if (this.otpCode.length !== 6) {
-      this.errorMessage.set('Please enter a valid 6-digit OTP code.');
+    const otp = (this.otpCode || '').trim();
+    if (!/^\d{6}$/.test(otp)) {
+      this.errorMessage.set('Please enter a valid 6-digit numeric OTP code.');
       return;
     }
 
@@ -254,7 +254,7 @@ export class VerifyOtpComponent implements OnInit, OnDestroy {
       userId: this.userId() || undefined,
       email: this.email() || undefined,
       mobile: this.mobile() || undefined,
-      otp: this.otpCode,
+      otp,
     };
 
     this.authService.verifyOtp(payload).subscribe({
@@ -264,12 +264,11 @@ export class VerifyOtpComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.loading.set(false);
-        const detail =
-          err?.error?.detail ||
-          err?.error?.message ||
-          err?.message ||
-          'Invalid or expired verification code. Please try again.';
-        this.errorMessage.set(detail);
+        const parsed = parseHttpError(
+          err,
+          'Invalid or expired verification code. Please try again.'
+        );
+        this.errorMessage.set(parsed.message);
       },
     });
   }

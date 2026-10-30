@@ -30,6 +30,9 @@
               placeholder="e.g. SSC CGL Tier 1 Standard Matrix"
               class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
             />
+            @if (form().get('name')?.touched && form().get('name')?.invalid) {
+              <p class="text-xs text-rose-600 font-medium mt-1">Blueprint name is required (max 100 characters).</p>
+            }
           </div>
 
           <div class="space-y-1 sm:col-span-2">
@@ -98,7 +101,7 @@
                   }
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-3">
                   <!-- Subject (Dynamic from TaxonomyStore) -->
                   <div class="space-y-1">
                     <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-600">Subject *</label>
@@ -111,6 +114,9 @@
                         <option [value]="sub.id">{{ sub.name }}</option>
                       }
                     </select>
+                    @if (rule.get('subjectId')?.touched && rule.get('subjectId')?.invalid) {
+                      <p class="text-[10px] text-rose-600 font-medium mt-0.5">Subject is required.</p>
+                    }
                   </div>
 
                   <!-- Topic (Cascading from Subject) -->
@@ -166,6 +172,24 @@
                       min="1"
                       class="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-indigo-700"
                     />
+                    @if (rule.get('questionCount')?.touched && rule.get('questionCount')?.invalid) {
+                      <p class="text-[10px] text-rose-600 font-medium mt-0.5">At least 1 question is required.</p>
+                    }
+                  </div>
+
+                  <!-- Marks Per Question -->
+                  <div class="space-y-1">
+                    <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-600">Marks / Q *</label>
+                    <input
+                      type="number"
+                      formControlName="marksPerQuestion"
+                      min="1"
+                      step="0.5"
+                      class="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-slate-800"
+                    />
+                    @if (rule.get('marksPerQuestion')?.touched && rule.get('marksPerQuestion')?.invalid) {
+                      <p class="text-[10px] text-rose-600 font-medium mt-0.5">Marks per question must be at least 1.</p>
+                    }
                   </div>
                 </div>
               </div>

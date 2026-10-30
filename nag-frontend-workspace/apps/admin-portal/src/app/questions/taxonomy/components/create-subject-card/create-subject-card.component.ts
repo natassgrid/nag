@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   input,
   output,
+  signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -25,11 +26,14 @@ export class CreateSubjectCardComponent {
   closeCard = output<void>();
   saveSubject = output<CreateSubjectDto>();
 
+  readonly validationError = signal<string | null>(null);
+
   name = '';
   code = '';
   description = '';
 
   onClose(): void {
+    this.validationError.set(null);
     this.name = '';
     this.code = '';
     this.description = '';
@@ -37,7 +41,11 @@ export class CreateSubjectCardComponent {
   }
 
   onSave(): void {
-    if (!this.name.trim()) return;
+    this.validationError.set(null);
+    if (!this.name.trim()) {
+      this.validationError.set('Subject name is required.');
+      return;
+    }
 
     this.saveSubject.emit({
       name: this.name.trim(),

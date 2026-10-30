@@ -4,6 +4,7 @@ import {
   input,
   output,
   effect,
+  signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -29,6 +30,8 @@ export class ScheduleAmendModalComponent {
   closeModal = output<void>();
   submitAmend = output<AmendScheduleRequest>();
 
+  readonly validationError = signal<string | null>(null);
+
   amendReason = '';
   amendScheduleName = '';
   amendNotificationNumber = '';
@@ -40,6 +43,7 @@ export class ScheduleAmendModalComponent {
   constructor() {
     effect(() => {
       if (this.isOpen()) {
+        this.validationError.set(null);
         const sched = this.schedule();
         this.amendReason = '';
         this.amendScheduleName = sched?.scheduleName || '';
@@ -53,11 +57,16 @@ export class ScheduleAmendModalComponent {
   }
 
   onClose(): void {
+    this.validationError.set(null);
     this.closeModal.emit();
   }
 
   onSubmit(): void {
-    if (!this.amendReason.trim()) return;
+    this.validationError.set(null);
+    if (!this.amendReason.trim()) {
+      this.validationError.set('Change reason is required for audit trail.');
+      return;
+    }
 
     this.submitAmend.emit({
       changeReason: this.amendReason.trim(),

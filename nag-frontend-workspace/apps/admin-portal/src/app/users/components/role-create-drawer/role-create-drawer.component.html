@@ -36,10 +36,17 @@
               type="text"
               [disabled]="!!editingRole()"
               [ngModel]="formName()"
-              (ngModelChange)="formName.set($event)"
+              (ngModelChange)="onNameChange($event)"
+              (blur)="validateField('name')"
               placeholder="e.g. REGIONAL_SUPERVISOR"
               class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-purple-500 font-mono uppercase font-bold disabled:bg-slate-100"
             />
+            @if (fieldErrors()['name']) {
+              <p class="text-xs text-rose-600 mt-1 flex items-center gap-1" data-testid="role-name-error">
+                <mat-icon class="!text-sm leading-none">error_outline</mat-icon>
+                <span>{{ fieldErrors()['name'] }}</span>
+              </p>
+            }
           </div>
 
           <div>
@@ -50,10 +57,17 @@
               id="role-display-input"
               type="text"
               [ngModel]="formDisplayName()"
-              (ngModelChange)="formDisplayName.set($event)"
+              (ngModelChange)="onDisplayNameChange($event)"
+              (blur)="validateField('displayName')"
               placeholder="e.g. Regional Centre Supervisor"
               class="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-purple-500 font-medium"
             />
+            @if (fieldErrors()['displayName']) {
+              <p class="text-xs text-rose-600 mt-1 flex items-center gap-1" data-testid="role-displayname-error">
+                <mat-icon class="!text-sm leading-none">error_outline</mat-icon>
+                <span>{{ fieldErrors()['displayName'] }}</span>
+              </p>
+            }
           </div>
         </div>
 
@@ -144,7 +158,7 @@
         <button
           mat-flat-button
           color="primary"
-          [disabled]="isSubmitting() || !formDisplayName().trim() || !formName().trim()"
+          [disabled]="isSubmitting()"
           (click)="onSubmit()"
           class="cursor-pointer !rounded-xl !bg-purple-600 hover:!bg-purple-700 !text-white"
         >

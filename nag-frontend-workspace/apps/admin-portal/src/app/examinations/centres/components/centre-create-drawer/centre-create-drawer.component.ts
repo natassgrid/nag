@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   input,
   output,
+  signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -44,6 +45,8 @@ export class CentreCreateDrawerComponent {
   readonly countryChange = output<number | null>();
   readonly stateChange = output<number | null>();
   readonly cityChange = output<number | null>();
+
+  readonly validationError = signal<string | null>(null);
 
   formCountryId: number | null = null;
   formStateId: number | null = null;
@@ -92,7 +95,23 @@ export class CentreCreateDrawerComponent {
   }
 
   onSave(): void {
-    if (!this.formCentreName.trim()) return;
+    this.validationError.set(null);
+    if (!this.formCentreName.trim()) {
+      this.validationError.set('Test Centre Name is required.');
+      return;
+    }
+    if (!this.formStateName.trim()) {
+      this.validationError.set('State is required.');
+      return;
+    }
+    if (!this.formCityName.trim()) {
+      this.validationError.set('City is required.');
+      return;
+    }
+    if (!this.formTotalCapacity || this.formTotalCapacity <= 0) {
+      this.validationError.set('Total Capacity must be greater than zero.');
+      return;
+    }
 
     this.save.emit({
       countryId: this.formCountryId || undefined,
@@ -111,6 +130,7 @@ export class CentreCreateDrawerComponent {
   }
 
   reset(): void {
+    this.validationError.set(null);
     this.formCentreName = '';
     this.formDistrict = '';
     this.formBuilding = '';
