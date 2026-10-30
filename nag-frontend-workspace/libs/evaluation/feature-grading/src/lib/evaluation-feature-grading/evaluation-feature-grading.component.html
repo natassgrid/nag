@@ -78,6 +78,7 @@
     <nag-evaluation-disputes-table
       [disputes]="evalService.disputes()"
       (resolve)="handleResolveDispute($event)"
+      (bulkResolve)="handleBulkResolveDisputes($event)"
     ></nag-evaluation-disputes-table>
   }
 </div>

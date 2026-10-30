@@ -190,6 +190,45 @@ export class AdminUserManagementComponent implements OnInit {
       });
   }
 
+  onBulkResetMfa(userIds: string[]): void {
+    if (!userIds || userIds.length === 0) return;
+    userIds.forEach((id) => {
+      this.userRoleService.updateUser(id, { twoFactorEnabled: false }).subscribe({
+        next: (updated) => {
+          this.users.update((list) =>
+            list.map((u) => (u.id === id ? updated : u))
+          );
+        },
+      });
+    });
+  }
+
+  onBulkRevokeUsers(userIds: string[]): void {
+    if (!userIds || userIds.length === 0) return;
+    userIds.forEach((id) => {
+      this.userRoleService.updateUser(id, { status: 'DEACTIVATED' as any }).subscribe({
+        next: (updated) => {
+          this.users.update((list) =>
+            list.map((u) => (u.id === id ? updated : u))
+          );
+        },
+      });
+    });
+  }
+
+  onBulkReactivateUsers(userIds: string[]): void {
+    if (!userIds || userIds.length === 0) return;
+    userIds.forEach((id) => {
+      this.userRoleService.updateUser(id, { status: 'ACTIVE' as any }).subscribe({
+        next: (updated) => {
+          this.users.update((list) =>
+            list.map((u) => (u.id === id ? updated : u))
+          );
+        },
+      });
+    });
+  }
+
   openCreateRole(): void {
     this.editingRole.set(null);
     this.isRoleDrawerOpen.set(true);
@@ -270,6 +309,26 @@ export class AdminUserManagementComponent implements OnInit {
           list.map((i) => (i.id === inv.id ? { ...i, status: 'REVOKED' } : i))
         );
       },
+    });
+  }
+
+  onBulkResendInvitations(ids: string[]): void {
+    if (!ids || ids.length === 0) return;
+    ids.forEach((id) => {
+      const inv = this.invitations().find((i) => i.id === id);
+      if (inv) {
+        this.onResendInvite(inv);
+      }
+    });
+  }
+
+  onBulkRevokeInvitations(ids: string[]): void {
+    if (!ids || ids.length === 0) return;
+    ids.forEach((id) => {
+      const inv = this.invitations().find((i) => i.id === id);
+      if (inv) {
+        this.onRevokeInvite(inv);
+      }
     });
   }
 }

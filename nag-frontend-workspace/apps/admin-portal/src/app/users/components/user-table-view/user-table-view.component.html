@@ -42,11 +42,68 @@
     </div>
   </div>
 
-  <!-- Users Table -->
+  <!-- Contextual Bulk Selection Bar -->
+  @if (selectedCount() > 0) {
+    <div class="bg-slate-900 text-white px-5 py-3 rounded-2xl flex flex-wrap items-center justify-between gap-3 shadow-lg">
+      <div class="flex items-center gap-3">
+        <span class="w-6 h-6 rounded-full bg-indigo-600 flex items-center justify-center font-bold text-xs">
+          {{ selectedCount() }}
+        </span>
+        <span class="text-xs font-semibold">
+          {{ selectedCount() }} user{{ selectedCount() > 1 ? 's' : '' }} selected
+        </span>
+      </div>
+      <div class="flex items-center gap-2 flex-wrap">
+        <button
+          type="button"
+          (click)="onBulkResetMfa()"
+          class="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold cursor-pointer transition-colors flex items-center gap-1"
+        >
+          <mat-icon class="!text-sm leading-none">lock_reset</mat-icon>
+          <span>Reset 2FA Selected</span>
+        </button>
+        <button
+          type="button"
+          (click)="onBulkRevoke()"
+          class="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold cursor-pointer transition-colors flex items-center gap-1"
+        >
+          <mat-icon class="!text-sm leading-none">block</mat-icon>
+          <span>Revoke Selected</span>
+        </button>
+        <button
+          type="button"
+          (click)="onBulkReactivate()"
+          class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer transition-colors flex items-center gap-1"
+        >
+          <mat-icon class="!text-sm leading-none">check_circle</mat-icon>
+          <span>Reactivate Selected</span>
+        </button>
+        <button
+          type="button"
+          (click)="deselectAll()"
+          class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium cursor-pointer transition-colors"
+        >
+          Deselect All
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- Users Table Container -->
   <div class="overflow-x-auto rounded-xl border border-slate-200">
     <table class="w-full text-left text-xs">
       <thead class="bg-slate-50 text-slate-600 uppercase font-bold tracking-wider text-[10px] border-b border-slate-200">
         <tr>
+          <th class="py-3 px-3 w-10 text-center">
+            <input
+              type="checkbox"
+              [checked]="isAllSelected()"
+              [indeterminate]="isPartiallySelected()"
+              (change)="toggleSelectAll($any($event.target).checked)"
+              class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+              aria-label="Select all users on this page"
+            />
+          </th>
           <th class="py-3 px-4">Authority User</th>
           <th class="py-3 px-4">Assigned Roles</th>
           <th class="py-3 px-4 text-center">2FA Security Status</th>
@@ -58,14 +115,27 @@
       <tbody class="divide-y divide-slate-100">
         @if (users().length === 0) {
           <tr>
-            <td colspan="6" class="py-12 text-center text-slate-400">
+            <td colspan="7" class="py-12 text-center text-slate-400">
               <mat-icon class="!text-4xl mx-auto block mb-2 text-slate-300">person_off</mat-icon>
               <span>No authority users match current search and role filters</span>
             </td>
           </tr>
         } @else {
-          @for (user of users(); track user.id) {
-            <tr class="hover:bg-slate-50/70 transition-colors">
+          @for (user of paginatedUsers(); track user.id) {
+            <tr
+              [class.bg-indigo-50/50]="selectedIds().has(user.id)"
+              class="hover:bg-slate-50/70 transition-colors"
+            >
+              <td class="py-3.5 px-3 text-center" (click)="$event.stopPropagation()">
+                <input
+                  type="checkbox"
+                  [checked]="selectedIds().has(user.id)"
+                  (change)="toggleSelect(user.id)"
+                  class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                  aria-label="Select user"
+                />
+              </td>
+
               <td class="py-3.5 px-4">
                 <div class="font-bold text-slate-900 text-sm flex items-center gap-2">
                   <span>{{ user.fullName }}</span>
@@ -173,5 +243,77 @@
         }
       </tbody>
     </table>
+
+    <!-- Pagination Footer Bar -->
+    <div class="px-4 py-3 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+      <div class="flex items-center gap-2 text-slate-500 font-medium">
+        <span>Showing</span>
+        <span class="font-bold text-slate-800">{{ displayStart() }}</span>
+        <span>to</span>
+        <span class="font-bold text-slate-800">{{ displayEnd() }}</span>
+        <span>of</span>
+        <span class="font-bold text-slate-900">{{ users().length }}</span>
+        <span>users</span>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-1.5">
+          <span class="text-slate-400 font-medium">Per page:</span>
+          <select
+            [ngModel]="pageSize()"
+            (ngModelChange)="onPageSizeChange(+$event)"
+            class="bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-700 font-bold focus:outline-none cursor-pointer"
+          >
+            @for (size of pageSizeOptions; track size) {
+              <option [value]="size">{{ size }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="flex items-center gap-1">
+          <button
+            type="button"
+            (click)="goToFirstPage()"
+            [disabled]="safePageIndex() === 0"
+            class="p-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+            title="First Page"
+          >
+            <mat-icon class="!text-base !w-4 !h-4 flex items-center justify-center">first_page</mat-icon>
+          </button>
+          <button
+            type="button"
+            (click)="goToPrevPage()"
+            [disabled]="safePageIndex() === 0"
+            class="p-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+            title="Previous Page"
+          >
+            <mat-icon class="!text-base !w-4 !h-4 flex items-center justify-center">chevron_left</mat-icon>
+          </button>
+
+          <span class="px-2 font-semibold text-slate-700">
+            Page {{ totalPages() === 0 ? 0 : safePageIndex() + 1 }} of {{ totalPages() }}
+          </span>
+
+          <button
+            type="button"
+            (click)="goToNextPage()"
+            [disabled]="safePageIndex() >= totalPages() - 1"
+            class="p-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+            title="Next Page"
+          >
+            <mat-icon class="!text-base !w-4 !h-4 flex items-center justify-center">chevron_right</mat-icon>
+          </button>
+          <button
+            type="button"
+            (click)="goToLastPage()"
+            [disabled]="safePageIndex() >= totalPages() - 1"
+            class="p-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+            title="Last Page"
+          >
+            <mat-icon class="!text-base !w-4 !h-4 flex items-center justify-center">last_page</mat-icon>
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>

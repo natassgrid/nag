@@ -4,6 +4,7 @@ import {
   input,
   output,
   computed,
+  signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -52,6 +53,40 @@ export class PaperListTableComponent {
   resumeExtraction = output<QuestionPaperMetadata>();
   deletePaper = output<QuestionPaperMetadata>();
   refresh = output<void>();
+  bulkResume = output<QuestionPaperMetadata[]>();
+  bulkRetry = output<QuestionPaperMetadata[]>();
+  bulkDelete = output<QuestionPaperMetadata[]>();
+
+  readonly selectedIds = signal<Set<string>>(new Set<string>());
+
+  readonly isAllSelected = computed(() => {
+    const list = this.papers() || [];
+    if (list.length === 0) return false;
+    const selected = this.selectedIds();
+    return list.every((p) => p && selected.has(p.id));
+  });
+
+  readonly isPartiallySelected = computed(() => {
+    const list = this.papers() || [];
+    if (list.length === 0) return false;
+    const selected = this.selectedIds();
+    const count = list.filter((p) => p && selected.has(p.id)).length;
+    return count > 0 && count < list.length;
+  });
+
+  readonly selectedPapers = computed(() => {
+    const selected = this.selectedIds();
+    const list = this.papers() || [];
+    return list.filter((p) => p && selected.has(p.id));
+  });
+
+  readonly resumableSelectedPapers = computed(() => {
+    return this.selectedPapers().filter((p) => this.isResumable(p));
+  });
+
+  readonly retryableSelectedPapers = computed(() => {
+    return this.selectedPapers().filter((p) => this.isRetryable(p));
+  });
 
   readonly totalPages = computed(() => {
     const size = this.pageSize();
@@ -136,6 +171,82 @@ export class PaperListTableComponent {
 
   isResumable(paper: QuestionPaperMetadata): boolean {
     return !!paper.resumable;
+  }
+
+  isSelected(id: string): boolean {
+    return this.selectedIds().has(id);
+  }
+
+  toggleSelect(id: string): void {
+    this.selectedIds.update((set) => {
+      const next = new Set(set);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }
+
+  toggleSelectAll(): void {
+    const list = this.papers() || [];
+    if (this.isAllSelected()) {
+      this.selectedIds.update((set) => {
+        const next = new Set(set);
+        for (const p of list) {
+          if (p) next.delete(p.id);
+        }
+        return next;
+      });
+    } else {
+      this.selectedIds.update((set) => {
+        const next = new Set(set);
+        for (const p of list) {
+          if (p) next.add(p.id);
+        }
+        return next;
+      });
+    }
+  }
+
+  deselectAll(): void {
+    this.selectedIds.set(new Set<string>());
+  }
+
+  onBulkResume(): void {
+    const resumable = this.resumableSelectedPapers();
+    if (resumable.length > 0) {
+      this.bulkResume.emit(resumable);
+    }
+  }
+
+  onBulkRetry(): void {
+    const retryable = this.retryableSelectedPapers();
+    if (retryable.length > 0) {
+      this.bulkRetry.emit(retryable);
+    }
+  }
+
+  onBulkDelete(): void {
+    const selected = this.selectedPapers();
+    if (selected.length === 0) return;
+    if (
+      window.confirm(
+        `Are you sure you want to delete ${selected.length} selected question paper(s) and their staging questions? This cannot be undone.`
+      )
+    ) {
+      this.bulkDelete.emit(selected);
+    }
+  }
+
+  onFirstPage(): void {
+    this.pageChange.emit({ pageIndex: 0, pageSize: this.pageSize() });
+  }
+
+  onLastPage(): void {
+    const lastPage = Math.max(0, this.totalPages() - 1);
+    this.pageChange.emit({ pageIndex: lastPage, pageSize: this.pageSize() });
   }
 
   onPrevPage(): void {

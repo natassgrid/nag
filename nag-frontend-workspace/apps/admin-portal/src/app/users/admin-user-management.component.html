@@ -92,6 +92,9 @@
       (toggleStatus)="onToggleUserStatus($event)"
       (resetMfa)="onResetMfa($event)"
       (inviteUser)="openInviteDrawer()"
+      (bulkResetMfa)="onBulkResetMfa($event)"
+      (bulkRevoke)="onBulkRevokeUsers($event)"
+      (bulkReactivate)="onBulkReactivateUsers($event)"
     ></nag-user-table-view>
   }
 
@@ -116,6 +119,8 @@
       (inviteNew)="openInviteDrawer()"
       (resendInvite)="onResendInvite($event)"
       (revokeInvite)="onRevokeInvite($event)"
+      (bulkResend)="onBulkResendInvitations($event)"
+      (bulkRevoke)="onBulkRevokeInvitations($event)"
     ></nag-invitation-table-view>
   }
 

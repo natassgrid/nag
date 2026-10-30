@@ -9,6 +9,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { forkJoin, of, catchError } from 'rxjs';
 import { NotificationService } from '@nag-frontend-workspace/shared-ui-components';
 import { SubjectTopicService } from '@nag-frontend-workspace/questions-data-access';
 import { AssetService } from '../../assets/asset.service';
@@ -557,6 +558,88 @@ export class AdminPaperExtractionComponent implements OnInit {
         this.notificationService.error(
           'Failed to delete questions: ' + (err?.error?.message || err?.message || 'Server error')
         );
+      },
+    });
+  }
+
+  handleBulkResume(papers: QuestionPaperMetadata[]): void {
+    if (!papers || papers.length === 0) return;
+    this.notificationService.info(`Resuming extraction for ${papers.length} paper(s)...`);
+    forkJoin(
+      papers.map((p) =>
+        this.paperService.resumeExtraction(p.id).pipe(
+          catchError((err) => {
+            console.error(`Failed to resume paper ${p.id}`, err);
+            return of(null);
+          })
+        )
+      )
+    ).subscribe({
+      next: (results) => {
+        const count = results.filter(Boolean).length;
+        this.notificationService.success(`Successfully resumed ${count} paper(s).`);
+        this.loadPapers();
+      },
+      error: (err) => {
+        this.notificationService.error(
+          'Bulk resume encountered errors: ' + (err?.error?.message || err?.message || 'Server error')
+        );
+        this.loadPapers();
+      },
+    });
+  }
+
+  handleBulkRetry(papers: QuestionPaperMetadata[]): void {
+    if (!papers || papers.length === 0) return;
+    this.notificationService.info(`Retrying extraction for ${papers.length} paper(s)...`);
+    forkJoin(
+      papers.map((p) =>
+        this.paperService.retryJob(p.id).pipe(
+          catchError((err) => {
+            console.error(`Failed to retry paper ${p.id}`, err);
+            return of(null);
+          })
+        )
+      )
+    ).subscribe({
+      next: (results) => {
+        const count = results.filter(Boolean).length;
+        this.notificationService.success(`Successfully restarted ${count} extraction job(s).`);
+        this.loadPapers();
+      },
+      error: (err) => {
+        this.notificationService.error(
+          'Bulk retry encountered errors: ' + (err?.error?.message || err?.message || 'Server error')
+        );
+        this.loadPapers();
+      },
+    });
+  }
+
+  handleBulkDelete(papers: QuestionPaperMetadata[]): void {
+    if (!papers || papers.length === 0) return;
+    forkJoin(
+      papers.map((p) =>
+        this.paperService.deletePaper(p.id).pipe(
+          catchError((err) => {
+            console.error(`Failed to delete paper ${p.id}`, err);
+            return of(null);
+          })
+        )
+      )
+    ).subscribe({
+      next: (results) => {
+        const count = results.filter((r) => r !== null).length;
+        this.notificationService.success(
+          `Successfully deleted ${count} paper(s) and their staging questions.`
+        );
+        this.loadPapers();
+      },
+      error: (err) => {
+        this.notificationService.error(
+          'Bulk delete failed: ' + (err?.error?.message || err?.message || 'Server error')
+        );
+        this.loadPapers();
       },
     });
   }

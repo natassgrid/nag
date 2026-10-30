@@ -23,7 +23,7 @@
       <mat-spinner diameter="40" class="mx-auto"></mat-spinner>
       <p class="text-sm font-medium text-slate-500">Loading seat allocations for this shift...</p>
     </div>
-  } @else if (allocations().length === 0) {
+  } @else if ((allocations() || []).length === 0) {
     <div class="p-12 bg-white rounded-2xl border border-dashed border-slate-300 text-center space-y-3">
       <mat-icon class="!text-4xl text-slate-300 leading-none">chair</mat-icon>
       <h3 class="text-base font-bold text-slate-800">No Test Venues Allocated</h3>
@@ -40,43 +40,167 @@
       </button>
     </div>
   } @else {
+    <!-- Bulk Selection Bar -->
+    @if (selectedIds().size > 0) {
+      <div class="p-3 bg-indigo-50 border border-indigo-200 rounded-xl flex flex-wrap items-center justify-between gap-3 text-xs text-indigo-900 shadow-xs">
+        <div class="flex items-center gap-2 font-bold">
+          <mat-icon class="!text-lg text-indigo-600">check_circle</mat-icon>
+          <span>{{ selectedIds().size }} allocation(s) selected</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button
+            mat-stroked-button
+            class="!text-xs !py-1 !px-3 !rounded-lg !border-indigo-300 !text-indigo-700 bg-white"
+            (click)="exportSelectedCsv()"
+          >
+            <mat-icon class="!text-sm">download</mat-icon>
+            Export Selected CSV
+          </button>
+          <button
+            mat-flat-button
+            color="warn"
+            class="!text-xs !py-1 !px-3 !rounded-lg"
+            (click)="onBulkRemove()"
+          >
+            <mat-icon class="!text-sm">delete</mat-icon>
+            Remove Selected
+          </button>
+          <button
+            mat-button
+            class="!text-xs !py-1 !px-2 !text-slate-600"
+            (click)="deselectAll()"
+          >
+            Deselect All
+          </button>
+        </div>
+      </div>
+    }
+
     <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
-      <table class="min-w-full divide-y divide-slate-200 text-left text-xs">
-        <thead class="bg-slate-50 text-slate-600 font-semibold uppercase tracking-wider">
-          <tr>
-            <th scope="col" class="px-5 py-3.5">Assigned Test Venue</th>
-            <th scope="col" class="px-5 py-3.5">Total Capacity</th>
-            <th scope="col" class="px-5 py-3.5">Available Seats</th>
-            <th scope="col" class="px-5 py-3.5">Reserved Quota</th>
-            <th scope="col" class="px-5 py-3.5">PwD Seats</th>
-            <th scope="col" class="px-5 py-3.5">Emergency Buffer</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-100 text-slate-700">
-          @for (alloc of allocations(); track alloc.id) {
-            <tr class="hover:bg-slate-50/70">
-              <td class="px-5 py-4 font-bold text-slate-900">
-                {{ getCentreName(alloc.centreId) }}
-              </td>
-              <td class="px-5 py-4 font-mono font-bold text-indigo-700">
-                {{ alloc.totalSeats }}
-              </td>
-              <td class="px-5 py-4 font-mono text-emerald-700 font-bold">
-                {{ alloc.availableSeats }}
-              </td>
-              <td class="px-5 py-4 font-mono text-slate-600">
-                {{ alloc.reservedSeats }}
-              </td>
-              <td class="px-5 py-4 font-mono text-purple-700">
-                {{ alloc.pwdSeats }}
-              </td>
-              <td class="px-5 py-4 font-mono text-amber-700">
-                {{ alloc.emergencyBufferSeats }}
-              </td>
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-slate-200 text-left text-xs">
+          <thead class="bg-slate-50 text-slate-600 font-semibold uppercase tracking-wider">
+            <tr>
+              <th scope="col" class="w-10 px-4 py-3.5 text-center">
+                <input
+                  type="checkbox"
+                  [checked]="isAllSelected()"
+                  [indeterminate]="isPartiallySelected()"
+                  (click)="$event.stopPropagation()"
+                  (change)="toggleSelectAll()"
+                  class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                  aria-label="Select all allocations on this page"
+                />
+              </th>
+              <th scope="col" class="px-5 py-3.5">Assigned Test Venue</th>
+              <th scope="col" class="px-5 py-3.5">Total Capacity</th>
+              <th scope="col" class="px-5 py-3.5">Available Seats</th>
+              <th scope="col" class="px-5 py-3.5">Reserved Quota</th>
+              <th scope="col" class="px-5 py-3.5">PwD Seats</th>
+              <th scope="col" class="px-5 py-3.5">Emergency Buffer</th>
             </tr>
-          }
-        </tbody>
-      </table>
+          </thead>
+          <tbody class="divide-y divide-slate-100 text-slate-700">
+            @for (alloc of paginatedAllocations(); track alloc.id) {
+              <tr
+                class="hover:bg-slate-50/70 transition-colors cursor-pointer"
+                [class.bg-indigo-50/40]="selectedIds().has(alloc.id)"
+                (click)="toggleSelect(alloc.id, $event)"
+              >
+                <td class="w-10 px-4 py-4 text-center" (click)="$event.stopPropagation()">
+                  <input
+                    type="checkbox"
+                    [checked]="selectedIds().has(alloc.id)"
+                    (click)="$event.stopPropagation()"
+                    (change)="toggleSelect(alloc.id, $event)"
+                    class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                    aria-label="Select allocation"
+                  />
+                </td>
+                <td class="px-5 py-4 font-bold text-slate-900">
+                  {{ getCentreName(alloc.centreId) }}
+                </td>
+                <td class="px-5 py-4 font-mono font-bold text-indigo-700">
+                  {{ alloc.totalSeats }}
+                </td>
+                <td class="px-5 py-4 font-mono text-emerald-700 font-bold">
+                  {{ alloc.availableSeats }}
+                </td>
+                <td class="px-5 py-4 font-mono text-slate-600">
+                  {{ alloc.reservedSeats }}
+                </td>
+                <td class="px-5 py-4 font-mono text-purple-700">
+                  {{ alloc.pwdSeats }}
+                </td>
+                <td class="px-5 py-4 font-mono text-amber-700">
+                  {{ alloc.emergencyBufferSeats }}
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination Footer -->
+      <div class="px-5 py-3.5 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-medium text-slate-600">
+        <div class="flex items-center gap-3">
+          <span>
+            Showing <strong class="text-slate-900">{{ displayStart() }}</strong> to
+            <strong class="text-slate-900">{{ displayEnd() }}</strong> of
+            <strong class="text-slate-900">{{ (allocations() || []).length }}</strong> venue allocations
+          </span>
+          <div class="flex items-center gap-1.5 ml-2">
+            <span class="text-slate-500">Per page:</span>
+            <select
+              [ngModel]="pageSize()"
+              (ngModelChange)="onPageSizeChange($event)"
+              class="bg-white border border-slate-300 text-slate-700 text-xs rounded-lg px-2 py-1 font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+            >
+              @for (opt of pageSizeOptions; track opt) {
+                <option [value]="opt">{{ opt }}</option>
+              }
+            </select>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-1">
+          <button
+            mat-stroked-button
+            [disabled]="pageIndex() === 0"
+            (click)="goToFirstPage()"
+            class="!min-w-0 !px-2.5 !py-1 !text-xs !rounded-lg"
+          >
+            First
+          </button>
+          <button
+            mat-stroked-button
+            [disabled]="pageIndex() === 0"
+            (click)="goToPreviousPage()"
+            class="!min-w-0 !px-2.5 !py-1 !text-xs !rounded-lg"
+          >
+            Prev
+          </button>
+          <span class="px-3 py-1 bg-white border border-slate-200 rounded-lg text-slate-800 font-bold mx-1">
+            Page {{ pageIndex() + 1 }} of {{ totalPages() }}
+          </span>
+          <button
+            mat-stroked-button
+            [disabled]="pageIndex() + 1 >= totalPages()"
+            (click)="goToNextPage()"
+            class="!min-w-0 !px-2.5 !py-1 !text-xs !rounded-lg"
+          >
+            Next
+          </button>
+          <button
+            mat-stroked-button
+            [disabled]="pageIndex() + 1 >= totalPages()"
+            (click)="goToLastPage()"
+            class="!min-w-0 !px-2.5 !py-1 !text-xs !rounded-lg"
+          >
+            Last
+          </button>
+        </div>
+      </div>
     </div>
   }
 </div>

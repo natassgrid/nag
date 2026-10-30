@@ -3,6 +3,8 @@ import {
   ChangeDetectionStrategy,
   input,
   output,
+  signal,
+  computed,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -42,6 +44,110 @@ export class QuestionTranslationTableComponent {
   selectedSubjectChange = output<string>();
   openTranslation = output<Question>();
   pageChange = output<{ pageIndex: number; pageSize: number }>();
+  bulkTranslate = output<Question[]>();
+
+  readonly selectedIds = signal<Set<string>>(new Set<string>());
+
+  readonly isAllSelected = computed(() => {
+    const list = this.questions() || [];
+    if (list.length === 0) return false;
+    const selected = this.selectedIds();
+    return list.every((q) => q && selected.has(q.id));
+  });
+
+  readonly isPartiallySelected = computed(() => {
+    const list = this.questions() || [];
+    if (list.length === 0) return false;
+    const selected = this.selectedIds();
+    const count = list.filter((q) => q && selected.has(q.id)).length;
+    return count > 0 && count < list.length;
+  });
+
+  readonly selectedQuestions = computed(() => {
+    const selected = this.selectedIds();
+    const list = this.questions() || [];
+    return list.filter((q) => q && selected.has(q.id));
+  });
+
+  isSelected(id: string): boolean {
+    return this.selectedIds().has(id);
+  }
+
+  toggleSelect(id: string): void {
+    this.selectedIds.update((set) => {
+      const next = new Set(set);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }
+
+  toggleSelectAll(): void {
+    const list = this.questions() || [];
+    if (this.isAllSelected()) {
+      this.selectedIds.update((set) => {
+        const next = new Set(set);
+        for (const q of list) {
+          if (q) next.delete(q.id);
+        }
+        return next;
+      });
+    } else {
+      this.selectedIds.update((set) => {
+        const next = new Set(set);
+        for (const q of list) {
+          if (q) next.add(q.id);
+        }
+        return next;
+      });
+    }
+  }
+
+  deselectAll(): void {
+    this.selectedIds.set(new Set<string>());
+  }
+
+  onBulkTranslate(): void {
+    const selected = this.selectedQuestions();
+    if (selected.length > 0) {
+      this.bulkTranslate.emit(selected);
+    }
+  }
+
+  exportSelectedCsv(): void {
+    const selected = this.selectedQuestions();
+    if (selected.length === 0) return;
+
+    const escapeCsv = (str: string | null | undefined): string => {
+      if (!str) return '""';
+      return `"${str.replace(/"/g, '""')}"`;
+    };
+
+    const lang = this.selectedLanguage();
+    const headers = ['ID', 'Code', 'Content', 'Subject', 'Topic', 'Difficulty', 'Target Language', 'Status'];
+    const rows = selected.map((q) => [
+      escapeCsv(q.id),
+      escapeCsv(q.code || ''),
+      escapeCsv(q.content || ''),
+      escapeCsv(q.subject || ''),
+      escapeCsv(q.topic || ''),
+      escapeCsv(q.difficulty || ''),
+      escapeCsv(lang),
+      escapeCsv(this.getQuestionTranslationStatus(q)),
+    ].join(','));
+
+    const csvContent = [headers.join(','), ...rows].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `translations_${lang}_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
 
   onPageChange(event: PageEvent): void {
     this.pageChange.emit({

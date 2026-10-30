@@ -141,6 +141,9 @@
       (delete)="openDeleteDialog($event)"
       (togglePublish)="togglePublish($event)"
       (create)="openCreateModal()"
+      (bulkPublish)="handleBulkPublish($event)"
+      (bulkUnpublish)="handleBulkUnpublish($event)"
+      (bulkDelete)="handleBulkDelete($event)"
     >
     </app-practice-set-list>
   }

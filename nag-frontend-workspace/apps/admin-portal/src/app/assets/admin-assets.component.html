@@ -94,6 +94,9 @@
         (restore)="restoreAsset($event)"
         (delete)="deleteAsset($event)"
         (imageError)="onImageError($event)"
+        (bulkArchive)="bulkArchiveAssets($event)"
+        (bulkRestore)="bulkRestoreAssets($event)"
+        (bulkDelete)="bulkDeleteAssets($event)"
       ></nag-asset-table-view>
     }
 
@@ -104,6 +107,7 @@
       [totalPages]="totalPages()"
       [totalElements]="totalElements()"
       (pageChange)="onPageChange($event)"
+      (pageSizeChange)="onPageSizeChange($event)"
     ></nag-asset-pagination>
   }
 </div>

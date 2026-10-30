@@ -230,4 +230,38 @@ export class AdminCentreManagementComponent implements OnInit {
       },
     });
   }
+
+  bulkDeactivateCentres(selectedCentres: CentreResponse[]): void {
+    const activeCentres = (selectedCentres || []).filter((c) => c && c.active !== false);
+    if (activeCentres.length === 0) return;
+
+    let completed = 0;
+    let failed = 0;
+    const total = activeCentres.length;
+
+    activeCentres.forEach((centre) => {
+      this.centreService.deactivateCentre(centre.id).subscribe({
+        next: () => {
+          completed++;
+          if (completed + failed === total) {
+            this.snackBar.open(
+              `Successfully deactivated ${completed} examination centre${completed > 1 ? 's' : ''}`,
+              'OK',
+              { duration: 3500 }
+            );
+          }
+        },
+        error: () => {
+          failed++;
+          if (completed + failed === total) {
+            this.snackBar.open(
+              `Deactivated ${completed} centre(s); ${failed} failed.`,
+              'Dismiss',
+              { duration: 4000 }
+            );
+          }
+        },
+      });
+    });
+  }
 }

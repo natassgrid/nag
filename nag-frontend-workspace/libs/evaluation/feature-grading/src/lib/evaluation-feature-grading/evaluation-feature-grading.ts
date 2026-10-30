@@ -6,6 +6,7 @@ import {
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { forkJoin } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import {
@@ -80,5 +81,24 @@ export class EvaluationFeatureGrading implements OnInit {
         `Dispute ${event.resolution.toLowerCase()} by evaluator desk`
       )
       .subscribe();
+  }
+
+  handleBulkResolveDisputes(event: {
+    disputes: DisputeRecord[];
+    resolution: 'RESOLVED' | 'REJECTED';
+  }): void {
+    if (!event.disputes || event.disputes.length === 0) return;
+    const requests = event.disputes.map((d) =>
+      this.evalService.resolveDispute(
+        d.id,
+        event.resolution,
+        `Dispute ${event.resolution.toLowerCase()} by evaluator desk (bulk action)`
+      )
+    );
+    forkJoin(requests).subscribe({
+      next: () => {
+        this.evalService.loadDisputes().subscribe();
+      },
+    });
   }
 }

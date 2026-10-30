@@ -91,6 +91,9 @@
       (cancelExtraction)="handleCancelJob($event)"
       (resumeExtraction)="handleResumeJob($event)"
       (deletePaper)="handleDeletePaper($event)"
+      (bulkResume)="handleBulkResume($event)"
+      (bulkRetry)="handleBulkRetry($event)"
+      (bulkDelete)="handleBulkDelete($event)"
       (refresh)="loadPapers()"
     ></nag-paper-list-table>
   }

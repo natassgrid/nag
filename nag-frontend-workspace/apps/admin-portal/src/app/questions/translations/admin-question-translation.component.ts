@@ -9,6 +9,8 @@ import {
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
+import { from, concatMap, switchMap, catchError, of, toArray, map } from 'rxjs';
+import { NotificationService } from '@nag-frontend-workspace/shared-ui-components';
 import {
   TranslationService,
   QuestionBankService,
@@ -49,10 +51,12 @@ export class AdminQuestionTranslationComponent implements OnInit {
   private readonly translationService = inject(TranslationService);
   private readonly questionBankService = inject(QuestionBankService);
   private readonly subjectTopicService = inject(SubjectTopicService);
+  private readonly notificationService = inject(NotificationService);
 
   readonly languages = INDIC_TRANSLATION_LANGUAGES.filter((l) => l.code !== 'en');
   readonly selectedLanguage = signal<string>('hi');
   readonly currentTab = signal<'list' | 'batch'>('list');
+  readonly bulkTranslating = signal<boolean>(false);
 
   // Dynamic Taxonomy & Questions
   readonly taxonomySubjects = signal<Subject[]>([]);
@@ -392,5 +396,54 @@ export class AdminQuestionTranslationComponent implements OnInit {
         );
       },
     });
+  }
+
+  onBulkTranslateQuestions(selected: Question[]): void {
+    if (!selected || selected.length === 0) return;
+
+    const targetLang = this.selectedLanguage();
+    const count = selected.length;
+    this.notificationService.info(
+      `Starting AI translation for ${count} question(s) into ${this.activeLanguageName()}...`
+    );
+    this.bulkTranslating.set(true);
+
+    from(selected)
+      .pipe(
+        concatMap((q) =>
+          this.translationService.autoTranslateQuestion(q.id, targetLang).pipe(
+            switchMap((res: AutoTranslateResponse) =>
+              this.translationService.saveTranslation({
+                questionId: q.id,
+                languageCode: targetLang,
+                translatedContent: res.translatedContent || '',
+                translatedExplanation: res.translatedExplanation || '',
+                translatedOptions: res.translatedOptions || [],
+              })
+            ),
+            map(() => q.id),
+            catchError((err) => {
+              console.error(`Failed to auto-translate question ${q.id}`, err);
+              return of(null);
+            })
+          )
+        ),
+        toArray()
+      )
+      .subscribe({
+        next: (results) => {
+          this.bulkTranslating.set(false);
+          const successful = results.filter(Boolean).length;
+          this.notificationService.success(
+            `Successfully translated ${successful} of ${count} questions into ${this.activeLanguageName()}.`
+          );
+          this.loadQuestions();
+        },
+        error: () => {
+          this.bulkTranslating.set(false);
+          this.notificationService.error('Batch translation encountered an error.');
+          this.loadQuestions();
+        },
+      });
   }
 }

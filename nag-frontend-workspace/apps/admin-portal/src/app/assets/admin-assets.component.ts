@@ -340,4 +340,127 @@ export class AdminAssetsComponent implements OnInit {
       this.loadAssets();
     }
   }
+
+  onPageSizeChange(newSize: number): void {
+    this.pageSize.set(newSize);
+    this.currentPage.set(0);
+    this.loadAssets();
+  }
+
+  bulkArchiveAssets(assets: AssetResponse[]): void {
+    const activeList = (assets || []).filter((a) => a && a.status === 'ACTIVE');
+    if (activeList.length === 0) return;
+
+    let completed = 0;
+    let failed = 0;
+    const total = activeList.length;
+
+    activeList.forEach((asset) => {
+      this.assetService.archiveAsset(asset.id).subscribe({
+        next: () => {
+          completed++;
+          if (completed + failed === total) {
+            this.snackBar.open(
+              `Successfully archived ${completed} asset${completed > 1 ? 's' : ''}`,
+              'OK',
+              { duration: 3000 }
+            );
+            this.loadAssets();
+          }
+        },
+        error: () => {
+          failed++;
+          if (completed + failed === total) {
+            this.snackBar.open(
+              `Archived ${completed} asset(s); ${failed} failed.`,
+              'Dismiss',
+              { duration: 4000 }
+            );
+            this.loadAssets();
+          }
+        },
+      });
+    });
+  }
+
+  bulkRestoreAssets(assets: AssetResponse[]): void {
+    const archivedList = (assets || []).filter((a) => a && a.status === 'ARCHIVED');
+    if (archivedList.length === 0) return;
+
+    let completed = 0;
+    let failed = 0;
+    const total = archivedList.length;
+
+    archivedList.forEach((asset) => {
+      this.assetService.restoreAsset(asset.id).subscribe({
+        next: () => {
+          completed++;
+          if (completed + failed === total) {
+            this.snackBar.open(
+              `Successfully restored ${completed} asset${completed > 1 ? 's' : ''}`,
+              'OK',
+              { duration: 3000 }
+            );
+            this.loadAssets();
+          }
+        },
+        error: () => {
+          failed++;
+          if (completed + failed === total) {
+            this.snackBar.open(
+              `Restored ${completed} asset(s); ${failed} failed.`,
+              'Dismiss',
+              { duration: 4000 }
+            );
+            this.loadAssets();
+          }
+        },
+      });
+    });
+  }
+
+  async bulkDeleteAssets(assets: AssetResponse[]): Promise<void> {
+    if (!assets || assets.length === 0) return;
+
+    const confirmed = await this.notificationService.confirm({
+      title: `Permanently Delete ${assets.length} Asset${assets.length > 1 ? 's' : ''}?`,
+      message: `Are you sure you want to permanently delete ${assets.length} selected asset(s)?\nThis action cannot be undone.`,
+      confirmText: 'Delete Permanently',
+      cancelText: 'Cancel',
+      type: 'danger',
+    });
+
+    if (!confirmed) return;
+
+    let completed = 0;
+    let failed = 0;
+    const total = assets.length;
+
+    assets.forEach((asset) => {
+      this.assetService.deleteAsset(asset.id).subscribe({
+        next: () => {
+          completed++;
+          if (completed + failed === total) {
+            this.snackBar.open(
+              `Successfully deleted ${completed} asset${completed > 1 ? 's' : ''}`,
+              'OK',
+              { duration: 3000 }
+            );
+            this.loadAssets();
+          }
+        },
+        error: () => {
+          failed++;
+          if (completed + failed === total) {
+            this.snackBar.open(
+              `Deleted ${completed} asset(s); ${failed} failed. Ensure no questions reference them.`,
+              'Dismiss',
+              { duration: 4500 }
+            );
+            this.loadAssets();
+          }
+        },
+      });
+    });
+  }
 }
