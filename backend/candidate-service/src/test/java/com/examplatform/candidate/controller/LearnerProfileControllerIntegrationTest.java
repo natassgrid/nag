@@ -15,6 +15,7 @@ import com.examplatform.candidate.client.ExaminationClient;
 import com.examplatform.candidate.dto.*;
 import com.examplatform.candidate.service.LearnerService;
 import com.examplatform.candidate.support.AbstractIntegrationTest;
+import com.examplatform.shared.constants.SharedConstants;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
@@ -92,14 +93,14 @@ class LearnerProfileControllerIntegrationTest extends AbstractIntegrationTest {
     @DisplayName("GET /api/v1/learner/exams returns published exams catalogue")
     void shouldGetExams() throws Exception {
         PublishedExamDto exam = new PublishedExamDto(
-                examId, "JEE_MAIN", "JEE Main Examination", "Description", "PUBLISHED", 180, 300, UUID.randomUUID(), 3, 30
+                examId, SharedConstants.JEE_MAIN, "JEE Main Examination", "Description", "PUBLISHED", 180, 300, UUID.randomUUID(), 3, 30
         );
         when(learnerService.getPublishedExams(any())).thenReturn(List.of(exam));
 
         mockMvc.perform(get("/api/v1/learner/exams")
                         .with(jwt().jwt(j -> j.subject(candidateId.toString()))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].code").value("JEE_MAIN"))
+                .andExpect(jsonPath("$[0].code").value(SharedConstants.JEE_MAIN))
                 .andExpect(jsonPath("$[0].name").value("JEE Main Examination"));
     }
 
@@ -127,7 +128,7 @@ class LearnerProfileControllerIntegrationTest extends AbstractIntegrationTest {
     @DisplayName("POST /api/v1/learner/enrollments/{id}/diagnostic starts diagnostic session")
     void shouldStartDiagnostic() throws Exception {
         DiagnosticSessionResponse res = new DiagnosticSessionResponse(
-                UUID.randomUUID(), enrollmentId, candidateId, examId, "IN_PROGRESS",
+                UUID.randomUUID(), enrollmentId, candidateId, examId, SharedConstants.IN_PROGRESS,
                 Collections.emptyList(), 10, Instant.now()
         );
         when(learnerService.startDiagnostic(eq(candidateId), eq(enrollmentId), any())).thenReturn(res);
@@ -136,7 +137,7 @@ class LearnerProfileControllerIntegrationTest extends AbstractIntegrationTest {
                         .with(jwt().jwt(j -> j.subject(candidateId.toString()))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.enrollmentId").value(enrollmentId.toString()))
-                .andExpect(jsonPath("$.status").value("IN_PROGRESS"));
+                .andExpect(jsonPath("$.status").value(SharedConstants.IN_PROGRESS));
     }
 
     @Test

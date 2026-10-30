@@ -27,6 +27,7 @@ import com.examplatform.questionbank.microlesson.translation.dto.MicroLessonBatc
 import com.examplatform.questionbank.microlesson.translation.dto.MicroLessonTranslationResponse;
 import com.examplatform.questionbank.microlesson.translation.service.MicroLessonBatchTranslationService;
 import com.examplatform.questionbank.microlesson.translation.service.MicroLessonTranslationWorkflowService;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -132,7 +133,7 @@ class MicroLessonTranslationControllerTest {
         MicroLessonBatchTranslationRequest request = MicroLessonBatchTranslationRequest.builder()
                 .subject("Physics")
                 .topic("Optics")
-                .targetExam("JEE_MAIN")
+                .targetExam(SharedConstants.JEE_MAIN)
                 .targetLanguage("hi")
                 .batchSize(20)
                 .overwriteExisting(true)
@@ -166,7 +167,7 @@ class MicroLessonTranslationControllerTest {
     void shouldGetBatchJobStatus() throws Exception {
         MicroLessonBatchTranslationJobResponse jobResponse = MicroLessonBatchTranslationJobResponse.builder()
                 .id(sampleJobId)
-                .status("IN_PROGRESS")
+                .status(SharedConstants.IN_PROGRESS)
                 .targetLanguage("hi")
                 .totalLessons(20)
                 .processedLessons(10)
@@ -182,7 +183,7 @@ class MicroLessonTranslationControllerTest {
                 .andExpect(jsonPath("$.id").value(sampleJobId.toString()))
                 .andExpect(jsonPath("$.jobId").value(sampleJobId.toString()))
                 .andExpect(jsonPath("$.progressPercentage").value(50.0))
-                .andExpect(jsonPath("$.status").value("IN_PROGRESS"));
+                .andExpect(jsonPath("$.status").value(SharedConstants.IN_PROGRESS));
     }
 
     @Test
@@ -190,7 +191,7 @@ class MicroLessonTranslationControllerTest {
     void shouldListBatchJobs() throws Exception {
         MicroLessonBatchTranslationJobResponse job = MicroLessonBatchTranslationJobResponse.builder()
                 .id(sampleJobId)
-                .status("COMPLETED")
+                .status(SharedConstants.COMPLETED)
                 .targetLanguage("hi")
                 .build();
 
@@ -209,7 +210,7 @@ class MicroLessonTranslationControllerTest {
     void shouldCancelBatchJob() throws Exception {
         MicroLessonBatchTranslationJobResponse jobResponse = MicroLessonBatchTranslationJobResponse.builder()
                 .id(sampleJobId)
-                .status("CANCELLED")
+                .status(SharedConstants.CANCELLED)
                 .build();
 
         when(batchService.cancelJob(eq(sampleJobId), any())).thenReturn(jobResponse);
@@ -217,14 +218,14 @@ class MicroLessonTranslationControllerTest {
         mockMvc.perform(post("/api/v1/microlessons/batch/{jobId}/cancel", sampleJobId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(sampleJobId.toString()))
-                .andExpect(jsonPath("$.status").value("CANCELLED"));
+                .andExpect(jsonPath("$.status").value(SharedConstants.CANCELLED));
     }
 
     @Test
     @DisplayName("GET /{id}/language/{lang} returns 200 OK with localized lesson and fallback metadata")
     void shouldGetLocalizedMicroLesson() throws Exception {
         MicroLessonResponse localized = new MicroLessonResponse(
-                sampleLessonId, 1L, 2L, 3L, "Physics", "Mechanics", "Laws", "JEE_MAIN",
+                sampleLessonId, 1L, 2L, 3L, "Physics", "Mechanics", "Laws", SharedConstants.JEE_MAIN,
                 "हिंदी अवधारणा: $$F = ma$$", "हिंदी जाल", List.of("सूत्र"),
                 new StepByStepBreakdownDto("प्रश्न", List.of(), "उत्तर"), "PUBLISHED",
                 null, Instant.now(), null, 1, Instant.now(), Instant.now(),

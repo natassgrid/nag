@@ -6,6 +6,7 @@ import com.examplatform.recommendation.dto.*;
 import com.examplatform.recommendation.service.LearnerProfileService;
 import com.examplatform.recommendation.service.LearningPathGeneratorService;
 import com.examplatform.recommendation.service.RecommendationService;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.security.UserContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -36,7 +37,7 @@ public class RecommendationController {
     @PostMapping("/generate")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<RecommendationDto> generateRecommendations(
-            @RequestParam(required = false, defaultValue = "JEE_MAIN") String examTarget) {
+            @RequestParam(required = false, defaultValue = SharedConstants.JEE_MAIN) String examTarget) {
         UUID candidateId = UserContext.getRequiredUserId();
         return ResponseEntity.ok(recommendationService.generateOrRefresh(candidateId, examTarget));
     }

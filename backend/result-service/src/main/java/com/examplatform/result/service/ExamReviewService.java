@@ -25,6 +25,7 @@ import com.examplatform.result.domain.Result;
 import com.examplatform.result.dto.*;
 import com.examplatform.result.repository.ResultRepository;
 import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -128,8 +129,9 @@ public class ExamReviewService {
             QuestionDetailDto qDetail = questionMap.get(qId);
 
             String content = qDetail != null && qDetail.getContent() != null ? qDetail.getContent() : "Question content";
-            String subject = qDetail != null && qDetail.getSubject() != null ? qDetail.getSubject() : "General";
-            String topic = qDetail != null && qDetail.getTopic() != null ? qDetail.getTopic() : "General";
+            String subject = qDetail != null && qDetail.getSubject() != null ? qDetail.getSubject() :
+                SharedConstants.GENERAL;
+            String topic = qDetail != null && qDetail.getTopic() != null ? qDetail.getTopic() : SharedConstants.GENERAL;
             String difficulty = qDetail != null && qDetail.getDifficulty() != null ? qDetail.getDifficulty() :
                 QuestionTaxonomyConstants.Difficulty.MEDIUM;
             String bloomsLevel = qDetail != null && qDetail.getCognitiveLevel() != null ? qDetail.getCognitiveLevel() :

@@ -35,6 +35,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class MicroLessonBatchRunner {
 
     private static final Logger log = LoggerFactory.getLogger(MicroLessonBatchRunner.class);
+    private static final String STATUS_COMPLETED = "COMPLETED";
 
     private final SubtopicRepository subtopicRepository;
     private final TopicRepository topicRepository;
@@ -76,7 +77,7 @@ public class MicroLessonBatchRunner {
 
         public void cancel() {
             this.cancelled.set(true);
-            this.status = "CANCELLED";
+            this.status = SharedConstants.CANCELLED;
             this.message = "Generation cancelled by user.";
             this.completedTime = Instant.now();
         }
@@ -85,8 +86,13 @@ public class MicroLessonBatchRunner {
             int queued = totalQueued;
             int gen = totalGenerated.get();
             int fail = totalFailed.get();
-            int percent = queued > 0 ? (gen + fail) * 100 / queued : (("COMPLETED".equals(status)) ? 100 : 0);
-            if (percent > 100) percent = 100;
+
+            int percent = 0;
+            if (queued > 0) {
+                percent = Math.min(100, (gen + fail) * 100 / queued);
+            } else if (STATUS_COMPLETED.equals(status)) {
+                percent = 100;
+            }
 
             return new BatchGenerateResponse(
                     batchId,
@@ -106,41 +112,55 @@ public class MicroLessonBatchRunner {
     /**
      * Resolves candidate subtopics based on user filter parameters.
      */
-    private List<Subtopic> resolveCandidates(BatchGenerateMicroLessonsRequest request, int max, String targetExam, boolean forceRegenerate) {
-        List<Subtopic> rawCandidates = new ArrayList<>();
-        if (request != null && request.subtopicIds() != null && !request.subtopicIds().isEmpty()) {
-            rawCandidates = subtopicRepository.findAllById(request.subtopicIds());
-        } else if (request != null && request.topicId() != null) {
-            rawCandidates = subtopicRepository.findByTopicIdAndTenantId(request.topicId(), SharedConstants.DEFAULT_TENANT);
-        } else if (request != null && request.subjectId() != null) {
-            List<Topic> topics = topicRepository.findBySubjectIdAndTenantId(request.subjectId(), SharedConstants.DEFAULT_TENANT);
-            for (Topic t : topics) {
-                rawCandidates.addAll(subtopicRepository.findByTopicIdAndTenantId(t.getId(), SharedConstants.DEFAULT_TENANT));
-            }
-        } else {
-            List<Subtopic> all = subtopicRepository.findAll();
-            for (Subtopic s : all) {
-                if (s.isActive()) {
-                    rawCandidates.add(s);
-                    if (rawCandidates.size() >= max * 3) break;
-                }
-            }
-        }
-
+    private List<Subtopic> resolveCandidates(BatchGenerateMicroLessonsRequest request, int max, boolean forceRegenerate) {
+        List<Subtopic> rawCandidates = fetchRawCandidates(request, max);
         Set<String> approvedStatuses = Set.of(MicroLessonStatus.APPROVED.name(), MicroLessonStatus.PUBLISHED.name());
         List<Subtopic> resolved = new ArrayList<>();
+
         for (Subtopic sub : rawCandidates) {
-            if (resolved.size() >= max) break;
-            if (!forceRegenerate) {
-                boolean alreadyCovered = microLessonRepository.existsBySubtopicIdAndStatusIn(
-                        sub.getId(), approvedStatuses);
-                if (alreadyCovered) {
-                    continue;
-                }
+            if (resolved.size() >= max) {
+                break;
             }
-            resolved.add(sub);
+            if (forceRegenerate || !microLessonRepository.existsBySubtopicIdAndStatusIn(sub.getId(), approvedStatuses)) {
+                resolved.add(sub);
+            }
         }
         return resolved;
+    }
+
+    private List<Subtopic> fetchRawCandidates(BatchGenerateMicroLessonsRequest request, int max) {
+        if (request != null && request.subtopicIds() != null && !request.subtopicIds().isEmpty()) {
+            return subtopicRepository.findAllById(request.subtopicIds());
+        }
+        if (request != null && request.topicId() != null) {
+            return subtopicRepository.findByTopicIdAndTenantId(request.topicId(), SharedConstants.DEFAULT_TENANT);
+        }
+        if (request != null && request.subjectId() != null) {
+            return findSubtopicsBySubjectId(request.subjectId());
+        }
+        return findActiveSubtopics(max * 3);
+    }
+
+    private List<Subtopic> findSubtopicsBySubjectId(Long subjectId) {
+        List<Subtopic> result = new ArrayList<>();
+        List<Topic> topics = topicRepository.findBySubjectIdAndTenantId(subjectId, SharedConstants.DEFAULT_TENANT);
+        for (Topic t : topics) {
+            result.addAll(subtopicRepository.findByTopicIdAndTenantId(t.getId(), SharedConstants.DEFAULT_TENANT));
+        }
+        return result;
+    }
+
+    private List<Subtopic> findActiveSubtopics(int limit) {
+        List<Subtopic> result = new ArrayList<>();
+        for (Subtopic s : subtopicRepository.findAll()) {
+            if (s.isActive()) {
+                result.add(s);
+                if (result.size() >= limit) {
+                    break;
+                }
+            }
+        }
+        return result;
     }
 
     /**
@@ -149,7 +169,7 @@ public class MicroLessonBatchRunner {
     public BatchGenerateResponse startBatchJob(BatchGenerateMicroLessonsRequest request) {
         String targetExam = (request != null && request.targetExam() != null && !request.targetExam().isBlank())
                 ? request.targetExam()
-                : "JEE_MAIN";
+                : SharedConstants.JEE_MAIN;
 
         int max = (request != null && request.maxCount() != null && request.maxCount() > 0)
                 ? request.maxCount()
@@ -157,7 +177,7 @@ public class MicroLessonBatchRunner {
 
         boolean forceRegenerate = (request != null && Boolean.TRUE.equals(request.forceRegenerate()));
 
-        List<Subtopic> candidates = resolveCandidates(request, max, targetExam, forceRegenerate);
+        List<Subtopic> candidates = resolveCandidates(request, max, forceRegenerate);
         String batchId = "batch-" + UUID.randomUUID().toString().substring(0, 8);
 
         if (candidates.isEmpty()) {
@@ -165,7 +185,7 @@ public class MicroLessonBatchRunner {
                     batchId,
                     targetExam,
                     0,
-                    "COMPLETED",
+                    STATUS_COMPLETED,
                     "No subtopics require generation for the chosen criteria (all already covered)."
             );
             emptyJob.setCompletedTime(Instant.now());
@@ -178,7 +198,7 @@ public class MicroLessonBatchRunner {
                 batchId,
                 targetExam,
                 candidates.size(),
-                "IN_PROGRESS",
+                SharedConstants.IN_PROGRESS,
                 String.format("Batch job queued with %d subtopics for %s", candidates.size(), targetExam)
         );
         jobStates.put(batchId, jobState);
@@ -200,31 +220,11 @@ public class MicroLessonBatchRunner {
                     return;
                 }
 
-                state.setCurrentSubtopic(sub.getName());
-                try {
-                    Topic topic = topicRepository.findById(sub.getTopicId()).orElse(null);
-                    String topicName = (topic != null) ? topic.getName() : "General Topic";
-                    Long subjectId = (topic != null) ? topic.getSubjectId() : 1L;
-                    Subject subject = (topic != null) ? subjectRepository.findById(subjectId).orElse(null) : null;
-                    String subjectName = (subject != null) ? subject.getName() : "General Subject";
-
-                    generatorService.generateForSubtopic(
-                            subjectId, subjectName,
-                            sub.getTopicId(), topicName,
-                            sub.getId(), sub.getName(),
-                            targetExam
-                    );
-                    state.getTotalGenerated().incrementAndGet();
-                    state.getGeneratedSubtopics().add(sub.getName());
-                } catch (Exception e) {
-                    log.error("Failed to generate micro-lesson for subtopic {}: {}", sub.getName(), e.getMessage());
-                    state.getTotalFailed().incrementAndGet();
-                    state.getFailedSubtopics().add(sub.getName());
-                }
+                generateSubtopicLesson(sub, targetExam, state);
             }
 
             state.setCurrentSubtopic(null);
-            state.setStatus("COMPLETED");
+            state.setStatus(STATUS_COMPLETED);
             state.setMessage(String.format("Batch completed: %d generated, %d failed out of %d processed for exam %s",
                     state.getTotalGenerated().get(), state.getTotalFailed().get(), state.getTotalQueued(), targetExam));
         } catch (Exception e) {
@@ -234,6 +234,30 @@ public class MicroLessonBatchRunner {
         } finally {
             state.setCompletedTime(Instant.now());
             log.info("Completed batch generation job {}: status={}", state.getBatchId(), state.getStatus());
+        }
+    }
+
+    private void generateSubtopicLesson(Subtopic sub, String targetExam, BatchJobState state) {
+        state.setCurrentSubtopic(sub.getName());
+        try {
+            Topic topic = topicRepository.findById(sub.getTopicId()).orElse(null);
+            String topicName = (topic != null) ? topic.getName() : "General Topic";
+            Long subjectId = (topic != null) ? topic.getSubjectId() : 1L;
+            Subject subject = (topic != null) ? subjectRepository.findById(subjectId).orElse(null) : null;
+            String subjectName = (subject != null) ? subject.getName() : "General Subject";
+
+            generatorService.generateForSubtopic(
+                    subjectId, subjectName,
+                    sub.getTopicId(), topicName,
+                    sub.getId(), sub.getName(),
+                    targetExam
+            );
+            state.getTotalGenerated().incrementAndGet();
+            state.getGeneratedSubtopics().add(sub.getName());
+        } catch (Exception e) {
+            log.error("Failed to generate micro-lesson for subtopic {}: {}", sub.getName(), e.getMessage());
+            state.getTotalFailed().incrementAndGet();
+            state.getFailedSubtopics().add(sub.getName());
         }
     }
 
@@ -258,7 +282,7 @@ public class MicroLessonBatchRunner {
             return null;
         }
 
-        if ("IN_PROGRESS".equals(state.getStatus()) || "QUEUED".equals(state.getStatus())) {
+        if (SharedConstants.IN_PROGRESS.equals(state.getStatus()) || "QUEUED".equals(state.getStatus())) {
             return state.toResponse();
         }
 
@@ -297,7 +321,8 @@ public class MicroLessonBatchRunner {
     public void runNightlyBatchJob() {
         log.info("Starting nightly automated micro-lesson generation task...");
         try {
-            BatchGenerateResponse response = runBatchGeneration(new BatchGenerateMicroLessonsRequest(null, null, null, "JEE_MAIN", 50));
+            BatchGenerateResponse response = runBatchGeneration(new BatchGenerateMicroLessonsRequest(null, null, null,
+                SharedConstants.JEE_MAIN, 50));
             log.info("Nightly micro-lesson batch triggered: {}", response.message());
         } catch (Exception e) {
             log.error("Nightly micro-lesson generation failed: {}", e.getMessage(), e);

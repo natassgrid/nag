@@ -20,6 +20,7 @@ import com.examplatform.recommendation.service.LearnerProfileService;
 import com.examplatform.recommendation.service.LearningPathGeneratorService;
 import com.examplatform.recommendation.service.RecommendationService;
 import com.examplatform.recommendation.support.AbstractIntegrationTest;
+import com.examplatform.shared.constants.SharedConstants;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -121,10 +122,10 @@ class RecommendationControllerIntegrationTest extends AbstractIntegrationTest {
         @DisplayName("200 OK - Authenticated candidate generates or refreshes recommendations")
         void candidateCanGenerateRecommendations() throws Exception {
             RecommendationDto dto = buildSampleRecommendation();
-            when(recommendationService.generateOrRefresh(eq(CANDIDATE_ID), eq("JEE_MAIN"))).thenReturn(dto);
+            when(recommendationService.generateOrRefresh(eq(CANDIDATE_ID), eq(SharedConstants.JEE_MAIN))).thenReturn(dto);
 
             mockMvc.perform(post("/api/recommendations/generate")
-                            .param("examTarget", "JEE_MAIN")
+                            .param("examTarget", SharedConstants.JEE_MAIN)
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_CANDIDATE"))
                                     .jwt(j -> j.subject(CANDIDATE_ID.toString()))))
                     .andExpect(status().isOk())
@@ -219,7 +220,7 @@ class RecommendationControllerIntegrationTest extends AbstractIntegrationTest {
                     UUID.randomUUID(),
                     CANDIDATE_ID,
                     UUID.randomUUID(),
-                    "JEE_MAIN",
+                SharedConstants.JEE_MAIN,
                     "ACTIVE",
                     0,
                     0,
@@ -236,7 +237,7 @@ class RecommendationControllerIntegrationTest extends AbstractIntegrationTest {
                                     .jwt(j -> j.subject(CANDIDATE_ID.toString()))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.candidateId").value(CANDIDATE_ID.toString()))
-                    .andExpect(jsonPath("$.examTarget").value("JEE_MAIN"));
+                    .andExpect(jsonPath("$.examTarget").value(SharedConstants.JEE_MAIN));
         }
     }
 

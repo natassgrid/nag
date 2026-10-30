@@ -6,6 +6,7 @@ import com.examplatform.practice.domain.PracticeResponse;
 import com.examplatform.practice.domain.PracticeSession;
 import com.examplatform.practice.domain.PracticeSet;
 import com.examplatform.practice.dto.*;
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.event.PracticeSessionCompletedEvent;
 import com.examplatform.practice.exception.PracticeSetNotFoundException;
 import com.examplatform.practice.exception.SessionAlreadySubmittedException;
@@ -97,7 +98,7 @@ class PracticeSessionServiceTest {
                 .candidateId(candidateId)
                 .practiceSetId(practiceSetId)
                 .mode("TIMED")
-                .status("IN_PROGRESS")
+                .status(SharedConstants.IN_PROGRESS)
                 .startedAt(Instant.now())
                 .totalQuestions(20)
                 .durationMinutes(45)
@@ -122,7 +123,7 @@ class PracticeSessionServiceTest {
         assertThat(result).isNotNull();
         assertThat(result.practiceSetId()).isEqualTo(practiceSetId);
         assertThat(result.mode()).isEqualTo("TIMED");
-        assertThat(result.status()).isEqualTo("IN_PROGRESS");
+        assertThat(result.status()).isEqualTo(SharedConstants.IN_PROGRESS);
         assertThat(result.preferredLanguage()).isEqualTo("hi");
         verify(practiceSessionRepository).save(any(PracticeSession.class));
     }

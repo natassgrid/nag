@@ -175,7 +175,7 @@ public class QuestionDeliveryParser {
         String subject = payload.getSubject();
         String topic = (payload.getTopic() != null && !payload.getTopic().isBlank())
                 ? payload.getTopic()
-                : "General";
+                : SharedConstants.GENERAL;
         String explanation = payload.getExplanation();
         String questionType = (payload.getQuestionType() != null && !payload.getQuestionType().isBlank())
                 ? payload.getQuestionType()

@@ -8,6 +8,7 @@ import com.examplatform.recommendation.service.LearningPathGeneratorService;
 import com.examplatform.recommendation.service.MilestoneProgressionService;
 import com.examplatform.recommendation.service.RecommendationService;
 import com.examplatform.recommendation.support.AbstractIntegrationTest;
+import com.examplatform.shared.constants.SharedConstants;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -67,7 +68,7 @@ class LearningPathControllerIntegrationTest extends AbstractIntegrationTest {
                 1,
                 "Phase 1: Remediation (Micro-Lessons)",
                 "Review core concept derivations",
-                "IN_PROGRESS",
+            SharedConstants.IN_PROGRESS,
                 List.of(item1)
         );
 
@@ -90,7 +91,7 @@ class LearningPathControllerIntegrationTest extends AbstractIntegrationTest {
                 DLP_ID,
                 CANDIDATE_ID,
                 UUID.randomUUID(),
-                "JEE_MAIN",
+            SharedConstants.JEE_MAIN,
                 "ACTIVE",
                 1,
                 0,
@@ -117,7 +118,7 @@ class LearningPathControllerIntegrationTest extends AbstractIntegrationTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.id").value(DLP_ID.toString()))
                     .andExpect(jsonPath("$.candidateId").value(CANDIDATE_ID.toString()))
-                    .andExpect(jsonPath("$.examTarget").value("JEE_MAIN"))
+                    .andExpect(jsonPath("$.examTarget").value(SharedConstants.JEE_MAIN))
                     .andExpect(jsonPath("$.status").value("ACTIVE"))
                     .andExpect(jsonPath("$.conceptualGapsCount").value(1))
                     .andExpect(jsonPath("$.milestoneGraph.phases[0].phaseName").value("Phase 1: Remediation (Micro-Lessons)"));
@@ -139,11 +140,13 @@ class LearningPathControllerIntegrationTest extends AbstractIntegrationTest {
         @DisplayName("200 OK - Candidate manually recalculates their DLP")
         void candidateCanRecalculate() throws Exception {
             DynamicLearningPathResponse resp = buildSampleDlpResponse();
-            when(learningPathGeneratorService.generateOrRecalculate(eq(CANDIDATE_ID), any(), eq("JEE_MAIN")))
+            when(learningPathGeneratorService.generateOrRecalculate(eq(CANDIDATE_ID), any(), eq(
+                SharedConstants.JEE_MAIN)))
                     .thenReturn(null);
             when(learningPathGeneratorService.toResponse(any())).thenReturn(resp);
 
-            RecalculateLearningPathRequest req = new RecalculateLearningPathRequest(UUID.randomUUID(), "JEE_MAIN");
+            RecalculateLearningPathRequest req = new RecalculateLearningPathRequest(UUID.randomUUID(),
+                SharedConstants.JEE_MAIN);
 
             mockMvc.perform(post("/api/learning-path/recalculate")
                             .contentType(MediaType.APPLICATION_JSON)
@@ -154,13 +157,14 @@ class LearningPathControllerIntegrationTest extends AbstractIntegrationTest {
                     .andExpect(jsonPath("$.id").value(DLP_ID.toString()))
                     .andExpect(jsonPath("$.status").value("ACTIVE"));
 
-            verify(recommendationService).generateOrRefresh(eq(CANDIDATE_ID), eq("JEE_MAIN"));
+            verify(recommendationService).generateOrRefresh(eq(CANDIDATE_ID), eq(SharedConstants.JEE_MAIN));
         }
 
         @Test
         @DisplayName("401 UNAUTHORIZED - When recalculate unauthenticated")
         void unauthenticatedRecalculateReturns401() throws Exception {
-            RecalculateLearningPathRequest req = new RecalculateLearningPathRequest(UUID.randomUUID(), "JEE_MAIN");
+            RecalculateLearningPathRequest req = new RecalculateLearningPathRequest(UUID.randomUUID(),
+                SharedConstants.JEE_MAIN);
 
             mockMvc.perform(post("/api/learning-path/recalculate")
                             .contentType(MediaType.APPLICATION_JSON)
@@ -208,7 +212,7 @@ class LearningPathControllerIntegrationTest extends AbstractIntegrationTest {
             LearningPathSummaryResponse summary = new LearningPathSummaryResponse(
                     CANDIDATE_ID,
                     DLP_ID,
-                    "JEE_MAIN",
+                SharedConstants.JEE_MAIN,
                     "ACTIVE",
                     5,
                     2,

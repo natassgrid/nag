@@ -63,7 +63,7 @@ public class PaperQuestionPayload {
     private Long topicId;
 
     @Builder.Default
-    private String topic = "General";
+    private String topic = SharedConstants.GENERAL;
 
     @JsonAlias({"subtopic_id", "subtopicId"})
     private Long subtopicId;

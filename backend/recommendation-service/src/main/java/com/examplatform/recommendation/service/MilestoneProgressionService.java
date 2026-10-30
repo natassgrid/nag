@@ -4,6 +4,7 @@ package com.examplatform.recommendation.service;
 import com.examplatform.recommendation.domain.DynamicLearningPath;
 import com.examplatform.recommendation.dto.*;
 import com.examplatform.recommendation.repository.DynamicLearningPathRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.examplatform.practice.service.AdaptiveQuizGenerator;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -121,7 +122,7 @@ public class MilestoneProgressionService {
 
         for (MilestonePhaseDto p : updatedPhases) {
             if (p.phaseNumber() == 1) {
-                String p1Status = phase1Complete ? "COMPLETED" : "IN_PROGRESS";
+                String p1Status = phase1Complete ? SharedConstants.COMPLETED : SharedConstants.IN_PROGRESS;
                 resolvedPhases.add(new MilestonePhaseDto(
                         p.phaseNumber(), p.phaseName(), p.targetDescription(), p.durationWeeks(),
                         p1Status, p.targetAccuracy(), p.achievedAccuracy(), p.quizSessionId(),
@@ -129,8 +130,8 @@ public class MilestoneProgressionService {
                 ));
             } else if (p.phaseNumber() == 2) {
                 String p2Status = p.status();
-                if (phase1Complete && !"COMPLETED".equalsIgnoreCase(p2Status)) {
-                    p2Status = "IN_PROGRESS";
+                if (phase1Complete && !SharedConstants.COMPLETED.equalsIgnoreCase(p2Status)) {
+                    p2Status = SharedConstants.IN_PROGRESS;
                     newCurrentPhase = "PHASE_2_ADAPTIVE_QUIZ";
                 }
                 resolvedPhases.add(new MilestonePhaseDto(
@@ -166,7 +167,8 @@ public class MilestoneProgressionService {
 
         String effectiveExam = (requestedExamTarget != null && !requestedExamTarget.isBlank())
                 ? requestedExamTarget.trim()
-                : (dlp.getExamTarget() != null && !dlp.getExamTarget().isBlank() ? dlp.getExamTarget() : "JEE_MAIN");
+                : (dlp.getExamTarget() != null && !dlp.getExamTarget().isBlank() ? dlp.getExamTarget() :
+            SharedConstants.JEE_MAIN);
 
         UUID practiceSetId = null;
         if (adaptiveQuizGeneratorProvider != null) {
@@ -206,7 +208,7 @@ public class MilestoneProgressionService {
         MilestoneGraphDto graph = parseGraph(dlp);
 
         MilestonePhaseDto phase1 = findPhase(graph.phases(), 1);
-        if (phase1 != null && !"COMPLETED".equalsIgnoreCase(phase1.status())) {
+        if (phase1 != null && !SharedConstants.COMPLETED.equalsIgnoreCase(phase1.status())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phase 1 Remediation must be completed before starting adaptive quiz");
         }
 
@@ -252,7 +254,7 @@ public class MilestoneProgressionService {
             if (p.phaseNumber() == 2) {
                 updatedPhases.add(new MilestonePhaseDto(
                         p.phaseNumber(), p.phaseName(), p.targetDescription(), p.durationWeeks(),
-                        "IN_PROGRESS", p.targetAccuracy(), p.achievedAccuracy(), quizSessionId,
+                    SharedConstants.IN_PROGRESS, p.targetAccuracy(), p.achievedAccuracy(), quizSessionId,
                         p.passThreshold(), p.gatekeeperSessionId(), p.passed(), p.items()
                 ));
             } else {
@@ -310,7 +312,7 @@ public class MilestoneProgressionService {
 
         for (MilestonePhaseDto p : graph.phases()) {
             if (p.phaseNumber() == 2) {
-                String p2Status = passed ? "COMPLETED" : "IN_PROGRESS";
+                String p2Status = passed ? SharedConstants.COMPLETED : SharedConstants.IN_PROGRESS;
                 updatedPhases.add(new MilestonePhaseDto(
                         p.phaseNumber(), p.phaseName(), p.targetDescription(), p.durationWeeks(),
                         p2Status, p.targetAccuracy(), request.scorePercent(),
@@ -319,8 +321,8 @@ public class MilestoneProgressionService {
                 ));
             } else if (p.phaseNumber() == 3) {
                 String p3Status = p.status();
-                if (passed && !"COMPLETED".equalsIgnoreCase(p3Status)) {
-                    p3Status = "IN_PROGRESS";
+                if (passed && !SharedConstants.COMPLETED.equalsIgnoreCase(p3Status)) {
+                    p3Status = SharedConstants.IN_PROGRESS;
                     nextCurrentPhase = "PHASE_3_GATEKEEPER";
                 }
                 updatedPhases.add(new MilestonePhaseDto(
@@ -355,7 +357,7 @@ public class MilestoneProgressionService {
         MilestoneGraphDto graph = parseGraph(dlp);
 
         MilestonePhaseDto phase2 = findPhase(graph.phases(), 2);
-        if (phase2 != null && !"COMPLETED".equalsIgnoreCase(phase2.status())) {
+        if (phase2 != null && !SharedConstants.COMPLETED.equalsIgnoreCase(phase2.status())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Phase 2 Adaptive Quizzing must be completed before starting Gatekeeper test");
         }
 
@@ -396,7 +398,7 @@ public class MilestoneProgressionService {
             if (p.phaseNumber() == 3) {
                 updatedPhases.add(new MilestonePhaseDto(
                         p.phaseNumber(), p.phaseName(), p.targetDescription(), p.durationWeeks(),
-                        "IN_PROGRESS", p.targetAccuracy(), p.achievedAccuracy(), p.quizSessionId(),
+                    SharedConstants.IN_PROGRESS, p.targetAccuracy(), p.achievedAccuracy(), p.quizSessionId(),
                         p.passThreshold(), gatekeeperSessionId, false, p.items()
                 ));
             } else {
@@ -452,7 +454,7 @@ public class MilestoneProgressionService {
         List<MilestonePhaseDto> updatedPhases = new ArrayList<>();
         for (MilestonePhaseDto p : graph.phases()) {
             if (p.phaseNumber() == 3) {
-                String p3Status = passed ? "COMPLETED" : "IN_PROGRESS";
+                String p3Status = passed ? SharedConstants.COMPLETED : SharedConstants.IN_PROGRESS;
                 updatedPhases.add(new MilestonePhaseDto(
                         p.phaseNumber(), p.phaseName(), p.targetDescription(), p.durationWeeks(),
                         p3Status, p.targetAccuracy(), p.achievedAccuracy(), p.quizSessionId(),
@@ -465,7 +467,7 @@ public class MilestoneProgressionService {
             }
         }
 
-        String nextCurrentPhase = passed ? "COMPLETED" : "PHASE_3_GATEKEEPER";
+        String nextCurrentPhase = passed ? SharedConstants.COMPLETED : "PHASE_3_GATEKEEPER";
 
         MilestoneGraphDto updatedGraph = new MilestoneGraphDto(
                 nextCurrentPhase,
@@ -521,7 +523,7 @@ public class MilestoneProgressionService {
                 .orElse(null);
 
         if (dlp == null) {
-            return new GatekeeperStatusResponse(false, true, "COMPLETED", null, 0, Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
+            return new GatekeeperStatusResponse(false, true, SharedConstants.COMPLETED, null, 0, Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
         }
 
         MilestoneGraphDto graph = parseGraph(dlp);
@@ -546,7 +548,7 @@ public class MilestoneProgressionService {
                 }
             }
         }
-        if (conceptualGaps.isEmpty() && graph.conceptualGaps() != null && (phase1 == null || !"COMPLETED".equalsIgnoreCase(phase1.status()))) {
+        if (conceptualGaps.isEmpty() && graph.conceptualGaps() != null && (phase1 == null || !SharedConstants.COMPLETED.equalsIgnoreCase(phase1.status()))) {
             for (SubtopicClassificationResult r : graph.conceptualGaps()) {
                 if (r.subtopicName() != null) {
                     conceptualGaps.add(r.subtopicName());
@@ -562,7 +564,7 @@ public class MilestoneProgressionService {
                 }
             }
         }
-        if (applicationGaps.isEmpty() && graph.applicationGaps() != null && (phase2 == null || !"COMPLETED".equalsIgnoreCase(phase2.status()))) {
+        if (applicationGaps.isEmpty() && graph.applicationGaps() != null && (phase2 == null || !SharedConstants.COMPLETED.equalsIgnoreCase(phase2.status()))) {
             for (SubtopicClassificationResult r : graph.applicationGaps()) {
                 if (r.subtopicName() != null) {
                     applicationGaps.add(r.subtopicName());
@@ -573,7 +575,7 @@ public class MilestoneProgressionService {
         List<String> remedialSubtopics = new ArrayList<>(conceptualGaps);
 
         if (!hasGaps || graph.gatekeeperPassed()) {
-            return new GatekeeperStatusResponse(false, true, "COMPLETED", null, 0, Collections.emptyList(), conceptualGaps, applicationGaps);
+            return new GatekeeperStatusResponse(false, true, SharedConstants.COMPLETED, null, 0, Collections.emptyList(), conceptualGaps, applicationGaps);
         }
 
         int remainingMilestones = 0;

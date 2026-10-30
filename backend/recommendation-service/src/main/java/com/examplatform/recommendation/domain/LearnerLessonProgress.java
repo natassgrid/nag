@@ -11,6 +11,7 @@
 
 package com.examplatform.recommendation.domain;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -51,7 +52,7 @@ public class LearnerLessonProgress extends BaseEntity {
 
     @Column(name = "status", nullable = false, length = 30)
     @Builder.Default
-    private String status = "COMPLETED"; // IN_PROGRESS | COMPLETED | SKIPPED
+    private String status = SharedConstants.COMPLETED; // IN_PROGRESS | COMPLETED | SKIPPED
 
     @Column(name = "helpful_rating")
     private Boolean helpfulRating; // true = helpful, false = unhelpful, null = unrated

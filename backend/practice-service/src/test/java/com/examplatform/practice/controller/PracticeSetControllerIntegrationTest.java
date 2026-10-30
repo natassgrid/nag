@@ -26,6 +26,7 @@ import com.examplatform.practice.repository.PracticeSessionRepository;
 import com.examplatform.practice.repository.PracticeSetRepository;
 import com.examplatform.practice.support.AbstractIntegrationTest;
 import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -172,7 +173,7 @@ class PracticeSetControllerIntegrationTest extends AbstractIntegrationTest {
                             .content(objectMapper.writeValueAsString(startReq)))
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.practiceSetId").value(publishedSet.getId().toString()))
-                    .andExpect(jsonPath("$.status").value("IN_PROGRESS"))
+                    .andExpect(jsonPath("$.status").value(SharedConstants.IN_PROGRESS))
                     .andReturn();
 
             JsonNode sessionNode = objectMapper.readTree(startResult.getResponse().getContentAsString());

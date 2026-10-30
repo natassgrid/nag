@@ -8,6 +8,7 @@ import com.examplatform.recommendation.dto.RecommendationResponse;
 import com.examplatform.recommendation.dto.WeakTopicItemDto;
 import com.examplatform.recommendation.repository.LearnerSubtopicPerformanceRepository;
 import com.examplatform.recommendation.repository.RecommendationRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -94,7 +95,8 @@ class RecommendationAiServiceTest {
         when(subtopicPerformanceRepository.findByCandidateId(CANDIDATE_ID)).thenReturn(List.of(perf1, perf2));
         when(recommendationRepository.save(any(Recommendation.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        Recommendation rec = recommendationAiService.buildDeterministicRecommendation(profile, UUID.randomUUID(), "JEE_MAIN");
+        Recommendation rec = recommendationAiService.buildDeterministicRecommendation(profile, UUID.randomUUID(),
+            SharedConstants.JEE_MAIN);
 
         assertThat(rec.getStatus()).isEqualTo("GENERATED");
         assertThat(rec.getModelUsed()).isEqualTo("deterministic-coach-v1");
@@ -148,7 +150,7 @@ class RecommendationAiServiceTest {
         when(chatClient.prompt()).thenThrow(new RuntimeException("OpenAI connection timed out"));
         when(recommendationRepository.save(any(Recommendation.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        Recommendation rec = recommendationAiService.generateOnDemand(profile, "JEE_MAIN");
+        Recommendation rec = recommendationAiService.generateOnDemand(profile, SharedConstants.JEE_MAIN);
 
         assertThat(rec.getStatus()).isEqualTo("GENERATED");
         assertThat(rec.getModelUsed()).isEqualTo("deterministic-coach-v1");

@@ -2,6 +2,7 @@
 package com.examplatform.recommendation.dto;
 
 import com.examplatform.recommendation.domain.PerformanceBracket;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -35,7 +36,7 @@ public record MilestoneItemDto(
 
     @JsonProperty("status")
     public String getStatus() {
-        return completed ? "COMPLETED" : "PENDING";
+        return completed ? SharedConstants.COMPLETED : "PENDING";
     }
 
     public MilestoneItemDto(

@@ -7,6 +7,7 @@ import com.examplatform.recommendation.domain.PerformanceBracket;
 import com.examplatform.recommendation.dto.*;
 import com.examplatform.recommendation.repository.DynamicLearningPathRepository;
 import com.examplatform.recommendation.repository.LearnerSubtopicPerformanceRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -78,11 +79,11 @@ public class LearningPathGeneratorService {
                                     }
                                 }
                             }
-                            if (p.phaseNumber() == 2 && ("COMPLETED".equalsIgnoreCase(p.status())
+                            if (p.phaseNumber() == 2 && (SharedConstants.COMPLETED.equalsIgnoreCase(p.status())
                                     || (p.achievedAccuracy() != null && p.targetAccuracy() != null && p.achievedAccuracy() >= p.targetAccuracy()))) {
                                 prevPhase2Completed = true;
                             }
-                            if (p.phaseNumber() == 3 && ("COMPLETED".equalsIgnoreCase(p.status())
+                            if (p.phaseNumber() == 3 && (SharedConstants.COMPLETED.equalsIgnoreCase(p.status())
                                     || Boolean.TRUE.equals(p.passed()))) {
                                 prevPhase3Passed = true;
                             }
@@ -144,30 +145,30 @@ public class LearningPathGeneratorService {
             gatekeeperPassed = false;
             dlpStatus = "ACTIVE";
         } else if (conceptualGaps.isEmpty() && applicationGaps.isEmpty()) {
-            currentPhase = "COMPLETED";
+            currentPhase = SharedConstants.COMPLETED;
             gatekeeperPassed = true;
-            dlpStatus = "COMPLETED";
+            dlpStatus = SharedConstants.COMPLETED;
         } else {
             MilestonePhaseDto p1 = phases.stream().filter(p -> p.phaseNumber() == 1).findFirst().orElse(null);
             MilestonePhaseDto p2 = phases.stream().filter(p -> p.phaseNumber() == 2).findFirst().orElse(null);
             MilestonePhaseDto p3 = phases.stream().filter(p -> p.phaseNumber() == 3).findFirst().orElse(null);
 
-            if (p1 != null && !"COMPLETED".equalsIgnoreCase(p1.status())) {
+            if (p1 != null && !SharedConstants.COMPLETED.equalsIgnoreCase(p1.status())) {
                 currentPhase = "PHASE_1_REMEDIATION";
                 gatekeeperPassed = false;
                 dlpStatus = "ACTIVE";
-            } else if (p2 != null && !"COMPLETED".equalsIgnoreCase(p2.status())) {
+            } else if (p2 != null && !SharedConstants.COMPLETED.equalsIgnoreCase(p2.status())) {
                 currentPhase = "PHASE_2_ADAPTIVE_QUIZ";
                 gatekeeperPassed = false;
                 dlpStatus = "ACTIVE";
-            } else if (p3 != null && !"COMPLETED".equalsIgnoreCase(p3.status())) {
+            } else if (p3 != null && !SharedConstants.COMPLETED.equalsIgnoreCase(p3.status())) {
                 currentPhase = "PHASE_3_GATEKEEPER";
                 gatekeeperPassed = false;
                 dlpStatus = "ACTIVE";
             } else {
-                currentPhase = "COMPLETED";
+                currentPhase = SharedConstants.COMPLETED;
                 gatekeeperPassed = true;
-                dlpStatus = "COMPLETED";
+                dlpStatus = SharedConstants.COMPLETED;
             }
         }
 
@@ -298,7 +299,8 @@ public class LearningPathGeneratorService {
         }
 
         boolean allP1Completed = !phase1Items.isEmpty() && phase1Items.stream().allMatch(MilestoneItemDto::completed);
-        String p1Status = (conceptualGaps.isEmpty() || allP1Completed) ? "COMPLETED" : "IN_PROGRESS";
+        String p1Status = (conceptualGaps.isEmpty() || allP1Completed) ? SharedConstants.COMPLETED :
+            SharedConstants.IN_PROGRESS;
         phases.add(new MilestonePhaseDto(
                 1,
                 "Phase 1: Remediation (Micro-Lessons)",
@@ -340,11 +342,11 @@ public class LearningPathGeneratorService {
 
         String p2Status;
         if (trueMastery || prevPhase2Completed) {
-            p2Status = "COMPLETED";
-        } else if (!"COMPLETED".equals(p1Status)) {
+            p2Status = SharedConstants.COMPLETED;
+        } else if (!SharedConstants.COMPLETED.equals(p1Status)) {
             p2Status = "LOCKED";
         } else {
-            p2Status = "IN_PROGRESS";
+            p2Status = SharedConstants.IN_PROGRESS;
         }
         phases.add(new MilestonePhaseDto(
                 2,
@@ -388,13 +390,13 @@ public class LearningPathGeneratorService {
         String p3Status;
         boolean p3Passed;
         if (trueMastery || prevPhase3Passed) {
-            p3Status = "COMPLETED";
+            p3Status = SharedConstants.COMPLETED;
             p3Passed = true;
-        } else if (!"COMPLETED".equals(p2Status)) {
+        } else if (!SharedConstants.COMPLETED.equals(p2Status)) {
             p3Status = "LOCKED";
             p3Passed = false;
         } else {
-            p3Status = "IN_PROGRESS";
+            p3Status = SharedConstants.IN_PROGRESS;
             p3Passed = false;
         }
         phases.add(new MilestonePhaseDto(
@@ -436,7 +438,7 @@ public class LearningPathGeneratorService {
         Map<String, List<LearnerSubtopicPerformance>> subjectGroups = new HashMap<>();
         for (LearnerSubtopicPerformance p : performances) {
             String subject = (p.getSubjectName() != null && !p.getSubjectName().isBlank())
-                    ? p.getSubjectName() : "General";
+                    ? p.getSubjectName() : SharedConstants.GENERAL;
             subjectGroups.computeIfAbsent(subject, k -> new ArrayList<>()).add(p);
 
             SubtopicClassificationResult cr = classifierService.classify(p);

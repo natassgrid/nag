@@ -28,6 +28,7 @@ import com.examplatform.papergenerator.service.*;
 import com.examplatform.papergenerator.support.AbstractIntegrationTest;
 import com.examplatform.shared.constants.QuestionStateConstants;
 import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -405,7 +406,7 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
             PaperTranslateResponse response = PaperTranslateResponse.builder()
                     .jobId(JOB_ID)
                     .paperId(PAPER_ID)
-                    .status("IN_PROGRESS")
+                    .status(SharedConstants.IN_PROGRESS)
                     .targetLanguage("hi")
                     .totalQuestions(10)
                     .processedQuestions(5)
@@ -421,7 +422,7 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
                                     .jwt(j -> j.subject(USER_ID.toString()).claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.jobId").value(JOB_ID.toString()))
-                    .andExpect(jsonPath("$.status").value("IN_PROGRESS"))
+                    .andExpect(jsonPath("$.status").value(SharedConstants.IN_PROGRESS))
                     .andExpect(jsonPath("$.progressPercentage").value(50.0));
         }
 
@@ -431,7 +432,7 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
             PaperTranslateResponse response = PaperTranslateResponse.builder()
                     .jobId(JOB_ID)
                     .paperId(PAPER_ID)
-                    .status("IN_PROGRESS")
+                    .status(SharedConstants.IN_PROGRESS)
                     .targetLanguage("hi")
                     .totalQuestions(10)
                     .processedQuestions(5)
@@ -447,7 +448,7 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
                                     .jwt(j -> j.subject(USER_ID.toString()).claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.jobId").value(JOB_ID.toString()))
-                    .andExpect(jsonPath("$.status").value("IN_PROGRESS"))
+                    .andExpect(jsonPath("$.status").value(SharedConstants.IN_PROGRESS))
                     .andExpect(jsonPath("$.progressPercentage").value(50.0));
         }
 
@@ -457,7 +458,7 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
             PaperTranslateResponse response = PaperTranslateResponse.builder()
                     .jobId(JOB_ID)
                     .paperId(PAPER_ID)
-                    .status("COMPLETED")
+                    .status(SharedConstants.COMPLETED)
                     .targetLanguage("hi")
                     .totalQuestions(10)
                     .processedQuestions(10)
@@ -473,7 +474,7 @@ class PaperControllerIntegrationTest extends AbstractIntegrationTest {
                                     .jwt(j -> j.subject(USER_ID.toString()).claim("tenant_id", TENANT_ID))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.jobId").value(JOB_ID.toString()))
-                    .andExpect(jsonPath("$.status").value("COMPLETED"))
+                    .andExpect(jsonPath("$.status").value(SharedConstants.COMPLETED))
                     .andExpect(jsonPath("$.progressPercentage").value(100.0));
         }
     }

@@ -12,6 +12,7 @@ import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -159,53 +160,68 @@ public class CreateMicroLessonRequest implements Serializable {
             return n.longValue();
         }
         if (raw instanceof String s) {
-            String text = s.trim();
-            if (text.isEmpty()) {
-                return null;
-            }
-            try {
-                return Long.parseLong(text);
-            } catch (NumberFormatException e) {
-                try {
-                    UUID uuid = UUID.fromString(text);
-                    long hash = Math.abs(uuid.getMostSignificantBits() ^ uuid.getLeastSignificantBits());
-                    return hash > 0 ? hash : 1L;
-                } catch (IllegalArgumentException ex) {
-                    long hash = Math.abs((long) text.hashCode());
-                    return hash > 0 ? hash : 1L;
-                }
-            }
+            return parseStringToLong(s);
         }
         return null;
     }
 
-    static List<FormulaEntryDto> parseFlexibleFormulas(Object raw) {
-        if (raw == null) {
+    private static Long parseStringToLong(String s) {
+        String text = s.trim();
+        if (text.isEmpty()) {
             return null;
         }
-        List<FormulaEntryDto> result = new ArrayList<>();
+        try {
+            return Long.parseLong(text);
+        } catch (NumberFormatException _) {
+            return fallbackHash(text);
+        }
+    }
+
+    private static long fallbackHash(String text) {
+        try {
+            UUID uuid = UUID.fromString(text);
+            long hash = (uuid.getMostSignificantBits() ^ uuid.getLeastSignificantBits()) & Long.MAX_VALUE;
+            return hash > 0 ? hash : 1L;
+        } catch (IllegalArgumentException _) {
+            long hash = text.hashCode() & 0x7FFFFFFFL;
+            return hash > 0 ? hash : 1L;
+        }
+    }
+
+    static List<FormulaEntryDto> parseFlexibleFormulas(Object raw) {
         if (raw instanceof String s) {
-            String trimmed = s.trim();
-            if (!trimmed.isEmpty()) {
-                String[] parts = trimmed.split("\\n\\n+");
-                for (int i = 0; i < parts.length; i++) {
-                    FormulaEntryDto dto = StepByStepBreakdownDto.toFormulaEntryDto(parts[i], i + 1);
-                    if (dto != null) {
-                        result.add(dto);
-                    }
-                }
-            }
-            return result;
+            return parseFormulasFromString(s);
         }
         if (raw instanceof List<?> list) {
-            int idx = 1;
-            for (Object item : list) {
-                FormulaEntryDto dto = StepByStepBreakdownDto.toFormulaEntryDto(item, idx++);
-                if (dto != null) {
-                    result.add(dto);
-                }
+            return parseFormulasFromList(list);
+        }
+        return Collections.emptyList();
+    }
+
+    private static List<FormulaEntryDto> parseFormulasFromString(String s) {
+        String trimmed = s.trim();
+        if (trimmed.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<FormulaEntryDto> result = new ArrayList<>();
+        String[] parts = trimmed.split("\\n\\n+");
+        for (int i = 0; i < parts.length; i++) {
+            FormulaEntryDto dto = StepByStepBreakdownDto.toFormulaEntryDto(parts[i], i + 1);
+            if (dto != null) {
+                result.add(dto);
             }
-            return result;
+        }
+        return result;
+    }
+
+    private static List<FormulaEntryDto> parseFormulasFromList(List<?> list) {
+        List<FormulaEntryDto> result = new ArrayList<>();
+        int idx = 1;
+        for (Object item : list) {
+            FormulaEntryDto dto = StepByStepBreakdownDto.toFormulaEntryDto(item, idx++);
+            if (dto != null) {
+                result.add(dto);
+            }
         }
         return result;
     }

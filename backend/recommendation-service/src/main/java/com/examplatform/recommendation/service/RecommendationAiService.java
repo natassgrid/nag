@@ -8,6 +8,7 @@ import com.examplatform.recommendation.dto.RecommendationResponse;
 import com.examplatform.recommendation.dto.WeakTopicItemDto;
 import com.examplatform.recommendation.repository.LearnerSubtopicPerformanceRepository;
 import com.examplatform.recommendation.repository.RecommendationRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -210,7 +211,7 @@ public class RecommendationAiService {
                         .map(LearnerSubtopicPerformance::getSubjectName)
                         .filter(s -> s != null && !s.isBlank())
                         .findFirst()
-                        .orElse("General");
+                        .orElse(SharedConstants.GENERAL);
                 Long subtopicId = perfs.stream()
                         .map(LearnerSubtopicPerformance::getSubtopicId)
                         .filter(Objects::nonNull)
@@ -240,7 +241,7 @@ public class RecommendationAiService {
                             topic,
                             acc,
                             List.of(topic + " Core Principles"),
-                            "General",
+                        SharedConstants.GENERAL,
                             null
                     ));
                 }
@@ -250,7 +251,8 @@ public class RecommendationAiService {
         }
 
         if (weakTopics.isEmpty()) {
-            String effectiveExam = (examTarget != null && !examTarget.isBlank()) ? examTarget.toUpperCase() : "JEE_MAIN";
+            String effectiveExam = (examTarget != null && !examTarget.isBlank()) ? examTarget.toUpperCase() :
+                SharedConstants.JEE_MAIN;
             if (effectiveExam.contains("IBPS") || effectiveExam.contains("SSC") || effectiveExam.contains("BANK") || effectiveExam.contains("CGL")) {
                 weakTopics.add(new WeakTopicItemDto("Quantitative Aptitude", 0.50, List.of("Percentage & Ratios", "Data Interpretation", "Speed Math & Simplification"), "Quantitative Aptitude", 101L));
                 weakTopics.add(new WeakTopicItemDto("Reasoning Ability", 0.50, List.of("Syllogism", "Seating Arrangement", "Puzzles & Inequalities"), "Reasoning", 102L));

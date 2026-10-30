@@ -5,6 +5,7 @@ import com.examplatform.practice.client.QuestionBankClient;
 import com.examplatform.practice.domain.PracticeSet;
 import com.examplatform.practice.dto.PracticeSetDto;
 import com.examplatform.practice.repository.PracticeSetRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -195,7 +196,8 @@ public class AdaptiveQuizGenerator {
         List<UUID> finalQuestionIds = new ArrayList<>(selectedIds);
         String questionIdsJson = serializeQuestionIds(finalQuestionIds);
 
-        String effectiveExam = (targetExam != null && !targetExam.isBlank()) ? targetExam.trim() : "JEE_MAIN";
+        String effectiveExam = (targetExam != null && !targetExam.isBlank()) ? targetExam.trim() :
+            SharedConstants.JEE_MAIN;
         String setName = String.format("%s — Baseline Diagnostic Assessment", effectiveExam);
 
         PracticeSet practiceSet = PracticeSet.builder()

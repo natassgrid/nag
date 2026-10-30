@@ -4,6 +4,7 @@ package com.examplatform.questionbank.microlesson.ai.agent;
 import com.examplatform.questionbank.domain.Question;
 import com.examplatform.questionbank.microlesson.dto.MicroLessonContentDto;
 import com.examplatform.questionbank.microlesson.dto.StepByStepBreakdownDto;
+import com.examplatform.shared.constants.SharedConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,7 +41,8 @@ public class DeterministicMicroLessonAgent {
      */
     public MicroLessonContentDto synthesize(MicroLessonBlueprint blueprint) {
         if (blueprint == null) {
-            blueprint = blueprintAgent.createBlueprint("General", "General", "General", "JEE_MAIN");
+            blueprint = blueprintAgent.createBlueprint(SharedConstants.GENERAL, SharedConstants.GENERAL,
+                SharedConstants.GENERAL, SharedConstants.JEE_MAIN);
         }
 
         // 1. Resolve curated subtopic template

@@ -8,6 +8,7 @@ import com.examplatform.questionbank.microlesson.dto.StepByStepBreakdownDto;
 import com.examplatform.questionbank.microlesson.repository.SubtopicMicroLessonRepository;
 import com.examplatform.questionbank.microlesson.service.MicroLessonCacheService;
 import com.examplatform.questionbank.support.AbstractIntegrationTest;
+import com.examplatform.shared.constants.SharedConstants;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -56,7 +57,7 @@ class MicroLessonControllerIntegrationTest extends AbstractIntegrationTest {
                 "Physics",
                 "Mechanics",
                 "Rotational Motion",
-                "JEE_MAIN",
+            SharedConstants.JEE_MAIN,
                 "Torque produces angular acceleration, analogous to force causing linear acceleration.",
                 "Confusing clockwise and counterclockwise torque signs in cross product \\vec{r} \\times \\vec{F}.",
                 List.of("$$\\tau = I \\alpha$$", "$$L = I \\omega$$"),

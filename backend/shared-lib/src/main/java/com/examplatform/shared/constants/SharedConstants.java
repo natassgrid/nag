@@ -73,4 +73,11 @@ public final class SharedConstants {
 
     // Regex related
     public static final String NUM_REGEX = "[^0-9.]";
+
+    public static final String COMPLETED = "COMPLETED";
+    public static final String CANCELLED = "CANCELLED";
+    public static final String IN_PROGRESS = "IN_PROGRESS";
+
+    public static final String GENERAL = "General";
+    public static final String JEE_MAIN = "JEE_MAIN";
 }

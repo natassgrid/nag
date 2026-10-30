@@ -8,6 +8,7 @@ import com.examplatform.questionbank.microlesson.dto.*;
 import com.examplatform.questionbank.microlesson.repository.SubtopicMicroLessonRepository;
 import com.examplatform.questionbank.microlesson.service.MicroLessonCacheService;
 import com.examplatform.questionbank.support.AbstractIntegrationTest;
+import com.examplatform.shared.constants.SharedConstants;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -83,7 +84,7 @@ class AdminMicroLessonControllerIntegrationTest extends AbstractIntegrationTest 
                 "Physics",
                 "Mechanics",
                 "Moment of Inertia",
-                "JEE_MAIN",
+            SharedConstants.JEE_MAIN,
                 "Rotational mass distribution concept.",
                 "Neglecting the axis perpendicular distance.",
                 List.of("$I = m r^2$"),
@@ -400,12 +401,12 @@ class AdminMicroLessonControllerIntegrationTest extends AbstractIntegrationTest 
 
             when(generatorService.generateForSubtopic(
                     eq(1L), eq("Physics"), eq(10L), eq("Mechanics"),
-                    eq(100L), eq("Moment of Inertia"), eq("JEE_MAIN"), eq("Custom notes")
+                    eq(100L), eq("Moment of Inertia"), eq(SharedConstants.JEE_MAIN), eq("Custom notes")
             )).thenReturn(entity);
             when(generatorService.toResponse(entity)).thenReturn(response);
 
             GenerateMicroLessonRequest req = new GenerateMicroLessonRequest(
-                    1L, "Physics", 10L, "Mechanics", 100L, "Moment of Inertia", "JEE_MAIN", "Custom notes", null
+                    1L, "Physics", 10L, "Mechanics", 100L, "Moment of Inertia", SharedConstants.JEE_MAIN, "Custom notes", null
             );
 
             mockMvc.perform(post("/api/admin/micro-lessons/generate")
@@ -428,7 +429,7 @@ class AdminMicroLessonControllerIntegrationTest extends AbstractIntegrationTest 
         void testTriggerBatchRunner() throws Exception {
             BatchGenerateResponse mockResp = new BatchGenerateResponse(
                     "batch-123",
-                    "IN_PROGRESS",
+                SharedConstants.IN_PROGRESS,
                     5,
                     2,
                     0,
@@ -443,7 +444,7 @@ class AdminMicroLessonControllerIntegrationTest extends AbstractIntegrationTest 
                     .thenReturn(mockResp);
 
             BatchGenerateMicroLessonsRequest req = new BatchGenerateMicroLessonsRequest(
-                    1L, 10L, List.of(100L, 101L), "JEE_MAIN", 10
+                    1L, 10L, List.of(100L, 101L), SharedConstants.JEE_MAIN, 10
             );
 
             mockMvc.perform(post("/api/admin/micro-lessons/batch-generate")
@@ -452,7 +453,7 @@ class AdminMicroLessonControllerIntegrationTest extends AbstractIntegrationTest 
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.batchId").value("batch-123"))
-                    .andExpect(jsonPath("$.status").value("IN_PROGRESS"))
+                    .andExpect(jsonPath("$.status").value(SharedConstants.IN_PROGRESS))
                     .andExpect(jsonPath("$.percentComplete").value(40))
                     .andExpect(jsonPath("$.currentSubtopic").value("Subtopic C"))
                     .andExpect(jsonPath("$.totalGenerated").value(2));
@@ -463,7 +464,7 @@ class AdminMicroLessonControllerIntegrationTest extends AbstractIntegrationTest 
         void testGetBatchJobStatus() throws Exception {
             BatchGenerateResponse mockResp = new BatchGenerateResponse(
                     "batch-123",
-                    "IN_PROGRESS",
+                SharedConstants.IN_PROGRESS,
                     10,
                     5,
                     0,
@@ -488,7 +489,7 @@ class AdminMicroLessonControllerIntegrationTest extends AbstractIntegrationTest 
         void testGetActiveBatchJob() throws Exception {
             BatchGenerateResponse mockResp = new BatchGenerateResponse(
                     "batch-active-1",
-                    "IN_PROGRESS",
+                SharedConstants.IN_PROGRESS,
                     8,
                     4,
                     0,
@@ -505,7 +506,7 @@ class AdminMicroLessonControllerIntegrationTest extends AbstractIntegrationTest 
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.batchId").value("batch-active-1"))
-                    .andExpect(jsonPath("$.status").value("IN_PROGRESS"));
+                    .andExpect(jsonPath("$.status").value(SharedConstants.IN_PROGRESS));
         }
 
         @Test
@@ -513,7 +514,7 @@ class AdminMicroLessonControllerIntegrationTest extends AbstractIntegrationTest 
         void testCancelBatchJob() throws Exception {
             BatchGenerateResponse mockResp = new BatchGenerateResponse(
                     "batch-active-1",
-                    "CANCELLED",
+                SharedConstants.CANCELLED,
                     8,
                     4,
                     0,
@@ -529,7 +530,7 @@ class AdminMicroLessonControllerIntegrationTest extends AbstractIntegrationTest 
             mockMvc.perform(post("/api/admin/micro-lessons/batch-jobs/batch-active-1/cancel")
                             .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN"))))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.status").value("CANCELLED"));
+                    .andExpect(jsonPath("$.status").value(SharedConstants.CANCELLED));
         }
     }
 

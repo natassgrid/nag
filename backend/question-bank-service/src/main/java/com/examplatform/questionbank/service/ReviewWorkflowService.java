@@ -78,7 +78,7 @@ public class ReviewWorkflowService {
 
     private String resolveSubjectName(Question question) {
         if (question.getSubjectId() == null) {
-            return "General";
+            return SharedConstants.GENERAL;
         }
         return subjectRepository.findById(question.getSubjectId())
                 .map(com.examplatform.questionbank.domain.Subject::getName)

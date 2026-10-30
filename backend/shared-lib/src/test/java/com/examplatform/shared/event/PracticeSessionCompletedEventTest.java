@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 package com.examplatform.shared.event;
 
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -77,15 +78,15 @@ class PracticeSessionCompletedEventTest {
                 topicJson,
                 subtopicJson,
                 "ADAPTIVE_QUIZ",
-                "JEE_MAIN"
+            SharedConstants.JEE_MAIN
         );
 
         String json = objectMapper.writeValueAsString(event);
         assertThat(json).contains("ADAPTIVE_QUIZ");
-        assertThat(json).contains("JEE_MAIN");
+        assertThat(json).contains(SharedConstants.JEE_MAIN);
 
         PracticeSessionCompletedEvent deserialized = objectMapper.readValue(json, PracticeSessionCompletedEvent.class);
         assertThat(deserialized.practiceSetSource()).isEqualTo("ADAPTIVE_QUIZ");
-        assertThat(deserialized.targetExam()).isEqualTo("JEE_MAIN");
+        assertThat(deserialized.targetExam()).isEqualTo(SharedConstants.JEE_MAIN);
     }
 }

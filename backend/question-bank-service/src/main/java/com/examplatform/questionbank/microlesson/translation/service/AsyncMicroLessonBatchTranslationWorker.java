@@ -27,7 +27,9 @@ import com.examplatform.questionbank.microlesson.translation.repository.MicroLes
 import com.examplatform.questionbank.microlesson.translation.repository.MicroLessonTranslationRepository;
 import com.examplatform.shared.constants.SharedConstants;
 import com.examplatform.shared.tenant.TenantContext;
+import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -78,11 +80,11 @@ public class AsyncMicroLessonBatchTranslationWorker {
             }
 
             MicroLessonBatchTranslationJob job = jobOpt.get();
-            if ("COMPLETED".equalsIgnoreCase(job.getStatus()) || "CANCELLED".equalsIgnoreCase(job.getStatus())) {
+            if (SharedConstants.COMPLETED.equalsIgnoreCase(job.getStatus()) || SharedConstants.CANCELLED.equalsIgnoreCase(job.getStatus())) {
                 return;
             }
 
-            job.setStatus("IN_PROGRESS");
+            job.setStatus(SharedConstants.IN_PROGRESS);
             job.setStartedAt(Instant.now());
             jobRepository.save(job);
 
@@ -234,6 +236,10 @@ public class AsyncMicroLessonBatchTranslationWorker {
                 semaphore.release();
             }
 
+        } catch (InterruptedException _) {
+            Thread.currentThread().interrupt();
+            log.warn("Micro-lesson translation interrupted for lessonId={} in batch {}", lessonId, jobId);
+            jobRepository.incrementFailure(jobId, "[\"" + lessonId + "\"]");
         } catch (Exception ex) {
             log.error("Failed to translate micro-lesson lessonId={} in batch {}: {}", lessonId, jobId, ex.getMessage());
             jobRepository.incrementFailure(jobId, "[\"" + lessonId + "\"]");
@@ -244,7 +250,7 @@ public class AsyncMicroLessonBatchTranslationWorker {
         if (throttleDelayMs > 0) {
             try {
                 Thread.sleep(throttleDelayMs);
-            } catch (InterruptedException e) {
+            } catch (InterruptedException _) {
                 Thread.currentThread().interrupt();
             }
         }
@@ -252,15 +258,15 @@ public class AsyncMicroLessonBatchTranslationWorker {
 
     private boolean isJobCancelled(UUID jobId) {
         Optional<MicroLessonBatchTranslationJob> job = jobRepository.findById(jobId);
-        return job.isPresent() && "CANCELLED".equalsIgnoreCase(job.get().getStatus());
+        return job.isPresent() && SharedConstants.CANCELLED.equalsIgnoreCase(job.get().getStatus());
     }
 
     private void completeJobIfActive(UUID jobId) {
         Optional<MicroLessonBatchTranslationJob> jobOpt = jobRepository.findById(jobId);
         if (jobOpt.isPresent()) {
             MicroLessonBatchTranslationJob job = jobOpt.get();
-            if (!"CANCELLED".equalsIgnoreCase(job.getStatus())) {
-                job.setStatus("COMPLETED");
+            if (!SharedConstants.CANCELLED.equalsIgnoreCase(job.getStatus())) {
+                job.setStatus(SharedConstants.COMPLETED);
                 job.setCompletedAt(Instant.now());
                 jobRepository.save(job);
                 log.info("Micro-lesson batch translation job {} finished successfully. Total processed={}",
@@ -282,37 +288,47 @@ public class AsyncMicroLessonBatchTranslationWorker {
     }
 
     private Specification<SubtopicMicroLesson> buildSpecification(MicroLessonBatchTranslationJob job, String tenantId) {
-        return (root, query, cb) -> {
+        return (root, _, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
-
-            if (tenantId != null && !tenantId.isBlank()) {
-                predicates.add(cb.or(
-                        cb.equal(root.get(SharedConstants.TENANT_ID), tenantId),
-                        cb.equal(root.get(SharedConstants.TENANT_ID), SharedConstants.DEFAULT_TENANT)
-                ));
-            }
-
-            if (job.getSubjectFilter() != null && !job.getSubjectFilter().isBlank()) {
-                String sub = job.getSubjectFilter().trim();
-                try {
-                    Long subjectId = Long.parseLong(sub);
-                    predicates.add(cb.equal(root.get("subjectId"), subjectId));
-                } catch (NumberFormatException ignored) {
-                    predicates.add(cb.equal(cb.lower(root.get("subject")), sub.toLowerCase()));
-                }
-            }
-
-            if (job.getTopicFilter() != null && !job.getTopicFilter().isBlank()) {
-                String top = job.getTopicFilter().trim();
-                predicates.add(cb.equal(cb.lower(root.get("topic")), top.toLowerCase()));
-            }
-
-            if (job.getTargetExamFilter() != null && !job.getTargetExamFilter().isBlank()) {
-                String exam = job.getTargetExamFilter().trim();
-                predicates.add(cb.equal(cb.upper(root.get("targetExam")), exam.toUpperCase()));
-            }
-
+            addTenantPredicate(root, cb, predicates, tenantId);
+            addSubjectPredicate(root, cb, predicates, job.getSubjectFilter());
+            addTopicPredicate(root, cb, predicates, job.getTopicFilter());
+            addTargetExamPredicate(root, cb, predicates, job.getTargetExamFilter());
             return predicates.isEmpty() ? cb.conjunction() : cb.and(predicates.toArray(new Predicate[0]));
         };
+    }
+
+    private void addTenantPredicate(Root<SubtopicMicroLesson> root, CriteriaBuilder cb, List<Predicate> predicates, String tenantId) {
+        if (tenantId != null && !tenantId.isBlank()) {
+            predicates.add(cb.or(
+                    cb.equal(root.get(SharedConstants.TENANT_ID), tenantId),
+                    cb.equal(root.get(SharedConstants.TENANT_ID), SharedConstants.DEFAULT_TENANT)
+            ));
+        }
+    }
+
+    private void addSubjectPredicate(Root<SubtopicMicroLesson> root, CriteriaBuilder cb, List<Predicate> predicates, String subjectFilter) {
+        if (subjectFilter == null || subjectFilter.isBlank()) {
+            return;
+        }
+        String sub = subjectFilter.trim();
+        try {
+            Long subjectId = Long.parseLong(sub);
+            predicates.add(cb.equal(root.get("subjectId"), subjectId));
+        } catch (NumberFormatException _) {
+            predicates.add(cb.equal(cb.lower(root.get("subject")), sub.toLowerCase()));
+        }
+    }
+
+    private void addTopicPredicate(Root<SubtopicMicroLesson> root, CriteriaBuilder cb, List<Predicate> predicates, String topicFilter) {
+        if (topicFilter != null && !topicFilter.isBlank()) {
+            predicates.add(cb.equal(cb.lower(root.get("topic")), topicFilter.trim().toLowerCase()));
+        }
+    }
+
+    private void addTargetExamPredicate(Root<SubtopicMicroLesson> root, CriteriaBuilder cb, List<Predicate> predicates, String targetExamFilter) {
+        if (targetExamFilter != null && !targetExamFilter.isBlank()) {
+            predicates.add(cb.equal(cb.upper(root.get("targetExam")), targetExamFilter.trim().toUpperCase()));
+        }
     }
 }

@@ -4,6 +4,7 @@ package com.examplatform.practice.service;
 import com.examplatform.practice.client.QuestionBankClient;
 import com.examplatform.practice.domain.PracticeSet;
 import com.examplatform.practice.repository.PracticeSetRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -63,7 +64,7 @@ class AdaptiveQuizGeneratorTest {
         when(practiceSetRepository.save(any(PracticeSet.class))).thenAnswer(inv -> inv.getArgument(0));
         when(practiceSetService.toDto(any())).thenReturn(null);
 
-        generator.generateAdaptiveSet(CANDIDATE_ID, subtopics, "JEE_MAIN", 20, false);
+        generator.generateAdaptiveSet(CANDIDATE_ID, subtopics, SharedConstants.JEE_MAIN, 20, false);
 
         ArgumentCaptor<PracticeSet> captor = ArgumentCaptor.forClass(PracticeSet.class);
         verify(practiceSetRepository).save(captor.capture());
@@ -84,7 +85,7 @@ class AdaptiveQuizGeneratorTest {
         when(questionBankClient.findQuestionsForAdaptiveQuiz(any(), any(), any(Integer.class))).thenReturn(List.of(UUID.randomUUID()));
         when(practiceSetRepository.save(any(PracticeSet.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        generator.generateAdaptiveSet(CANDIDATE_ID, subtopics, "JEE_MAIN", 10, true);
+        generator.generateAdaptiveSet(CANDIDATE_ID, subtopics, SharedConstants.JEE_MAIN, 10, true);
 
         ArgumentCaptor<PracticeSet> captor = ArgumentCaptor.forClass(PracticeSet.class);
         verify(practiceSetRepository).save(captor.capture());

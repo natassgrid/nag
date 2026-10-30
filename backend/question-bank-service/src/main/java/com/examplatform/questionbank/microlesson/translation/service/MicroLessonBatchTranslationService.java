@@ -24,6 +24,7 @@ import com.examplatform.questionbank.microlesson.translation.dto.MicroLessonBatc
 import com.examplatform.questionbank.microlesson.translation.dto.MicroLessonBatchTranslationRequest;
 import com.examplatform.questionbank.microlesson.translation.repository.MicroLessonBatchTranslationJobRepository;
 import com.examplatform.questionbank.translation.service.TranslationWorkflowService;
+import com.examplatform.shared.constants.SharedConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -86,8 +87,8 @@ public class MicroLessonBatchTranslationService {
         MicroLessonBatchTranslationJob job = jobRepository.findByIdAndTenantId(jobId, tenantId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Batch translation job not found: " + jobId));
 
-        if ("PENDING".equalsIgnoreCase(job.getStatus()) || "IN_PROGRESS".equalsIgnoreCase(job.getStatus())) {
-            job.setStatus("CANCELLED");
+        if ("PENDING".equalsIgnoreCase(job.getStatus()) || SharedConstants.IN_PROGRESS.equalsIgnoreCase(job.getStatus())) {
+            job.setStatus(SharedConstants.CANCELLED);
             job.setCompletedAt(Instant.now());
             job = jobRepository.save(job);
             log.info("Micro-lesson batch translation job {} cancelled by user", jobId);
@@ -100,7 +101,7 @@ public class MicroLessonBatchTranslationService {
         double progressPercentage = 0.0;
         if (job.getTotalLessons() > 0) {
             progressPercentage = Math.min(100.0, (job.getProcessedLessons() * 100.0) / job.getTotalLessons());
-        } else if ("COMPLETED".equalsIgnoreCase(job.getStatus())) {
+        } else if (SharedConstants.COMPLETED.equalsIgnoreCase(job.getStatus())) {
             progressPercentage = 100.0;
         }
 

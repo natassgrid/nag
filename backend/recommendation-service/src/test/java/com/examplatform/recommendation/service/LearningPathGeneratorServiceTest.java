@@ -7,6 +7,7 @@ import com.examplatform.recommendation.domain.PerformanceBracket;
 import com.examplatform.recommendation.dto.*;
 import com.examplatform.recommendation.repository.DynamicLearningPathRepository;
 import com.examplatform.recommendation.repository.LearnerSubtopicPerformanceRepository;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -95,18 +96,19 @@ class LearningPathGeneratorServiceTest {
         // Existing active path to be superseded
         DynamicLearningPath oldActive = DynamicLearningPath.builder()
                 .candidateId(CANDIDATE_ID)
-                .examTarget("JEE_MAIN")
+                .examTarget(SharedConstants.JEE_MAIN)
                 .status("ACTIVE")
                 .build();
         when(dlpRepository.findByCandidateIdAndStatus(CANDIDATE_ID, "ACTIVE")).thenReturn(List.of(oldActive));
         when(dlpRepository.save(any(DynamicLearningPath.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        DynamicLearningPath result = generatorService.generateOrRecalculate(CANDIDATE_ID, SESSION_ID, "JEE_MAIN");
+        DynamicLearningPath result = generatorService.generateOrRecalculate(CANDIDATE_ID, SESSION_ID,
+            SharedConstants.JEE_MAIN);
 
         assertThat(result).isNotNull();
         assertThat(result.getCandidateId()).isEqualTo(CANDIDATE_ID);
         assertThat(result.getSourceSessionId()).isEqualTo(SESSION_ID);
-        assertThat(result.getExamTarget()).isEqualTo("JEE_MAIN");
+        assertThat(result.getExamTarget()).isEqualTo(SharedConstants.JEE_MAIN);
         assertThat(result.getStatus()).isEqualTo("ACTIVE");
 
         // p1 and p4 are conceptual gaps (p4 due to 45% skips)
@@ -126,7 +128,7 @@ class LearningPathGeneratorServiceTest {
 
         MilestonePhaseDto phase1 = resp.milestoneGraph().phases().get(0);
         assertThat(phase1.phaseName()).contains("Phase 1: Remediation");
-        assertThat(phase1.status()).isEqualTo("IN_PROGRESS");
+        assertThat(phase1.status()).isEqualTo(SharedConstants.IN_PROGRESS);
         assertThat(phase1.items()).hasSize(2);
 
         MilestonePhaseDto phase2 = resp.milestoneGraph().phases().get(1);
@@ -188,7 +190,8 @@ class LearningPathGeneratorServiceTest {
         when(dlpRepository.findByCandidateIdAndStatus(CANDIDATE_ID, "ACTIVE")).thenReturn(List.of());
         when(dlpRepository.save(any(DynamicLearningPath.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        DynamicLearningPath result = generatorService.generateOrRecalculate(CANDIDATE_ID, SESSION_ID, "JEE_MAIN");
+        DynamicLearningPath result = generatorService.generateOrRecalculate(CANDIDATE_ID, SESSION_ID,
+            SharedConstants.JEE_MAIN);
 
         assertThat(result).isNotNull();
         assertThat(result.getStatus()).isEqualTo("ACTIVE");
@@ -202,7 +205,7 @@ class LearningPathGeneratorServiceTest {
         assertThat(resp.milestoneGraph().getCurrentPhaseNumber()).isEqualTo(0);
         assertThat(resp.milestoneGraph().gatekeeperPassed()).isFalse();
         assertThat(resp.isGatekeeperPassed()).isFalse();
-        assertThat(resp.getTargetExam()).isEqualTo("JEE_MAIN");
+        assertThat(resp.getTargetExam()).isEqualTo(SharedConstants.JEE_MAIN);
 
         List<MilestonePhaseDto> phases = resp.milestoneGraph().phases();
         assertThat(phases).hasSize(3);
@@ -227,13 +230,14 @@ class LearningPathGeneratorServiceTest {
         when(dlpRepository.findByCandidateIdAndStatus(CANDIDATE_ID, "ACTIVE")).thenReturn(List.of());
         when(dlpRepository.save(any(DynamicLearningPath.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        DynamicLearningPath result = generatorService.generateOrRecalculate(CANDIDATE_ID, SESSION_ID, "JEE_MAIN");
+        DynamicLearningPath result = generatorService.generateOrRecalculate(CANDIDATE_ID, SESSION_ID,
+            SharedConstants.JEE_MAIN);
 
         assertThat(result).isNotNull();
-        assertThat(result.getStatus()).isEqualTo("COMPLETED");
+        assertThat(result.getStatus()).isEqualTo(SharedConstants.COMPLETED);
 
         DynamicLearningPathResponse resp = generatorService.toResponse(result);
-        assertThat(resp.milestoneGraph().currentPhase()).isEqualTo("COMPLETED");
+        assertThat(resp.milestoneGraph().currentPhase()).isEqualTo(SharedConstants.COMPLETED);
         assertThat(resp.milestoneGraph().getCurrentPhaseNumber()).isEqualTo(4);
         assertThat(resp.milestoneGraph().gatekeeperPassed()).isTrue();
     }
@@ -271,10 +275,10 @@ class LearningPathGeneratorServiceTest {
         );
 
         MilestonePhaseDto p1Phase = new MilestonePhaseDto(
-                1, "Phase 1: Remediation", "Desc", 2, "COMPLETED", null, null, null, null, null, null, List.of(completedItem)
+                1, "Phase 1: Remediation", "Desc", 2, SharedConstants.COMPLETED, null, null, null, null, null, null, List.of(completedItem)
         );
         MilestonePhaseDto p2Phase = new MilestonePhaseDto(
-                2, "Phase 2: Adaptive Practice", "Desc", 1, "IN_PROGRESS", 70.0, null, null, null, null, null, List.of()
+                2, "Phase 2: Adaptive Practice", "Desc", 1, SharedConstants.IN_PROGRESS, 70.0, null, null, null, null, null, List.of()
         );
         MilestonePhaseDto p3Phase = new MilestonePhaseDto(
                 3, "Phase 3: Speed Mastery", "Desc", 1, "LOCKED", null, null, null, 75.0, null, false, List.of()
@@ -282,7 +286,7 @@ class LearningPathGeneratorServiceTest {
 
         MilestoneGraphDto oldGraph = new MilestoneGraphDto(
                 "PHASE_2_ADAPTIVE_QUIZ",
-                "JEE_MAIN",
+            SharedConstants.JEE_MAIN,
                 false,
                 List.of(p1Phase, p2Phase, p3Phase),
                 List.of(),
@@ -294,7 +298,7 @@ class LearningPathGeneratorServiceTest {
 
         DynamicLearningPath oldActive = DynamicLearningPath.builder()
                 .candidateId(CANDIDATE_ID)
-                .examTarget("JEE_MAIN")
+                .examTarget(SharedConstants.JEE_MAIN)
                 .status("ACTIVE")
                 .milestoneGraphJson(objectMapper.writeValueAsString(oldGraph))
                 .build();
@@ -302,7 +306,8 @@ class LearningPathGeneratorServiceTest {
         when(dlpRepository.findByCandidateIdAndStatus(CANDIDATE_ID, "ACTIVE")).thenReturn(List.of(oldActive));
         when(dlpRepository.save(any(DynamicLearningPath.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        DynamicLearningPath result = generatorService.generateOrRecalculate(CANDIDATE_ID, SESSION_ID, "JEE_MAIN");
+        DynamicLearningPath result = generatorService.generateOrRecalculate(CANDIDATE_ID, SESSION_ID,
+            SharedConstants.JEE_MAIN);
 
         DynamicLearningPathResponse resp = generatorService.toResponse(result);
         assertThat(resp.milestoneGraph()).isNotNull();
@@ -311,9 +316,9 @@ class LearningPathGeneratorServiceTest {
         MilestonePhaseDto newP1 = resp.milestoneGraph().phases().get(0);
         assertThat(newP1.items().get(0).completed()).isTrue();
         assertThat(newP1.items().get(0).getMilestoneId()).isEqualTo("P1-1");
-        assertThat(newP1.items().get(0).getStatus()).isEqualTo("COMPLETED");
+        assertThat(newP1.items().get(0).getStatus()).isEqualTo(SharedConstants.COMPLETED);
         assertThat(newP1.items().get(0).subtopicId()).isNotNull();
-        assertThat(newP1.status()).isEqualTo("COMPLETED");
+        assertThat(newP1.status()).isEqualTo(SharedConstants.COMPLETED);
 
         // Should advance to PHASE_2_ADAPTIVE_QUIZ instead of resetting to Phase 1
         assertThat(resp.milestoneGraph().currentPhase()).isEqualTo("PHASE_2_ADAPTIVE_QUIZ");

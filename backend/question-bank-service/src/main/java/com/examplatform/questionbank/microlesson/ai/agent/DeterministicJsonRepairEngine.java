@@ -27,6 +27,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -39,6 +40,31 @@ public class DeterministicJsonRepairEngine {
 
     private static final Logger log = LoggerFactory.getLogger(DeterministicJsonRepairEngine.class);
 
+    private static final String DEFAULT_CORE_CONCEPT =
+            "Core concepts and governing relations of the subtopic.";
+    private static final String DEFAULT_TRAP =
+            "Students commonly overlook sign conventions, unit dimensions, and limiting boundary conditions.";
+    private static final String DEFAULT_QUESTION_STEM =
+            "Evaluate the primary governing parameters under baseline boundary conditions.";
+    private static final String DEFAULT_STEP_1 =
+            "Step 1: Identify given boundary values and governing relationships.";
+    private static final String DEFAULT_STEP_2 =
+            "Step 2: Substitute dimensionally consistent parameters and solve.";
+    private static final String DEFAULT_FINAL_ANSWER =
+            "Standard numerical/algebraic solution";
+    private static final String DOUBLE_BACKSLASH_REPLACEMENT =
+            "\\\\\\\\";
+
+    private static final List<String> DEFAULT_STEPS = List.of(
+            DEFAULT_STEP_1,
+            DEFAULT_STEP_2
+    );
+
+    private static final List<String> DEFAULT_CHEAT_SHEET = List.of(
+            "$$\\text{Relation 1: Check boundary conditions}$$",
+            "$$\\text{Relation 2: Verify dimensional consistency}$$"
+    );
+
     private static final char CH_FF = (char) 0x0C; // form-feed
     private static final char CH_TAB = (char) 0x09; // tab
     private static final char CH_BS = (char) 0x08; // backspace
@@ -46,29 +72,30 @@ public class DeterministicJsonRepairEngine {
     private static final char CH_LF = (char) 0x0A; // newline
 
     private static final Pattern CODE_FENCE_PATTERN =
-            Pattern.compile("```(?:json)?\\s*([\\s\\S]*?)\\s*```");
+            Pattern.compile("```(?:json)?\\s*+([\\s\\S]*?)```");
 
-    // StringTemplate leaked brace escapes: \{ and \}
+    // StringTemplate leaked brace escapes
     private static final Pattern STRING_TEMPLATE_OPEN_BRACE =
             Pattern.compile("(?<!\\\\)\\\\\\{");
     private static final Pattern STRING_TEMPLATE_CLOSE_BRACE =
-            Pattern.compile("(?<!\\\\)\\\\\\}");
+            Pattern.compile("(?<!\\\\)\\\\}");
 
-    // Comprehensive list of LaTeX commands (sorted by descending length to prevent prefix collisions)
-    private static final String LATEX_COMMAND_NAMES =
-            "rightarrow|Rightarrow|leftrightarrow|Leftrightarrow|triangle|vartheta|nexists|"
-            + "overline|underline|partial|parallel|subseteq|approx|equiv|propto|middot|"
-            + "forall|cdot|times|textbf|textit|textrm|text|mathbf|mathrm|notin|nabla|varrho|"
-            + "lambda|Lambda|epsilon|sum|prod|sqrt|infty|subset|quad|qquad|cdots|ldots|"
-            + "vdots|ddots|begin|right|left|frac|dfrac|tfrac|theta|Theta|omega|Omega|"
-            + "sigma|Sigma|alpha|gamma|Gamma|delta|Delta|tau|beta|neq|neg|rho|phi|"
-            + "Phi|psi|Psi|circ|angle|cong|sim|perp|cup|cap|vec|hat|bar|int|oint|lim|"
-            + "div|leq|geq|log|ln|exp|det|ker|dim|min|max|sup|inf|gcd|deg|sin|cos|tan|"
-            + "ce|pu|pm|mp|le|ge|ne|nu|to|in|bf|it|rm|sf|tt";
+    // Known LaTeX commands for single-backslash double escaping
+    private static final Set<String> LATEX_COMMANDS = Set.of(
+            "rightarrow", "Rightarrow", "leftrightarrow", "Leftrightarrow", "triangle", "vartheta", "nexists",
+            "overline", "underline", "partial", "parallel", "subseteq", "approx", "equiv", "propto", "middot",
+            "forall", "cdot", "times", "textbf", "textit", "textrm", "text", "mathbf", "mathrm", "notin", "nabla", "varrho",
+            "lambda", "Lambda", "epsilon", "sum", "prod", "sqrt", "infty", "subset", "quad", "qquad", "cdots", "ldots",
+            "vdots", "ddots", "begin", "right", "left", "frac", "dfrac", "tfrac", "theta", "Theta", "omega", "Omega",
+            "sigma", "Sigma", "alpha", "gamma", "Gamma", "delta", "Delta", "tau", "beta", "neq", "neg", "rho", "phi",
+            "Phi", "psi", "Psi", "circ", "angle", "cong", "sim", "perp", "cup", "cap", "vec", "hat", "bar", "int", "oint", "lim",
+            "div", "leq", "geq", "log", "ln", "exp", "det", "ker", "dim", "min", "max", "sup", "inf", "gcd", "deg", "sin", "cos", "tan",
+            "ce", "pu", "pm", "mp", "le", "ge", "ne", "nu", "to", "in", "bf", "it", "rm", "sf", "tt"
+    );
 
-    // Pattern matching unescaped single backslash before known LaTeX commands or %
-    private static final Pattern SINGLE_BACKSLASH_LATEX_PATTERN = Pattern.compile(
-            "(?<!\\\\)\\\\(?=(?:" + LATEX_COMMAND_NAMES + ")(?![a-zA-Z])|%)"
+    // Simplified pattern matching single backslash before candidate command name or percent sign
+    private static final Pattern SINGLE_BACKSLASH_CANDIDATE = Pattern.compile(
+            "(?<!\\\\)\\\\([a-zA-Z]+|%)"
     );
 
     // Pattern matching single backslash followed by control-collision letters (b, f, n, r, t) and lowercase letters
@@ -81,31 +108,31 @@ public class DeterministicJsonRepairEngine {
             "(?<!\\\\)\\\\(?![\"\\\\/bfnrtu]|u[0-9a-fA-F]{4})"
     );
 
-    // Regex fallback field extractors
+    // Regex fallback field extractors with possessive unrolled loops to prevent stack overflow
     private static final Pattern CORE_CONCEPT_PATTERN = Pattern.compile(
-            "\"(?:coreConcept|core_concept)\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\""
+            "\"(?:coreConcept|core_concept)\"\\s*:\\s*\"([^\"\\\\]*+(?:\\\\.[^\"\\\\]*+)*+)\""
     );
     private static final Pattern TRAP_PATTERN = Pattern.compile(
-            "\"(?:trap|pitfall|common_trap)\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\""
+            "\"(?:trap|pitfall|common_trap)\"\\s*:\\s*\"([^\"\\\\]*+(?:\\\\.[^\"\\\\]*+)*+)\""
     );
     private static final Pattern CHEAT_SHEET_PATTERN = Pattern.compile(
-            "\"(?:cheatSheet|cheat_sheet)\"\\s*:\\s*\\[([\\s\\S]*?)\\]"
+            "\"(?:cheatSheet|cheat_sheet)\"\\s*:\\s*\\[([\\s\\S]*?)]"
     );
     private static final Pattern QUESTION_STEM_PATTERN = Pattern.compile(
-            "\"(?:questionStem|question_stem|question)\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\""
+            "\"(?:questionStem|question_stem|question)\"\\s*:\\s*\"([^\"\\\\]*+(?:\\\\.[^\"\\\\]*+)*+)\""
     );
     private static final Pattern STEPS_PATTERN = Pattern.compile(
-            "\"(?:steps|breakdown_steps)\"\\s*:\\s*\\[([\\s\\S]*?)\\]"
+            "\"(?:steps|breakdown_steps)\"\\s*:\\s*\\[([\\s\\S]*?)]"
     );
     private static final Pattern FINAL_ANSWER_PATTERN = Pattern.compile(
-            "\"(?:finalAnswer|final_answer|answer)\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\""
+            "\"(?:finalAnswer|final_answer|answer)\"\\s*:\\s*\"([^\"\\\\]*+(?:\\\\.[^\"\\\\]*+)*+)\""
     );
     private static final Pattern QUOTED_STRING_ITEM = Pattern.compile(
-            "\"((?:[^\"\\\\]|\\\\.)*)\""
+            "\"([^\"\\\\]*+(?:\\\\.[^\"\\\\]*+)*+)\""
     );
 
     /**
-     * Strips markdown code fences, leading conversational preambles before the first '{',
+     * Strips markdown code fences, leading conversational preambles before the first opening brace,
      * and trailing commentary after balanced JSON.
      */
     public String stripMarkdownAndPreambles(String rawResponse) {
@@ -113,62 +140,53 @@ public class DeterministicJsonRepairEngine {
             return "";
         }
 
-        String text = rawResponse.trim();
-        Matcher fenceMatcher = CODE_FENCE_PATTERN.matcher(text);
-        if (fenceMatcher.find()) {
-            text = fenceMatcher.group(1).trim();
-        }
-
+        String text = extractFencedContent(rawResponse.trim());
         int firstBrace = text.indexOf('{');
         if (firstBrace == -1) {
             return text;
         }
 
-        // Substring from first '{'
         String candidate = text.substring(firstBrace).trim();
-
-        // Check if root object is balanced
-        int depth = 0;
-        boolean inString = false;
-        boolean escape = false;
-        int matchingCloseIndex = -1;
-
-        for (int i = 0; i < candidate.length(); i++) {
-            char c = candidate.charAt(i);
-            if (inString) {
-                if (escape) {
-                    escape = false;
-                } else if (c == '\\') {
-                    escape = true;
-                } else if (c == '"') {
-                    inString = false;
-                }
-            } else {
-                if (c == '"') {
-                    inString = true;
-                } else if (c == '{') {
-                    depth++;
-                } else if (c == '}') {
-                    depth--;
-                    if (depth == 0) {
-                        matchingCloseIndex = i;
-                        break;
-                    }
-                }
-            }
-        }
-
-        // If closed cleanly, trim any trailing conversational text
+        int matchingCloseIndex = findMatchingCloseBraceIndex(candidate);
         if (matchingCloseIndex != -1) {
             return candidate.substring(0, matchingCloseIndex + 1).trim();
         }
 
-        // If not balanced (truncated), return the entire candidate from first '{'
         return candidate;
     }
 
+    private String extractFencedContent(String text) {
+        Matcher fenceMatcher = CODE_FENCE_PATTERN.matcher(text);
+        if (fenceMatcher.find()) {
+            return fenceMatcher.group(1).trim();
+        }
+        return text;
+    }
+
+    private int findMatchingCloseBraceIndex(String candidate) {
+        int depth = 0;
+        boolean inString = false;
+        boolean escape = false;
+
+        for (int i = 0; i < candidate.length(); i++) {
+            char c = candidate.charAt(i);
+            if (escape) {
+                escape = false;
+            } else if (c == '\\' && inString) {
+                escape = true;
+            } else if (c == '"') {
+                inString = !inString;
+            } else if (!inString && c == '{') {
+                depth++;
+            } else if (!inString && c == '}' && --depth == 0) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
     /**
-     * Removes StringTemplate leaked brace escapes (\{ -> { and \} -> }).
+     * Removes StringTemplate leaked brace escapes.
      */
     public String cleanStringTemplateBraces(String json) {
         if (json == null) {
@@ -190,12 +208,10 @@ public class DeterministicJsonRepairEngine {
         String result = json;
 
         // Step a: Replace already-corrupted control characters followed by LaTeX command suffixes
-        // Form feed (\f)
         result = result.replace(CH_FF + "rac", "\\\\frac")
                        .replace(CH_FF + "orall", "\\\\forall")
                        .replace(String.valueOf(CH_FF), "\\\\f");
 
-        // Tab (\t)
         result = result.replace(CH_TAB + "extbf", "\\\\textbf")
                        .replace(CH_TAB + "extit", "\\\\textit")
                        .replace(CH_TAB + "extrm", "\\\\textrm")
@@ -206,14 +222,12 @@ public class DeterministicJsonRepairEngine {
                        .replace(CH_TAB + "au", "\\\\tau")
                        .replaceAll(Pattern.quote(String.valueOf(CH_TAB)) + "o(?![a-zA-Z])", "\\\\to");
 
-        // Backspace (\b)
         result = result.replace(CH_BS + "eta", "\\\\beta")
                        .replace(CH_BS + "egin", "\\\\begin")
                        .replace(CH_BS + "ar", "\\\\bar")
                        .replace(CH_BS + "f", "\\\\bf")
                        .replace(String.valueOf(CH_BS), "\\\\b");
 
-        // Carriage return (\r)
         result = result.replace(CH_CR + "ightarrow", "\\\\rightarrow")
                        .replace(CH_CR + "Rightarrow", "\\\\Rightarrow")
                        .replace(CH_CR + "ight", "\\\\right")
@@ -221,7 +235,6 @@ public class DeterministicJsonRepairEngine {
                        .replace("" + CH_CR + CH_LF, "" + CH_LF)
                        .replace(String.valueOf(CH_CR), "");
 
-        // Newline (\n) followed by LaTeX command suffixes
         result = result.replaceAll(Pattern.quote(String.valueOf(CH_LF)) + "(?=eq(?![a-zA-Z]))", Matcher.quoteReplacement("\\\\n"))
                        .replaceAll(Pattern.quote(String.valueOf(CH_LF)) + "(?=eg(?![a-zA-Z]))", Matcher.quoteReplacement("\\\\n"))
                        .replaceAll(Pattern.quote(String.valueOf(CH_LF)) + "(?=nu(?![a-zA-Z]))", Matcher.quoteReplacement("\\\\n"))
@@ -231,13 +244,19 @@ public class DeterministicJsonRepairEngine {
                        .replaceAll(Pattern.quote(String.valueOf(CH_LF)) + "(?=exists)", Matcher.quoteReplacement("\\\\n"));
 
         // Step b: Properly double-escape single backslashes before known LaTeX commands & %
-        result = SINGLE_BACKSLASH_LATEX_PATTERN.matcher(result).replaceAll("\\\\\\\\");
+        result = SINGLE_BACKSLASH_CANDIDATE.matcher(result).replaceAll(matchResult -> {
+            String token = matchResult.group(1);
+            if ("%".equals(token) || LATEX_COMMANDS.contains(token)) {
+                return Matcher.quoteReplacement("\\\\" + token);
+            }
+            return Matcher.quoteReplacement(matchResult.group());
+        });
 
         // Step c: Double-escape backslashes followed by collision letters (f, t, b, r, n) and lowercase letters
-        result = B_F_N_R_T_LATEX_COLLISION.matcher(result).replaceAll("\\\\\\\\");
+        result = B_F_N_R_T_LATEX_COLLISION.matcher(result).replaceAll(DOUBLE_BACKSLASH_REPLACEMENT);
 
         // Step d: Double-escape any remaining single backslash not followed by valid JSON escape
-        result = INVALID_JSON_ESCAPE_BACKSLASH.matcher(result).replaceAll("\\\\\\\\");
+        result = INVALID_JSON_ESCAPE_BACKSLASH.matcher(result).replaceAll(DOUBLE_BACKSLASH_REPLACEMENT);
 
         return result;
     }
@@ -252,6 +271,16 @@ public class DeterministicJsonRepairEngine {
         }
 
         StringBuilder sb = new StringBuilder(json.trim());
+        Deque<Character> stack = scanClosingBrackets(sb);
+
+        closeOpenStringAndTrim(sb, stack);
+        handleTrailingDelimiters(sb);
+        appendMissingBrackets(sb, stack);
+
+        return sb.toString();
+    }
+
+    private Deque<Character> scanClosingBrackets(StringBuilder sb) {
         Deque<Character> stack = new ArrayDeque<>();
         boolean inString = false;
         boolean escape = false;
@@ -267,56 +296,64 @@ public class DeterministicJsonRepairEngine {
                     inString = false;
                 }
             } else {
-                if (c == '"') {
-                    inString = true;
-                } else if (c == '{') {
-                    stack.push('}');
-                } else if (c == '[') {
-                    stack.push(']');
-                } else if (c == '}') {
-                    if (!stack.isEmpty() && stack.peek() == '}') {
-                        stack.pop();
-                    }
-                } else if (c == ']') {
-                    if (!stack.isEmpty() && stack.peek() == ']') {
-                        stack.pop();
-                    }
-                }
+                inString = processJsonChar(c, stack);
             }
         }
-
-        // 1. Cleanly close open string
         if (inString) {
-            if (escape && sb.length() > 0 && sb.charAt(sb.length() - 1) == '\\') {
+            stack.push('"');
+        }
+        return stack;
+    }
+
+    private boolean processJsonChar(char c, Deque<Character> stack) {
+        if (c == '"') {
+            return true;
+        }
+        if (c == '{') {
+            stack.push('}');
+        } else if (c == '[') {
+            stack.push(']');
+        } else if (c == '}' && !stack.isEmpty() && stack.peek() == '}') {
+            stack.pop();
+        } else if (c == ']' && !stack.isEmpty() && stack.peek() == ']') {
+            stack.pop();
+        }
+        return false;
+    }
+
+    private void closeOpenStringAndTrim(StringBuilder sb, Deque<Character> stack) {
+        if (!stack.isEmpty() && stack.peek() == '"') {
+            stack.pop();
+            if (!sb.isEmpty() && sb.charAt(sb.length() - 1) == '\\') {
                 sb.deleteCharAt(sb.length() - 1);
             }
             sb.append('"');
         }
+        trimTrailingWhitespace(sb);
+    }
 
-        // 2. Strip trailing whitespace
-        while (sb.length() > 0 && Character.isWhitespace(sb.charAt(sb.length() - 1))) {
+    private void trimTrailingWhitespace(StringBuilder sb) {
+        while (!sb.isEmpty() && Character.isWhitespace(sb.charAt(sb.length() - 1))) {
             sb.deleteCharAt(sb.length() - 1);
         }
+    }
 
-        // 3. Handle trailing colon or comma
-        if (sb.length() > 0 && sb.charAt(sb.length() - 1) == ':') {
+    private void handleTrailingDelimiters(StringBuilder sb) {
+        if (!sb.isEmpty() && sb.charAt(sb.length() - 1) == ':') {
             sb.append(" \"\"");
-        } else if (sb.length() > 0 && sb.charAt(sb.length() - 1) == ',') {
+        } else if (!sb.isEmpty() && sb.charAt(sb.length() - 1) == ',') {
             sb.deleteCharAt(sb.length() - 1);
-            while (sb.length() > 0 && Character.isWhitespace(sb.charAt(sb.length() - 1))) {
-                sb.deleteCharAt(sb.length() - 1);
-            }
-            if (sb.length() > 0 && sb.charAt(sb.length() - 1) == ':') {
+            trimTrailingWhitespace(sb);
+            if (!sb.isEmpty() && sb.charAt(sb.length() - 1) == ':') {
                 sb.append(" \"\"");
             }
         }
+    }
 
-        // 4. Append missing closing brackets and braces in reverse stack order
+    private void appendMissingBrackets(StringBuilder sb, Deque<Character> stack) {
         while (!stack.isEmpty()) {
             sb.append('\n').append(stack.pop());
         }
-
-        return sb.toString();
     }
 
     /**
@@ -336,35 +373,28 @@ public class DeterministicJsonRepairEngine {
         List<String> cheatSheet = extractListMatches(CHEAT_SHEET_PATTERN, rawText);
         List<String> steps = extractListMatches(STEPS_PATTERN, rawText);
 
-        // Check if key fields are present
         if (coreConcept == null && trap == null && questionStem == null) {
             return null;
         }
 
         if (coreConcept == null || coreConcept.isBlank()) {
-            coreConcept = "Core concepts and governing relations of the subtopic.";
+            coreConcept = DEFAULT_CORE_CONCEPT;
         }
         if (trap == null || trap.isBlank()) {
-            trap = "Students commonly overlook sign conventions, unit dimensions, and limiting boundary conditions.";
+            trap = DEFAULT_TRAP;
         }
         if (cheatSheet.isEmpty()) {
-            cheatSheet = List.of(
-                    "$$\\text{Relation 1: Check boundary conditions}$$",
-                    "$$\\text{Relation 2: Verify dimensional consistency}$$"
-            );
+            cheatSheet = DEFAULT_CHEAT_SHEET;
         }
 
         if (questionStem == null || questionStem.isBlank()) {
-            questionStem = "Evaluate the primary governing parameters under baseline boundary conditions.";
+            questionStem = DEFAULT_QUESTION_STEM;
         }
         if (steps.isEmpty()) {
-            steps = List.of(
-                    "Step 1: Identify given boundary values and governing relationships.",
-                    "Step 2: Substitute dimensionally consistent parameters and solve."
-            );
+            steps = DEFAULT_STEPS;
         }
         if (finalAnswer == null || finalAnswer.isBlank()) {
-            finalAnswer = "Standard numerical/algebraic solution";
+            finalAnswer = DEFAULT_FINAL_ANSWER;
         }
 
         StepByStepBreakdownDto breakdown = new StepByStepBreakdownDto(questionStem, steps, finalAnswer);
@@ -386,14 +416,13 @@ public class DeterministicJsonRepairEngine {
         String step3 = sanitizeLatexJson(step2);
         String repairedJson = repairTruncatedJson(step3);
 
-        MicroLessonContentDto content = null;
+        MicroLessonContentDto content;
         try {
             content = aiObjectMapper.readValue(repairedJson, MicroLessonContentDto.class);
         } catch (JsonProcessingException e) {
             log.warn("Direct parse failed on repaired JSON ({}). Attempting fallback field extraction.", e.getMessage());
             content = extractFieldsDeterministically(rawResponse);
             if (content == null) {
-                // Try deterministic extraction on step3 as well
                 content = extractFieldsDeterministically(step3);
             }
             if (content == null) {
@@ -411,55 +440,49 @@ public class DeterministicJsonRepairEngine {
 
         String coreConcept = (content.coreConcept() != null && !content.coreConcept().isBlank())
                 ? content.coreConcept()
-                : "Core concepts and governing relations of the subtopic.";
+                : DEFAULT_CORE_CONCEPT;
 
         String trap = (content.trap() != null && !content.trap().isBlank())
                 ? content.trap()
-                : "Students commonly overlook sign conventions, unit dimensions, and limiting boundary conditions.";
+                : DEFAULT_TRAP;
 
-        List<String> cheatSheet = content.cheatSheet();
-        if (cheatSheet == null || cheatSheet.isEmpty()) {
-            cheatSheet = List.of(
-                    "$$\\text{Relation 1: Check boundary conditions}$$",
-                    "$$\\text{Relation 2: Verify dimensional consistency}$$"
-            );
-        }
+        List<String> cheatSheet = (content.cheatSheet() != null && !content.cheatSheet().isEmpty())
+                ? content.cheatSheet()
+                : DEFAULT_CHEAT_SHEET;
 
-        StepByStepBreakdownDto breakdown = content.stepByStepBreakdown();
-        if (breakdown == null) {
-            breakdown = new StepByStepBreakdownDto(
-                    "Evaluate the primary governing parameters under baseline boundary conditions.",
-                    List.of(
-                            "Step 1: Identify given boundary values and governing relationships.",
-                            "Step 2: Substitute dimensionally consistent parameters and solve."
-                    ),
-                    "Standard numerical/algebraic solution"
-            );
-        } else {
-            String qStem = (breakdown.questionStem() != null && !breakdown.questionStem().isBlank())
-                    ? breakdown.questionStem()
-                    : "Evaluate the primary governing parameters under baseline boundary conditions.";
-
-            List<String> steps = breakdown.steps();
-            if (steps == null || steps.isEmpty()) {
-                steps = List.of(
-                        "Step 1: Identify given boundary values and governing relationships.",
-                        "Step 2: Substitute dimensionally consistent parameters and solve."
-                );
-            } else if (steps.size() == 1) {
-                List<String> expanded = new ArrayList<>(steps);
-                expanded.add("Step 2: Verify dimensional consistency and calculate the final result.");
-                steps = expanded;
-            }
-
-            String finalAnswer = (breakdown.finalAnswer() != null && !breakdown.finalAnswer().isBlank())
-                    ? breakdown.finalAnswer()
-                    : "Standard numerical/algebraic solution";
-
-            breakdown = new StepByStepBreakdownDto(qStem, steps, finalAnswer);
-        }
+        StepByStepBreakdownDto breakdown = enforceNonNullBreakdown(content.stepByStepBreakdown());
 
         return new MicroLessonContentDto(coreConcept, trap, cheatSheet, breakdown);
+    }
+
+    private StepByStepBreakdownDto enforceNonNullBreakdown(StepByStepBreakdownDto breakdown) {
+        if (breakdown == null) {
+            return new StepByStepBreakdownDto(DEFAULT_QUESTION_STEM, DEFAULT_STEPS, DEFAULT_FINAL_ANSWER);
+        }
+
+        String qStem = (breakdown.questionStem() != null && !breakdown.questionStem().isBlank())
+                ? breakdown.questionStem()
+                : DEFAULT_QUESTION_STEM;
+
+        List<String> steps = resolveBreakdownSteps(breakdown.steps());
+
+        String finalAnswer = (breakdown.finalAnswer() != null && !breakdown.finalAnswer().isBlank())
+                ? breakdown.finalAnswer()
+                : DEFAULT_FINAL_ANSWER;
+
+        return new StepByStepBreakdownDto(qStem, steps, finalAnswer);
+    }
+
+    private List<String> resolveBreakdownSteps(List<String> steps) {
+        if (steps == null || steps.isEmpty()) {
+            return DEFAULT_STEPS;
+        }
+        if (steps.size() == 1) {
+            List<String> expanded = new ArrayList<>(steps);
+            expanded.add("Step 2: Verify dimensional consistency and calculate the final result.");
+            return expanded;
+        }
+        return steps;
     }
 
     private String extractMatch(Pattern pattern, String text) {

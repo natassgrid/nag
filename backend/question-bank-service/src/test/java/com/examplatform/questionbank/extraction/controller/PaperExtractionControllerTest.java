@@ -35,6 +35,7 @@ import com.examplatform.questionbank.extraction.dto.SplitQuestionRequest;
 import com.examplatform.questionbank.extraction.dto.UpdateExtractedQuestionRequest;
 import com.examplatform.questionbank.extraction.service.PaperQuestionPromotionService;
 import com.examplatform.questionbank.extraction.service.QuestionPaperExtractionService;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -243,7 +244,7 @@ class PaperExtractionControllerTest {
         mockMvc.perform(get("/api/v1/questions/papers")
                         .param("examinationName", "RRB")
                         .param("examYear", "2024")
-                        .param("status", "COMPLETED"))
+                        .param("status", SharedConstants.COMPLETED))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].id").value(samplePaperId.toString()))
                 .andExpect(jsonPath("$.content[0].examinationName").value("RRB NTPC CBT 1"))
@@ -285,7 +286,7 @@ class PaperExtractionControllerTest {
 
         mockMvc.perform(post("/api/v1/questions/papers/{paperId}/cancel", samplePaperId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.extractionStatus").value("CANCELLED"));
+                .andExpect(jsonPath("$.extractionStatus").value(SharedConstants.CANCELLED));
     }
 
     @Test

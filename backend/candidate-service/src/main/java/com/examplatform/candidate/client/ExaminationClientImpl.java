@@ -12,6 +12,7 @@
 package com.examplatform.candidate.client;
 
 import com.examplatform.candidate.dto.PublishedExamDto;
+import com.examplatform.shared.constants.SharedConstants;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -154,7 +155,7 @@ public class ExaminationClientImpl implements ExaminationClient {
         return List.of(
                 new PublishedExamDto(
                         UUID.fromString("11111111-2222-3333-4444-555555555551"),
-                        "JEE_MAIN",
+                    SharedConstants.JEE_MAIN,
                         "JEE (Main) National Entrance Examination",
                         "National engineering entrance exam covering Physics, Chemistry, and Mathematics.",
                         "PUBLISHED",

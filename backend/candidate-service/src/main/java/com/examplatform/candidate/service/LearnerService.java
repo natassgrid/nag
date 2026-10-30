@@ -191,7 +191,7 @@ public class LearnerService {
 
         // If an IN_PROGRESS session already exists, return it
         Optional<DiagnosticSession> existing = diagnosticRepository.findByEnrollmentId(enrollmentId);
-        if (existing.isPresent() && "IN_PROGRESS".equalsIgnoreCase(existing.get().getStatus())) {
+        if (existing.isPresent() && SharedConstants.IN_PROGRESS.equalsIgnoreCase(existing.get().getStatus())) {
             return toDiagnosticSessionResponse(existing.get(), examName, examCode);
         }
 
@@ -208,7 +208,7 @@ public class LearnerService {
                 .enrollmentId(enrollmentId)
                 .candidateId(candidateId)
                 .examinationId(enrollment.getExaminationId())
-                .status("IN_PROGRESS")
+                .status(SharedConstants.IN_PROGRESS)
                 .questionsJson(questionsJson)
                 .totalQuestions(questions.size())
                 .startedAt(Instant.now())
@@ -217,7 +217,7 @@ public class LearnerService {
 
         DiagnosticSession saved = diagnosticRepository.save(session);
         enrollment.setDiagnosticSessionId(saved.getId());
-        enrollment.setDiagnosticStatus("IN_PROGRESS");
+        enrollment.setDiagnosticStatus(SharedConstants.IN_PROGRESS);
         enrollmentRepository.save(enrollment);
 
         log.info("Initiated diagnostic session {} with {} questions for enrollment {}",
@@ -234,7 +234,7 @@ public class LearnerService {
         DiagnosticSession session = diagnosticRepository.findByEnrollmentId(enrollmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("DiagnosticSession for enrollment", enrollmentId.toString()));
 
-        if ("COMPLETED".equalsIgnoreCase(session.getStatus()) || "SKIPPED".equalsIgnoreCase(session.getStatus())) {
+        if (SharedConstants.COMPLETED.equalsIgnoreCase(session.getStatus()) || "SKIPPED".equalsIgnoreCase(session.getStatus())) {
             return toResultResponse(session);
         }
 
@@ -300,7 +300,7 @@ public class LearnerService {
 
         double score = answers.isEmpty() ? 0.0 : (double) correctCount * 2.0;
 
-        session.setStatus("COMPLETED");
+        session.setStatus(SharedConstants.COMPLETED);
         session.setCorrectCount(correctCount);
         session.setScore(score);
         if (session.getTotalQuestions() <= 0 && !answers.isEmpty()) {
@@ -312,7 +312,7 @@ public class LearnerService {
             log.warn("Failed to serialize subtopic results: {}", e.getMessage());
         }
 
-        enrollment.setDiagnosticStatus("COMPLETED");
+        enrollment.setDiagnosticStatus(SharedConstants.COMPLETED);
         enrollmentRepository.save(enrollment);
         DiagnosticSession saved = diagnosticRepository.save(session);
 
@@ -347,13 +347,13 @@ public class LearnerService {
     }
 
     private LearnerEnrollmentResponse toEnrollmentResponse(LearnerEnrollment e, String examName, String examCode) {
-        boolean diagnosticCompleted = "COMPLETED".equalsIgnoreCase(e.getDiagnosticStatus())
+        boolean diagnosticCompleted = SharedConstants.COMPLETED.equalsIgnoreCase(e.getDiagnosticStatus())
                 || "SKIPPED".equalsIgnoreCase(e.getDiagnosticStatus());
 
         int readinessScore = 0;
         if ("SKIPPED".equalsIgnoreCase(e.getDiagnosticStatus())) {
             readinessScore = 50;
-        } else if ("COMPLETED".equalsIgnoreCase(e.getDiagnosticStatus())) {
+        } else if (SharedConstants.COMPLETED.equalsIgnoreCase(e.getDiagnosticStatus())) {
             readinessScore = diagnosticRepository.findByEnrollmentId(e.getId())
                     .map(s -> s.getTotalQuestions() > 0
                             ? (int) Math.round((double) s.getCorrectCount() * 100.0 / s.getTotalQuestions())

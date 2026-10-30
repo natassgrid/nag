@@ -238,7 +238,7 @@ public class NextBestActivityEngine {
                     .lessonId(lessonId)
                     .subtopicId(req.subtopicId())
                     .lessonType(req.lessonType() != null ? req.lessonType() : "CONCEPT")
-                    .status("COMPLETED")
+                    .status(SharedConstants.COMPLETED)
                     .helpfulRating(req.helpfulRating())
                     .completedAt(now)
                     .build();

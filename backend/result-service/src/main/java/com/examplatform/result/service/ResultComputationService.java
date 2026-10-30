@@ -388,9 +388,9 @@ public class ResultComputationService {
             TaxonomyAccumulator acc = map.computeIfAbsent(key, k -> {
                 TaxonomyAccumulator a = new TaxonomyAccumulator();
                 a.subjectId = subjectId;
-                a.subject = subject != null ? subject : "General";
+                a.subject = subject != null ? subject : SharedConstants.GENERAL;
                 a.topicId = topicId;
-                a.topic = topic != null ? topic : "General";
+                a.topic = topic != null ? topic : SharedConstants.GENERAL;
                 a.subtopicId = subtopicId;
                 a.subtopic = subtopic != null ? subtopic : a.topic;
                 return a;

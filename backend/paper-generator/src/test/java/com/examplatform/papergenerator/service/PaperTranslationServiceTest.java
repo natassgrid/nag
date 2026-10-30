@@ -26,6 +26,7 @@ import com.examplatform.papergenerator.dto.PaperTranslateRequest;
 import com.examplatform.papergenerator.dto.PaperTranslateResponse;
 import com.examplatform.papergenerator.repository.PaperRepository;
 import com.examplatform.shared.constants.QuestionStateConstants;
+import com.examplatform.shared.constants.SharedConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
@@ -169,7 +170,7 @@ class PaperTranslationServiceTest {
         BatchTranslationJobResponseDto jobDto = BatchTranslationJobResponseDto.builder()
                 .id(jobId)
                 .paperId(paperId)
-                .status("IN_PROGRESS")
+                .status(SharedConstants.IN_PROGRESS)
                 .sourceLanguage("en")
                 .targetLanguage("hi")
                 .targetStatus(QuestionStateConstants.PUBLISHED)
@@ -184,7 +185,7 @@ class PaperTranslationServiceTest {
         PaperTranslateResponse response = translationService.getTranslationStatus(paperId, jobId, tenantId);
 
         assertThat(response.getJobId()).isEqualTo(jobId);
-        assertThat(response.getStatus()).isEqualTo("IN_PROGRESS");
+        assertThat(response.getStatus()).isEqualTo(SharedConstants.IN_PROGRESS);
         assertThat(response.getProgressPercentage()).isEqualTo(40.0);
         assertThat(response.getSuccessfulQuestions()).isEqualTo(4);
     }
@@ -196,7 +197,7 @@ class PaperTranslationServiceTest {
         BatchTranslationJobResponseDto jobDto = BatchTranslationJobResponseDto.builder()
                 .id(jobId)
                 .paperId(paperId)
-                .status("COMPLETED")
+                .status(SharedConstants.COMPLETED)
                 .sourceLanguage("en")
                 .targetLanguage("hi")
                 .totalQuestions(15)
@@ -210,7 +211,7 @@ class PaperTranslationServiceTest {
         PaperTranslateResponse response = translationService.getLatestTranslationStatus(paperId, tenantId);
 
         assertThat(response.getJobId()).isEqualTo(jobId);
-        assertThat(response.getStatus()).isEqualTo("COMPLETED");
+        assertThat(response.getStatus()).isEqualTo(SharedConstants.COMPLETED);
         assertThat(response.getProgressPercentage()).isEqualTo(100.0);
         assertThat(response.getTotalQuestions()).isEqualTo(15);
     }

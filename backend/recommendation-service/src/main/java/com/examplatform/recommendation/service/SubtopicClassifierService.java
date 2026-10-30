@@ -4,6 +4,7 @@ package com.examplatform.recommendation.service;
 import com.examplatform.recommendation.domain.LearnerSubtopicPerformance;
 import com.examplatform.recommendation.domain.PerformanceBracket;
 import com.examplatform.recommendation.dto.SubtopicClassificationResult;
+import com.examplatform.shared.constants.SharedConstants;
 import org.springframework.stereotype.Service;
 
 /**
@@ -64,9 +65,9 @@ public class SubtopicClassifierService {
 
         return new SubtopicClassificationResult(
                 subjectId,
-                subjectName != null ? subjectName : "General",
+                subjectName != null ? subjectName : SharedConstants.GENERAL,
                 topicId,
-                topicName != null ? topicName : "General",
+                topicName != null ? topicName : SharedConstants.GENERAL,
                 subtopicId,
                 subtopicName,
                 bracket,
