@@ -203,16 +203,9 @@ public class ReviewerAssignmentService {
 
         // 1. Try Redis cache
         StringRedisTemplate redis = getRedisTemplate();
-        if (redis != null) {
-            try {
-                String cachedJson = redis.opsForValue().get(redisKey);
-                if (cachedJson != null && !cachedJson.isBlank()) {
-                    return objectMapper.readValue(cachedJson, new TypeReference<>() {
-                    });
-                }
-            } catch (Exception e) {
-                log.warn("Redis reviewer pool cache read failed: {}", e.getMessage());
-            }
+        List<ReviewerDto> cachedFromRedis = fetchPoolFromRedis(redis, redisKey);
+        if (cachedFromRedis != null) {
+            return cachedFromRedis;
         }
 
         // 2. Try Local in-memory cache
@@ -229,18 +222,39 @@ public class ReviewerAssignmentService {
 
         // 4. Update caches
         if (!fetched.isEmpty()) {
-            if (redis != null) {
-                try {
-                    String json = objectMapper.writeValueAsString(fetched);
-                    redis.opsForValue().set(redisKey, json, POOL_CACHE_TTL);
-                } catch (Exception e) {
-                    log.warn("Redis reviewer pool cache write failed: {}", e.getMessage());
-                }
-            }
+            writePoolToRedis(redis, redisKey, fetched);
             localPoolCache.put(redisKey, new LocalCacheEntry(fetched, Instant.now().plus(POOL_CACHE_TTL)));
         }
 
         return fetched;
+    }
+
+    private List<ReviewerDto> fetchPoolFromRedis(StringRedisTemplate redis, String redisKey) {
+        if (redis == null) {
+            return null;
+        }
+        try {
+            String cachedJson = redis.opsForValue().get(redisKey);
+            if (cachedJson != null && !cachedJson.isBlank()) {
+                return objectMapper.readValue(cachedJson, new TypeReference<>() {
+                });
+            }
+        } catch (Exception e) {
+            log.warn("Redis reviewer pool cache read failed: {}", e.getMessage());
+        }
+        return null;
+    }
+
+    private void writePoolToRedis(StringRedisTemplate redis, String redisKey, List<ReviewerDto> fetched) {
+        if (redis == null) {
+            return;
+        }
+        try {
+            String json = objectMapper.writeValueAsString(fetched);
+            redis.opsForValue().set(redisKey, json, POOL_CACHE_TTL);
+        } catch (Exception e) {
+            log.warn("Redis reviewer pool cache write failed: {}", e.getMessage());
+        }
     }
 
     /**
@@ -254,7 +268,9 @@ public class ReviewerAssignmentService {
         if (redis != null) {
             try {
                 redis.delete(redisKey);
-            } catch (Exception ignored) {}
+            } catch (Exception _) {
+                // Ignore cache eviction failure when Redis is unavailable or fails
+            }
         }
         localPoolCache.remove(redisKey);
     }
