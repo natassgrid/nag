@@ -41,6 +41,12 @@
               />
               <mat-icon class="absolute left-3 top-2.5 !text-lg text-slate-400">shield</mat-icon>
             </div>
+            @if (fieldErrors()['username']) {
+              <p class="text-xs text-rose-600 mt-1 flex items-center gap-1" data-testid="username-error">
+                <mat-icon class="!text-sm leading-none">error_outline</mat-icon>
+                <span>{{ fieldErrors()['username'] }}</span>
+              </p>
+            }
           </div>
 
           <div>
@@ -69,6 +75,12 @@
                 <mat-icon class="!text-lg">{{ showPassword() ? 'visibility_off' : 'visibility' }}</mat-icon>
               </button>
             </div>
+            @if (fieldErrors()['password']) {
+              <p class="text-xs text-rose-600 mt-1 flex items-center gap-1" data-testid="password-error">
+                <mat-icon class="!text-sm leading-none">error_outline</mat-icon>
+                <span>{{ fieldErrors()['password'] }}</span>
+              </p>
+            }
           </div>
         } @else {
           <!-- MFA Step-Up Prompt -->
@@ -94,6 +106,12 @@
                 autofocus
                 class="w-full text-center px-4 py-2.5 text-lg font-mono font-bold tracking-widest bg-white border-2 border-indigo-400 rounded-xl focus:ring-2 focus:ring-indigo-600 focus:outline-none"
               />
+              @if (fieldErrors()['otpCode']) {
+                <p class="text-xs text-rose-600 mt-1 flex items-center gap-1 justify-center" data-testid="otp-error">
+                  <mat-icon class="!text-sm leading-none">error_outline</mat-icon>
+                  <span>{{ fieldErrors()['otpCode'] }}</span>
+                </p>
+              }
             </div>
             <button
               type="button"

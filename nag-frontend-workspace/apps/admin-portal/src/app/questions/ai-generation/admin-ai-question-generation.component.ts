@@ -12,6 +12,7 @@ import { FormsModule, ReactiveFormsModule, FormBuilder, Validators } from '@angu
 import { RouterModule, Router } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { extractHttpErrorMessage } from '@nag-frontend-workspace/shared-ui-components';
 import {
   QuestionAiService,
   QuestionBankService,
@@ -306,7 +307,7 @@ export class AdminAiQuestionGenerationComponent implements OnInit, OnDestroy {
           next.delete(index);
           return next;
         });
-        this.snackBar.open(err?.error?.message || 'Failed to save question to bank', 'Dismiss', {
+        this.snackBar.open(extractHttpErrorMessage(err, 'Failed to save question to bank'), 'Dismiss', {
           duration: 4000,
         });
       },
@@ -415,7 +416,7 @@ export class AdminAiQuestionGenerationComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.submittingBatch.set(false);
-        this.snackBar.open(err?.error?.message || 'Failed to submit batch job', 'Dismiss', {
+        this.snackBar.open(extractHttpErrorMessage(err, 'Failed to submit batch job'), 'Dismiss', {
           duration: 5000,
         });
       },
@@ -442,7 +443,7 @@ export class AdminAiQuestionGenerationComponent implements OnInit, OnDestroy {
         this.loadBatchJobs();
       },
       error: (err) => {
-        this.snackBar.open(err?.error?.message || 'Failed to cancel job', 'Dismiss', {
+        this.snackBar.open(extractHttpErrorMessage(err, 'Failed to cancel job'), 'Dismiss', {
           duration: 4000,
         });
       },
@@ -453,16 +454,13 @@ export class AdminAiQuestionGenerationComponent implements OnInit, OnDestroy {
   // Helpers
   // -------------------------------------------------------------------------
 
-  private mapHttpError(err: any): string {
-    const status = err?.status;
-    const msg = err?.error?.message || err?.error?.error;
-    if (msg) return msg;
-    if (status === 400) return 'Bad request — check your generation parameters.';
+  private mapHttpError(err: unknown): string {
+    const status = (err as { status?: number })?.status;
     if (status === 403) return 'Access denied — insufficient permissions to generate questions.';
     if (status === 429) return 'Rate limit reached — please wait a moment and try again.';
-    if (status >= 500)
+    if (status && status >= 500)
       return 'AI service is temporarily unavailable. Ensure LiteLLM / Bedrock are operational.';
-    return 'Failed to generate questions. Ensure the AI backend service is running.';
+    return extractHttpErrorMessage(err, 'Bad request — check your generation parameters.');
   }
 
   private resumeBatchPollingIfNeeded(): void {

@@ -18,7 +18,7 @@ import {
   Subject,
   SubjectHierarchy,
 } from '@nag-frontend-workspace/questions-data-access';
-import { NotificationService } from '@nag-frontend-workspace/shared-ui-components';
+import { NotificationService, extractHttpErrorMessage } from '@nag-frontend-workspace/shared-ui-components';
 import {
   BlueprintStatsCardsComponent,
   BlueprintGridListComponent,
@@ -329,7 +329,16 @@ export class AdminBlueprintManagementComponent implements OnInit {
           this.closeDrawer();
           this.notificationService.success('Blueprint Updated', `Blueprint "${req.name}" saved.`);
         },
-        error: () => {
+        error: (err) => {
+          this.saving.set(false);
+          const status = (err as { status?: number })?.status;
+          if (status === 400 || status === 422) {
+            this.notificationService.error(
+              'Validation Error',
+              extractHttpErrorMessage(err, 'Failed to save blueprint.')
+            );
+            return;
+          }
           const updatedLocal: BlueprintTemplateResponse = {
             ...current,
             ...req,
@@ -339,7 +348,6 @@ export class AdminBlueprintManagementComponent implements OnInit {
           this.templates.update((list) =>
             list.map((item) => (item.id === current.id ? updatedLocal : item))
           );
-          this.saving.set(false);
           this.closeDrawer();
           this.notificationService.success('Blueprint Updated', `Blueprint "${req.name}" updated locally.`);
         },
@@ -352,7 +360,16 @@ export class AdminBlueprintManagementComponent implements OnInit {
           this.closeDrawer();
           this.notificationService.success('Blueprint Created', `Blueprint "${req.name}" created.`);
         },
-        error: () => {
+        error: (err) => {
+          this.saving.set(false);
+          const status = (err as { status?: number })?.status;
+          if (status === 400 || status === 422) {
+            this.notificationService.error(
+              'Validation Error',
+              extractHttpErrorMessage(err, 'Failed to save blueprint.')
+            );
+            return;
+          }
           const createdLocal: BlueprintTemplateResponse = {
             id: 'tpl-' + Math.random().toString(36).substring(2, 9),
             ...req,
@@ -361,7 +378,6 @@ export class AdminBlueprintManagementComponent implements OnInit {
             createdAt: new Date().toISOString(),
           };
           this.templates.update((list) => [createdLocal, ...list]);
-          this.saving.set(false);
           this.closeDrawer();
           this.notificationService.success('Blueprint Created', `Blueprint "${req.name}" created locally.`);
         },

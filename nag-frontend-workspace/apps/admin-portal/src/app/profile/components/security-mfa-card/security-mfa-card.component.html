@@ -88,7 +88,7 @@
                 <span>8+ Characters</span>
               </span>
               <span [class]="hasUppercase() ? 'text-emerald-600 font-semibold' : 'text-slate-400'" class="flex items-center gap-1">
-                <mat-icon class="!text-xs !w-3.5 !h-3.5">{{ hasMinLength() ? 'check' : 'close' }}</mat-icon>
+                <mat-icon class="!text-xs !w-3.5 !h-3.5">{{ hasUppercase() ? 'check' : 'close' }}</mat-icon>
                 <span>Uppercase Letter</span>
               </span>
               <span [class]="hasLowercase() ? 'text-emerald-600 font-semibold' : 'text-slate-400'" class="flex items-center gap-1">

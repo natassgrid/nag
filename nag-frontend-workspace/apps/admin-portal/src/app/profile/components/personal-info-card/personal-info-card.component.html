@@ -38,12 +38,19 @@
               id="fullName"
               name="fullName"
               [ngModel]="fullName()"
-              (ngModelChange)="fullName.set($event)"
+              (ngModelChange)="onFullNameChange($event)"
+              (blur)="validateField('fullName')"
               required
               placeholder="e.g. Dr. Rajesh Kumar Sharma"
               class="block w-full pl-9 pr-3 py-2 text-sm text-slate-900 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
             />
           </div>
+          @if (fieldErrors()['fullName']) {
+            <p class="text-xs text-rose-600 mt-1 flex items-center gap-1" data-testid="fullname-error">
+              <mat-icon class="!text-sm leading-none">error_outline</mat-icon>
+              <span>{{ fieldErrors()['fullName'] }}</span>
+            </p>
+          }
         </div>
 
         <!-- Email / Username (Read-Only) -->
@@ -84,11 +91,18 @@
               id="phoneNumber"
               name="phoneNumber"
               [ngModel]="phoneNumber()"
-              (ngModelChange)="phoneNumber.set($event)"
+              (ngModelChange)="onPhoneNumberChange($event)"
+              (blur)="validateField('phoneNumber')"
               placeholder="+91 98765 43210"
               class="block w-full pl-9 pr-3 py-2 text-sm text-slate-900 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
             />
           </div>
+          @if (fieldErrors()['phoneNumber']) {
+            <p class="text-xs text-rose-600 mt-1 flex items-center gap-1" data-testid="phonenumber-error">
+              <mat-icon class="!text-sm leading-none">error_outline</mat-icon>
+              <span>{{ fieldErrors()['phoneNumber'] }}</span>
+            </p>
+          }
         </div>
 
         <!-- Designation / Official Role Title -->

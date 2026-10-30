@@ -12,6 +12,7 @@ import { ActivatedRoute, RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { extractHttpErrorMessage } from '@nag-frontend-workspace/shared-ui-components';
 import {
   ExaminationService,
   SchedulingService,
@@ -183,7 +184,7 @@ export class ExaminationsFeatureScheduling implements OnInit {
         this.loadSchedules();
       },
       error: (err: any) => {
-        this.snackBar.open(err?.error?.message || 'Failed to create schedule session', 'Dismiss', {
+        this.snackBar.open(extractHttpErrorMessage(err, 'Failed to create schedule session'), 'Dismiss', {
           duration: 4000,
         });
       },
@@ -209,7 +210,7 @@ export class ExaminationsFeatureScheduling implements OnInit {
         this.loadSchedules();
       },
       error: (err: any) => {
-        this.snackBar.open(err?.error?.message || 'Status transition rejected', 'Dismiss', {
+        this.snackBar.open(extractHttpErrorMessage(err, 'Status transition rejected'), 'Dismiss', {
           duration: 4000,
         });
       },
@@ -258,7 +259,7 @@ export class ExaminationsFeatureScheduling implements OnInit {
         this.loadSchedules();
       },
       error: (err: any) => {
-        this.snackBar.open(err?.error?.message || 'Schedule amendment failed', 'Dismiss', {
+        this.snackBar.open(extractHttpErrorMessage(err, 'Schedule amendment failed'), 'Dismiss', {
           duration: 4000,
         });
       },
@@ -291,7 +292,7 @@ export class ExaminationsFeatureScheduling implements OnInit {
         this.loadShifts(scheduleId);
       },
       error: (err: any) => {
-        this.snackBar.open(err?.error?.message || 'Shift save failed', 'Dismiss', {
+        this.snackBar.open(extractHttpErrorMessage(err, 'Shift save failed'), 'Dismiss', {
           duration: 4000,
         });
       },
@@ -338,7 +339,7 @@ export class ExaminationsFeatureScheduling implements OnInit {
         this.loadAllocations(shiftId);
       },
       error: (err: any) => {
-        this.snackBar.open(err?.error?.message || 'Seat allocation failed', 'Dismiss', {
+        this.snackBar.open(extractHttpErrorMessage(err, 'Seat allocation failed'), 'Dismiss', {
           duration: 4000,
         });
       },

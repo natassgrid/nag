@@ -23,6 +23,8 @@ describe('Candidate LoginComponent', () => {
   let mockNotificationService: {
     showSuccess: jest.Mock;
     showError: jest.Mock;
+    success: jest.Mock;
+    error: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -38,6 +40,8 @@ describe('Candidate LoginComponent', () => {
     mockNotificationService = {
       showSuccess: jest.fn(),
       showError: jest.fn(),
+      success: jest.fn(),
+      error: jest.fn(),
     };
 
     await TestBed.configureTestingModule({
@@ -63,7 +67,41 @@ describe('Candidate LoginComponent', () => {
     component.handleLogin();
 
     expect(component.errorMessage()).toContain('Please enter both your email/mobile and password');
+    expect(component.fieldErrors()['username']).toBe('Please enter your email or registered mobile.');
+    expect(component.fieldErrors()['password']).toBe('Password is required.');
     expect(mockAuthService.login).not.toHaveBeenCalled();
+  });
+
+  it('should validate invalid numeric phone or invalid email format', () => {
+    component.username = '12345';
+    component.validateSingleField('username');
+    expect(component.fieldErrors()['username']).toBe(
+      'Mobile number must be a valid 10-digit Indian number starting with 6, 7, 8, or 9.'
+    );
+
+    component.username = 'test@';
+    component.validateSingleField('username');
+    expect(component.fieldErrors()['username']).toBe('Please enter a valid email address.');
+
+    component.username = '9876543210';
+    component.validateSingleField('username');
+    expect(component.fieldErrors()['username']).toBeUndefined();
+  });
+
+  it('should validate otpCode when mfaStepRequired is true', () => {
+    component.mfaStepRequired.set(true);
+    component.otpCode = '12';
+    component.handleLogin();
+
+    expect(component.fieldErrors()['otpCode']).toBe('Please enter a valid 6-digit numeric OTP code.');
+    expect(mockAuthService.login).not.toHaveBeenCalled();
+  });
+
+  it('should validate resetEmail on forgot password', () => {
+    component.resetEmail = 'invalid';
+    component.handleForgotPassword();
+
+    expect(component.fieldErrors()['resetEmail']).toBe('Please enter a valid email address.');
   });
 
   it('should call authService.login and navigate to dashboard on success', () => {
@@ -92,5 +130,25 @@ describe('Candidate LoginComponent', () => {
 
     expect(component.mfaStepRequired()).toBe(true);
     expect(component.errorMessage()).toContain('Two-Factor Authentication required');
+  });
+
+  it('should parse backend HTTP error response and display field-level errors', () => {
+    mockAuthService.login.mockReturnValue(
+      throwError(() => ({
+        status: 400,
+        error: {
+          fieldErrors: {
+            username: 'Account does not exist with this mobile number',
+          },
+        },
+      }))
+    );
+
+    component.username = '9876543210';
+    component.password = 'Password@123';
+    component.handleLogin();
+
+    expect(component.errorMessage()).toBe('Account does not exist with this mobile number');
+    expect(component.fieldErrors()['username']).toBe('Account does not exist with this mobile number');
   });
 });

@@ -38,6 +38,9 @@ export class RoleCreateDrawerComponent {
   formDescription = signal<string>('');
   formPermissions = signal<string[]>([]);
 
+  fieldErrors = signal<Record<string, string>>({});
+  hasSubmitted = signal<boolean>(false);
+
   readonly permissionsByCategory = computed(() => {
     const map = new Map<string, PermissionDefinition[]>();
     for (const p of this.permissions()) {
@@ -53,6 +56,8 @@ export class RoleCreateDrawerComponent {
   });
 
   setFormFromRole(role: RoleDefinition | null): void {
+    this.fieldErrors.set({});
+    this.hasSubmitted.set(false);
     if (role) {
       this.formName.set(role.name);
       this.formDisplayName.set(role.displayName);
@@ -64,6 +69,62 @@ export class RoleCreateDrawerComponent {
       this.formDescription.set('');
       this.formPermissions.set([]);
     }
+  }
+
+  onNameChange(val: string): void {
+    this.formName.set(val.toUpperCase());
+    if (this.hasSubmitted() || this.fieldErrors()['name']) {
+      this.validateField('name');
+    }
+  }
+
+  onDisplayNameChange(val: string): void {
+    this.formDisplayName.set(val);
+    if (this.hasSubmitted() || this.fieldErrors()['displayName']) {
+      this.validateField('displayName');
+    }
+  }
+
+  validateField(field: 'name' | 'displayName'): void {
+    const errors = { ...this.fieldErrors() };
+    if (field === 'name') {
+      const name = this.formName().trim();
+      const codeRegex = /^[A-Z0-9_]+$/;
+      if (!name) {
+        errors['name'] = 'Role code (identifier) is required.';
+      } else if (!codeRegex.test(name)) {
+        errors['name'] = 'Role code must contain only uppercase letters, numbers, and underscores.';
+      } else {
+        delete errors['name'];
+      }
+    } else if (field === 'displayName') {
+      const displayName = this.formDisplayName().trim();
+      if (!displayName) {
+        errors['displayName'] = 'Display name is required.';
+      } else {
+        delete errors['displayName'];
+      }
+    }
+    this.fieldErrors.set(errors);
+  }
+
+  validateAll(): boolean {
+    const errors: Record<string, string> = {};
+    const name = this.formName().trim();
+    const codeRegex = /^[A-Z0-9_]+$/;
+    if (!name) {
+      errors['name'] = 'Role code (identifier) is required.';
+    } else if (!codeRegex.test(name)) {
+      errors['name'] = 'Role code must contain only uppercase letters, numbers, and underscores.';
+    }
+
+    const displayName = this.formDisplayName().trim();
+    if (!displayName) {
+      errors['displayName'] = 'Display name is required.';
+    }
+
+    this.fieldErrors.set(errors);
+    return Object.keys(errors).length === 0;
   }
 
   togglePermission(permName: string): void {
@@ -94,10 +155,11 @@ export class RoleCreateDrawerComponent {
   }
 
   onSubmit(): void {
-    if (!this.formDisplayName().trim() || !this.formName().trim()) return;
+    this.hasSubmitted.set(true);
+    if (!this.validateAll()) return;
 
     this.saveRole.emit({
-      name: this.formName().trim(),
+      name: this.formName().trim().toUpperCase(),
       displayName: this.formDisplayName().trim(),
       description: this.formDescription().trim(),
       permissions: this.formPermissions(),

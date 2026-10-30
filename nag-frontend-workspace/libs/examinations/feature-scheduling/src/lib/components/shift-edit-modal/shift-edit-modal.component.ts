@@ -4,6 +4,7 @@ import {
   input,
   output,
   effect,
+  signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -31,6 +32,8 @@ export class ShiftEditModalComponent {
   closeModal = output<void>();
   saveShift = output<{ shiftId: string | null; request: CreateShiftRequest }>();
 
+  readonly validationError = signal<string | null>(null);
+
   editingShiftId: string | null = null;
   shiftNumber = 1;
   shiftName = 'Morning Session (Shift 1)';
@@ -46,6 +49,7 @@ export class ShiftEditModalComponent {
   constructor() {
     effect(() => {
       if (this.isOpen()) {
+        this.validationError.set(null);
         const s = this.shift();
         if (s) {
           this.editingShiftId = s.id;
@@ -78,10 +82,33 @@ export class ShiftEditModalComponent {
   }
 
   onClose(): void {
+    this.validationError.set(null);
     this.closeModal.emit();
   }
 
   onSubmit(): void {
+    this.validationError.set(null);
+    if (!this.shiftNumber || this.shiftNumber < 1) {
+      this.validationError.set('Valid shift number is required.');
+      return;
+    }
+    if (!this.reportingTime?.trim()) {
+      this.validationError.set('Reporting time is required.');
+      return;
+    }
+    if (!this.gateClosingTime?.trim()) {
+      this.validationError.set('Gate closing time is required.');
+      return;
+    }
+    if (!this.examStartTime?.trim()) {
+      this.validationError.set('Exam start time is required.');
+      return;
+    }
+    if (!this.examEndTime?.trim()) {
+      this.validationError.set('Exam end time is required.');
+      return;
+    }
+
     const payload: CreateShiftRequest = {
       shiftNumber: this.shiftNumber,
       shiftName: this.shiftName.trim() || undefined,

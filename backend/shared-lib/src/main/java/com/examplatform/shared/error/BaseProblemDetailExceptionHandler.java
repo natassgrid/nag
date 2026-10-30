@@ -24,11 +24,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
 import java.net.URI;
 import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * Abstract base exception handler for microservices using RFC 7807 ProblemDetail responses.
@@ -61,8 +64,17 @@ public abstract class BaseProblemDetailExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ProblemDetail handleValidationError(MethodArgumentNotValidException ex) {
-        log.warn("Validation error: {}", ex.getMessage());
-        return createProblemDetail(HttpStatus.BAD_REQUEST, "Bad Request", "Validation failed", "urn:examplatform:error:validation");
+        Map<String, String> fieldErrors = new LinkedHashMap<>();
+        for (FieldError error : ex.getBindingResult().getFieldErrors()) {
+            fieldErrors.put(error.getField(), error.getDefaultMessage());
+        }
+        log.warn("Validation error: {}", fieldErrors);
+        String detail = fieldErrors.isEmpty()
+                ? "Validation failed"
+                : String.join("; ", fieldErrors.values());
+        ProblemDetail problem = createProblemDetail(HttpStatus.BAD_REQUEST, "Bad Request", detail, "urn:examplatform:error:validation");
+        problem.setProperty("fieldErrors", fieldErrors);
+        return problem;
     }
 
     @ExceptionHandler(Exception.class)

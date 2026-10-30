@@ -24,6 +24,7 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { PracticeSetService } from '../../services';
 import { PracticeSet, CreatePracticeSetRequest, UpdatePracticeSetRequest } from '../../models';
 import { PaperService, PaperSummary } from '@nag-frontend-workspace/examinations-data-access';
+import { extractHttpErrorMessage } from '@nag-frontend-workspace/shared-ui-components';
 import {
   QuestionBankService,
   SubjectTopicService,
@@ -564,7 +565,9 @@ export class PracticeSetFormModalComponent implements OnInit {
         },
         error: (err) => {
           this.isSubmitting.set(false);
-          this.validationError.set('Failed to create practice set. Please verify input data and try again.');
+          this.validationError.set(
+            extractHttpErrorMessage(err, 'Failed to create practice set. Please verify input data and try again.')
+          );
           this.cdr.markForCheck();
           console.error('Failed to create practice set', err);
         },
@@ -586,7 +589,9 @@ export class PracticeSetFormModalComponent implements OnInit {
         },
         error: (err) => {
           this.isSubmitting.set(false);
-          this.validationError.set('Failed to update practice set. Please try again.');
+          this.validationError.set(
+            extractHttpErrorMessage(err, 'Failed to update practice set. Please try again.')
+          );
           this.cdr.markForCheck();
           console.error('Failed to update practice set', err);
         },

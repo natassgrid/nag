@@ -49,6 +49,9 @@ export class PersonalAccessTokensCardComponent {
   readonly selectedScopes = signal<string[]>(['READ']);
   readonly copied = signal<boolean>(false);
 
+  readonly fieldErrors = signal<Record<string, string>>({});
+  readonly hasSubmitted = signal<boolean>(false);
+
   readonly availableScopes = [
     { code: 'READ', label: 'Read Only (Query data & status)' },
     { code: 'WRITE', label: 'Write Access (Authoring & updates)' },
@@ -72,6 +75,8 @@ export class PersonalAccessTokensCardComponent {
     this.expiresInDays.set(30);
     this.ipWhitelist.set('');
     this.selectedScopes.set(['READ']);
+    this.fieldErrors.set({});
+    this.hasSubmitted.set(false);
     this.showCreateModal.set(true);
   }
 
@@ -79,8 +84,79 @@ export class PersonalAccessTokensCardComponent {
     this.showCreateModal.set(false);
   }
 
+  onTokenNameChange(val: string): void {
+    this.tokenName.set(val);
+    if (this.hasSubmitted() || this.fieldErrors()['tokenName']) {
+      this.validateField('tokenName');
+    }
+  }
+
+  onIpWhitelistChange(val: string): void {
+    this.ipWhitelist.set(val);
+    if (this.hasSubmitted() || this.fieldErrors()['ipWhitelist']) {
+      this.validateField('ipWhitelist');
+    }
+  }
+
+  validateField(field: 'tokenName' | 'ipWhitelist'): void {
+    const errors = { ...this.fieldErrors() };
+    if (field === 'tokenName') {
+      if (!this.tokenName().trim()) {
+        errors['tokenName'] = 'Token description / name is required.';
+      } else {
+        delete errors['tokenName'];
+      }
+    } else if (field === 'ipWhitelist') {
+      const val = this.ipWhitelist().trim();
+      if (val) {
+        const entries = val.split(',').map((s) => s.trim()).filter(Boolean);
+        const valid = entries.length > 0 && entries.every((entry) => this.isValidIpOrCidr(entry));
+        if (!valid) {
+          errors['ipWhitelist'] = 'Enter valid IP addresses or CIDR notations (e.g. 192.168.1.1, 10.0.0.0/24).';
+        } else {
+          delete errors['ipWhitelist'];
+        }
+      } else {
+        delete errors['ipWhitelist'];
+      }
+    }
+    this.fieldErrors.set(errors);
+  }
+
+  validateAll(): boolean {
+    const errors: Record<string, string> = {};
+    if (!this.tokenName().trim()) {
+      errors['tokenName'] = 'Token description / name is required.';
+    }
+    const val = this.ipWhitelist().trim();
+    if (val) {
+      const entries = val.split(',').map((s) => s.trim()).filter(Boolean);
+      const valid = entries.length > 0 && entries.every((entry) => this.isValidIpOrCidr(entry));
+      if (!valid) {
+        errors['ipWhitelist'] = 'Enter valid IP addresses or CIDR notations (e.g. 192.168.1.1, 10.0.0.0/24).';
+      }
+    }
+    this.fieldErrors.set(errors);
+    return Object.keys(errors).length === 0;
+  }
+
+  private isValidIpOrCidr(ip: string): boolean {
+    const ipv4CidrRegex = /^(\d{1,3}\.){3}\d{1,3}(\/([0-9]|[1-2][0-9]|3[0-2]))?$/;
+    const ipv6Regex = /^([0-9a-fA-F]{1,4}:){1,7}[0-9a-fA-F]{1,4}(\/\d{1,3})?$|^::1$/;
+    if (!ipv4CidrRegex.test(ip) && !ipv6Regex.test(ip)) {
+      return false;
+    }
+    if (ipv4CidrRegex.test(ip)) {
+      const baseIp = ip.split('/')[0];
+      const parts = baseIp.split('.').map(Number);
+      if (parts.some((p) => p < 0 || p > 255)) return false;
+    }
+    return true;
+  }
+
   submitCreate(): void {
-    if (!this.tokenName().trim()) return;
+    this.hasSubmitted.set(true);
+    if (!this.validateAll()) return;
     this.createToken.emit({
       name: this.tokenName().trim(),
       scopes: this.selectedScopes(),

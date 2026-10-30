@@ -92,13 +92,26 @@
     <form [formGroup]="metadataForm" class="space-y-3 pt-2">
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label class="text-xs font-bold text-slate-600 block mb-1">Asset Title</label>
+          <label class="text-xs font-bold text-slate-600 block mb-1">Asset Title *</label>
           <input
             type="text"
             formControlName="title"
             placeholder="e.g. Spectral Waveform Diagram"
             class="w-full text-xs px-3 py-2 border rounded-xl bg-white border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            [class.border-rose-400]="metadataForm.get('title')?.touched && metadataForm.get('title')?.invalid"
           />
+          @if (metadataForm.get('title')?.touched && metadataForm.get('title')?.hasError('required')) {
+            <p class="text-xs text-rose-600 mt-1 flex items-center gap-1" data-testid="upload-title-error">
+              <mat-icon class="!text-sm leading-none">error_outline</mat-icon>
+              <span>Asset title is required.</span>
+            </p>
+          }
+          @if (metadataForm.get('title')?.touched && metadataForm.get('title')?.hasError('maxlength')) {
+            <p class="text-xs text-rose-600 mt-1 flex items-center gap-1" data-testid="upload-title-error">
+              <mat-icon class="!text-sm leading-none">error_outline</mat-icon>
+              <span>Asset title cannot exceed 150 characters.</span>
+            </p>
+          }
         </div>
         <div>
           <label class="text-xs font-bold text-slate-600 block mb-1">Alt Text (Accessibility)</label>

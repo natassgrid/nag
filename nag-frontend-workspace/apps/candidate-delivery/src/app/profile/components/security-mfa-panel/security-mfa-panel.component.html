@@ -147,6 +147,7 @@
             <input
               type="text"
               maxlength="6"
+              inputmode="numeric"
               placeholder="000000"
               [ngModel]="verifyCode()"
               (ngModelChange)="verifyCode.set($event)"

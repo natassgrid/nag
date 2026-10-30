@@ -26,11 +26,20 @@
               id="reg-fullName"
               type="text"
               [(ngModel)]="fullName"
+              (ngModelChange)="clearFieldError('fullName')"
+              (blur)="validateSingleField('fullName')"
               name="fullName"
               placeholder="e.g. Rahul Sharma"
               required
+              [class.border-rose-500]="fieldErrors()['fullName']"
               class="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
             />
+            @if (fieldErrors()['fullName']) {
+              <p class="text-xs text-rose-600 mt-1 flex items-center gap-1 font-medium">
+                <mat-icon class="!text-xs !w-3.5 !h-3.5 leading-none">error_outline</mat-icon>
+                <span>{{ fieldErrors()['fullName'] }}</span>
+              </p>
+            }
           </div>
 
           <div>
@@ -41,11 +50,20 @@
               id="reg-email"
               type="email"
               [(ngModel)]="email"
+              (ngModelChange)="clearFieldError('email')"
+              (blur)="validateSingleField('email')"
               name="email"
               placeholder="rahul@example.com"
               required
+              [class.border-rose-500]="fieldErrors()['email']"
               class="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500"
             />
+            @if (fieldErrors()['email']) {
+              <p class="text-xs text-rose-600 mt-1 flex items-center gap-1 font-medium">
+                <mat-icon class="!text-xs !w-3.5 !h-3.5 leading-none">error_outline</mat-icon>
+                <span>{{ fieldErrors()['email'] }}</span>
+              </p>
+            }
           </div>
 
           <div>
@@ -56,11 +74,22 @@
               id="reg-mobile"
               type="tel"
               [(ngModel)]="mobile"
+              (ngModelChange)="clearFieldError('mobile')"
+              (blur)="validateSingleField('mobile')"
               name="mobile"
               placeholder="9876543210"
+              maxlength="10"
+              inputmode="numeric"
               required
+              [class.border-rose-500]="fieldErrors()['mobile']"
               class="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-mono"
             />
+            @if (fieldErrors()['mobile']) {
+              <p class="text-xs text-rose-600 mt-1 flex items-center gap-1 font-medium">
+                <mat-icon class="!text-xs !w-3.5 !h-3.5 leading-none">error_outline</mat-icon>
+                <span>{{ fieldErrors()['mobile'] }}</span>
+              </p>
+            }
           </div>
 
           <div>
@@ -71,11 +100,20 @@
               id="reg-password"
               type="password"
               [(ngModel)]="password"
+              (ngModelChange)="clearFieldError('password')"
+              (blur)="validateSingleField('password')"
               name="password"
               placeholder="••••••••••••"
               required
+              [class.border-rose-500]="fieldErrors()['password']"
               class="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-sans"
             />
+            @if (fieldErrors()['password']) {
+              <p class="text-xs text-rose-600 mt-1 flex items-center gap-1 font-medium">
+                <mat-icon class="!text-xs !w-3.5 !h-3.5 leading-none">error_outline</mat-icon>
+                <span>{{ fieldErrors()['password'] }}</span>
+              </p>
+            }
           </div>
 
           <div>
@@ -86,11 +124,20 @@
               id="reg-confirmPassword"
               type="password"
               [(ngModel)]="confirmPassword"
+              (ngModelChange)="clearFieldError('confirmPassword')"
+              (blur)="validateSingleField('confirmPassword')"
               name="confirmPassword"
               placeholder="••••••••••••"
               required
+              [class.border-rose-500]="fieldErrors()['confirmPassword']"
               class="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-sans"
             />
+            @if (fieldErrors()['confirmPassword']) {
+              <p class="text-xs text-rose-600 mt-1 flex items-center gap-1 font-medium">
+                <mat-icon class="!text-xs !w-3.5 !h-3.5 leading-none">error_outline</mat-icon>
+                <span>{{ fieldErrors()['confirmPassword'] }}</span>
+              </p>
+            }
           </div>
         </div>
 

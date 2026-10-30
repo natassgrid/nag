@@ -40,7 +40,9 @@ export class PaperUploadDialogComponent {
 
   // Form State
   examinationName = signal<string>('');
+  examinationNameTouched = signal<boolean>(false);
   examYear = signal<number>(new Date().getFullYear());
+  examYearTouched = signal<boolean>(false);
   department = signal<string>('');
   paperCode = signal<string>('');
   bookletSerialNo = signal<string>('');
@@ -132,7 +134,9 @@ export class PaperUploadDialogComponent {
   resetForm(): void {
     this.selectedFile.set(null);
     this.examinationName.set('');
+    this.examinationNameTouched.set(false);
     this.examYear.set(new Date().getFullYear());
+    this.examYearTouched.set(false);
     this.department.set('');
     this.paperCode.set('');
     this.bookletSerialNo.set('');
@@ -151,6 +155,8 @@ export class PaperUploadDialogComponent {
   }
 
   onSubmit(): void {
+    this.examinationNameTouched.set(true);
+    this.examYearTouched.set(true);
     const file = this.selectedFile();
     if (!file || !this.isFormValid()) return;
 

@@ -14,7 +14,10 @@ import {
   AuthService,
   TotpSetupData,
 } from '@nag-frontend-workspace/shared-data-access-auth';
-import { QrCodeComponent } from '@nag-frontend-workspace/shared-ui-components';
+import {
+  QrCodeComponent,
+  parseHttpError,
+} from '@nag-frontend-workspace/shared-ui-components';
 
 @Component({
   selector: 'app-security-mfa-panel',
@@ -87,9 +90,11 @@ export class SecurityMfaPanelComponent implements OnInit {
         this.loading.set(false);
       },
       error: (err) => {
-        this.errorMsg.set(
-          err.error?.message || 'Failed to initiate 2FA setup. Please try again.'
+        const parsed = parseHttpError(
+          err,
+          'Failed to initiate 2FA setup. Please try again.'
         );
+        this.errorMsg.set(parsed.message);
         this.loading.set(false);
       },
     });
@@ -98,8 +103,8 @@ export class SecurityMfaPanelComponent implements OnInit {
   confirmTotpSetup(): void {
     const code = this.verifyCode().trim();
     const data = this.totpData();
-    if (!code || code.length !== 6) {
-      this.errorMsg.set('Please enter a valid 6-digit authenticator OTP code.');
+    if (!code || !/^\d{6}$/.test(code)) {
+      this.errorMsg.set('Please enter a valid 6-digit numeric authenticator OTP code.');
       return;
     }
     if (!data?.secret && !data?.secretKey) {
@@ -131,10 +136,11 @@ export class SecurityMfaPanelComponent implements OnInit {
         },
         error: (err) => {
           this.verifying.set(false);
-          this.errorMsg.set(
-            err.error?.message ||
-              'Invalid authenticator code. Please check your app clock and try again.'
+          const parsed = parseHttpError(
+            err,
+            'Invalid authenticator code. Please check your app clock and try again.'
           );
+          this.errorMsg.set(parsed.message);
         },
       });
   }
@@ -158,9 +164,11 @@ export class SecurityMfaPanelComponent implements OnInit {
       },
       error: (err) => {
         this.disabling.set(false);
-        this.errorMsg.set(
-          err.error?.message || 'Failed to disable 2FA. Please try again.'
+        const parsed = parseHttpError(
+          err,
+          'Failed to disable 2FA. Please try again.'
         );
+        this.errorMsg.set(parsed.message);
       },
     });
   }

@@ -12,6 +12,7 @@ import { MatIconModule } from '@angular/material/icon';
 import {
   NotificationService,
   PageHeaderComponent,
+  extractHttpErrorMessage,
 } from '@nag-frontend-workspace/shared-ui-components';
 import {
   DEFAULT_SYSTEM_SETTINGS,
@@ -144,11 +145,11 @@ export class AdminSettingsComponent implements OnInit {
           'System configuration policies successfully saved and distributed across cluster nodes.'
         );
       },
-      error: () => {
+      error: (err) => {
         this.saving.set(false);
         this.notificationService.error(
           'Save Failed',
-          'Failed to save system settings.'
+          extractHttpErrorMessage(err, 'Failed to save system settings.')
         );
       },
     });

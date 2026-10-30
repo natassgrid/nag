@@ -58,6 +58,7 @@ export class ExamFormDrawerComponent implements OnChanges {
   readonly availableBlueprints = signal<Array<{ id: string; name: string; code?: string }>>([]);
   readonly taxonomyTree = this.taxonomyStore.tree;
   readonly taxonomySubjects = this.taxonomyStore.subjects;
+  readonly validationError = signal<string | null>(null);
 
   formName = '';
   formCode = '';
@@ -154,6 +155,7 @@ export class ExamFormDrawerComponent implements OnChanges {
   }
 
   onClose(): void {
+    this.validationError.set(null);
     this.closeDrawer.emit();
   }
 
@@ -175,7 +177,19 @@ export class ExamFormDrawerComponent implements OnChanges {
   }
 
   onSave(): void {
-    if (!this.formName.trim()) return;
+    this.validationError.set(null);
+    if (!this.formName.trim() && !this.formCode.trim()) {
+      this.validationError.set('Examination Name and Examination Code are required.');
+      return;
+    }
+    if (!this.formName.trim()) {
+      this.validationError.set('Examination Name is required.');
+      return;
+    }
+    if (!this.formCode.trim()) {
+      this.validationError.set('Examination Code is required.');
+      return;
+    }
 
     const payload: CreateExamRequest = {
       name: this.formName.trim(),
@@ -202,6 +216,7 @@ export class ExamFormDrawerComponent implements OnChanges {
   }
 
   private resetForm(): void {
+    this.validationError.set(null);
     this.formName = '';
     this.formCode = '';
     this.formAuthority = 'National Assessment Agency';

@@ -35,14 +35,18 @@ export class UserInviteDrawerComponent {
   formSelectedRoles = signal<string[]>(['QUESTION_AUTHOR']);
   formExpiryDays = signal<number>(5);
 
+  fieldErrors = signal<Record<string, string>>({});
+  hasSubmitted = signal<boolean>(false);
+
   toggleRole(roleName: string): void {
     const current = this.formSelectedRoles();
     if (current.includes(roleName)) {
-      if (current.length > 1) {
-        this.formSelectedRoles.set(current.filter((r) => r !== roleName));
-      }
+      this.formSelectedRoles.set(current.filter((r) => r !== roleName));
     } else {
       this.formSelectedRoles.set([...current, roleName]);
+    }
+    if (this.hasSubmitted() || this.fieldErrors()['roles']) {
+      this.validateField('roles');
     }
   }
 
@@ -50,8 +54,79 @@ export class UserInviteDrawerComponent {
     return this.formSelectedRoles().includes(roleName);
   }
 
+  onFullNameChange(val: string): void {
+    this.formFullName.set(val);
+    if (this.hasSubmitted() || this.fieldErrors()['fullName']) {
+      this.validateField('fullName');
+    }
+  }
+
+  onEmailChange(val: string): void {
+    this.formEmail.set(val);
+    if (this.hasSubmitted() || this.fieldErrors()['email']) {
+      this.validateField('email');
+    }
+  }
+
+  validateField(field: 'fullName' | 'email' | 'roles'): void {
+    const errors = { ...this.fieldErrors() };
+    if (field === 'fullName') {
+      const name = this.formFullName().trim();
+      if (!name) {
+        errors['fullName'] = 'Full official name is required.';
+      } else if (name.length < 2) {
+        errors['fullName'] = 'Full official name must be at least 2 characters.';
+      } else {
+        delete errors['fullName'];
+      }
+    } else if (field === 'email') {
+      const email = this.formEmail().trim();
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!email) {
+        errors['email'] = 'Official email address is required.';
+      } else if (!emailRegex.test(email)) {
+        errors['email'] = 'Please enter a valid official email address.';
+      } else {
+        delete errors['email'];
+      }
+    } else if (field === 'roles') {
+      if (this.formSelectedRoles().length === 0) {
+        errors['roles'] = 'At least one authority role must be selected.';
+      } else {
+        delete errors['roles'];
+      }
+    }
+    this.fieldErrors.set(errors);
+  }
+
+  validateAll(): boolean {
+    const errors: Record<string, string> = {};
+    const name = this.formFullName().trim();
+    if (!name) {
+      errors['fullName'] = 'Full official name is required.';
+    } else if (name.length < 2) {
+      errors['fullName'] = 'Full official name must be at least 2 characters.';
+    }
+
+    const email = this.formEmail().trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email) {
+      errors['email'] = 'Official email address is required.';
+    } else if (!emailRegex.test(email)) {
+      errors['email'] = 'Please enter a valid official email address.';
+    }
+
+    if (this.formSelectedRoles().length === 0) {
+      errors['roles'] = 'At least one authority role must be selected.';
+    }
+
+    this.fieldErrors.set(errors);
+    return Object.keys(errors).length === 0;
+  }
+
   onSubmit(): void {
-    if (!this.formFullName().trim() || !this.formEmail().trim()) return;
+    this.hasSubmitted.set(true);
+    if (!this.validateAll()) return;
 
     this.submitInvite.emit({
       fullName: this.formFullName().trim(),
@@ -66,5 +141,7 @@ export class UserInviteDrawerComponent {
     this.formEmail.set('');
     this.formSelectedRoles.set(['QUESTION_AUTHOR']);
     this.formExpiryDays.set(5);
+    this.fieldErrors.set({});
+    this.hasSubmitted.set(false);
   }
 }

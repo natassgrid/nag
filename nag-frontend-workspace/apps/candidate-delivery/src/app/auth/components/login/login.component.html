@@ -28,12 +28,21 @@
                 type="text"
                 name="username"
                 [(ngModel)]="username"
+                (ngModelChange)="clearFieldError('username')"
+                (blur)="validateSingleField('username')"
                 placeholder="candidate@example.gov.in or 9876543210"
                 required
+                [class.border-rose-500]="fieldErrors()['username']"
                 class="w-full pl-10 pr-4 py-2.5 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-sans"
               />
               <mat-icon class="absolute left-3 top-2.5 !text-lg text-slate-400">person</mat-icon>
             </div>
+            @if (fieldErrors()['username']) {
+              <p class="text-xs text-rose-600 mt-1 flex items-center gap-1 font-medium">
+                <mat-icon class="!text-xs !w-3.5 !h-3.5 leading-none">error_outline</mat-icon>
+                <span>{{ fieldErrors()['username'] }}</span>
+              </p>
+            }
           </div>
 
           <div>
@@ -55,8 +64,11 @@
                 [type]="showPassword() ? 'text' : 'password'"
                 name="password"
                 [(ngModel)]="password"
+                (ngModelChange)="clearFieldError('password')"
+                (blur)="validateSingleField('password')"
                 placeholder="••••••••••••"
                 required
+                [class.border-rose-500]="fieldErrors()['password']"
                 class="w-full pl-10 pr-10 py-2.5 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-sans"
               />
               <mat-icon class="absolute left-3 top-2.5 !text-lg text-slate-400">lock</mat-icon>
@@ -68,6 +80,12 @@
                 <mat-icon class="!text-lg">{{ showPassword() ? 'visibility_off' : 'visibility' }}</mat-icon>
               </button>
             </div>
+            @if (fieldErrors()['password']) {
+              <p class="text-xs text-rose-600 mt-1 flex items-center gap-1 font-medium">
+                <mat-icon class="!text-xs !w-3.5 !h-3.5 leading-none">error_outline</mat-icon>
+                <span>{{ fieldErrors()['password'] }}</span>
+              </p>
+            }
           </div>
         } @else {
           <!-- MFA Step-Up Prompt -->
@@ -88,11 +106,20 @@
                 type="text"
                 name="otpCode"
                 [(ngModel)]="otpCode"
+                (ngModelChange)="clearFieldError('otpCode')"
+                (blur)="validateSingleField('otpCode')"
                 placeholder="000000"
                 maxlength="16"
                 autofocus
+                [class.border-rose-500]="fieldErrors()['otpCode']"
                 class="w-full text-center px-4 py-2.5 text-lg font-mono font-bold tracking-widest bg-white border-2 border-indigo-400 rounded-xl focus:ring-2 focus:ring-indigo-600 focus:outline-none"
               />
+              @if (fieldErrors()['otpCode']) {
+                <p class="text-xs text-rose-600 mt-1 flex items-center justify-center gap-1 font-medium">
+                  <mat-icon class="!text-xs !w-3.5 !h-3.5 leading-none">error_outline</mat-icon>
+                  <span>{{ fieldErrors()['otpCode'] }}</span>
+                </p>
+              }
             </div>
             <button
               type="button"
@@ -125,9 +152,18 @@
           <input
             type="email"
             [(ngModel)]="resetEmail"
+            (ngModelChange)="clearFieldError('resetEmail')"
+            (blur)="validateSingleField('resetEmail')"
             placeholder="your.email@example.com"
+            [class.border-rose-500]="fieldErrors()['resetEmail']"
             class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg"
           />
+          @if (fieldErrors()['resetEmail']) {
+            <p class="text-xs text-rose-600 flex items-center gap-1 font-medium">
+              <mat-icon class="!text-xs !w-3.5 !h-3.5 leading-none">error_outline</mat-icon>
+              <span>{{ fieldErrors()['resetEmail'] }}</span>
+            </p>
+          }
           <button
             type="button"
             mat-stroked-button

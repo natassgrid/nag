@@ -22,6 +22,7 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { HttpEventType } from '@angular/common/http';
+import { extractHttpErrorMessage } from '@nag-frontend-workspace/shared-ui-components';
 import { AssetService } from './asset.service';
 import { AssetResponse } from './asset.model';
 
@@ -55,7 +56,7 @@ export class AssetUploadDialogComponent {
   errorMessage = '';
 
   metadataForm = this.fb.group({
-    title: [''],
+    title: ['', [Validators.required, Validators.maxLength(150)]],
     altText: [''],
     tags: [''],
     description: [''],
@@ -98,7 +99,15 @@ export class AssetUploadDialogComponent {
   }
 
   upload(): void {
-    if (!this.selectedFile) return;
+    if (!this.selectedFile) {
+      this.errorMessage = 'Please select a file to upload.';
+      return;
+    }
+
+    if (this.metadataForm.invalid) {
+      this.metadataForm.markAllAsTouched();
+      return;
+    }
 
     this.uploading = true;
     this.progress = 0;
@@ -126,9 +135,10 @@ export class AssetUploadDialogComponent {
                     this.uploading = false;
                     this.dialogRef.close(updated);
                   },
-                  error: () => {
+                  error: (err) => {
                     this.uploading = false;
-                    this.dialogRef.close(uploadedAsset);
+                    this.errorMessage = extractHttpErrorMessage(err, 'Asset uploaded but updating metadata failed.');
+                    this.cdr.markForCheck();
                   },
                 });
             } else {
@@ -148,11 +158,7 @@ export class AssetUploadDialogComponent {
           this.errorMessage =
             'File exceeds maximum permitted upload payload limit (100 MB).';
         } else {
-          this.errorMessage =
-            err?.error?.message ||
-            err?.error?.detail ||
-            err?.message ||
-            'Upload failed. Please check network connectivity.';
+          this.errorMessage = extractHttpErrorMessage(err, 'Upload failed. Please check network connectivity.');
         }
         this.cdr.markForCheck();
       },

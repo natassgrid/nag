@@ -35,24 +35,24 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class RegistrationRequest {
 
-    @NotBlank
-    @Size(min = 3, max = 100)
+    @NotBlank(message = "Full legal name is required")
+    @Size(min = 3, max = 100, message = "Full name must be between 3 and 100 characters")
     private String fullName;
 
-    @NotBlank
-    @Email
+    @NotBlank(message = "Email address is required")
+    @Email(message = "Please enter a valid email address")
     private String email;
 
-    @NotBlank
-    @Pattern(regexp = "^[6-9]\\d{9}$")
+    @NotBlank(message = "Mobile number is required")
+    @Pattern(regexp = "^[6-9]\\d{9}$", message = "Mobile number must be a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9")
     private String mobile;
 
     private IdentityDocType identityDocType;
 
     private String identityDocNumber;
 
-    @NotBlank
-    @Size(min = 8, max = 128)
+    @NotBlank(message = "Password is required")
+    @Size(min = 8, max = 128, message = "Password must be between 8 and 128 characters")
     private String password;
 
     private String preferredLanguage;

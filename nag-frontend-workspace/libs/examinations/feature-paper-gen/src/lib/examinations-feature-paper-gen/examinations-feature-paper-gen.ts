@@ -14,7 +14,7 @@ import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { PageHeaderComponent } from '@nag-frontend-workspace/shared-ui-components';
+import { PageHeaderComponent, extractHttpErrorMessage } from '@nag-frontend-workspace/shared-ui-components';
 import {
   PaperService,
   ExaminationService,
@@ -378,7 +378,7 @@ export class ExaminationsFeaturePaperGen implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.isGenerating.set(false);
-        this.snackBar.open(err?.error?.message || 'Paper generation failed.', 'Dismiss', { duration: 5000 });
+        this.snackBar.open(extractHttpErrorMessage(err, 'Paper generation failed.'), 'Dismiss', { duration: 5000 });
       },
     });
   }
@@ -435,7 +435,7 @@ export class ExaminationsFeaturePaperGen implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.isApproving.set(false);
-        this.snackBar.open(err?.error?.message || 'Approval failed.', 'Dismiss', { duration: 4000 });
+        this.snackBar.open(extractHttpErrorMessage(err, 'Approval failed.'), 'Dismiss', { duration: 4000 });
       },
     });
   }
@@ -454,7 +454,7 @@ export class ExaminationsFeaturePaperGen implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.isPublishing.set(false);
-        this.snackBar.open(err?.error?.message || 'Publishing failed.', 'Dismiss', { duration: 4000 });
+        this.snackBar.open(extractHttpErrorMessage(err, 'Publishing failed.'), 'Dismiss', { duration: 4000 });
       },
     });
   }
@@ -473,7 +473,7 @@ export class ExaminationsFeaturePaperGen implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.isApproving.set(false);
-        this.snackBar.open(err?.error?.message || 'Error occurred during bulk approval', 'Dismiss', {
+        this.snackBar.open(extractHttpErrorMessage(err, 'Error occurred during bulk approval'), 'Dismiss', {
           duration: 4000,
         });
         this.loadPapers();
@@ -495,7 +495,7 @@ export class ExaminationsFeaturePaperGen implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.isPublishing.set(false);
-        this.snackBar.open(err?.error?.message || 'Error occurred during bulk publish', 'Dismiss', {
+        this.snackBar.open(extractHttpErrorMessage(err, 'Error occurred during bulk publish'), 'Dismiss', {
           duration: 4000,
         });
         this.loadPapers();
@@ -532,7 +532,7 @@ export class ExaminationsFeaturePaperGen implements OnInit, OnDestroy {
       error: (err) => {
         this.isTranslating.set(false);
         this.snackBar.open(
-          err?.error?.message || 'Translation job could not be started.',
+          extractHttpErrorMessage(err, 'Translation job could not be started.'),
           'Dismiss',
           { duration: 4000 }
         );

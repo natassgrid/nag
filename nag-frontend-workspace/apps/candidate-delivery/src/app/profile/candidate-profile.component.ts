@@ -10,7 +10,10 @@ import { RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { PageHeaderComponent } from '@nag-frontend-workspace/shared-ui-components';
+import {
+  PageHeaderComponent,
+  parseHttpError,
+} from '@nag-frontend-workspace/shared-ui-components';
 import { AuthService } from '@nag-frontend-workspace/shared-data-access-auth';
 import {
   I18nService,
@@ -194,11 +197,41 @@ export class CandidateProfileComponent implements OnInit {
   }
 
   saveProfile(): void {
-    this.saving.set(true);
     this.errorMessage.set(null);
     this.successMessage.set(null);
 
     const prof = this.profile();
+
+    const fullName = (prof.fullName || '').trim();
+    if (!fullName || fullName.length < 3) {
+      this.errorMessage.set('Full legal name must be at least 3 characters long.');
+      return;
+    }
+
+    const mobile = (prof.mobile || '').trim();
+    const mobileRegex = /^[6-9]\d{9}$/;
+    if (!mobile || !mobileRegex.test(mobile)) {
+      this.errorMessage.set(
+        'Mobile number must be a valid 10-digit Indian number starting with 6, 7, 8, or 9.'
+      );
+      return;
+    }
+
+    const idNumber = (prof.identityDocNumber || '').trim();
+    if (!idNumber) {
+      this.errorMessage.set('Identity document number is required.');
+      return;
+    }
+
+    const pinCode = (prof.pinCode || '').trim();
+    const pinRegex = /^[1-9][0-9]{5}$/;
+    if (pinCode && !pinRegex.test(pinCode)) {
+      this.errorMessage.set('PIN Code must be a valid 6-digit postal code.');
+      return;
+    }
+
+    this.saving.set(true);
+
     const payload = {
       ...prof,
       userId: prof.candidateId,
@@ -231,9 +264,11 @@ export class CandidateProfileComponent implements OnInit {
       },
       error: (err) => {
         this.saving.set(false);
-        this.errorMessage.set(
-          err.error?.message || 'Failed to update profile. Please try again.'
+        const parsed = parseHttpError(
+          err,
+          'Failed to save profile. Please check all required fields.'
         );
+        this.errorMessage.set(parsed.message);
       },
     });
   }

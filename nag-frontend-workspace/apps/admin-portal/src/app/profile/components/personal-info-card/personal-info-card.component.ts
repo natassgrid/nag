@@ -39,6 +39,9 @@ export class PersonalInfoCardComponent {
   readonly preferredLanguage = signal<string>('en');
   readonly themePreference = signal<string>('system');
 
+  readonly fieldErrors = signal<Record<string, string>>({});
+  readonly hasSubmitted = signal<boolean>(false);
+
   constructor() {
     effect(
       () => {
@@ -59,6 +62,58 @@ export class PersonalInfoCardComponent {
     );
   }
 
+  onFullNameChange(val: string): void {
+    this.fullName.set(val);
+    if (this.hasSubmitted() || this.fieldErrors()['fullName']) {
+      this.validateField('fullName');
+    }
+  }
+
+  onPhoneNumberChange(val: string): void {
+    this.phoneNumber.set(val);
+    if (this.hasSubmitted() || this.fieldErrors()['phoneNumber']) {
+      this.validateField('phoneNumber');
+    }
+  }
+
+  validateField(field: 'fullName' | 'phoneNumber'): void {
+    const errors = { ...this.fieldErrors() };
+    if (field === 'fullName') {
+      const name = this.fullName().trim();
+      if (!name) {
+        errors['fullName'] = 'Full Name is required.';
+      } else {
+        delete errors['fullName'];
+      }
+    } else if (field === 'phoneNumber') {
+      const phone = this.phoneNumber().trim();
+      const phoneRegex = /^\+?[0-9\s\-]{10,15}$/;
+      if (phone && !phoneRegex.test(phone)) {
+        errors['phoneNumber'] = 'Please enter a valid phone number (10-15 digits, optional + prefix).';
+      } else {
+        delete errors['phoneNumber'];
+      }
+    }
+    this.fieldErrors.set(errors);
+  }
+
+  validateAll(): boolean {
+    const errors: Record<string, string> = {};
+    const name = this.fullName().trim();
+    if (!name) {
+      errors['fullName'] = 'Full Name is required.';
+    }
+
+    const phone = this.phoneNumber().trim();
+    const phoneRegex = /^\+?[0-9\s\-]{10,15}$/;
+    if (phone && !phoneRegex.test(phone)) {
+      errors['phoneNumber'] = 'Please enter a valid phone number (10-15 digits, optional + prefix).';
+    }
+
+    this.fieldErrors.set(errors);
+    return Object.keys(errors).length === 0;
+  }
+
   onReset(): void {
     const p = this.profile();
     this.fullName.set(p.fullName || '');
@@ -72,9 +127,14 @@ export class PersonalInfoCardComponent {
     this.timeFormat.set(p.timeFormat || '24h');
     this.preferredLanguage.set(p.preferredLanguage || 'en');
     this.themePreference.set(p.themePreference || 'system');
+    this.fieldErrors.set({});
+    this.hasSubmitted.set(false);
   }
 
   onSubmit(): void {
+    this.hasSubmitted.set(true);
+    if (!this.validateAll()) return;
+
     this.save.emit({
       fullName: this.fullName().trim(),
       phoneNumber: this.phoneNumber().trim(),

@@ -10,6 +10,7 @@ import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { AuthService, ValidateInviteData } from '@nag-frontend-workspace/shared-data-access-auth';
+import { parseHttpError } from '@nag-frontend-workspace/shared-ui-components';
 import * as QRCode from 'qrcode';
 
 @Component({
@@ -40,6 +41,7 @@ export class AcceptInviteComponent implements OnInit {
   password = '';
   confirmPassword = '';
   showPassword = signal<boolean>(false);
+  fieldErrors = signal<Record<string, string>>({});
 
   // 2FA / TOTP Setup Data
   totpSecret = signal<string>('JBSWY3DPEHPK3PXP');
@@ -88,11 +90,8 @@ export class AcceptInviteComponent implements OnInit {
       error: (err) => {
         this.validating.set(false);
         this.tokenValid.set(false);
-        const detail =
-          err?.error?.message ||
-          err?.error?.detail ||
-          'This invitation link is invalid or has expired. Please contact your system administrator.';
-        this.validationError.set(detail);
+        const parsed = parseHttpError(err, 'This invitation link is invalid or has expired. Please contact your system administrator.');
+        this.validationError.set(parsed.message);
       },
     });
   }
@@ -137,21 +136,37 @@ export class AcceptInviteComponent implements OnInit {
   }
 
   handleAcceptInvite(): void {
+    const errors: Record<string, string> = {};
+
     if (!this.password || this.password.length < 8) {
-      this.errorMessage.set('Password must be at least 8 characters long.');
+      errors['password'] = 'Password must be at least 8 characters long.';
+    }
+
+    if (!this.confirmPassword) {
+      errors['confirmPassword'] = 'Please confirm your password.';
+    } else if (this.password !== this.confirmPassword) {
+      errors['confirmPassword'] = 'Passwords do not match.';
+    }
+
+    if (!this.totpCode || !this.totpCode.trim()) {
+      errors['totpCode'] = 'Please enter the 6-digit Authenticator code to verify 2FA setup.';
+    } else if (!/^\d{6}$/.test(this.totpCode.trim())) {
+      errors['totpCode'] = 'Authenticator code must be a 6-digit number.';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      this.fieldErrors.set(errors);
+      if (errors['password']) {
+        this.errorMessage.set(errors['password']);
+      } else if (errors['confirmPassword']) {
+        this.errorMessage.set(errors['confirmPassword']);
+      } else if (errors['totpCode']) {
+        this.errorMessage.set(errors['totpCode']);
+      }
       return;
     }
 
-    if (this.password !== this.confirmPassword) {
-      this.errorMessage.set('Passwords do not match.');
-      return;
-    }
-
-    if (!this.totpCode || this.totpCode.trim().length !== 6) {
-      this.errorMessage.set('Please enter the 6-digit Authenticator code to verify 2FA setup.');
-      return;
-    }
-
+    this.fieldErrors.set({});
     this.submitting.set(true);
     this.errorMessage.set(null);
 
@@ -173,12 +188,11 @@ export class AcceptInviteComponent implements OnInit {
       },
       error: (err) => {
         this.submitting.set(false);
-        const detail =
-          err?.error?.message ||
-          err?.error?.detail ||
-          err?.message ||
-          'Failed to accept invitation. Please ensure your 6-digit Authenticator code is accurate and try again.';
-        this.errorMessage.set(detail);
+        const parsed = parseHttpError(err, 'Failed to accept invitation. Please ensure your 6-digit Authenticator code is accurate and try again.');
+        this.errorMessage.set(parsed.message);
+        if (parsed.fieldErrors && Object.keys(parsed.fieldErrors).length > 0) {
+          this.fieldErrors.set(parsed.fieldErrors);
+        }
       },
     });
   }

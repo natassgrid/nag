@@ -61,10 +61,13 @@ public abstract class BaseGlobalExceptionHandler {
             fieldErrors.put(error.getField(), error.getDefaultMessage());
         }
         log.warn("Validation error: {}", fieldErrors);
+        String summaryMessage = fieldErrors.isEmpty()
+                ? "Validation failed for one or more fields"
+                : String.join("; ", fieldErrors.values());
         ApiErrorResponse body = ApiErrorResponse.builder()
                 .status(HttpStatus.BAD_REQUEST.value())
                 .error("Validation Failed")
-                .message("Validation failed for one or more fields")
+                .message(summaryMessage)
                 .code("VALIDATION_ERROR")
                 .fieldErrors(fieldErrors)
                 .build();

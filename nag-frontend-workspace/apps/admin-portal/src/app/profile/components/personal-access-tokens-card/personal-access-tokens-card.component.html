@@ -149,16 +149,23 @@
         <form (ngSubmit)="submitCreate()" class="space-y-4">
           <!-- Token Name -->
           <div class="space-y-1">
-            <label class="text-xs font-semibold text-slate-700 uppercase">Token Description / Name</label>
+            <label class="text-xs font-semibold text-slate-700 uppercase">Token Description / Name *</label>
             <input
               type="text"
               name="tokenName"
               [ngModel]="tokenName()"
-              (ngModelChange)="tokenName.set($event)"
+              (ngModelChange)="onTokenNameChange($event)"
+              (blur)="validateField('tokenName')"
               required
               placeholder="e.g. CI/CD Question Sync Pipeline"
               class="block w-full px-3 py-2 text-sm text-slate-900 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
             />
+            @if (fieldErrors()['tokenName']) {
+              <p class="text-xs text-rose-600 mt-1 flex items-center gap-1" data-testid="token-name-error">
+                <mat-icon class="!text-sm leading-none">error_outline</mat-icon>
+                <span>{{ fieldErrors()['tokenName'] }}</span>
+              </p>
+            }
           </div>
 
           <!-- Expiry Days -->
@@ -208,10 +215,17 @@
               type="text"
               name="ipWhitelist"
               [ngModel]="ipWhitelist()"
-              (ngModelChange)="ipWhitelist.set($event)"
+              (ngModelChange)="onIpWhitelistChange($event)"
+              (blur)="validateField('ipWhitelist')"
               placeholder="e.g. 192.168.1.0/24 or 103.21.124.55"
               class="block w-full px-3 py-2 text-sm text-slate-900 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
             />
+            @if (fieldErrors()['ipWhitelist']) {
+              <p class="text-xs text-rose-600 mt-1 flex items-center gap-1" data-testid="ip-whitelist-error">
+                <mat-icon class="!text-sm leading-none">error_outline</mat-icon>
+                <span>{{ fieldErrors()['ipWhitelist'] }}</span>
+              </p>
+            }
           </div>
 
           <!-- Modal Actions -->
@@ -227,7 +241,7 @@
             <button
               type="submit"
               mat-flat-button
-              [disabled]="!tokenName().trim() || isCreating()"
+              [disabled]="isCreating()"
               class="!bg-indigo-600 hover:!bg-indigo-700 !text-white text-xs"
             >
               Generate Token

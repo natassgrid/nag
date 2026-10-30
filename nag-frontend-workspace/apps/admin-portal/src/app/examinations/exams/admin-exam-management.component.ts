@@ -12,6 +12,7 @@ import { RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { extractHttpErrorMessage } from '@nag-frontend-workspace/shared-ui-components';
 import {
   ExaminationService,
   ExaminationResponse,
@@ -94,7 +95,7 @@ export class AdminExamManagementComponent implements OnInit {
     this.examService.getExams(0, 50).subscribe({
       error: (err) => {
         this.snackBar.open(
-          err?.error?.message || 'Failed to retrieve examinations',
+          extractHttpErrorMessage(err, 'Failed to retrieve examinations'),
           'Dismiss',
           { duration: 4000 }
         );
@@ -131,7 +132,7 @@ export class AdminExamManagementComponent implements OnInit {
         error: (err) => {
           this.isSaving.set(false);
           this.snackBar.open(
-            err?.error?.message || 'Failed to update examination',
+            extractHttpErrorMessage(err, 'Failed to save examination'),
             'Dismiss',
             { duration: 4000 }
           );
@@ -147,7 +148,7 @@ export class AdminExamManagementComponent implements OnInit {
         error: (err) => {
           this.isSaving.set(false);
           this.snackBar.open(
-            err?.error?.message || 'Failed to create examination',
+            extractHttpErrorMessage(err, 'Failed to save examination'),
             'Dismiss',
             { duration: 4000 }
           );
@@ -169,7 +170,7 @@ export class AdminExamManagementComponent implements OnInit {
       },
       error: (err) => {
         this.snackBar.open(
-          err?.error?.message || 'Failed to publish examination',
+          extractHttpErrorMessage(err, 'Failed to publish examination'),
           'Dismiss',
           { duration: 4000 }
         );

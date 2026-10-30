@@ -12,6 +12,7 @@ import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { AuthService } from '@nag-frontend-workspace/shared-data-access-auth';
+import { parseHttpError } from '@nag-frontend-workspace/shared-ui-components';
 import { CandidateProfile } from '../../models';
 import { INDIAN_STATES_AND_DISTRICTS } from '../../data/indian-states-cities';
 
@@ -27,6 +28,33 @@ export class ContactDetailsPanelComponent implements OnDestroy {
   private readonly authService = inject(AuthService);
 
   readonly profile = model.required<CandidateProfile>();
+
+  readonly touched = signal<Record<string, boolean>>({});
+
+  markTouched(field: string): void {
+    this.touched.update((t) => ({ ...t, [field]: true }));
+  }
+
+  readonly mobileErrorMsg = computed(() => {
+    const raw = (this.profile()?.mobile || '').trim();
+    if (!this.touched()['mobile'] && !raw) return null;
+    if (!raw) return 'Mobile number is required.';
+    const mobileRegex = /^[6-9]\d{9}$/;
+    if (!mobileRegex.test(raw)) {
+      return 'Mobile number must be a valid 10-digit Indian number starting with 6, 7, 8, or 9.';
+    }
+    return null;
+  });
+
+  readonly pinCodeErrorMsg = computed(() => {
+    const pin = (this.profile()?.pinCode || '').trim();
+    if (!pin) return null;
+    const pinRegex = /^[1-9][0-9]{5}$/;
+    if (!pinRegex.test(pin)) {
+      return 'PIN code must be a valid 6-digit Indian postal code.';
+    }
+    return null;
+  });
 
   // Indian States and Cascading Districts
   readonly stateList = INDIAN_STATES_AND_DISTRICTS.map((s) => s.state);
@@ -84,6 +112,16 @@ export class ContactDetailsPanelComponent implements OnDestroy {
     this.mobileOtp.set('');
     this.mobileError.set(null);
     this.mobileSuccess.set(null);
+
+    const mobile = (this.profile()?.mobile || '').trim();
+    const mobileRegex = /^[6-9]\d{9}$/;
+    if (!mobile || !mobileRegex.test(mobile)) {
+      this.mobileError.set(
+        'Please enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9 before requesting an OTP.'
+      );
+      return;
+    }
+
     this.triggerSendMobileOtp();
   }
 
@@ -93,6 +131,15 @@ export class ContactDetailsPanelComponent implements OnDestroy {
   }
 
   triggerSendMobileOtp(): void {
+    const mobile = (this.profile()?.mobile || '').trim();
+    const mobileRegex = /^[6-9]\d{9}$/;
+    if (!mobile || !mobileRegex.test(mobile)) {
+      this.mobileError.set(
+        'Please enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9 before requesting an OTP.'
+      );
+      return;
+    }
+
     const userId = this.profile().candidateId;
     if (!userId || userId === 'NAG-CAN-NEW' || userId === 'user-unknown') {
       this.mobileError.set('Please save your profile first before verifying your mobile number.');
@@ -110,16 +157,16 @@ export class ContactDetailsPanelComponent implements OnDestroy {
       },
       error: (err: any) => {
         this.mobileResending.set(false);
-        const detail = err?.error?.detail || err?.error?.message || err?.message || 'Failed to send SMS OTP.';
-        this.mobileError.set(detail);
+        const parsed = parseHttpError(err, 'Failed to send SMS OTP.');
+        this.mobileError.set(parsed.message);
       },
     });
   }
 
   verifyMobileOtp(): void {
     const otp = this.mobileOtp().trim();
-    if (otp.length !== 6) {
-      this.mobileError.set('Please enter the complete 6-digit code.');
+    if (!/^\d{6}$/.test(otp)) {
+      this.mobileError.set('Please enter the complete 6-digit numeric OTP code.');
       return;
     }
 
@@ -138,8 +185,8 @@ export class ContactDetailsPanelComponent implements OnDestroy {
       },
       error: (err: any) => {
         this.mobileLoading.set(false);
-        const detail = err?.error?.detail || err?.error?.message || err?.message || 'Invalid or expired OTP.';
-        this.mobileError.set(detail);
+        const parsed = parseHttpError(err, 'Invalid or expired OTP.');
+        this.mobileError.set(parsed.message);
       },
     });
   }
@@ -203,16 +250,16 @@ export class ContactDetailsPanelComponent implements OnDestroy {
       },
       error: (err: any) => {
         this.emailLoading.set(false);
-        const detail = err?.error?.detail || err?.error?.message || err?.message || 'Failed to dispatch email OTP.';
-        this.emailError.set(detail);
+        const parsed = parseHttpError(err, 'Failed to dispatch email OTP.');
+        this.emailError.set(parsed.message);
       },
     });
   }
 
   verifyEmailOtp(): void {
     const otp = this.emailOtp().trim();
-    if (otp.length !== 6) {
-      this.emailError.set('Please enter the 6-digit OTP.');
+    if (!/^\d{6}$/.test(otp)) {
+      this.emailError.set('Please enter the 6-digit numeric OTP.');
       return;
     }
 
@@ -236,8 +283,8 @@ export class ContactDetailsPanelComponent implements OnDestroy {
       },
       error: (err: any) => {
         this.emailLoading.set(false);
-        const detail = err?.error?.detail || err?.error?.message || err?.message || 'Invalid or expired OTP.';
-        this.emailError.set(detail);
+        const parsed = parseHttpError(err, 'Invalid or expired OTP.');
+        this.emailError.set(parsed.message);
       },
     });
   }

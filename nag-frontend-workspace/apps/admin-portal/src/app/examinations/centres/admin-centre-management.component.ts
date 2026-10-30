@@ -12,6 +12,7 @@ import { RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { extractHttpErrorMessage } from '@nag-frontend-workspace/shared-ui-components';
 import {
   CentreManagementService,
   CentreResponse,
@@ -124,7 +125,7 @@ export class AdminCentreManagementComponent implements OnInit {
     this.centreService.listCentres(undefined, undefined, 0, 100).subscribe({
       error: (err) => {
         this.snackBar.open(
-          err?.error?.message || 'Failed to load test centres',
+          extractHttpErrorMessage(err, 'Failed to load test centres'),
           'Dismiss',
           { duration: 4000 }
         );
@@ -206,7 +207,7 @@ export class AdminCentreManagementComponent implements OnInit {
       error: (err) => {
         this.isSaving.set(false);
         this.snackBar.open(
-          err?.error?.message || 'Failed to register centre',
+          extractHttpErrorMessage(err, 'Failed to register centre'),
           'Dismiss',
           { duration: 4000 }
         );
@@ -223,7 +224,7 @@ export class AdminCentreManagementComponent implements OnInit {
       },
       error: (err) => {
         this.snackBar.open(
-          err?.error?.message || 'Failed to deactivate centre',
+          extractHttpErrorMessage(err, 'Failed to deactivate centre'),
           'Dismiss',
           { duration: 4000 }
         );
