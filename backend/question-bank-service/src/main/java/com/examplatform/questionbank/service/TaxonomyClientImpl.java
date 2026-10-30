@@ -35,7 +35,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * In-process implementation of {@link TaxonomyClient} for question-bank-service and monolith/macro deployments.
@@ -53,142 +52,154 @@ public class TaxonomyClientImpl implements TaxonomyClient {
     private final SubtopicRepository subtopicRepository;
     private final TaxonomyTenantOverrideRepository overrideRepository;
 
+    private record TaxonomyNodes(
+            List<Subject> subjects,
+            List<Topic> topics,
+            List<Subtopic> subtopics
+    ) {}
+
+    private record Overrides(
+            Map<Long, TaxonomyTenantOverride> subjects,
+            Map<Long, TaxonomyTenantOverride> topics,
+            Map<Long, TaxonomyTenantOverride> subtopics
+    ) {
+        static Overrides empty() {
+            return new Overrides(Map.of(), Map.of(), Map.of());
+        }
+    }
+
     @Override
     public List<TaxonomySubjectNode> getEffectiveTree(String tenantId, UUID examId) {
-        // 1. Fetch platform subjects, topics, and subtopics (tenant_id IS NULL)
-        List<Subject> platformSubjects = subjectRepository.findByTenantIdIsNullOrderByDisplayOrderAscNameAsc();
-        List<Long> platformSubjectIds = platformSubjects.stream().map(Subject::getId).toList();
+        TaxonomyNodes nodes = loadTaxonomyNodes(tenantId);
+        Overrides overrides = loadOverrides(tenantId);
 
-        List<Topic> platformTopics = platformSubjectIds.isEmpty() ? List.of()
-                : topicRepository.findBySubjectIdInAndTenantIdIsNull(platformSubjectIds);
-        List<Long> platformTopicIds = platformTopics.stream().map(Topic::getId).toList();
+        Map<Long, List<TaxonomySubtopicNode>> subtopicsByTopic =
+                assembleSubtopicsByTopic(nodes.subtopics(), overrides.subtopics());
+        Map<Long, List<TaxonomyTopicNode>> topicsBySubject =
+                assembleTopicsBySubject(nodes.topics(), overrides.topics(), subtopicsByTopic);
 
-        List<Subtopic> platformSubtopics = platformTopicIds.isEmpty() ? List.of()
-                : subtopicRepository.findByTopicIdInAndTenantIdIsNull(platformTopicIds);
+        return assembleSubjects(nodes.subjects(), overrides.subjects(), topicsBySubject);
+    }
 
-        // 2. Fetch tenant-specific nodes and overrides if a tenantId is provided
-        List<Subject> tenantSubjects = Collections.emptyList();
-        List<Topic> tenantTopics = Collections.emptyList();
-        List<Subtopic> tenantSubtopics = Collections.emptyList();
-        Map<Long, TaxonomyTenantOverride> subjectOverrides = new HashMap<>();
-        Map<Long, TaxonomyTenantOverride> topicOverrides = new HashMap<>();
-        Map<Long, TaxonomyTenantOverride> subtopicOverrides = new HashMap<>();
+    private TaxonomyNodes loadTaxonomyNodes(String tenantId) {
+        List<Subject> subjects = new ArrayList<>(subjectRepository.findByTenantIdIsNullOrderByDisplayOrderAscNameAsc());
+        List<Long> platformSubjectIds = subjects.stream().map(Subject::getId).toList();
+
+        List<Topic> topics = new ArrayList<>(platformSubjectIds.isEmpty() ? List.of()
+                : topicRepository.findBySubjectIdInAndTenantIdIsNull(platformSubjectIds));
+        List<Long> platformTopicIds = topics.stream().map(Topic::getId).toList();
+
+        List<Subtopic> subtopics = new ArrayList<>(platformTopicIds.isEmpty() ? List.of()
+                : subtopicRepository.findByTopicIdInAndTenantIdIsNull(platformTopicIds));
 
         if (tenantId != null && !tenantId.isBlank()) {
-            tenantSubjects = subjectRepository.findByTenantId(tenantId);
-            List<Long> allSubjectIds = new ArrayList<>(platformSubjectIds);
-            tenantSubjects.stream().map(Subject::getId).forEach(allSubjectIds::add);
+            List<Subject> tenantSubjects = subjectRepository.findByTenantId(tenantId);
+            subjects.addAll(tenantSubjects);
 
-            tenantTopics = topicRepository.findBySubjectIdInAndTenantId(allSubjectIds, tenantId);
-            List<Long> allTopicIds = new ArrayList<>(platformTopicIds);
-            tenantTopics.stream().map(Topic::getId).forEach(allTopicIds::add);
+            List<Long> allSubjectIds = subjects.stream().map(Subject::getId).toList();
+            List<Topic> tenantTopics = topicRepository.findBySubjectIdInAndTenantId(allSubjectIds, tenantId);
+            topics.addAll(tenantTopics);
 
-            tenantSubtopics = subtopicRepository.findByTopicIdInAndTenantId(allTopicIds, tenantId);
-
-            List<TaxonomyTenantOverride> overrides = overrideRepository.findByTenantId(tenantId);
-            for (TaxonomyTenantOverride o : overrides) {
-                if (o.getNodeType() == TaxonomyNodeType.SUBJECT) {
-                    subjectOverrides.put(o.getNodeId(), o);
-                } else if (o.getNodeType() == TaxonomyNodeType.TOPIC) {
-                    topicOverrides.put(o.getNodeId(), o);
-                } else if (o.getNodeType() == TaxonomyNodeType.SUBTOPIC) {
-                    subtopicOverrides.put(o.getNodeId(), o);
-                }
-            }
+            List<Long> allTopicIds = topics.stream().map(Topic::getId).toList();
+            List<Subtopic> tenantSubtopics = subtopicRepository.findByTopicIdInAndTenantId(allTopicIds, tenantId);
+            subtopics.addAll(tenantSubtopics);
         }
 
-        // 3. Assemble subtopics map grouped by topicId
+        return new TaxonomyNodes(subjects, topics, subtopics);
+    }
+
+    private Overrides loadOverrides(String tenantId) {
+        if (tenantId == null || tenantId.isBlank()) {
+            return Overrides.empty();
+        }
+        Map<Long, TaxonomyTenantOverride> subjects = new HashMap<>();
+        Map<Long, TaxonomyTenantOverride> topics = new HashMap<>();
+        Map<Long, TaxonomyTenantOverride> subtopics = new HashMap<>();
+        for (TaxonomyTenantOverride o : overrideRepository.findByTenantId(tenantId)) {
+            if (o.getNodeType() == TaxonomyNodeType.SUBJECT) {
+                subjects.put(o.getNodeId(), o);
+            } else if (o.getNodeType() == TaxonomyNodeType.TOPIC) {
+                topics.put(o.getNodeId(), o);
+            } else if (o.getNodeType() == TaxonomyNodeType.SUBTOPIC) {
+                subtopics.put(o.getNodeId(), o);
+            }
+        }
+        return new Overrides(subjects, topics, subtopics);
+    }
+
+    private Map<Long, List<TaxonomySubtopicNode>> assembleSubtopicsByTopic(
+            List<Subtopic> allSubtopics,
+            Map<Long, TaxonomyTenantOverride> subtopicOverrides) {
         Map<Long, List<TaxonomySubtopicNode>> subtopicsByTopic = new HashMap<>();
-        List<Subtopic> allSubtopics = new ArrayList<>(platformSubtopics);
-        allSubtopics.addAll(tenantSubtopics);
-
         for (Subtopic st : allSubtopics) {
-            if (!st.isActive()) {
-                continue;
-            }
             TaxonomyTenantOverride o = subtopicOverrides.get(st.getId());
-            if (o != null && o.isHidden()) {
-                continue;
-            }
-            String effName = (o != null && o.getNameOverride() != null && !o.getNameOverride().isBlank())
-                    ? o.getNameOverride() : st.getName();
-            Integer effOrder = (o != null && o.getOrderOverride() != null)
-                    ? o.getOrderOverride() : st.getDisplayOrder();
+            if (st.isActive() && !isHidden(o)) {
+                String effName = resolveEffectiveName(o, st.getName());
+                Integer effOrder = resolveEffectiveOrder(o, st.getDisplayOrder());
 
-            TaxonomySubtopicNode node = new TaxonomySubtopicNode(
-                    st.getId(), st.getTopicId(), st.getCode(), effName, st.getDescription(), effOrder, st.isActive()
-            );
-            subtopicsByTopic.computeIfAbsent(st.getTopicId(), k -> new ArrayList<>()).add(node);
+                TaxonomySubtopicNode node = new TaxonomySubtopicNode(
+                        st.getId(), st.getTopicId(), st.getCode(), effName, st.getDescription(), effOrder, st.isActive()
+                );
+                subtopicsByTopic.computeIfAbsent(st.getTopicId(), k -> new ArrayList<>()).add(node);
+            }
         }
 
-        // Sort subtopics
         subtopicsByTopic.values().forEach(list -> list.sort(
                 Comparator.comparing(TaxonomySubtopicNode::displayOrder, Comparator.nullsLast(Integer::compareTo))
                         .thenComparing(TaxonomySubtopicNode::name, Comparator.nullsLast(String::compareToIgnoreCase))
         ));
+        return subtopicsByTopic;
+    }
 
-        // 4. Assemble topics map grouped by subjectId
+    private Map<Long, List<TaxonomyTopicNode>> assembleTopicsBySubject(
+            List<Topic> allTopics,
+            Map<Long, TaxonomyTenantOverride> topicOverrides,
+            Map<Long, List<TaxonomySubtopicNode>> subtopicsByTopic) {
         Map<Long, List<TaxonomyTopicNode>> topicsBySubject = new HashMap<>();
-        List<Topic> allTopics = new ArrayList<>(platformTopics);
-        allTopics.addAll(tenantTopics);
-
         for (Topic t : allTopics) {
-            if (!t.isActive()) {
-                continue;
-            }
             TaxonomyTenantOverride o = topicOverrides.get(t.getId());
-            if (o != null && o.isHidden()) {
-                continue;
-            }
-            String effName = (o != null && o.getNameOverride() != null && !o.getNameOverride().isBlank())
-                    ? o.getNameOverride() : t.getName();
-            Integer effOrder = (o != null && o.getOrderOverride() != null)
-                    ? o.getOrderOverride() : t.getDisplayOrder();
+            if (t.isActive() && !isHidden(o)) {
+                String effName = resolveEffectiveName(o, t.getName());
+                Integer effOrder = resolveEffectiveOrder(o, t.getDisplayOrder());
 
-            List<TaxonomySubtopicNode> children = subtopicsByTopic.getOrDefault(t.getId(), List.of());
-            TaxonomyTopicNode node = new TaxonomyTopicNode(
-                    t.getId(), t.getSubjectId(), t.getCode(), effName, t.getDescription(), effOrder, t.isActive(), children
-            );
-            topicsBySubject.computeIfAbsent(t.getSubjectId(), k -> new ArrayList<>()).add(node);
+                List<TaxonomySubtopicNode> children = subtopicsByTopic.getOrDefault(t.getId(), List.of());
+                TaxonomyTopicNode node = new TaxonomyTopicNode(
+                        t.getId(), t.getSubjectId(), t.getCode(), effName, t.getDescription(), effOrder, t.isActive(), children
+                );
+                topicsBySubject.computeIfAbsent(t.getSubjectId(), k -> new ArrayList<>()).add(node);
+            }
         }
 
-        // Sort topics
         topicsBySubject.values().forEach(list -> list.sort(
                 Comparator.comparing(TaxonomyTopicNode::displayOrder, Comparator.nullsLast(Integer::compareTo))
                         .thenComparing(TaxonomyTopicNode::name, Comparator.nullsLast(String::compareToIgnoreCase))
         ));
+        return topicsBySubject;
+    }
 
-        // 5. Assemble subjects
-        List<Subject> allSubjects = new ArrayList<>(platformSubjects);
-        allSubjects.addAll(tenantSubjects);
-
+    private List<TaxonomySubjectNode> assembleSubjects(
+            List<Subject> allSubjects,
+            Map<Long, TaxonomyTenantOverride> subjectOverrides,
+            Map<Long, List<TaxonomyTopicNode>> topicsBySubject) {
         List<TaxonomySubjectNode> subjectNodes = new ArrayList<>();
         for (Subject s : allSubjects) {
-            if (!s.isActive()) {
-                continue;
-            }
             TaxonomyTenantOverride o = subjectOverrides.get(s.getId());
-            if (o != null && o.isHidden()) {
-                continue;
-            }
-            String effName = (o != null && o.getNameOverride() != null && !o.getNameOverride().isBlank())
-                    ? o.getNameOverride() : s.getName();
-            Integer effOrder = (o != null && o.getOrderOverride() != null)
-                    ? o.getOrderOverride() : s.getDisplayOrder();
+            if (s.isActive() && !isHidden(o)) {
+                String effName = resolveEffectiveName(o, s.getName());
+                Integer effOrder = resolveEffectiveOrder(o, s.getDisplayOrder());
 
-            List<TaxonomyTopicNode> children = topicsBySubject.getOrDefault(s.getId(), List.of());
-            TaxonomySubjectNode node = new TaxonomySubjectNode(
-                    s.getId(), s.getCode(), effName, s.getDescription(), effOrder, s.isActive(), children
-            );
-            subjectNodes.add(node);
+                List<TaxonomyTopicNode> children = topicsBySubject.getOrDefault(s.getId(), List.of());
+                TaxonomySubjectNode node = new TaxonomySubjectNode(
+                        s.getId(), s.getCode(), effName, s.getDescription(), effOrder, s.isActive(), children
+                );
+                subjectNodes.add(node);
+            }
         }
 
-        // Sort subjects
         subjectNodes.sort(
                 Comparator.comparing(TaxonomySubjectNode::displayOrder, Comparator.nullsLast(Integer::compareTo))
                         .thenComparing(TaxonomySubjectNode::name, Comparator.nullsLast(String::compareToIgnoreCase))
         );
-
         return subjectNodes;
     }
 
@@ -198,91 +209,80 @@ public class TaxonomyClientImpl implements TaxonomyClient {
             return Optional.empty();
         }
 
-        switch (nodeType) {
-            case SUBJECT: {
-                Optional<Subject> opt = subjectRepository.findById(nodeId);
-                if (opt.isEmpty() || !opt.get().isActive()) {
-                    return Optional.empty();
-                }
-                Subject s = opt.get();
-                if (s.getTenantId() != null && (tenantId == null || !s.getTenantId().equals(tenantId))) {
-                    return Optional.empty();
-                }
-                if (tenantId != null && !tenantId.isBlank()) {
-                    Optional<TaxonomyTenantOverride> ov = overrideRepository
-                            .findByTenantIdAndNodeTypeAndNodeId(tenantId, TaxonomyNodeType.SUBJECT, nodeId);
-                    if (ov.isPresent()) {
-                        TaxonomyTenantOverride o = ov.get();
-                        if (o.isHidden()) {
-                            return Optional.empty();
-                        }
-                        String name = (o.getNameOverride() != null && !o.getNameOverride().isBlank())
-                                ? o.getNameOverride() : s.getName();
-                        Integer order = o.getOrderOverride() != null ? o.getOrderOverride() : s.getDisplayOrder();
-                        return Optional.of(new TaxonomyNodeView(s.getId(), TaxonomyNodeType.SUBJECT, null, s.getCode(),
-                                name, s.getDescription(), order, s.isActive(), s.getTenantId()));
-                    }
-                }
-                return Optional.of(new TaxonomyNodeView(s.getId(), TaxonomyNodeType.SUBJECT, null, s.getCode(),
-                        s.getName(), s.getDescription(), s.getDisplayOrder(), s.isActive(), s.getTenantId()));
-            }
-            case TOPIC: {
-                Optional<Topic> opt = topicRepository.findById(nodeId);
-                if (opt.isEmpty() || !opt.get().isActive()) {
-                    return Optional.empty();
-                }
-                Topic t = opt.get();
-                if (t.getTenantId() != null && (tenantId == null || !t.getTenantId().equals(tenantId))) {
-                    return Optional.empty();
-                }
-                if (tenantId != null && !tenantId.isBlank()) {
-                    Optional<TaxonomyTenantOverride> ov = overrideRepository
-                            .findByTenantIdAndNodeTypeAndNodeId(tenantId, TaxonomyNodeType.TOPIC, nodeId);
-                    if (ov.isPresent()) {
-                        TaxonomyTenantOverride o = ov.get();
-                        if (o.isHidden()) {
-                            return Optional.empty();
-                        }
-                        String name = (o.getNameOverride() != null && !o.getNameOverride().isBlank())
-                                ? o.getNameOverride() : t.getName();
-                        Integer order = o.getOrderOverride() != null ? o.getOrderOverride() : t.getDisplayOrder();
-                        return Optional.of(new TaxonomyNodeView(t.getId(), TaxonomyNodeType.TOPIC, t.getSubjectId(), t.getCode(),
-                                name, t.getDescription(), order, t.isActive(), t.getTenantId()));
-                    }
-                }
-                return Optional.of(new TaxonomyNodeView(t.getId(), TaxonomyNodeType.TOPIC, t.getSubjectId(), t.getCode(),
-                        t.getName(), t.getDescription(), t.getDisplayOrder(), t.isActive(), t.getTenantId()));
-            }
-            case SUBTOPIC: {
-                Optional<Subtopic> opt = subtopicRepository.findById(nodeId);
-                if (opt.isEmpty() || !opt.get().isActive()) {
-                    return Optional.empty();
-                }
-                Subtopic st = opt.get();
-                if (st.getTenantId() != null && (tenantId == null || !st.getTenantId().equals(tenantId))) {
-                    return Optional.empty();
-                }
-                if (tenantId != null && !tenantId.isBlank()) {
-                    Optional<TaxonomyTenantOverride> ov = overrideRepository
-                            .findByTenantIdAndNodeTypeAndNodeId(tenantId, TaxonomyNodeType.SUBTOPIC, nodeId);
-                    if (ov.isPresent()) {
-                        TaxonomyTenantOverride o = ov.get();
-                        if (o.isHidden()) {
-                            return Optional.empty();
-                        }
-                        String name = (o.getNameOverride() != null && !o.getNameOverride().isBlank())
-                                ? o.getNameOverride() : st.getName();
-                        Integer order = o.getOrderOverride() != null ? o.getOrderOverride() : st.getDisplayOrder();
-                        return Optional.of(new TaxonomyNodeView(st.getId(), TaxonomyNodeType.SUBTOPIC, st.getTopicId(), st.getCode(),
-                                name, st.getDescription(), order, st.isActive(), st.getTenantId()));
-                    }
-                }
-                return Optional.of(new TaxonomyNodeView(st.getId(), TaxonomyNodeType.SUBTOPIC, st.getTopicId(), st.getCode(),
-                        st.getName(), st.getDescription(), st.getDisplayOrder(), st.isActive(), st.getTenantId()));
-            }
-            default:
-                return Optional.empty();
+        return switch (nodeType) {
+            case SUBJECT -> findSubjectNode(nodeId, tenantId);
+            case TOPIC -> findTopicNode(nodeId, tenantId);
+            case SUBTOPIC -> findSubtopicNode(nodeId, tenantId);
+        };
+    }
+
+    private Optional<TaxonomyNodeView> findSubjectNode(Long nodeId, String tenantId) {
+        return subjectRepository.findById(nodeId)
+                .filter(Subject::isActive)
+                .flatMap(s -> applyOverrideOrBuild(TaxonomyNodeType.SUBJECT, s.getId(), null,
+                        s.getCode(), s.getName(), s.getDescription(), s.getDisplayOrder(),
+                        true, s.getTenantId(), tenantId));
+    }
+
+    private Optional<TaxonomyNodeView> findTopicNode(Long nodeId, String tenantId) {
+        return topicRepository.findById(nodeId)
+                .filter(Topic::isActive)
+                .flatMap(t -> applyOverrideOrBuild(TaxonomyNodeType.TOPIC, t.getId(), t.getSubjectId(),
+                        t.getCode(), t.getName(), t.getDescription(), t.getDisplayOrder(),
+                        true, t.getTenantId(), tenantId));
+    }
+
+    private Optional<TaxonomyNodeView> findSubtopicNode(Long nodeId, String tenantId) {
+        return subtopicRepository.findById(nodeId)
+                .filter(Subtopic::isActive)
+                .flatMap(st -> applyOverrideOrBuild(TaxonomyNodeType.SUBTOPIC, st.getId(), st.getTopicId(),
+                        st.getCode(), st.getName(), st.getDescription(), st.getDisplayOrder(),
+                        true, st.getTenantId(), tenantId));
+    }
+
+    private Optional<TaxonomyNodeView> applyOverrideOrBuild(
+            TaxonomyNodeType nodeType, Long id, Long parentId, String code,
+            String baseName, String description, Integer baseOrder, boolean active,
+            String nodeTenantId, String tenantId) {
+        if (nodeTenantId != null && !nodeTenantId.equals(tenantId)) {
+            return Optional.empty();
         }
+
+        TaxonomyTenantOverride override = findOverride(tenantId, nodeType, id);
+        if (isHidden(override)) {
+            return Optional.empty();
+        }
+
+        String effName = resolveEffectiveName(override, baseName);
+        Integer effOrder = resolveEffectiveOrder(override, baseOrder);
+
+        return Optional.of(new TaxonomyNodeView(id, nodeType, parentId, code,
+                effName, description, effOrder, active, nodeTenantId));
+    }
+
+    private TaxonomyTenantOverride findOverride(String tenantId, TaxonomyNodeType nodeType, Long nodeId) {
+        if (tenantId == null || tenantId.isBlank()) {
+            return null;
+        }
+        return overrideRepository.findByTenantIdAndNodeTypeAndNodeId(tenantId, nodeType, nodeId).orElse(null);
+    }
+
+    private static boolean isHidden(TaxonomyTenantOverride override) {
+        return override != null && override.isHidden();
+    }
+
+    private static String resolveEffectiveName(TaxonomyTenantOverride override, String defaultName) {
+        if (override != null && override.getNameOverride() != null && !override.getNameOverride().isBlank()) {
+            return override.getNameOverride();
+        }
+        return defaultName;
+    }
+
+    private static Integer resolveEffectiveOrder(TaxonomyTenantOverride override, Integer defaultOrder) {
+        if (override != null && override.getOrderOverride() != null) {
+            return override.getOrderOverride();
+        }
+        return defaultOrder;
     }
 
     @Override
@@ -317,44 +317,34 @@ public class TaxonomyClientImpl implements TaxonomyClient {
 
     @Override
     public boolean validateChain(Long subjectId, Long topicId, Long subtopicId, String tenantId) {
-        if (subjectId == null) {
-            return false;
-        }
-        if (!isValidNode(TaxonomyNodeType.SUBJECT, subjectId, tenantId)) {
+        if (subjectId == null || !isValidNode(TaxonomyNodeType.SUBJECT, subjectId, tenantId)) {
             return false;
         }
 
-        if (topicId != null) {
-            Optional<Topic> topOpt = topicRepository.findById(topicId);
-            if (topOpt.isEmpty() || !topOpt.get().isActive()) {
-                return false;
-            }
-            Topic t = topOpt.get();
-            if (!subjectId.equals(t.getSubjectId())) {
-                return false;
-            }
-            if (!isValidNode(TaxonomyNodeType.TOPIC, topicId, tenantId)) {
-                return false;
-            }
+        if (topicId != null && !isTopicValidForSubject(topicId, subjectId, tenantId)) {
+            return false;
         }
 
-        if (subtopicId != null) {
-            if (topicId == null) {
-                return false;
-            }
-            Optional<Subtopic> subOpt = subtopicRepository.findById(subtopicId);
-            if (subOpt.isEmpty() || !subOpt.get().isActive()) {
-                return false;
-            }
-            Subtopic st = subOpt.get();
-            if (!topicId.equals(st.getTopicId())) {
-                return false;
-            }
-            if (!isValidNode(TaxonomyNodeType.SUBTOPIC, subtopicId, tenantId)) {
-                return false;
-            }
-        }
+        return subtopicId == null || (topicId != null && isSubtopicValidForTopic(subtopicId, topicId, tenantId));
+    }
 
-        return true;
+    private boolean isTopicValidForSubject(Long topicId, Long subjectId, String tenantId) {
+        if (!isValidNode(TaxonomyNodeType.TOPIC, topicId, tenantId)) {
+            return false;
+        }
+        return topicRepository.findById(topicId)
+                .filter(Topic::isActive)
+                .map(t -> subjectId.equals(t.getSubjectId()))
+                .orElse(false);
+    }
+
+    private boolean isSubtopicValidForTopic(Long subtopicId, Long topicId, String tenantId) {
+        if (!isValidNode(TaxonomyNodeType.SUBTOPIC, subtopicId, tenantId)) {
+            return false;
+        }
+        return subtopicRepository.findById(subtopicId)
+                .filter(Subtopic::isActive)
+                .map(st -> topicId.equals(st.getTopicId()))
+                .orElse(false);
     }
 }

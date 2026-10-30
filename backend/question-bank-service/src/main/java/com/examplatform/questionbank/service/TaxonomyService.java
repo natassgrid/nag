@@ -38,8 +38,9 @@ import com.examplatform.shared.taxonomy.TaxonomyClient;
 import com.examplatform.shared.taxonomy.TaxonomyNodeType;
 import com.examplatform.shared.taxonomy.TaxonomySubjectNode;
 import jakarta.persistence.EntityManager;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -52,8 +53,10 @@ import java.util.UUID;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class TaxonomyService {
+
+    private static final String PARAM_TARGET_ID = "targetId";
+    private static final String PARAM_SOURCE_ID = "sourceId";
 
     private final TaxonomyClient taxonomyClient;
     private final SubjectRepository subjectRepository;
@@ -62,6 +65,39 @@ public class TaxonomyService {
     private final TaxonomyTenantOverrideRepository overrideRepository;
     private final EventPublisher eventPublisher;
     private final EntityManager entityManager;
+    private final TaxonomyService self;
+
+    @Autowired
+    public TaxonomyService(
+            TaxonomyClient taxonomyClient,
+            SubjectRepository subjectRepository,
+            TopicRepository topicRepository,
+            SubtopicRepository subtopicRepository,
+            TaxonomyTenantOverrideRepository overrideRepository,
+            EventPublisher eventPublisher,
+            EntityManager entityManager,
+            @Lazy TaxonomyService self) {
+        this.taxonomyClient = taxonomyClient;
+        this.subjectRepository = subjectRepository;
+        this.topicRepository = topicRepository;
+        this.subtopicRepository = subtopicRepository;
+        this.overrideRepository = overrideRepository;
+        this.eventPublisher = eventPublisher;
+        this.entityManager = entityManager;
+        this.self = self != null ? self : this;
+    }
+
+    public TaxonomyService(
+            TaxonomyClient taxonomyClient,
+            SubjectRepository subjectRepository,
+            TopicRepository topicRepository,
+            SubtopicRepository subtopicRepository,
+            TaxonomyTenantOverrideRepository overrideRepository,
+            EventPublisher eventPublisher,
+            EntityManager entityManager) {
+        this(taxonomyClient, subjectRepository, topicRepository, subtopicRepository,
+                overrideRepository, eventPublisher, entityManager, null);
+    }
 
     @Transactional(readOnly = true)
     public List<TaxonomySubjectNode> getEffectiveTree(String tenantId, UUID examId) {
@@ -109,7 +145,7 @@ public class TaxonomyService {
             return;
         }
         for (TaxonomyOverrideRequest req : requests) {
-            applyOverride(req, tenantId);
+            self.applyOverride(req, tenantId);
         }
         TaxonomyChanged event = TaxonomyChanged.treeInvalidated(tenantId);
         eventPublisher.publish(MessagingConstants.TAXONOMY_EVENTS_TOPIC, tenantId, event);
@@ -136,14 +172,14 @@ public class TaxonomyService {
 
                 entityManager.createNativeQuery(
                         "UPDATE question_service.question SET subtopic_id = :targetId WHERE subtopic_id = :sourceId")
-                        .setParameter("targetId", target.getId())
-                        .setParameter("sourceId", source.getId())
+                        .setParameter(PARAM_TARGET_ID, target.getId())
+                        .setParameter(PARAM_SOURCE_ID, source.getId())
                         .executeUpdate();
 
                 entityManager.createNativeQuery(
                         "UPDATE question_service.subtopic_micro_lesson SET subtopic_id = :targetId WHERE subtopic_id = :sourceId")
-                        .setParameter("targetId", target.getId())
-                        .setParameter("sourceId", source.getId())
+                        .setParameter(PARAM_TARGET_ID, target.getId())
+                        .setParameter(PARAM_SOURCE_ID, source.getId())
                         .executeUpdate();
 
                 source.setActive(false);
@@ -157,20 +193,20 @@ public class TaxonomyService {
 
                 entityManager.createNativeQuery(
                         "UPDATE question_service.subtopic SET topic_id = :targetId WHERE topic_id = :sourceId")
-                        .setParameter("targetId", target.getId())
-                        .setParameter("sourceId", source.getId())
+                        .setParameter(PARAM_TARGET_ID, target.getId())
+                        .setParameter(PARAM_SOURCE_ID, source.getId())
                         .executeUpdate();
 
                 entityManager.createNativeQuery(
                         "UPDATE question_service.question SET topic_id = :targetId WHERE topic_id = :sourceId")
-                        .setParameter("targetId", target.getId())
-                        .setParameter("sourceId", source.getId())
+                        .setParameter(PARAM_TARGET_ID, target.getId())
+                        .setParameter(PARAM_SOURCE_ID, source.getId())
                         .executeUpdate();
 
                 entityManager.createNativeQuery(
                         "UPDATE question_service.subtopic_micro_lesson SET topic_id = :targetId WHERE topic_id = :sourceId")
-                        .setParameter("targetId", target.getId())
-                        .setParameter("sourceId", source.getId())
+                        .setParameter(PARAM_TARGET_ID, target.getId())
+                        .setParameter(PARAM_SOURCE_ID, source.getId())
                         .executeUpdate();
 
                 source.setActive(false);
@@ -184,20 +220,20 @@ public class TaxonomyService {
 
                 entityManager.createNativeQuery(
                         "UPDATE question_service.topic SET subject_id = :targetId WHERE subject_id = :sourceId")
-                        .setParameter("targetId", target.getId())
-                        .setParameter("sourceId", source.getId())
+                        .setParameter(PARAM_TARGET_ID, target.getId())
+                        .setParameter(PARAM_SOURCE_ID, source.getId())
                         .executeUpdate();
 
                 entityManager.createNativeQuery(
                         "UPDATE question_service.question SET subject_id = :targetId WHERE subject_id = :sourceId")
-                        .setParameter("targetId", target.getId())
-                        .setParameter("sourceId", source.getId())
+                        .setParameter(PARAM_TARGET_ID, target.getId())
+                        .setParameter(PARAM_SOURCE_ID, source.getId())
                         .executeUpdate();
 
                 entityManager.createNativeQuery(
                         "UPDATE question_service.subtopic_micro_lesson SET subject_id = :targetId WHERE subject_id = :sourceId")
-                        .setParameter("targetId", target.getId())
-                        .setParameter("sourceId", source.getId())
+                        .setParameter(PARAM_TARGET_ID, target.getId())
+                        .setParameter(PARAM_SOURCE_ID, source.getId())
                         .executeUpdate();
 
                 source.setActive(false);

@@ -26,8 +26,9 @@ import com.examplatform.questionbank.dto.SubjectHierarchyResponse;
 import com.examplatform.questionbank.repository.SubjectRepository;
 import com.examplatform.questionbank.repository.SubtopicRepository;
 import com.examplatform.questionbank.repository.TopicRepository;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,12 +44,33 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class SubjectTopicService {
+
+    private static final String TENANT_PARAM = " tenant=";
 
     private final SubjectRepository subjectRepository;
     private final TopicRepository topicRepository;
     private final SubtopicRepository subtopicRepository;
+    private final SubjectTopicService self;
+
+    @Autowired
+    public SubjectTopicService(
+            SubjectRepository subjectRepository,
+            TopicRepository topicRepository,
+            SubtopicRepository subtopicRepository,
+            @Lazy SubjectTopicService self) {
+        this.subjectRepository = subjectRepository;
+        this.topicRepository = topicRepository;
+        this.subtopicRepository = subtopicRepository;
+        this.self = self != null ? self : this;
+    }
+
+    public SubjectTopicService(
+            SubjectRepository subjectRepository,
+            TopicRepository topicRepository,
+            SubtopicRepository subtopicRepository) {
+        this(subjectRepository, topicRepository, subtopicRepository, null);
+    }
 
     // -----------------------------------------------------------------------
     // Subjects
@@ -123,7 +145,7 @@ public class SubjectTopicService {
 
     @Transactional
     public Topic createTopic(Long subjectId, String name, String description, String tenantId) {
-        return createTopic(subjectId, null, name, description, tenantId);
+        return self.createTopic(subjectId, null, name, description, tenantId);
     }
 
     @Transactional
@@ -170,7 +192,7 @@ public class SubjectTopicService {
 
     @Transactional
     public Subtopic createSubtopic(Long topicId, String name, String description, String tenantId) {
-        return createSubtopic(topicId, null, name, description, tenantId);
+        return self.createSubtopic(topicId, null, name, description, tenantId);
     }
 
     @Transactional
@@ -229,27 +251,27 @@ public class SubjectTopicService {
         Subject subject = subjectRepository.findByIdAndTenantId(subjectId, tenantId)
                 .or(() -> subjectRepository.findByIdAndTenantIdIsNull(subjectId))
                 .orElseThrow(() -> new IllegalArgumentException(
-                        "Subject not found: id=" + subjectId + " tenant=" + tenantId));
+                        "Subject not found: id=" + subjectId + TENANT_PARAM + tenantId));
 
         Topic topic = topicRepository.findByIdAndSubjectIdAndTenantId(topicId, subject.getId(), tenantId)
                 .or(() -> topicRepository.findByIdAndSubjectIdAndTenantIdIsNull(topicId, subject.getId()))
                 .orElseThrow(() -> new IllegalArgumentException(
-                        "Topic not found: id=" + topicId + " for subjectId=" + subjectId + " tenant=" + tenantId));
+                        "Topic not found: id=" + topicId + " for subjectId=" + subjectId + TENANT_PARAM + tenantId));
 
         Long resolvedSubtopicId;
         if (subtopicId != null) {
             Subtopic subtopic = subtopicRepository.findByIdAndTopicIdAndTenantId(subtopicId, topic.getId(), tenantId)
                     .or(() -> subtopicRepository.findByIdAndTopicIdAndTenantIdIsNull(subtopicId, topic.getId()))
                     .orElseThrow(() -> new IllegalArgumentException(
-                            "Subtopic not found: id=" + subtopicId + " for topicId=" + topicId + " tenant=" + tenantId));
+                            "Subtopic not found: id=" + subtopicId + " for topicId=" + topicId + TENANT_PARAM + tenantId));
             resolvedSubtopicId = subtopic.getId();
         } else {
             // Pick first subtopic of topic as mandatory subtopic, or create default subtopic if none exist
-            List<Subtopic> subs = listSubtopics(topic.getId(), tenantId);
+            List<Subtopic> subs = self.listSubtopics(topic.getId(), tenantId);
             if (!subs.isEmpty()) {
                 resolvedSubtopicId = subs.get(0).getId();
             } else {
-                Subtopic created = createSubtopic(topic.getId(), null, "General " + topic.getName(), null, tenantId);
+                Subtopic created = self.createSubtopic(topic.getId(), null, "General " + topic.getName(), null, tenantId);
                 resolvedSubtopicId = created.getId();
             }
         }
@@ -279,12 +301,12 @@ public class SubjectTopicService {
         String sName = subjectName.trim();
         Subject subject = subjectRepository.findByNameAndTenantId(sName, tenantId)
                 .or(() -> subjectRepository.findByNameAndTenantIdIsNull(sName))
-                .orElseGet(() -> createSubject(sName, null, null, tenantId));
+                .orElseGet(() -> self.createSubject(sName, null, null, tenantId));
 
         String tName = topicName.trim();
         Topic topic = topicRepository.findByNameAndSubjectIdAndTenantId(tName, subject.getId(), tenantId)
                 .or(() -> topicRepository.findByNameAndSubjectIdAndTenantIdIsNull(tName, subject.getId()))
-                .orElseGet(() -> createTopic(subject.getId(), null, tName, null, tenantId));
+                .orElseGet(() -> self.createTopic(subject.getId(), null, tName, null, tenantId));
 
         Long subtopicId;
         if (subtopicName != null && !subtopicName.isBlank()) {
@@ -292,14 +314,14 @@ public class SubjectTopicService {
             Subtopic subtopic = subtopicRepository
                     .findByNameAndTopicIdAndTenantId(stName, topic.getId(), tenantId)
                     .or(() -> subtopicRepository.findByNameAndTopicIdAndTenantIdIsNull(stName, topic.getId()))
-                    .orElseGet(() -> createSubtopic(topic.getId(), null, stName, null, tenantId));
+                    .orElseGet(() -> self.createSubtopic(topic.getId(), null, stName, null, tenantId));
             subtopicId = subtopic.getId();
         } else {
-            List<Subtopic> existing = listSubtopics(topic.getId(), tenantId);
+            List<Subtopic> existing = self.listSubtopics(topic.getId(), tenantId);
             if (!existing.isEmpty()) {
                 subtopicId = existing.get(0).getId();
             } else {
-                Subtopic created = createSubtopic(topic.getId(), null, "General " + topic.getName(), null, tenantId);
+                Subtopic created = self.createSubtopic(topic.getId(), null, "General " + topic.getName(), null, tenantId);
                 subtopicId = created.getId();
             }
         }
@@ -317,13 +339,13 @@ public class SubjectTopicService {
      */
     @Transactional(readOnly = true)
     public List<SubjectHierarchyResponse> getHierarchy(String tenantId) {
-        List<Subject> subjects = listSubjects(tenantId);
+        List<Subject> subjects = self.listSubjects(tenantId);
 
         return subjects.stream().map(subject -> {
-            List<Topic> topics = listTopics(subject.getId(), tenantId);
+            List<Topic> topics = self.listTopics(subject.getId(), tenantId);
 
             List<SubjectHierarchyResponse.TopicNode> topicNodes = topics.stream().map(topic -> {
-                List<Subtopic> subtopics = listSubtopics(topic.getId(), tenantId);
+                List<Subtopic> subtopics = self.listSubtopics(topic.getId(), tenantId);
 
                 List<SubjectHierarchyResponse.SubtopicNode> subtopicNodes = subtopics.stream()
                         .map(st -> SubjectHierarchyResponse.SubtopicNode.builder()
@@ -359,6 +381,6 @@ public class SubjectTopicService {
         if (clean.length() > 40) {
             clean = clean.substring(0, 40);
         }
-        return clean.replaceAll("^_+|_+$", "");
+        return clean.replaceAll("(^_++)|(_++$)", "");
     }
 }
