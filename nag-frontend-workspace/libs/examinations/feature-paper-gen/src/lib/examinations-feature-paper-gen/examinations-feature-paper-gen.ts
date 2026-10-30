@@ -9,7 +9,7 @@ import {
   ChangeDetectionStrategy,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Subscription, timer, switchMap } from 'rxjs';
+import { Subscription, timer, switchMap, forkJoin } from 'rxjs';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
@@ -455,6 +455,50 @@ export class ExaminationsFeaturePaperGen implements OnInit, OnDestroy {
       error: (err) => {
         this.isPublishing.set(false);
         this.snackBar.open(err?.error?.message || 'Publishing failed.', 'Dismiss', { duration: 4000 });
+      },
+    });
+  }
+
+  handleBulkApprove(paperIds: string[]): void {
+    if (!paperIds || paperIds.length === 0) return;
+    this.isApproving.set(true);
+    const requests = paperIds.map((id) => this.paperService.approvePaper(id));
+    forkJoin(requests).subscribe({
+      next: (results) => {
+        this.isApproving.set(false);
+        this.snackBar.open(`Successfully approved ${results.length} question paper(s)!`, 'OK', {
+          duration: 4000,
+        });
+        this.loadPapers();
+      },
+      error: (err) => {
+        this.isApproving.set(false);
+        this.snackBar.open(err?.error?.message || 'Error occurred during bulk approval', 'Dismiss', {
+          duration: 4000,
+        });
+        this.loadPapers();
+      },
+    });
+  }
+
+  handleBulkPublish(paperIds: string[]): void {
+    if (!paperIds || paperIds.length === 0) return;
+    this.isPublishing.set(true);
+    const requests = paperIds.map((id) => this.paperService.publishPaper(id));
+    forkJoin(requests).subscribe({
+      next: (results) => {
+        this.isPublishing.set(false);
+        this.snackBar.open(`Successfully encrypted & published ${results.length} paper(s)!`, 'OK', {
+          duration: 4000,
+        });
+        this.loadPapers();
+      },
+      error: (err) => {
+        this.isPublishing.set(false);
+        this.snackBar.open(err?.error?.message || 'Error occurred during bulk publish', 'Dismiss', {
+          duration: 4000,
+        });
+        this.loadPapers();
       },
     });
   }

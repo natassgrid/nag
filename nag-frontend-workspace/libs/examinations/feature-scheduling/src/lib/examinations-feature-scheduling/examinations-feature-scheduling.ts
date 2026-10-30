@@ -216,6 +216,29 @@ export class ExaminationsFeatureScheduling implements OnInit {
     });
   }
 
+  handleBulkTransition(scheduleIds: string[]): void {
+    if (!scheduleIds || scheduleIds.length === 0) return;
+    const firstSchedule = (this.schedules() || []).find((s) => s.id === scheduleIds[0]);
+    if (firstSchedule) {
+      this.openTransitionModal(firstSchedule);
+      if (scheduleIds.length > 1) {
+        this.snackBar.open(
+          `Initiating transition for ${scheduleIds.length} schedules (starting with ${firstSchedule.scheduleName})`,
+          'OK',
+          { duration: 4000 }
+        );
+      }
+    }
+  }
+
+  handleBulkRemoveAllocations(allocationIds: string[]): void {
+    if (!allocationIds || allocationIds.length === 0) return;
+    this.allocations.update((list) => (list || []).filter((a) => !allocationIds.includes(a.id)));
+    this.snackBar.open(`Removed ${allocationIds.length} venue allocation(s)`, 'OK', {
+      duration: 3000,
+    });
+  }
+
   openAmendModal(schedule: ScheduleResponse): void {
     this.selectedSchedule.set(schedule);
     this.showAmendModal.set(true);

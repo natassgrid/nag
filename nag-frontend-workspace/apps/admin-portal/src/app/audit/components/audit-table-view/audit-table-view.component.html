@@ -1,108 +1,245 @@
-<div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-  <div class="overflow-x-auto">
-    <table class="w-full text-left text-xs">
-      <thead class="bg-slate-50 text-slate-700 uppercase font-bold text-[10px] tracking-wider border-b border-slate-200">
-        <tr>
-          <th class="py-3 px-4">Block # &amp; Time</th>
-          <th class="py-3 px-4">Service</th>
-          <th class="py-3 px-4">Principal Actor</th>
-          <th class="py-3 px-4">Action &amp; Target</th>
-          <th class="py-3 px-4">Severity</th>
-          <th class="py-3 px-4">SHA-256 Ledger Hash</th>
-          <th class="py-3 px-4 text-right">Inspect</th>
-        </tr>
-      </thead>
-      <tbody class="divide-y divide-slate-100">
-        @if (records().length === 0) {
+<div class="space-y-4">
+  <!-- Contextual Bulk Selection Bar -->
+  @if (selectedCount() > 0) {
+    <div class="bg-slate-900 text-white px-5 py-3 rounded-2xl flex flex-wrap items-center justify-between gap-3 shadow-lg">
+      <div class="flex items-center gap-3">
+        <span class="w-6 h-6 rounded-full bg-indigo-600 flex items-center justify-center font-bold text-xs">
+          {{ selectedCount() }}
+        </span>
+        <span class="text-xs font-semibold">
+          {{ selectedCount() }} audit record{{ selectedCount() > 1 ? 's' : '' }} selected
+        </span>
+      </div>
+      <div class="flex items-center gap-2 flex-wrap">
+        <button
+          type="button"
+          (click)="exportSelectedCsv()"
+          class="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold cursor-pointer transition-colors flex items-center gap-1"
+        >
+          <mat-icon class="!text-sm leading-none">download</mat-icon>
+          <span>Export Selected (CSV)</span>
+        </button>
+        <button
+          type="button"
+          (click)="copySelectedHashes()"
+          class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer transition-colors flex items-center gap-1"
+        >
+          <mat-icon class="!text-sm leading-none">content_copy</mat-icon>
+          <span>Copy Selected Hashes</span>
+        </button>
+        <button
+          type="button"
+          (click)="deselectAll()"
+          class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium cursor-pointer transition-colors"
+        >
+          Deselect All
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- Audit Table Card -->
+  <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-left text-xs">
+        <thead class="bg-slate-50 text-slate-700 uppercase font-bold text-[10px] tracking-wider border-b border-slate-200">
           <tr>
-            <td colspan="7" class="py-12 text-center text-slate-400">
-              <mat-icon class="!text-4xl mx-auto block mb-2 text-slate-300">manage_search</mat-icon>
-              <span>No audit trail entries matched your filter parameters</span>
-            </td>
+            <th class="py-3 px-3 w-10 text-center">
+              <input
+                type="checkbox"
+                [checked]="isAllSelected()"
+                [indeterminate]="isPartiallySelected()"
+                (change)="toggleSelectAll($any($event.target).checked)"
+                class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                aria-label="Select all audit records on this page"
+              />
+            </th>
+            <th class="py-3 px-4">Block # &amp; Time</th>
+            <th class="py-3 px-4">Service</th>
+            <th class="py-3 px-4">Principal Actor</th>
+            <th class="py-3 px-4">Action &amp; Target</th>
+            <th class="py-3 px-4">Severity</th>
+            <th class="py-3 px-4">SHA-256 Ledger Hash</th>
+            <th class="py-3 px-4 text-right">Inspect</th>
           </tr>
-        } @else {
-          @for (item of records(); track item.id) {
-            <tr class="hover:bg-slate-50/80 transition-colors">
-              <!-- Block Number & Timestamp -->
-              <td class="py-3.5 px-4 whitespace-nowrap">
-                <div class="font-mono font-black text-indigo-900 text-xs">#{{ item.blockNumber }}</div>
-                <div class="text-[11px] text-slate-400 font-mono mt-0.5">{{ item.timestamp }}</div>
-              </td>
-
-              <!-- Service Badge -->
-              <td class="py-3.5 px-4 whitespace-nowrap">
-                <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200 font-mono">
-                  {{ item.service }}
-                </span>
-              </td>
-
-              <!-- Principal Actor -->
-              <td class="py-3.5 px-4">
-                <div class="font-bold text-slate-900 text-xs truncate max-w-[180px]">{{ item.actor }}</div>
-                @if (item.ipAddress) {
-                  <div class="text-[10px] text-slate-400 font-mono mt-0.5">{{ item.ipAddress }}</div>
-                }
-              </td>
-
-              <!-- Action & Target -->
-              <td class="py-3.5 px-4">
-                <div class="font-bold text-slate-900 font-mono text-[11px]">{{ item.action }}</div>
-                <div class="text-[11px] text-slate-500 font-mono truncate max-w-[200px] mt-0.5">
-                  {{ item.target }}
-                </div>
-              </td>
-
-              <!-- Severity & Status -->
-              <td class="py-3.5 px-4 whitespace-nowrap">
-                @if (item.severity === 'INFO') {
-                  <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    INFO
-                  </span>
-                } @else if (item.severity === 'WARN') {
-                  <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                    WARN
-                  </span>
-                } @else {
-                  <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
-                    {{ item.severity }}
-                  </span>
-                }
-              </td>
-
-              <!-- SHA-256 Hash with Copy -->
-              <td class="py-3.5 px-4 whitespace-nowrap">
-                <div class="flex items-center gap-1">
-                  <span class="font-mono text-[11px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-sm truncate max-w-[130px]">
-                    {{ item.hash }}
-                  </span>
-                  <button
-                    type="button"
-                    (click)="copyHash(item.hash)"
-                    matTooltip="Copy Full Hash"
-                    class="text-slate-400 hover:text-indigo-600 p-0.5"
-                  >
-                    <mat-icon class="!text-xs leading-none">content_copy</mat-icon>
-                  </button>
-                </div>
-              </td>
-
-              <!-- Inspect Action -->
-              <td class="py-3.5 px-4 text-right whitespace-nowrap">
-                <button
-                  mat-stroked-button
-                  (click)="inspectRecord.emit(item)"
-                  class="!text-[11px] !py-0.5 !px-2.5 !rounded-lg !border-slate-300 !text-slate-700 hover:!bg-indigo-50 hover:!text-indigo-700 hover:!border-indigo-200"
-                >
-                  <span class="flex items-center gap-1">
-                    <mat-icon class="!text-xs">search</mat-icon>
-                    <span>Inspect</span>
-                  </span>
-                </button>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          @if (records().length === 0) {
+            <tr>
+              <td colspan="8" class="py-12 text-center text-slate-400">
+                <mat-icon class="!text-4xl mx-auto block mb-2 text-slate-300">manage_search</mat-icon>
+                <span>No audit trail entries matched your filter parameters</span>
               </td>
             </tr>
+          } @else {
+            @for (item of paginatedRecords(); track item.id) {
+              <tr
+                [class.bg-indigo-50/50]="selectedIds().has(item.id)"
+                class="hover:bg-slate-50/80 transition-colors"
+              >
+                <td class="py-3.5 px-3 text-center" (click)="$event.stopPropagation()">
+                  <input
+                    type="checkbox"
+                    [checked]="selectedIds().has(item.id)"
+                    (change)="toggleSelect(item.id)"
+                    class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                    aria-label="Select audit record"
+                  />
+                </td>
+
+                <!-- Block Number & Timestamp -->
+                <td class="py-3.5 px-4 whitespace-nowrap">
+                  <div class="font-mono font-black text-indigo-900 text-xs">#{{ item.blockNumber }}</div>
+                  <div class="text-[11px] text-slate-400 font-mono mt-0.5">{{ item.timestamp }}</div>
+                </td>
+
+                <!-- Service Badge -->
+                <td class="py-3.5 px-4 whitespace-nowrap">
+                  <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200 font-mono">
+                    {{ item.service }}
+                  </span>
+                </td>
+
+                <!-- Principal Actor -->
+                <td class="py-3.5 px-4">
+                  <div class="font-bold text-slate-900 text-xs truncate max-w-[180px]">{{ item.actor }}</div>
+                  @if (item.ipAddress) {
+                    <div class="text-[10px] text-slate-400 font-mono mt-0.5">{{ item.ipAddress }}</div>
+                  }
+                </td>
+
+                <!-- Action & Target -->
+                <td class="py-3.5 px-4">
+                  <div class="font-bold text-slate-900 font-mono text-[11px]">{{ item.action }}</div>
+                  <div class="text-[11px] text-slate-500 font-mono truncate max-w-[200px] mt-0.5">
+                    {{ item.target }}
+                  </div>
+                </td>
+
+                <!-- Severity & Status -->
+                <td class="py-3.5 px-4 whitespace-nowrap">
+                  @if (item.severity === 'INFO') {
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      INFO
+                    </span>
+                  } @else if (item.severity === 'WARN') {
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                      WARN
+                    </span>
+                  } @else {
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                      {{ item.severity }}
+                    </span>
+                  }
+                </td>
+
+                <!-- SHA-256 Hash with Copy -->
+                <td class="py-3.5 px-4 whitespace-nowrap">
+                  <div class="flex items-center gap-1">
+                    <span class="font-mono text-[11px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-sm truncate max-w-[130px]">
+                      {{ item.hash }}
+                    </span>
+                    <button
+                      type="button"
+                      (click)="copyHash(item.hash)"
+                      matTooltip="Copy Full Hash"
+                      class="text-slate-400 hover:text-indigo-600 p-0.5"
+                    >
+                      <mat-icon class="!text-xs leading-none">content_copy</mat-icon>
+                    </button>
+                  </div>
+                </td>
+
+                <!-- Inspect Action -->
+                <td class="py-3.5 px-4 text-right whitespace-nowrap">
+                  <button
+                    mat-stroked-button
+                    (click)="inspectRecord.emit(item)"
+                    class="!text-[11px] !py-0.5 !px-2.5 !rounded-lg !border-slate-300 !text-slate-700 hover:!bg-indigo-50 hover:!text-indigo-700 hover:!border-indigo-200"
+                  >
+                    <span class="flex items-center gap-1">
+                      <mat-icon class="!text-xs">search</mat-icon>
+                      <span>Inspect</span>
+                    </span>
+                  </button>
+                </td>
+              </tr>
+            }
           }
-        }
-      </tbody>
-    </table>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination Footer Bar -->
+    <div class="px-4 py-3 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+      <div class="flex items-center gap-2 text-slate-500 font-medium">
+        <span>Showing</span>
+        <span class="font-bold text-slate-800">{{ displayStart() }}</span>
+        <span>to</span>
+        <span class="font-bold text-slate-800">{{ displayEnd() }}</span>
+        <span>of</span>
+        <span class="font-bold text-slate-900">{{ records().length }}</span>
+        <span>audit records</span>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-1.5">
+          <span class="text-slate-400 font-medium">Per page:</span>
+          <select
+            [ngModel]="pageSize()"
+            (ngModelChange)="onPageSizeChange(+$event)"
+            class="bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-700 font-bold focus:outline-none cursor-pointer"
+          >
+            @for (size of pageSizeOptions; track size) {
+              <option [value]="size">{{ size }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="flex items-center gap-1">
+          <button
+            type="button"
+            (click)="goToFirstPage()"
+            [disabled]="safePageIndex() === 0"
+            class="p-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+            title="First Page"
+          >
+            <mat-icon class="!text-base !w-4 !h-4 flex items-center justify-center">first_page</mat-icon>
+          </button>
+          <button
+            type="button"
+            (click)="goToPrevPage()"
+            [disabled]="safePageIndex() === 0"
+            class="p-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+            title="Previous Page"
+          >
+            <mat-icon class="!text-base !w-4 !h-4 flex items-center justify-center">chevron_left</mat-icon>
+          </button>
+
+          <span class="px-2 font-semibold text-slate-700">
+            Page {{ totalPages() === 0 ? 0 : safePageIndex() + 1 }} of {{ totalPages() }}
+          </span>
+
+          <button
+            type="button"
+            (click)="goToNextPage()"
+            [disabled]="safePageIndex() >= totalPages() - 1"
+            class="p-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+            title="Next Page"
+          >
+            <mat-icon class="!text-base !w-4 !h-4 flex items-center justify-center">chevron_right</mat-icon>
+          </button>
+          <button
+            type="button"
+            (click)="goToLastPage()"
+            [disabled]="safePageIndex() >= totalPages() - 1"
+            class="p-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+            title="Last Page"
+          >
+            <mat-icon class="!text-base !w-4 !h-4 flex items-center justify-center">last_page</mat-icon>
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>

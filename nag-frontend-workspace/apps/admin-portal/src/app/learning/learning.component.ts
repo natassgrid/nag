@@ -6,6 +6,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatDialog } from '@angular/material/dialog';
+import { forkJoin, of, catchError } from 'rxjs';
+import { NotificationService } from '@nag-frontend-workspace/shared-ui-components';
 import {
   PracticeSetKpiCardsComponent,
   PracticeSetListComponent,
@@ -35,6 +37,7 @@ import { PracticeSet } from './models';
 export class LearningComponent implements OnInit {
   private readonly practiceSetService = inject(PracticeSetService);
   private readonly dialog = inject(MatDialog);
+  private readonly notificationService = inject(NotificationService);
 
   readonly practiceSets = signal<PracticeSet[]>([]);
   readonly isLoading = signal(true);
@@ -143,6 +146,87 @@ export class LearningComponent implements OnInit {
     action.subscribe({
       next: () => this.loadSets(),
       error: (err) => console.error('Failed to toggle publish status', err),
+    });
+  }
+
+  handleBulkPublish(sets: PracticeSet[]): void {
+    if (!sets || sets.length === 0) return;
+    this.isLoading.set(true);
+    forkJoin(
+      sets.map((s) =>
+        this.practiceSetService.publish(s.id).pipe(
+          catchError((err) => {
+            console.error(`Failed to publish practice set ${s.id}`, err);
+            return of(null);
+          })
+        )
+      )
+    ).subscribe({
+      next: (results) => {
+        const count = results.filter((r) => r !== null).length;
+        this.notificationService.success(`Successfully published ${count} practice set(s).`);
+        this.loadSets();
+      },
+      error: (err) => {
+        this.notificationService.error(
+          'Failed to complete bulk publish: ' + (err?.message || 'Server error')
+        );
+        this.loadSets();
+      },
+    });
+  }
+
+  handleBulkUnpublish(sets: PracticeSet[]): void {
+    if (!sets || sets.length === 0) return;
+    this.isLoading.set(true);
+    forkJoin(
+      sets.map((s) =>
+        this.practiceSetService.unpublish(s.id).pipe(
+          catchError((err) => {
+            console.error(`Failed to unpublish practice set ${s.id}`, err);
+            return of(null);
+          })
+        )
+      )
+    ).subscribe({
+      next: (results) => {
+        const count = results.filter((r) => r !== null).length;
+        this.notificationService.success(`Successfully unpublished ${count} practice set(s).`);
+        this.loadSets();
+      },
+      error: (err) => {
+        this.notificationService.error(
+          'Failed to complete bulk unpublish: ' + (err?.message || 'Server error')
+        );
+        this.loadSets();
+      },
+    });
+  }
+
+  handleBulkDelete(sets: PracticeSet[]): void {
+    if (!sets || sets.length === 0) return;
+    this.isLoading.set(true);
+    forkJoin(
+      sets.map((s) =>
+        this.practiceSetService.delete(s.id).pipe(
+          catchError((err) => {
+            console.error(`Failed to delete practice set ${s.id}`, err);
+            return of(null);
+          })
+        )
+      )
+    ).subscribe({
+      next: (results) => {
+        const count = results.filter((r) => r !== null).length;
+        this.notificationService.success(`Successfully deleted ${count} practice set(s).`);
+        this.loadSets();
+      },
+      error: (err) => {
+        this.notificationService.error(
+          'Failed to complete bulk deletion: ' + (err?.message || 'Server error')
+        );
+        this.loadSets();
+      },
     });
   }
 }

@@ -1,7 +1,72 @@
+<!-- Bulk Selection Action Bar -->
+@if (selectedIds().size > 0) {
+  <div class="sticky top-2 z-20 mb-4 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-lg border border-slate-800 flex items-center justify-between flex-wrap gap-3 animate-fadeIn">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-400">
+        <mat-icon class="!text-lg">check_circle</mat-icon>
+      </div>
+      <div>
+        <span class="font-bold text-sm">{{ selectedIds().size }} asset{{ selectedIds().size > 1 ? 's' : '' }} selected</span>
+        <span class="text-xs text-slate-400 ml-2">({{ activeSelectedCount() }} active, {{ archivedSelectedCount() }} archived)</span>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <button
+        mat-flat-button
+        color="accent"
+        (click)="triggerBulkArchive()"
+        [disabled]="activeSelectedCount() === 0"
+        class="!text-xs cursor-pointer flex items-center gap-1.5"
+        title="Archive selected active assets"
+      >
+        <mat-icon class="!text-sm">archive</mat-icon>
+        Archive Selected
+      </button>
+      <button
+        mat-stroked-button
+        (click)="triggerBulkRestore()"
+        [disabled]="archivedSelectedCount() === 0"
+        class="!text-xs !text-emerald-400 !border-emerald-600/40 hover:!bg-emerald-950/40 cursor-pointer flex items-center gap-1.5"
+        title="Restore selected archived assets"
+      >
+        <mat-icon class="!text-sm">unarchive</mat-icon>
+        Restore Selected
+      </button>
+      <button
+        mat-flat-button
+        color="warn"
+        (click)="triggerBulkDelete()"
+        class="!text-xs cursor-pointer flex items-center gap-1.5"
+        title="Permanently delete selected assets"
+      >
+        <mat-icon class="!text-sm">delete</mat-icon>
+        Delete Selected
+      </button>
+      <button
+        mat-button
+        (click)="clearSelection()"
+        class="!text-xs !text-slate-400 hover:!text-white cursor-pointer"
+      >
+        Deselect All
+      </button>
+    </div>
+  </div>
+}
+
 <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
   <table class="w-full text-left border-collapse text-xs">
     <thead>
       <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+        <th class="py-3 px-4 w-10 text-center">
+          <input
+            type="checkbox"
+            [checked]="isAllSelected()"
+            [indeterminate]="isPartiallySelected()"
+            (change)="toggleSelectAll($event)"
+            class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+            title="Select all on current page"
+          />
+        </th>
         <th class="py-3 px-4">Media</th>
         <th class="py-3 px-4">Filename &amp; Title</th>
         <th class="py-3 px-4">Type</th>
@@ -13,7 +78,19 @@
     </thead>
     <tbody class="divide-y divide-slate-100">
       @for (asset of assets(); track asset.id) {
-        <tr class="hover:bg-slate-50/70 transition-colors">
+        <tr
+          class="hover:bg-slate-50/70 transition-colors"
+          [class.bg-indigo-50/40]="selectedIds().has(asset.id)"
+        >
+          <td class="py-2.5 px-4 w-10 text-center">
+            <input
+              type="checkbox"
+              [checked]="selectedIds().has(asset.id)"
+              (change)="toggleRowSelection(asset.id)"
+              (click)="$event.stopPropagation()"
+              class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+            />
+          </td>
           <td class="py-2.5 px-4 w-12">
             <div
               class="w-10 h-10 rounded-lg bg-slate-900 flex items-center justify-center overflow-hidden cursor-pointer"

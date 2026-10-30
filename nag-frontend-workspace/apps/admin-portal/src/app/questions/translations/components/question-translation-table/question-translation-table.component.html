@@ -30,11 +30,59 @@
     </div>
   </div>
 
+  <!-- Contextual Bulk Selection Bar -->
+  @if (selectedIds().size > 0) {
+    <div class="px-4 py-2.5 bg-indigo-50 border-b border-indigo-100 flex flex-wrap items-center justify-between gap-3 text-xs">
+      <div class="flex items-center gap-2 text-indigo-900 font-semibold">
+        <span class="inline-flex items-center justify-center bg-indigo-600 text-white rounded-full w-5 h-5 text-[11px] font-bold">
+          {{ selectedIds().size }}
+        </span>
+        <span>{{ selectedIds().size === 1 ? 'question' : 'questions' }} selected</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <button
+          mat-flat-button
+          color="primary"
+          (click)="onBulkTranslate()"
+          class="!bg-indigo-600 hover:!bg-indigo-700 !text-white !text-xs !py-1 !px-3 !h-7 !rounded-lg cursor-pointer font-bold inline-flex items-center gap-1"
+        >
+          <mat-icon class="!text-sm">auto_awesome</mat-icon>
+          AI Translate Selected
+        </button>
+        <button
+          mat-stroked-button
+          (click)="exportSelectedCsv()"
+          class="!border-indigo-300 !text-indigo-800 !bg-white hover:!bg-indigo-100/50 !text-xs !py-1 !px-3 !h-7 !rounded-lg cursor-pointer font-semibold inline-flex items-center gap-1"
+        >
+          <mat-icon class="!text-sm">file_download</mat-icon>
+          Export Selected CSV
+        </button>
+        <button
+          mat-button
+          (click)="deselectAll()"
+          class="!text-slate-600 hover:!text-slate-900 !text-xs !py-1 !px-2 !h-7 cursor-pointer"
+        >
+          Deselect All
+        </button>
+      </div>
+    </div>
+  }
+
   <!-- Question Table -->
   <div class="overflow-x-auto">
     <table class="w-full text-left border-collapse text-xs">
       <thead class="bg-slate-100/75 border-b border-slate-200 font-bold text-slate-600 uppercase tracking-wider text-[11px]">
         <tr>
+          <th class="p-3 w-10 text-center">
+            <input
+              type="checkbox"
+              [checked]="isAllSelected()"
+              [indeterminate]="isPartiallySelected()"
+              (change)="toggleSelectAll()"
+              class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 cursor-pointer"
+              aria-label="Select all questions"
+            />
+          </th>
           <th class="p-3 w-28">Code</th>
           <th class="p-3">Source Question (English)</th>
           <th class="p-3 w-44">Subject / Topic</th>
@@ -44,7 +92,19 @@
       </thead>
       <tbody class="divide-y divide-slate-100">
         @for (q of questions(); track q.id) {
-          <tr class="hover:bg-slate-50/75 transition-colors">
+          <tr
+            class="hover:bg-slate-50/75 transition-colors"
+            [class.bg-indigo-50/40]="isSelected(q.id)"
+          >
+            <td class="p-3 text-center">
+              <input
+                type="checkbox"
+                [checked]="isSelected(q.id)"
+                (change)="toggleSelect(q.id)"
+                class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 cursor-pointer"
+                [attr.aria-label]="'Select question ' + (q.code || q.id)"
+              />
+            </td>
             <td class="p-3 font-mono font-bold text-indigo-700">
               {{ q.code || q.id.substring(0, 8) }}
             </td>

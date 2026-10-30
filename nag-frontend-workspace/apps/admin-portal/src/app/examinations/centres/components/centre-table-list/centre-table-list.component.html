@@ -28,12 +28,65 @@
   </div>
 }
 
-<!-- Test Centres Table -->
+<!-- Test Centres Content -->
 @if (!loading() && centres().length > 0) {
+  <!-- Bulk Selection Action Bar -->
+  @if (selectedIds().size > 0) {
+    <div class="sticky top-2 z-20 mb-4 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-lg border border-slate-800 flex items-center justify-between flex-wrap gap-3 animate-fadeIn">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-400">
+          <mat-icon class="!text-lg">check_circle</mat-icon>
+        </div>
+        <div>
+          <span class="font-bold text-sm">{{ selectedIds().size }} centre{{ selectedIds().size > 1 ? 's' : '' }} selected</span>
+          <span class="text-xs text-slate-400 ml-2">({{ activeSelectedCount() }} active)</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button
+          mat-flat-button
+          color="warn"
+          (click)="triggerBulkDeactivate()"
+          [disabled]="activeSelectedCount() === 0"
+          class="!text-xs cursor-pointer flex items-center gap-1.5"
+        >
+          <mat-icon class="!text-sm">block</mat-icon>
+          Deactivate Selected
+        </button>
+        <button
+          mat-stroked-button
+          (click)="exportSelectedCsv()"
+          class="!text-xs !text-slate-200 !border-slate-700 hover:!bg-slate-800 cursor-pointer flex items-center gap-1.5"
+        >
+          <mat-icon class="!text-sm">download</mat-icon>
+          Export Selected CSV
+        </button>
+        <button
+          mat-button
+          (click)="clearSelection()"
+          class="!text-xs !text-slate-400 hover:!text-white cursor-pointer"
+        >
+          Deselect All
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- Test Centres Table Card -->
   <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
     <table class="min-w-full divide-y divide-slate-200 text-left text-xs">
       <thead class="bg-slate-50 text-slate-600 font-semibold uppercase tracking-wider">
         <tr>
+          <th scope="col" class="py-3.5 px-4 w-10 text-center">
+            <input
+              type="checkbox"
+              [checked]="isAllSelected()"
+              [indeterminate]="isPartiallySelected()"
+              (change)="toggleSelectAll($event)"
+              class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+              title="Select all on current page"
+            />
+          </th>
           <th scope="col" class="px-5 py-3.5">Venue &amp; Lab Details</th>
           <th scope="col" class="px-5 py-3.5">Location &amp; Region</th>
           <th scope="col" class="px-5 py-3.5">Seat Capacity</th>
@@ -42,8 +95,21 @@
         </tr>
       </thead>
       <tbody class="divide-y divide-slate-100 text-slate-700">
-        @for (centre of centres(); track centre.id) {
-          <tr class="hover:bg-slate-50/70 transition-colors">
+        @for (centre of paginatedCentres(); track centre.id) {
+          <tr
+            class="hover:bg-slate-50/70 transition-colors"
+            [class.bg-indigo-50/40]="selectedIds().has(centre.id)"
+          >
+            <td class="py-4 px-4 w-10 text-center">
+              <input
+                type="checkbox"
+                [checked]="selectedIds().has(centre.id)"
+                (change)="toggleRowSelection(centre.id)"
+                (click)="$event.stopPropagation()"
+                class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+              />
+            </td>
+
             <td class="px-5 py-4">
               <div class="font-bold text-slate-900 text-sm flex items-center gap-1.5">
                 <mat-icon class="text-indigo-600 !text-base">domain</mat-icon>
@@ -111,5 +177,80 @@
         }
       </tbody>
     </table>
+
+    <!-- Pagination Footer -->
+    <div class="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white px-5 py-3.5 border-t border-slate-200 text-xs">
+      <div class="text-slate-500 font-medium">
+        Showing
+        <span class="font-bold text-slate-800">{{ displayStart() }}</span>
+        to
+        <span class="font-bold text-slate-800">{{ displayEnd() }}</span>
+        of
+        <span class="font-bold text-slate-800">{{ centres().length }}</span>
+        centres
+      </div>
+
+      <div class="flex items-center gap-4">
+        <!-- Page size selector -->
+        <div class="flex items-center gap-2 text-slate-500">
+          <label for="centre-page-size" class="text-xs">Per page:</label>
+          <select
+            id="centre-page-size"
+            [value]="pageSize()"
+            (change)="onPageSizeChange($event)"
+            class="bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-lg px-2 py-1 font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer"
+          >
+            @for (opt of pageSizeOptions; track opt) {
+              <option [value]="opt">{{ opt }}</option>
+            }
+          </select>
+        </div>
+
+        <!-- Pagination Controls -->
+        <div class="flex items-center gap-1">
+          <button
+            mat-icon-button
+            [disabled]="pageIndex() === 0"
+            (click)="firstPage()"
+            class="!w-8 !h-8 !rounded-lg cursor-pointer"
+            title="First Page"
+          >
+            <mat-icon class="!text-sm">first_page</mat-icon>
+          </button>
+          <button
+            mat-icon-button
+            [disabled]="pageIndex() === 0"
+            (click)="previousPage()"
+            class="!w-8 !h-8 !rounded-lg cursor-pointer"
+            title="Previous Page"
+          >
+            <mat-icon class="!text-sm">chevron_left</mat-icon>
+          </button>
+
+          <span class="text-slate-600 font-semibold px-2 whitespace-nowrap">
+            Page {{ pageIndex() + 1 }} of {{ totalPages() }}
+          </span>
+
+          <button
+            mat-icon-button
+            [disabled]="pageIndex() + 1 >= totalPages()"
+            (click)="nextPage()"
+            class="!w-8 !h-8 !rounded-lg cursor-pointer"
+            title="Next Page"
+          >
+            <mat-icon class="!text-sm">chevron_right</mat-icon>
+          </button>
+          <button
+            mat-icon-button
+            [disabled]="pageIndex() + 1 >= totalPages()"
+            (click)="lastPage()"
+            class="!w-8 !h-8 !rounded-lg cursor-pointer"
+            title="Last Page"
+          >
+            <mat-icon class="!text-sm">last_page</mat-icon>
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 }

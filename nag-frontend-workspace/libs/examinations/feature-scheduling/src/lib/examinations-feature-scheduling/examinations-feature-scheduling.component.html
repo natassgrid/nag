@@ -29,6 +29,7 @@
       (transitionClick)="openTransitionModal($event)"
       (amendClick)="openAmendModal($event)"
       (createClick)="openCreateSchedule()"
+      (bulkTransitionClick)="handleBulkTransition($event)"
     ></nag-schedule-list-table>
   }
 
@@ -51,6 +52,7 @@
       [loading]="loadingAllocations()"
       [centres]="centres()"
       (addAllocationClick)="openAddAllocation()"
+      (bulkRemoveAllocations)="handleBulkRemoveAllocations($event)"
     ></nag-seat-allocation-panel>
   }
 

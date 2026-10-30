@@ -94,6 +94,8 @@
         (approvePaper)="approvePaper($event)"
         (publishPaper)="publishPaper($event)"
         (assembleNew)="currentTab.set('GENERATOR')"
+        (bulkApprove)="handleBulkApprove($event)"
+        (bulkPublish)="handleBulkPublish($event)"
       ></nag-paper-directory-table>
     }
 

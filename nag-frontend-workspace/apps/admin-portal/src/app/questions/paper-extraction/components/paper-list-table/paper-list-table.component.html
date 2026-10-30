@@ -73,11 +73,70 @@
       </p>
     </div>
   } @else {
+    <!-- Contextual Bulk Selection Bar -->
+    @if (selectedIds().size > 0) {
+      <div class="px-4 py-2.5 bg-indigo-50 border-b border-indigo-100 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div class="flex items-center gap-2 text-indigo-900 font-semibold">
+          <span class="inline-flex items-center justify-center bg-indigo-600 text-white rounded-full w-5 h-5 text-[11px] font-bold">
+            {{ selectedIds().size }}
+          </span>
+          <span>{{ selectedIds().size === 1 ? 'paper' : 'papers' }} selected</span>
+        </div>
+        <div class="flex items-center gap-2">
+          @if (resumableSelectedPapers().length > 0) {
+            <button
+              mat-flat-button
+              (click)="onBulkResume()"
+              class="!bg-amber-600 hover:!bg-amber-700 !text-white !text-xs !py-1 !px-3 !h-7 !rounded-lg cursor-pointer font-bold inline-flex items-center gap-1"
+            >
+              <mat-icon class="!text-sm">play_arrow</mat-icon>
+              Resume Selected ({{ resumableSelectedPapers().length }})
+            </button>
+          }
+          @if (retryableSelectedPapers().length > 0) {
+            <button
+              mat-stroked-button
+              (click)="onBulkRetry()"
+              class="!border-amber-400 !text-amber-800 !bg-white hover:!bg-amber-50 !text-xs !py-1 !px-3 !h-7 !rounded-lg cursor-pointer font-semibold inline-flex items-center gap-1"
+            >
+              <mat-icon class="!text-sm">refresh</mat-icon>
+              Retry Selected ({{ retryableSelectedPapers().length }})
+            </button>
+          }
+          <button
+            mat-stroked-button
+            (click)="onBulkDelete()"
+            class="!border-rose-300 !text-rose-700 !bg-white hover:!bg-rose-50 !text-xs !py-1 !px-3 !h-7 !rounded-lg cursor-pointer font-semibold inline-flex items-center gap-1"
+          >
+            <mat-icon class="!text-sm">delete_outline</mat-icon>
+            Delete Selected
+          </button>
+          <button
+            mat-button
+            (click)="deselectAll()"
+            class="!text-slate-600 hover:!text-slate-900 !text-xs !py-1 !px-2 !h-7 cursor-pointer"
+          >
+            Deselect All
+          </button>
+        </div>
+      </div>
+    }
+
     <!-- Papers Table -->
     <div class="overflow-x-auto">
       <table class="w-full text-left text-xs text-slate-600">
         <thead class="bg-slate-50/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
           <tr>
+            <th class="py-3 px-3 w-10 text-center">
+              <input
+                type="checkbox"
+                [checked]="isAllSelected()"
+                [indeterminate]="isPartiallySelected()"
+                (change)="toggleSelectAll()"
+                class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 cursor-pointer"
+                aria-label="Select all question papers"
+              />
+            </th>
             <th class="py-3 px-4">Examination / Paper</th>
             <th class="py-3 px-4">Department &amp; Code</th>
             <th class="py-3 px-4">Status &amp; Progress</th>
@@ -90,7 +149,19 @@
         </thead>
         <tbody class="divide-y divide-slate-100">
           @for (paper of papers(); track paper.id) {
-            <tr class="hover:bg-slate-50/70 transition-colors">
+            <tr
+              class="hover:bg-slate-50/70 transition-colors"
+              [class.bg-indigo-50/40]="isSelected(paper.id)"
+            >
+              <td class="py-3 px-3 text-center">
+                <input
+                  type="checkbox"
+                  [checked]="isSelected(paper.id)"
+                  (change)="toggleSelect(paper.id)"
+                  class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 cursor-pointer"
+                  [attr.aria-label]="'Select paper ' + paper.examinationName"
+                />
+              </td>
               <!-- Examination Name & Year -->
               <td class="py-3 px-4">
                 <div class="font-bold text-slate-900 flex items-center gap-2">
@@ -299,7 +370,17 @@
           <button
             mat-icon-button
             [disabled]="page() === 0"
+            (click)="onFirstPage()"
+            matTooltip="First Page"
+            class="!w-7 !h-7 !rounded-lg cursor-pointer"
+          >
+            <mat-icon class="!text-base">first_page</mat-icon>
+          </button>
+          <button
+            mat-icon-button
+            [disabled]="page() === 0"
             (click)="onPrevPage()"
+            matTooltip="Previous Page"
             class="!w-7 !h-7 !rounded-lg cursor-pointer"
           >
             <mat-icon class="!text-base">chevron_left</mat-icon>
@@ -309,9 +390,19 @@
             mat-icon-button
             [disabled]="page() >= totalPages() - 1"
             (click)="onNextPage()"
+            matTooltip="Next Page"
             class="!w-7 !h-7 !rounded-lg cursor-pointer"
           >
             <mat-icon class="!text-base">chevron_right</mat-icon>
+          </button>
+          <button
+            mat-icon-button
+            [disabled]="page() >= totalPages() - 1"
+            (click)="onLastPage()"
+            matTooltip="Last Page"
+            class="!w-7 !h-7 !rounded-lg cursor-pointer"
+          >
+            <mat-icon class="!text-base">last_page</mat-icon>
           </button>
         </div>
       </div>

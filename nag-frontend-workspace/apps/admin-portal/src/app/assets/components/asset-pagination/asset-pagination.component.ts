@@ -24,6 +24,9 @@ export class AssetPaginationComponent {
   totalElements = input<number>(0);
 
   pageChange = output<number>();
+  pageSizeChange = output<number>();
+
+  readonly pageSizeOptions: readonly number[] = [12, 24, 48];
 
   fromItem = computed(() => {
     return this.totalElements() === 0 ? 0 : this.currentPage() * this.pageSize() + 1;
@@ -33,4 +36,14 @@ export class AssetPaginationComponent {
     const end = (this.currentPage() + 1) * this.pageSize();
     return end > this.totalElements() ? this.totalElements() : end;
   });
+
+  lastPageNumber = computed(() => {
+    return Math.max(0, this.totalPages() - 1);
+  });
+
+  onPageSizeChange(event: Event): void {
+    const select = event.target as HTMLSelectElement;
+    const newSize = parseInt(select.value, 10) || 12;
+    this.pageSizeChange.emit(newSize);
+  }
 }
