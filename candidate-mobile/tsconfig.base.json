@@ -4,6 +4,7 @@
     "module": "CommonJS",
     "lib": ["ES2022", "DOM"],
     "jsx": "react-jsx",
+    "jsxImportSource": "./apps/candidate-mobile/src/native",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,

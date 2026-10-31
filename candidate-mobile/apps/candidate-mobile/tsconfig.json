@@ -4,10 +4,13 @@
     "composite": true,
     "rootDir": "../..",
     "outDir": "dist",
-    "noImplicitAny": false
+    "noImplicitAny": false,
+    "jsxImportSource": "./src/native/jsx-runtime"
   },
   "include": [
     "src/**/*",
-    "../../packages/candidate-core/src/**/*"
+    "../../packages/candidate-core/src/**/*",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts"
   ]
 }

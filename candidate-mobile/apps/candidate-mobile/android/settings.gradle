@@ -28,6 +28,9 @@ dependencyResolutionManagement {
 rootProject.name = 'nag-candidate-mobile'
 include(":app")
 
+apply from: new File(rootDir, "../../../node_modules/expo-modules-autolinking/scripts/android/autolinking_implementation.gradle")
+useExpoModules()
+
 // Ensure autolinking.json is generated for React Native Gradle Plugin
 def autolinkingFile = new File(rootDir, "build/generated/autolinking/autolinking.json")
 autolinkingFile.parentFile.mkdirs()

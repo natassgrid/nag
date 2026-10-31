@@ -2,6 +2,9 @@ apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 
+apply from: new File(rootDir, "../../../node_modules/expo-modules-autolinking/scripts/android/autolinking_implementation.gradle")
+generateExpoModulesPackageList(project)
+
 react {
     /* Folders */
     root = file("../../")
@@ -36,6 +39,12 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         ndk {
             abiFilters "x86_64", "arm64-v8a", "armeabi-v7a", "x86"
+        }
+    }
+
+    sourceSets {
+        main {
+            java.srcDirs += new File(buildDir, generatedFilesSrcDir)
         }
     }
 
@@ -103,14 +112,9 @@ android {
 }
 
 dependencies {
-    // The version of react-native is set by the React Native Gradle Plugin
-    implementation("com.facebook.react:react-android")
-
-    if (hermesEnabled.toBoolean()) {
-        implementation("com.facebook.react:hermes-android")
-    } else {
-        implementation("org.webkit:android-jsc:+")
-    }
+    // React Native framework & JS engine
+    implementation("com.facebook.react:react-android:0.76.7")
+    implementation("com.facebook.react:hermes-android:0.76.7")
 
     // AndroidX & Kotlin
     implementation("androidx.core:core-ktx:1.15.0")
@@ -129,6 +133,8 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
+
+    addExpoModulesDependencies(delegate, project)
 }
 
 apply plugin: 'com.google.gms.google-services'

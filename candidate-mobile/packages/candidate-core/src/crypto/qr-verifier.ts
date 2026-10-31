@@ -146,7 +146,7 @@ export function sha256Hex(input: string): string {
   try {
     if (typeof process !== 'undefined' && process.versions && process.versions.node) {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const nodeCrypto = require('crypto');
+      const nodeCrypto = eval('require')('crypto');
       if (nodeCrypto && typeof nodeCrypto.createHash === 'function') {
         return nodeCrypto.createHash('sha256').update(input, 'utf8').digest('hex');
       }
@@ -201,7 +201,7 @@ export function generateAdmitCardSignature(
       privateKeyOrSecret.includes('PRIVATE KEY')
     ) {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const nodeCrypto = require('crypto');
+      const nodeCrypto = eval('require')('crypto');
       const signer = nodeCrypto.createSign(algorithm === 'ED25519' ? 'ed25519' : 'SHA256');
       signer.update(digest);
       signer.end();
@@ -237,7 +237,7 @@ export function verifySignature(
       publicKeyOrSecret.includes('PUBLIC KEY')
     ) {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const nodeCrypto = require('crypto');
+      const nodeCrypto = eval('require')('crypto');
       const verifier = nodeCrypto.createVerify(algorithm === 'ED25519' ? 'ed25519' : 'SHA256');
       verifier.update(digest);
       verifier.end();
