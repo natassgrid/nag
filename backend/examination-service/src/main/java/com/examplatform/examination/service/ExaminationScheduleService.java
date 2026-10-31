@@ -247,7 +247,7 @@ public class ExaminationScheduleService {
                                   CreateShiftRequest request,
                                   UUID actorId,
                                   String tenantId) {
-        ExaminationSchedule schedule = findSchedule(scheduleId, tenantId);
+        findSchedule(scheduleId, tenantId);
 
         // Enforce timing invariants (Req 7b.3)
         validateShiftTimings(request);
@@ -502,6 +502,7 @@ public class ExaminationScheduleService {
                                       UUID actorId, String tenantId, String eventType) {
         try {
             Map<String, Object> event = createBaseScheduleEvent(eventType, schedule, tenantId);
+            event.put("actorId", actorId != null ? actorId.toString() : null);
             eventPublisher.publish(NOTIF_TOPIC, schedule.getId().toString(), event);
         } catch (Exception e) {
             log.error("Failed to publish notification event [{}]: {}", eventType, e.getMessage());

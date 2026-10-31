@@ -56,7 +56,7 @@ public class PracticeSessionCompletedConsumer {
     @EventListener
     public void onSessionCompleted(PracticeSessionCompletedEvent event) {
         // 1. Update learner profile & subtopic performance telemetry
-        LearnerProfile profile = learnerProfileService.updateProfile(event);
+        learnerProfileService.updateProfile(event);
 
         // 2. Evaluate if completed session was an active Phase 2 Quiz or Phase 3 Gatekeeper test
         int totalAttempted = event.correctCount() + event.incorrectCount();

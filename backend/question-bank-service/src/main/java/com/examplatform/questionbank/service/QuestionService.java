@@ -734,8 +734,8 @@ public class QuestionService {
                 try {
                     Translation.TranslationStatus enumStatus = Translation.TranslationStatus.valueOf(status);
                     predicates.add(cb.equal(tRoot.get(SharedConstants.STATUS), enumStatus));
-                } catch (IllegalArgumentException _) {
-                    // Unknown or non-standard status string; omitted from criteria
+                } catch (IllegalArgumentException e) {
+                    log.debug("Unknown or non-standard translation status string '{}': {}", status, e.getMessage());
                 }
                 break;
         }
@@ -940,8 +940,8 @@ public class QuestionService {
         if (isMcq && question.getAnswerKey() != null && question.getAnswerKey().startsWith("[")) {
             try {
                 return MAPPER.readValue(question.getAnswerKey(), new com.fasterxml.jackson.core.type.TypeReference<>() {});
-            } catch (Exception _) {
-                // Malformed JSON options in answerKey; fallback to empty options
+            } catch (Exception e) {
+                log.debug("Malformed JSON options in answerKey: {}", e.getMessage());
             }
         }
         return options;

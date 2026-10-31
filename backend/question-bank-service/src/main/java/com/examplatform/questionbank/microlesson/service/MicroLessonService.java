@@ -280,8 +280,8 @@ public class MicroLessonService {
             if (exact.isPresent()) {
                 return List.of(exact.get().getId());
             }
-        } catch (Exception _) {
-            // Fallback to case-insensitive lookup
+        } catch (Exception e) {
+            log.debug("Fallback to case-insensitive subject lookup: {}", e.getMessage());
         }
         return Collections.emptyList();
     }
@@ -292,8 +292,8 @@ public class MicroLessonService {
             if (!byIgnoreCase.isEmpty()) {
                 return byIgnoreCase.stream().map(Subject::getId).filter(Objects::nonNull).toList();
             }
-        } catch (Exception _) {
-            // Fallback to table scan
+        } catch (Exception e) {
+            log.debug("Fallback to subject table scan: {}", e.getMessage());
         }
         return Collections.emptyList();
     }
@@ -340,8 +340,8 @@ public class MicroLessonService {
                     return List.of(exact.get().getId());
                 }
             }
-        } catch (Exception _) {
-            // Fallback to case-insensitive topic search
+        } catch (Exception e) {
+            log.debug("Fallback to case-insensitive topic search: {}", e.getMessage());
         }
         return Collections.emptyList();
     }
@@ -356,8 +356,8 @@ public class MicroLessonService {
                         .filter(Objects::nonNull)
                         .toList();
             }
-        } catch (Exception _) {
-            // Fallback to repository stream
+        } catch (Exception e) {
+            log.debug("Fallback to topic repository stream: {}", e.getMessage());
         }
         return Collections.emptyList();
     }
@@ -384,8 +384,8 @@ public class MicroLessonService {
             if (results != null && !results.isEmpty()) {
                 return results.stream().map(Subtopic::getId).filter(Objects::nonNull).toList();
             }
-        } catch (Exception _) {
-            // Fallback to findAll scan
+        } catch (Exception e) {
+            log.debug("Fallback to findAll scan for subtopics: {}", e.getMessage());
         }
         try {
             return subtopicRepository.findAll().stream()
@@ -407,8 +407,8 @@ public class MicroLessonService {
             if (results != null && !results.isEmpty()) {
                 return results.stream().map(Topic::getId).filter(Objects::nonNull).toList();
             }
-        } catch (Exception _) {
-            // Fallback to findAll scan
+        } catch (Exception e) {
+            log.debug("Fallback to findAll scan for topics: {}", e.getMessage());
         }
         try {
             return topicRepository.findAll().stream()
@@ -430,8 +430,8 @@ public class MicroLessonService {
             if (results != null && !results.isEmpty()) {
                 return results.stream().map(Subject::getId).filter(Objects::nonNull).toList();
             }
-        } catch (Exception _) {
-            // Fallback to findAll scan
+        } catch (Exception e) {
+            log.debug("Fallback to findAll scan for subjects: {}", e.getMessage());
         }
         try {
             return subjectRepository.findAll().stream()
@@ -1291,8 +1291,8 @@ public class MicroLessonService {
         if (subjectRepository != null && !ids.isEmpty()) {
             try {
                 subjectRepository.findAllById(ids).forEach(s -> result.put(s.getId(), s.getName()));
-            } catch (Exception _) {
-                // Ignore failure on optional name loading
+            } catch (Exception e) {
+                log.debug("Ignore failure on optional subject name loading: {}", e.getMessage());
             }
         }
         return result;
@@ -1303,8 +1303,8 @@ public class MicroLessonService {
         if (topicRepository != null && !ids.isEmpty()) {
             try {
                 topicRepository.findAllById(ids).forEach(t -> result.put(t.getId(), t.getName()));
-            } catch (Exception _) {
-                // Ignore failure on optional name loading
+            } catch (Exception e) {
+                log.debug("Ignore failure on optional topic name loading: {}", e.getMessage());
             }
         }
         return result;
@@ -1315,8 +1315,8 @@ public class MicroLessonService {
         if (subtopicRepository != null && !ids.isEmpty()) {
             try {
                 subtopicRepository.findAllById(ids).forEach(st -> result.put(st.getId(), st.getName()));
-            } catch (Exception _) {
-                // Ignore failure on optional name loading
+            } catch (Exception e) {
+                log.debug("Ignore failure on optional subtopic name loading: {}", e.getMessage());
             }
         }
         return result;
@@ -1405,22 +1405,22 @@ public class MicroLessonService {
         if (subtopicRepository != null && entity.getSubtopicId() != null) {
             try {
                 stName = subtopicRepository.findById(entity.getSubtopicId()).map(Subtopic::getName).orElse(null);
-            } catch (Exception _) {
-                // Ignore subtopic lookup failure
+            } catch (Exception e) {
+                log.debug("Ignore subtopic lookup failure: {}", e.getMessage());
             }
         }
         if (topicRepository != null && entity.getTopicId() != null) {
             try {
                 tName = topicRepository.findById(entity.getTopicId()).map(Topic::getName).orElse(null);
-            } catch (Exception _) {
-                // Ignore topic lookup failure
+            } catch (Exception e) {
+                log.debug("Ignore topic lookup failure: {}", e.getMessage());
             }
         }
         if (subjectRepository != null && entity.getSubjectId() != null) {
             try {
                 sName = subjectRepository.findById(entity.getSubjectId()).map(Subject::getName).orElse(null);
-            } catch (Exception _) {
-                // Ignore subject lookup failure
+            } catch (Exception e) {
+                log.debug("Ignore subject lookup failure: {}", e.getMessage());
             }
         }
 

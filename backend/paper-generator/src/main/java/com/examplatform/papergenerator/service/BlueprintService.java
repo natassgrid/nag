@@ -69,46 +69,13 @@ public class BlueprintService {
         // Calculate totals
         int totalQ = 0;
         double totalM = 0.0;
-
         List<BlueprintSection> sections = new ArrayList<>();
-        int secIdx = 0;
 
         if (request.getSections() != null && !request.getSections().isEmpty()) {
-            for (BlueprintSectionDto sDto : request.getSections()) {
-                BlueprintSection sec = BlueprintSection.builder()
-                        .blueprint(blueprint)
-                        .name(sDto.getName())
-                        .orderIndex(sDto.getOrderIndex() != 0 ? sDto.getOrderIndex() : secIdx++)
-                        .subjectId(sDto.getSubjectId() != null ? sDto.getSubjectId() : 1L)
-                        .rules(new ArrayList<>())
-                        .build();
-                sec.setTenantId(tenantId);
-
-                if (sDto.getRules() != null) {
-                    int rIdx = 0;
-                    for (com.examplatform.papergenerator.dto.BlueprintRule rDto : sDto.getRules()) {
-                        int qc = rDto.getQuestionCount();
-                        totalQ += qc;
-                        double marks = rDto.getMarksOverride() != null ? rDto.getMarksOverride() : 1.0;
-                        totalM += (qc * marks);
-
-                        BlueprintRule rule = BlueprintRule.builder()
-                                .section(sec)
-                                .subjectId(rDto.getSubjectId() != null ? rDto.getSubjectId() : sec.getSubjectId())
-                                .topicId(rDto.getTopicId())
-                                .subtopicId(rDto.getSubtopicId())
-                                .difficulty(rDto.getDifficulty())
-                                .cognitiveLevel(rDto.getCognitiveLevel())
-                                .questionCount(qc)
-                                .marksOverride(rDto.getMarksOverride())
-                                .orderIndex(rDto.getOrderIndex() != 0 ? rDto.getOrderIndex() : rIdx++)
-                                .build();
-                        rule.setTenantId(tenantId);
-                        sec.addRule(rule);
-                    }
-                }
-                sections.add(sec);
-            }
+            SectionParseResult parsed = parseSections(blueprint, request.getSections(), tenantId);
+            sections = parsed.sections();
+            totalQ = parsed.totalQuestions();
+            totalM = parsed.totalMarks();
         } else if (request.getRules() != null && !request.getRules().isEmpty()) {
             // Backward compatibility: flat list of rules grouped into one section
             BlueprintSection defaultSec = BlueprintSection.builder()
@@ -190,52 +157,11 @@ public class BlueprintService {
 
         blueprintSectionRepository.deleteByBlueprintId(id);
 
-        List<BlueprintSection> newSections = new ArrayList<>();
-        int totalQ = 0;
-        double totalM = 0.0;
-        int secIdx = 0;
+        SectionParseResult parsed = parseSections(blueprint, request.getSections(), tenantId);
 
-        if (request.getSections() != null && !request.getSections().isEmpty()) {
-            for (BlueprintSectionDto sDto : request.getSections()) {
-                BlueprintSection sec = BlueprintSection.builder()
-                        .blueprint(blueprint)
-                        .name(sDto.getName())
-                        .orderIndex(sDto.getOrderIndex() != 0 ? sDto.getOrderIndex() : secIdx++)
-                        .subjectId(sDto.getSubjectId() != null ? sDto.getSubjectId() : 1L)
-                        .rules(new ArrayList<>())
-                        .build();
-                sec.setTenantId(tenantId);
-
-                if (sDto.getRules() != null) {
-                    int rIdx = 0;
-                    for (com.examplatform.papergenerator.dto.BlueprintRule rDto : sDto.getRules()) {
-                        int qc = rDto.getQuestionCount();
-                        totalQ += qc;
-                        double marks = rDto.getMarksOverride() != null ? rDto.getMarksOverride() : 1.0;
-                        totalM += (qc * marks);
-
-                        BlueprintRule rule = BlueprintRule.builder()
-                                .section(sec)
-                                .subjectId(rDto.getSubjectId() != null ? rDto.getSubjectId() : sec.getSubjectId())
-                                .topicId(rDto.getTopicId())
-                                .subtopicId(rDto.getSubtopicId())
-                                .difficulty(rDto.getDifficulty())
-                                .cognitiveLevel(rDto.getCognitiveLevel())
-                                .questionCount(qc)
-                                .marksOverride(rDto.getMarksOverride())
-                                .orderIndex(rDto.getOrderIndex() != 0 ? rDto.getOrderIndex() : rIdx++)
-                                .build();
-                        rule.setTenantId(tenantId);
-                        sec.addRule(rule);
-                    }
-                }
-                newSections.add(sec);
-            }
-        }
-
-        blueprint.setTotalQuestions(totalQ);
-        blueprint.setTotalMarks(totalM);
-        blueprint.setSections(newSections);
+        blueprint.setTotalQuestions(parsed.totalQuestions());
+        blueprint.setTotalMarks(parsed.totalMarks());
+        blueprint.setSections(parsed.sections());
 
         Blueprint saved = blueprintRepository.save(blueprint);
         log.info("Blueprint updated: id={}, name='{}', tenant={}", saved.getId(), saved.getName(), tenantId);
@@ -317,5 +243,57 @@ public class BlueprintService {
                 .createdAt(bp.getCreatedAt())
                 .updatedAt(bp.getUpdatedAt())
                 .build();
+    }
+
+    private record SectionParseResult(
+            List<BlueprintSection> sections,
+            int totalQuestions,
+            double totalMarks
+    ) {}
+
+    private SectionParseResult parseSections(Blueprint blueprint, List<BlueprintSectionDto> sectionDtos, String tenantId) {
+        List<BlueprintSection> sections = new ArrayList<>();
+        int totalQ = 0;
+        double totalM = 0.0;
+        int secIdx = 0;
+
+        if (sectionDtos != null && !sectionDtos.isEmpty()) {
+            for (BlueprintSectionDto sDto : sectionDtos) {
+                BlueprintSection sec = BlueprintSection.builder()
+                        .blueprint(blueprint)
+                        .name(sDto.getName())
+                        .orderIndex(sDto.getOrderIndex() != 0 ? sDto.getOrderIndex() : secIdx++)
+                        .subjectId(sDto.getSubjectId() != null ? sDto.getSubjectId() : 1L)
+                        .rules(new ArrayList<>())
+                        .build();
+                sec.setTenantId(tenantId);
+
+                if (sDto.getRules() != null) {
+                    int rIdx = 0;
+                    for (com.examplatform.papergenerator.dto.BlueprintRule rDto : sDto.getRules()) {
+                        int qc = rDto.getQuestionCount();
+                        totalQ += qc;
+                        double marks = rDto.getMarksOverride() != null ? rDto.getMarksOverride() : 1.0;
+                        totalM += (qc * marks);
+
+                        BlueprintRule rule = BlueprintRule.builder()
+                                .section(sec)
+                                .subjectId(rDto.getSubjectId() != null ? rDto.getSubjectId() : sec.getSubjectId())
+                                .topicId(rDto.getTopicId())
+                                .subtopicId(rDto.getSubtopicId())
+                                .difficulty(rDto.getDifficulty())
+                                .cognitiveLevel(rDto.getCognitiveLevel())
+                                .questionCount(qc)
+                                .marksOverride(rDto.getMarksOverride())
+                                .orderIndex(rDto.getOrderIndex() != 0 ? rDto.getOrderIndex() : rIdx++)
+                                .build();
+                        rule.setTenantId(tenantId);
+                        sec.addRule(rule);
+                    }
+                }
+                sections.add(sec);
+            }
+        }
+        return new SectionParseResult(sections, totalQ, totalM);
     }
 }

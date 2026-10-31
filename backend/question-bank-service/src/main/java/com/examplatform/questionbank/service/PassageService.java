@@ -111,7 +111,7 @@ public class PassageService {
         List<Question> createdQuestions = new ArrayList<>();
         int index = 0;
         for (SubQuestionRequest subReq : request.getSubQuestions()) {
-            Question subQ = buildSubQuestion(subReq, savedPassage, subject, topicName, authorId, tenantId, index++);
+            Question subQ = buildSubQuestion(subReq, savedPassage, subject, authorId, tenantId, index++);
             Question savedSubQ = questionRepository.save(subQ);
 
             try {
@@ -119,8 +119,8 @@ public class PassageService {
                 if (qEmbedding != null && qEmbedding.length > 0) {
                     questionRepository.updateEmbedding(savedSubQ.getId(), EmbeddingUtils.embeddingToString(qEmbedding));
                 }
-            } catch (Exception _) {
-                // Ignore
+            } catch (Exception e) {
+                log.debug("Sub-question embedding generation skipped: {}", e.getMessage());
             }
 
             createdQuestions.add(savedSubQ);
@@ -191,11 +191,11 @@ public class PassageService {
         for (SubQuestionRequest subReq : request.getSubQuestions()) {
             if (subReq.getId() != null && existingMap.containsKey(subReq.getId())) {
                 Question existing = existingMap.remove(subReq.getId());
-                updateSubQuestionFields(existing, subReq, savedPassage, subject, topicName, index++);
+                updateSubQuestionFields(existing, subReq, savedPassage, subject, index++);
                 Question updated = questionRepository.save(existing);
                 resultQuestions.add(updated);
             } else {
-                Question newQ = buildSubQuestion(subReq, savedPassage, subject, topicName, authorId, tenantId, index++);
+                Question newQ = buildSubQuestion(subReq, savedPassage, subject, authorId, tenantId, index++);
                 Question savedNew = questionRepository.save(newQ);
                 resultQuestions.add(savedNew);
             }
@@ -294,7 +294,6 @@ public class PassageService {
             SubQuestionRequest subReq,
             Passage passage,
             Subject subject,
-            String topicName,
             UUID authorId,
             String tenantId,
             int orderIndex
@@ -331,7 +330,6 @@ public class PassageService {
             SubQuestionRequest subReq,
             Passage passage,
             Subject subject,
-            String topicName,
             int orderIndex
     ) {
         SubQuestionPayload payload = prepareSubQuestionPayload(subReq);

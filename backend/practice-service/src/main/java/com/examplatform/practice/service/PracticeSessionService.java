@@ -162,11 +162,12 @@ public class PracticeSessionService {
                 Map<String, Object> primaryTranslation = new HashMap<>();
                 boolean fallbackToEnglish = false;
 
-                if ("en".equalsIgnoreCase(targetLang)) {
-                } else if (translations != null && translations.containsKey(targetLang)) {
-                    primaryTranslation = translations.get(targetLang);
-                } else {
-                    fallbackToEnglish = true;
+                if (!"en".equalsIgnoreCase(targetLang)) {
+                    if (translations != null && translations.containsKey(targetLang)) {
+                        primaryTranslation = translations.get(targetLang);
+                    } else {
+                        fallbackToEnglish = true;
+                    }
                 }
 
                 result.add(new PracticeQuestionDto(

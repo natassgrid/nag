@@ -196,7 +196,7 @@ public class LearnerService {
         }
 
         // Generate diagnostic question set sampled across exam syllabus
-        List<DiagnosticQuestionDto> questions = generateSampledDiagnosticQuestions(enrollment.getExaminationId());
+        List<DiagnosticQuestionDto> questions = generateSampledDiagnosticQuestions();
         String questionsJson = "[]";
         try {
             questionsJson = objectMapper.writeValueAsString(questions);
@@ -475,7 +475,7 @@ public class LearnerService {
         );
     }
 
-    private List<DiagnosticQuestionDto> generateSampledDiagnosticQuestions(UUID examId) {
+    private List<DiagnosticQuestionDto> generateSampledDiagnosticQuestions() {
         // Balanced 10-question diagnostic test sampled across subjects
         return List.of(
                 new DiagnosticQuestionDto(

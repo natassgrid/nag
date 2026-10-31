@@ -19,6 +19,8 @@
 
 package com.examplatform.questionbank.constants;
 
+import com.examplatform.shared.constants.SharedConstants;
+
 /**
  * Constants used across question-bank-service module components.
  * Consolidates duplicate string literals within the module.
@@ -53,7 +55,7 @@ public final class QuestionBankConstants {
     public static final String KEY_DUAL_REVIEW_REQUIRED = "dualReviewRequired";
     public static final String KEY_ESCALATED_TO_CONTROLLER = "escalatedToController";
     public static final String KEY_PUBLISHER_ID = "publisherId";
-    public static final String KEY_TIMESTAMP = "timestamp";
+    public static final String KEY_TIMESTAMP = SharedConstants.TIMESTAMP;
     public static final String KEY_TO_STATE = "toState";
     public static final String KEY_FROM_STATE = "fromState";
 
@@ -65,10 +67,10 @@ public final class QuestionBankConstants {
     public static final String QUESTION_SERVICE = "question_service";
     public static final String QUESTION_TYPE = "questionType";
     public static final String COGNITIVE_LEVEL = "cognitiveLevel";
-    public static final String JSONB = "jsonb";
+    public static final String JSONB = SharedConstants.JSONB;
     public static final String CHAPTER = "chapter";
     public static final String QUESTION_NOT_FOUND = "Question not found: ";
-    public static final String SUBJECT_ID = "subjectId";
+    public static final String SUBJECT_ID = SharedConstants.SUBJECT_ID;
     public static final String EXPLANATION = "explanation";
     public static final String ANSWER_KEY = "answerKey";
     public static final String TOPIC_ID = "topic_id";

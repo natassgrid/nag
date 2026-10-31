@@ -382,8 +382,8 @@ public class AuthenticationService {
                         dynamicConfigService.getInt("auth.session.timeout.minutes", effectiveTenant, 30)));
                 activeSessionRepository.save(session);
             });
-        } catch (IllegalArgumentException _) {
-            // Ignore malformed UUID in token subject
+        } catch (IllegalArgumentException e) {
+            log.debug("Ignore malformed UUID in token subject: {}", e.getMessage());
         }
     }
 

@@ -368,14 +368,12 @@ public class ScorecardPdfService {
     private void embedQrCode(PDDocument document, PDPage page, java.awt.image.BufferedImage qrImage) throws IOException {
         try (java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream()) {
             javax.imageio.ImageIO.write(qrImage, "PNG", baos);
-            try (java.io.InputStream is = new java.io.ByteArrayInputStream(baos.toByteArray())) {
-                org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject pdImage =
-                        org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject.createFromByteArray(document, baos.toByteArray(), "qr");
-                try (PDPageContentStream qrStream = new PDPageContentStream(
-                        document, page, PDPageContentStream.AppendMode.APPEND, true)) {
-                    float pageWidth = page.getMediaBox().getWidth();
-                    qrStream.drawImage(pdImage, pageWidth - 170, 20, 150, 150);
-                }
+            org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject pdImage =
+                    org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject.createFromByteArray(document, baos.toByteArray(), "qr");
+            try (PDPageContentStream qrStream = new PDPageContentStream(
+                    document, page, PDPageContentStream.AppendMode.APPEND, true)) {
+                float pageWidth = page.getMediaBox().getWidth();
+                qrStream.drawImage(pdImage, pageWidth - 170, 20, 150, 150);
             }
         }
     }

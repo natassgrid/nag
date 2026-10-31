@@ -67,7 +67,7 @@ public class RoleManagementService {
     public RoleAssignmentResponse manageRole(UUID targetUserId, RoleAssignmentRequest request,
                                               String actorId, String tenantId) {
         // 1. Verify target user exists within tenant boundary
-        UserAccount targetAccount = userAccountRepository.findByIdAndTenantId(targetUserId, tenantId)
+        userAccountRepository.findByIdAndTenantId(targetUserId, tenantId)
                 .orElseThrow(() -> new AccountNotFoundException("User not found: " + targetUserId));
 
         // 2. Execute action

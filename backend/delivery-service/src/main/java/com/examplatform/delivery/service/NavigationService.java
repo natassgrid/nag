@@ -185,7 +185,9 @@ public class NavigationService {
                             if (redisTemplate != null) {
                                 redisTemplate.opsForValue().set(cacheKey, policy.name(), java.time.Duration.ofHours(1));
                             }
-                        } catch (Exception _) {}
+                        } catch (Exception e) {
+                            log.debug("Redis caching failure: {}", e.getMessage());
+                        }
                         return policy;
                     }
                 } catch (Exception e) {

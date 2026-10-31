@@ -190,7 +190,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                 ORDER BY RANDOM()
                 """;
 
-            List<QuestionSummary> questions = jdbcTemplate.query(sql, QuestionBankClientImpl::mapQuestionSummary,
+            List<QuestionSummary> questions = jdbcTemplate.query(sql, (rs, _) -> mapQuestionSummary(rs),
                     effectiveTenant,
                     subjectId, subjectId,
                     topicId, topicId,
@@ -221,7 +221,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                     ORDER BY RANDOM()
                     """;
 
-                return jdbcTemplate.query(fallbackSql, QuestionBankClientImpl::mapQuestionSummary,
+                return jdbcTemplate.query(fallbackSql, (rs, _) -> mapQuestionSummary(rs),
                         effectiveTenant,
                         subjectId, subjectId,
                         topicId, topicId,
@@ -281,7 +281,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                       AND (? IS NULL OR UPPER(TRIM(q.cognitive_level)) = UPPER(?))
                     ORDER BY RANDOM()
                     """;
-                List<QuestionSummary> questions = jdbcTemplate.query(sql, QuestionBankClientImpl::mapQuestionSummary,
+                List<QuestionSummary> questions = jdbcTemplate.query(sql, (rs, _) -> mapQuestionSummary(rs),
                         effectiveTenant, cleanSubject, cleanTopic, cleanDifficulty, cleanDifficulty, cleanCognitiveLevel, cleanCognitiveLevel);
                 if (!questions.isEmpty()) {
                     return questions;
@@ -301,7 +301,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
                           AND (? IS NULL OR UPPER(TRIM(q.difficulty)) = UPPER(?))
                         ORDER BY RANDOM()
                         """;
-                    return jdbcTemplate.query(fallbackSql, QuestionBankClientImpl::mapQuestionSummary,
+                    return jdbcTemplate.query(fallbackSql, (rs, _) -> mapQuestionSummary(rs),
                             effectiveTenant, cleanSubject, cleanTopic, cleanDifficulty, cleanDifficulty);
                 }
             } catch (Exception e) {
@@ -397,7 +397,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
             Map<UUID, QuestionSummary> map = new HashMap<>();
             jdbcTemplate.query(sql, rs -> {
                 try {
-                    QuestionSummary summary = mapQuestionSummary(rs, 0);
+                    QuestionSummary summary = mapQuestionSummary(rs);
                     map.put(summary.getQuestionId(), summary);
                 } catch (SQLException e) {
                     throw new RuntimeException(e);
@@ -509,7 +509,7 @@ public class QuestionBankClientImpl implements QuestionBankClient {
     private static final List<String> CLIENT_ROLES = List.of(
             "SUPER_ADMIN", "EXAM_CONTROLLER", "QUESTION_AUTHOR", "REVIEWER");
 
-    private static QuestionSummary mapQuestionSummary(ResultSet rs, int rowNum) throws SQLException {
+    private static QuestionSummary mapQuestionSummary(ResultSet rs) throws SQLException {
         Timestamp ts = rs.getTimestamp("last_used_at");
         Instant lastUsedAt = ts != null ? ts.toInstant() : null;
         UUID passageId = rs.getObject("passage_id", UUID.class);

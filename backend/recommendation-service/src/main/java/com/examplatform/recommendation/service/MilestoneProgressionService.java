@@ -144,19 +144,7 @@ public class MilestoneProgressionService {
             }
         }
 
-        MilestoneGraphDto updatedGraph = new MilestoneGraphDto(
-                newCurrentPhase,
-                graph.targetExam(),
-                graph.gatekeeperPassed(),
-                resolvedPhases,
-                graph.conceptualGaps(),
-                graph.applicationGaps(),
-                graph.proficientTopics(),
-                graph.totalSubtopicsEvaluated(),
-                graph.overallReadinessScore()
-        );
-
-        saveGraph(dlp, updatedGraph);
+        updateAndSaveGraph(dlp, graph, newCurrentPhase, graph.gatekeeperPassed(), resolvedPhases);
         return generatorService.toResponse(dlp);
     }
 
@@ -262,19 +250,7 @@ public class MilestoneProgressionService {
             }
         }
 
-        MilestoneGraphDto updatedGraph = new MilestoneGraphDto(
-                "PHASE_2_ADAPTIVE_QUIZ",
-                graph.targetExam(),
-                graph.gatekeeperPassed(),
-                updatedPhases,
-                graph.conceptualGaps(),
-                graph.applicationGaps(),
-                graph.proficientTopics(),
-                graph.totalSubtopicsEvaluated(),
-                graph.overallReadinessScore()
-        );
-
-        saveGraph(dlp, updatedGraph);
+        updateAndSaveGraph(dlp, graph, "PHASE_2_ADAPTIVE_QUIZ", graph.gatekeeperPassed(), updatedPhases);
 
         String launcherUrl = "/practice/session/" + practiceSetId;
         return new StartAdaptiveQuizResponse(
@@ -335,19 +311,7 @@ public class MilestoneProgressionService {
             }
         }
 
-        MilestoneGraphDto updatedGraph = new MilestoneGraphDto(
-                nextCurrentPhase,
-                graph.targetExam(),
-                graph.gatekeeperPassed(),
-                updatedPhases,
-                graph.conceptualGaps(),
-                graph.applicationGaps(),
-                graph.proficientTopics(),
-                graph.totalSubtopicsEvaluated(),
-                graph.overallReadinessScore()
-        );
-
-        saveGraph(dlp, updatedGraph);
+        updateAndSaveGraph(dlp, graph, nextCurrentPhase, graph.gatekeeperPassed(), updatedPhases);
         return generatorService.toResponse(dlp);
     }
 
@@ -406,19 +370,7 @@ public class MilestoneProgressionService {
             }
         }
 
-        MilestoneGraphDto updatedGraph = new MilestoneGraphDto(
-                "PHASE_3_GATEKEEPER",
-                graph.targetExam(),
-                false,
-                updatedPhases,
-                graph.conceptualGaps(),
-                graph.applicationGaps(),
-                graph.proficientTopics(),
-                graph.totalSubtopicsEvaluated(),
-                graph.overallReadinessScore()
-        );
-
-        saveGraph(dlp, updatedGraph);
+        updateAndSaveGraph(dlp, graph, "PHASE_3_GATEKEEPER", false, updatedPhases);
 
         String launcherUrl = "/practice/session/" + practiceSetId;
         return new StartGatekeeperResponse(
@@ -469,19 +421,7 @@ public class MilestoneProgressionService {
 
         String nextCurrentPhase = passed ? SharedConstants.COMPLETED : "PHASE_3_GATEKEEPER";
 
-        MilestoneGraphDto updatedGraph = new MilestoneGraphDto(
-                nextCurrentPhase,
-                graph.targetExam(),
-                passed,
-                updatedPhases,
-                graph.conceptualGaps(),
-                graph.applicationGaps(),
-                graph.proficientTopics(),
-                graph.totalSubtopicsEvaluated(),
-                graph.overallReadinessScore()
-        );
-
-        saveGraph(dlp, updatedGraph);
+        updateAndSaveGraph(dlp, graph, nextCurrentPhase, passed, updatedPhases);
         return generatorService.toResponse(dlp);
     }
 
@@ -624,6 +564,28 @@ public class MilestoneProgressionService {
         } catch (JsonProcessingException e) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to serialize milestone graph", e);
         }
+    }
+
+    private MilestoneGraphDto updateAndSaveGraph(
+            DynamicLearningPath dlp,
+            MilestoneGraphDto graph,
+            String nextCurrentPhase,
+            Boolean gatekeeperPassed,
+            List<MilestonePhaseDto> phases
+    ) {
+        MilestoneGraphDto updatedGraph = new MilestoneGraphDto(
+                nextCurrentPhase,
+                graph.targetExam(),
+                gatekeeperPassed != null ? gatekeeperPassed : graph.gatekeeperPassed(),
+                phases,
+                graph.conceptualGaps(),
+                graph.applicationGaps(),
+                graph.proficientTopics(),
+                graph.totalSubtopicsEvaluated(),
+                graph.overallReadinessScore()
+        );
+        saveGraph(dlp, updatedGraph);
+        return updatedGraph;
     }
 
     private MilestonePhaseDto findPhase(List<MilestonePhaseDto> phases, int number) {

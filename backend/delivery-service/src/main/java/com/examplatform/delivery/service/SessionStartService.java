@@ -541,8 +541,8 @@ public class SessionStartService {
                 if (title != null && !title.isBlank()) {
                     return title;
                 }
-            } catch (Exception _) {
-                // Ignore query failure; fall back to default exam title
+            } catch (Exception e) {
+                log.debug("Ignore examination title query failure: {}", e.getMessage());
             }
         }
         return "NextGen Assessment Grid Examination (" + examIdStr.substring(0, 8) + ")";
@@ -563,8 +563,8 @@ public class SessionStartService {
                 if (duration != null && duration > 0) {
                     return duration;
                 }
-            } catch (Exception _) {
-                // Ignore query failure; fall back to default duration of 60 minutes
+            } catch (Exception e) {
+                log.debug("Ignore duration query failure: {}", e.getMessage());
             }
         }
         return 60;
@@ -585,8 +585,8 @@ public class SessionStartService {
                 if (policy != null && !policy.isBlank()) {
                     return policy.trim().toUpperCase();
                 }
-            } catch (Exception _) {
-                // Ignore query failure; fall back to default
+            } catch (Exception e) {
+                log.debug("Ignore navigation policy query failure: {}", e.getMessage());
             }
         }
         return "FLEXIBLE";
@@ -620,8 +620,8 @@ public class SessionStartService {
         if (firstQuestionContent == null && questions != null && !questions.isEmpty()) {
             try {
                 firstQuestionContent = objectMapper.writeValueAsString(questions.get(0));
-            } catch (JsonProcessingException _) {
-                // Ignore serialization failure; firstQuestionContent remains null
+            } catch (JsonProcessingException e) {
+                log.debug("Ignore question serialization failure: {}", e.getMessage());
             }
         }
         int totalQuestions = (questions != null && !questions.isEmpty()) ? questions.size() : countQuestions(decryptedPaper);

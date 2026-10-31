@@ -328,7 +328,7 @@ public class DeterministicMicroLessonAgent {
         }
 
         // Universal dynamic domain-tailored fallback
-        return buildDynamicFallbackTemplate(category, subject, topic, subtopic);
+        return buildDynamicFallbackTemplate(subject, topic, subtopic);
     }
 
     // =========================================================================
@@ -813,7 +813,6 @@ public class DeterministicMicroLessonAgent {
     }
 
     private MicroLessonContentDto buildDynamicFallbackTemplate(
-            DomainCategory category,
             String subject,
             String topic,
             String subtopic) {

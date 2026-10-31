@@ -99,11 +99,12 @@ public class PracticeResultService {
             Map<String, Object> primaryTranslation = new HashMap<>();
             boolean fallbackToEnglish = false;
 
-            if ("en".equalsIgnoreCase(targetLang)) {
-            } else if (translations != null && translations.containsKey(targetLang)) {
-                primaryTranslation = translations.get(targetLang);
-            } else {
-                fallbackToEnglish = true;
+            if (!"en".equalsIgnoreCase(targetLang)) {
+                if (translations != null && translations.containsKey(targetLang)) {
+                    primaryTranslation = translations.get(targetLang);
+                } else {
+                    fallbackToEnglish = true;
+                }
             }
 
             qResults.add(new QuestionResultDto(

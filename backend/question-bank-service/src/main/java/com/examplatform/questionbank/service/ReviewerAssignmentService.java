@@ -268,8 +268,8 @@ public class ReviewerAssignmentService {
         if (redis != null) {
             try {
                 redis.delete(redisKey);
-            } catch (Exception _) {
-                // Ignore cache eviction failure when Redis is unavailable or fails
+            } catch (Exception e) {
+                log.debug("Cache eviction failure for key {}: {}", redisKey, e.getMessage());
             }
         }
         localPoolCache.remove(redisKey);
