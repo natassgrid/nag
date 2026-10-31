@@ -20,6 +20,8 @@ import {
   SEED_PRACTICE_HISTORY,
   SEED_PRACTICE_QUESTIONS_TSD,
 } from './practice-models';
+import { DOCKER_API_PATHS } from '@nag/candidate-core';
+import { defaultDockerApiService } from '../../services/docker-api.service';
 
 export type QuestionReviewFilter = 'ALL' | 'CORRECT' | 'INCORRECT' | 'SKIPPED' | 'FLAGGED';
 
@@ -74,6 +76,80 @@ export class PracticeController {
       activeTab: 'hub',
       ...initialOverrides,
     };
+
+    if (typeof window !== 'undefined' && typeof (window as any).NagReactMount === 'function') {
+      void this.syncFromDocker();
+    }
+  }
+
+  public async syncFromDocker(): Promise<void> {
+    try {
+      const [setsRes, histRes] = await Promise.all([
+        defaultDockerApiService
+          .requestDocker<any>(DOCKER_API_PATHS.PRACTICE.SETS, { method: 'GET' })
+          .catch(() => null),
+        defaultDockerApiService
+          .requestDocker<any>(DOCKER_API_PATHS.PRACTICE.HISTORY(0, 10), { method: 'GET' })
+          .catch(() => null),
+      ]);
+
+      const rawSets = Array.isArray(setsRes)
+        ? setsRes
+        : Array.isArray(setsRes?.content)
+        ? setsRes.content
+        : Array.isArray(setsRes?.data)
+        ? setsRes.data
+        : [];
+
+      if (rawSets.length > 0) {
+        const mappedSets: PracticeSet[] = rawSets.map((s: any, idx: number) => ({
+          id: s.id || `set-doc-${idx}`,
+          name: s.name || s.title || `Practice Drill ${idx + 1}`,
+          description: s.description || 'Targeted mock drill',
+          source: s.source || 'MANUAL',
+          durationMinutes: typeof s.durationMinutes === 'number' ? s.durationMinutes : 20,
+          subjectSlug: s.subjectSlug || s.subject || 'Quantitative Aptitude',
+          published: s.published ?? true,
+          totalQuestions: typeof s.totalQuestions === 'number' ? s.totalQuestions : 10,
+          difficulty: s.difficulty || 'CORE',
+          totalMarks: typeof s.totalMarks === 'number' ? s.totalMarks : 20,
+          isOfficialMock: Boolean(s.isOfficialMock),
+        }));
+        this.state.practiceSets = mappedSets;
+      }
+
+      const rawHist = Array.isArray(histRes)
+        ? histRes
+        : Array.isArray(histRes?.content)
+        ? histRes.content
+        : Array.isArray(histRes?.data)
+        ? histRes.data
+        : [];
+
+      if (rawHist.length > 0) {
+        const mappedHist: PracticeHistoryItem[] = rawHist.map((h: any, idx: number) => ({
+          sessionId: h.sessionId || h.id || `hist-${idx}`,
+          practiceSetId: h.practiceSetId || 'set-default',
+          practiceSetName: h.practiceSetName || h.name || 'Practice Session',
+          submittedAt: h.submittedAt || h.createdAt || new Date().toISOString(),
+          obtainedMarks: typeof h.obtainedMarks === 'number' ? h.obtainedMarks : 15,
+          totalMarks: typeof h.totalMarks === 'number' ? h.totalMarks : 20,
+          accuracyPercent: typeof h.accuracyPercent === 'number' ? h.accuracyPercent : 75,
+          totalQuestions: typeof h.totalQuestions === 'number' ? h.totalQuestions : 10,
+          correctCount: typeof h.correctCount === 'number' ? h.correctCount : 7,
+          incorrectCount: typeof h.incorrectCount === 'number' ? h.incorrectCount : 2,
+          subject: h.subject || 'Quantitative Aptitude',
+          mode: h.mode || 'TIMED',
+        }));
+        this.state.history = mappedHist;
+      }
+
+      if (rawSets.length > 0 || rawHist.length > 0) {
+        this.emit();
+      }
+    } catch {
+      // Non-blocking fallback
+    }
   }
 
   public getState(): PracticeState {

@@ -17,6 +17,8 @@ import {
   DEFAULT_QUALIFICATIONS,
   DigiLockerClaim,
 } from './profile-models';
+import { DOCKER_API_PATHS } from '@nag/candidate-core';
+import { defaultDockerApiService } from '../../services/docker-api.service';
 
 export {
   CandidateProfileData,
@@ -175,6 +177,43 @@ export class ProfileController {
       statusMessage: null,
       loading: false,
     };
+
+    if (typeof window !== 'undefined' && typeof (window as any).NagReactMount === 'function') {
+      void this.syncFromDocker();
+    }
+  }
+
+  public async syncFromDocker(): Promise<void> {
+    try {
+      const res = await defaultDockerApiService.requestDocker<any>(
+        DOCKER_API_PATHS.IDENTITY.USERS_ME,
+        { method: 'GET' }
+      );
+      const user = res?.data || res;
+      if (user && (user.id || user.email || user.username)) {
+        if (user.fullName || user.username) {
+          this.state.profile.fullName = user.fullName || user.username;
+        }
+        if (user.email) {
+          this.state.profile.email = user.email;
+          this.state.profile.emailVerified = true;
+        }
+        if (user.mobileNumber || user.mobile) {
+          this.state.profile.mobile = user.mobileNumber || user.mobile;
+          this.state.profile.mobileVerified = true;
+        }
+        if (user.category) {
+          this.state.profile.category = user.category;
+        }
+        if (user.dateOfBirth) {
+          this.state.profile.dateOfBirth = user.dateOfBirth;
+        }
+        this.state.profile.profileCompletionPercentage = this.calculateCompletionPercentage();
+        this.notify();
+      }
+    } catch {
+      // Non-blocking fallback
+    }
   }
 
   public getState(): ProfileState {
@@ -518,6 +557,14 @@ export class ProfileController {
 
   public saveProfile(): boolean {
     this.state.statusMessage = 'Profile updated successfully.';
+    if (typeof window !== 'undefined') {
+      void defaultDockerApiService
+        .requestDocker<any>(DOCKER_API_PATHS.CANDIDATES.BASE, {
+          method: 'POST',
+          body: this.state.profile,
+        })
+        .catch(() => null);
+    }
     this.notify();
     return true;
   }

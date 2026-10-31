@@ -4,6 +4,9 @@
  * fee waiver computation, and multi-criteria sorting.
  */
 
+import { DOCKER_API_PATHS } from '@nag/candidate-core';
+import { defaultDockerApiService } from '../../services/docker-api.service';
+
 export type ExamCategory = 'ALL' | 'UPSC' | 'SSC' | 'NTA' | 'STATE_PSC' | 'BANKING';
 export type ExamFilterStatus = 'ALL' | 'OPEN' | 'CLOSING_SOON' | 'UPCOMING';
 export type CatalogSortOption = 'DATE_ASC' | 'FEE_ASC' | 'FEE_DESC' | 'TITLE_ASC';
@@ -186,6 +189,53 @@ export class CatalogController {
       },
       onlyEligible: false,
     };
+
+    if (typeof window !== 'undefined' && typeof (window as any).NagReactMount === 'function') {
+      void this.syncFromDocker();
+    }
+  }
+
+  public async syncFromDocker(): Promise<void> {
+    try {
+      const res = await defaultDockerApiService.requestDocker<any>(
+        DOCKER_API_PATHS.EXAMINATIONS.PUBLIC,
+        { method: 'GET', skipAuth: true }
+      );
+      const items = Array.isArray(res)
+        ? res
+        : Array.isArray(res?.content)
+        ? res.content
+        : Array.isArray(res?.data)
+        ? res.data
+        : [];
+
+      if (items.length > 0) {
+        const mapped: CatalogExam[] = items.map((item: any, idx: number) => ({
+          id: item.id || `EXAM-DOC-${idx}`,
+          code: item.code || item.examCode || `CODE-${idx}`,
+          title: item.title || item.name || 'Examination',
+          conductingBody: item.conductingBody || item.conductingAuthority || 'National Assessment Grid',
+          category: (['UPSC', 'SSC', 'NTA', 'STATE_PSC', 'BANKING'].includes(item.category)
+            ? item.category
+            : 'NTA') as any,
+          description: item.description || '',
+          registrationStartDate: item.registrationStartDate || new Date().toISOString().split('T')[0],
+          registrationEndDate:
+            item.registrationEndDate || new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+          examDate:
+            item.examDate || item.scheduledDate || new Date(Date.now() + 60 * 86400000).toISOString().split('T')[0],
+          feeAmount: typeof item.feeAmount === 'number' ? item.feeAmount : 100,
+          durationMinutes: typeof item.durationMinutes === 'number' ? item.durationMinutes : 120,
+          totalMarks: typeof item.totalMarks === 'number' ? item.totalMarks : 200,
+          eligibilityCriteria: item.eligibilityCriteria,
+          status: item.status || 'REGISTRATION_OPEN',
+        }));
+        this.state.exams = mapped;
+        this.notify();
+      }
+    } catch {
+      // Non-blocking fallback to local seed exams
+    }
   }
 
   public getState(): CatalogState {

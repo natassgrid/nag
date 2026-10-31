@@ -40,6 +40,8 @@ import {
   SEED_MICRO_LESSONS,
   SEED_EXPLANATION_IR,
 } from './learn-models';
+import { DOCKER_API_PATHS } from '@nag/candidate-core';
+import { defaultDockerApiService } from '../../services/docker-api.service';
 
 export interface LearnState {
   profile: LearnerProfile | null;
@@ -109,6 +111,39 @@ export class LearnController {
       activeHubTab: 'recommendations',
       ...initialOverrides,
     };
+
+    if (typeof window !== 'undefined' && typeof (window as any).NagReactMount === 'function') {
+      void this.syncFromDocker();
+    }
+  }
+
+  public async syncFromDocker(): Promise<void> {
+    try {
+      const [dlpRes, recRes] = await Promise.all([
+        defaultDockerApiService
+          .requestDocker<any>(DOCKER_API_PATHS.LEARN.DLP_CURRENT, { method: 'GET' })
+          .catch(() => null),
+        defaultDockerApiService
+          .requestDocker<any>(DOCKER_API_PATHS.LEARN.RECOMMENDATIONS_LATEST, { method: 'GET' })
+          .catch(() => null),
+      ]);
+
+      const dlpData = dlpRes?.data || dlpRes;
+      if (dlpData && (dlpData.id || dlpData.milestoneGraph)) {
+        this.state.learningPath = dlpData;
+      }
+
+      const recData = recRes?.data || recRes;
+      if (recData && (recData.id || recData.weakTopicRecommendations)) {
+        this.state.recommendation = recData;
+      }
+
+      if (dlpData || recData) {
+        this.emit();
+      }
+    } catch {
+      // Non-blocking fallback
+    }
   }
 
   public getState(): LearnState {

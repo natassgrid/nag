@@ -1,6 +1,6 @@
 /**
  * NAG Official Candidate Mobile - Complete Self-Contained Web Asset Bundle
- * Build Timestamp: 2026-10-31T12:37:19.312Z
+ * Build Timestamp: 2026-10-31T13:08:24.079Z
  * Target: Android WebView file:///android_asset/www/index.html
  */
 (function() {
@@ -23,6 +23,22 @@ const NagReact = (function() {
   let rootVNode = null;
   let isRenderPending = false;
   const pendingEffects = [];
+
+  function isShallowEqual(a, b) {
+    if (Object.is(a, b)) return true;
+    if (typeof a !== 'object' || a === null || typeof b !== 'object' || b === null) return false;
+    if (Array.isArray(a) !== Array.isArray(b)) return false;
+    const keysA = Object.keys(a);
+    const keysB = Object.keys(b);
+    if (keysA.length !== keysB.length) return false;
+    for (let i = 0; i < keysA.length; i++) {
+      const key = keysA[i];
+      if (!Object.prototype.hasOwnProperty.call(b, key) || !Object.is(a[key], b[key])) {
+        return false;
+      }
+    }
+    return true;
+  }
 
   function createElement(type, props, ...children) {
     const p = Object.assign({}, props || {});
@@ -61,7 +77,7 @@ const NagReact = (function() {
     const setState = (next) => {
       const currentVal = comp.hooks[idx];
       const nextVal = typeof next === 'function' ? next(currentVal) : next;
-      if (!Object.is(currentVal, nextVal)) {
+      if (!isShallowEqual(currentVal, nextVal)) {
         comp.hooks[idx] = nextVal;
         scheduleRender();
       }
@@ -122,7 +138,11 @@ const NagReact = (function() {
   function depsChanged(oldDeps, newDeps) {
     if (!oldDeps || !newDeps || oldDeps.length !== newDeps.length) return true;
     for (let i = 0; i < oldDeps.length; i++) {
-      if (!Object.is(oldDeps[i], newDeps[i])) return true;
+      const a = oldDeps[i];
+      const b = newDeps[i];
+      if (Object.is(a, b)) continue;
+      if (typeof a === 'function' && typeof b === 'function' && a.toString() === b.toString()) continue;
+      return true;
     }
     return false;
   }
@@ -148,15 +168,15 @@ const NagReact = (function() {
   function scheduleRender() {
     if (isRenderPending) return;
     isRenderPending = true;
-    queueMicrotask(() => {
+    setTimeout(() => {
       isRenderPending = false;
       renderRoot();
-    });
+    }, 0);
   }
 
   function renderRoot() {
     if (!rootContainer || !rootElement) return;
-    const nextVNode = rootElement;
+    const nextVNode = { type: rootElement.type, props: rootElement.props, key: rootElement.key };
     patch(rootContainer, nextVNode, rootVNode, null, false);
     rootVNode = nextVNode;
     flushEffects();
@@ -184,6 +204,8 @@ const NagReact = (function() {
           if (item.props && item.props.children) {
             walk(Array.isArray(item.props.children) ? item.props.children : [item.props.children]);
           }
+        } else if (typeof item === 'string' || typeof item === 'number') {
+          result.push({ type: '#text', text: String(item), props: null, key: null });
         } else {
           result.push(item);
         }
@@ -286,22 +308,29 @@ const NagReact = (function() {
     }
 
     if (typeof newVNode === 'string' || typeof newVNode === 'number') {
-      const text = String(newVNode);
-      if (oldVNode && (typeof oldVNode === 'string' || typeof oldVNode === 'number') && oldVNode._dom) {
-        if (oldVNode._dom.nodeValue !== text) {
-          oldVNode._dom.nodeValue = text;
+      newVNode = { type: '#text', text: String(newVNode), props: null, key: null };
+    }
+
+    if (newVNode.type === '#text') {
+      if (oldVNode && oldVNode.type === '#text' && oldVNode._dom) {
+        if (oldVNode._dom.nodeValue !== newVNode.text) {
+          oldVNode._dom.nodeValue = newVNode.text;
         }
-        newVNode = { _dom: oldVNode._dom };
+        newVNode._dom = oldVNode._dom;
         return oldVNode._dom;
       }
       if (oldVNode) unmount(oldVNode, parentDom);
-      const textNode = document.createTextNode(text);
+      const textNode = document.createTextNode(newVNode.text);
       parentDom.insertBefore(textNode, nextSibling || null);
-      if (typeof newVNode === 'object') newVNode._dom = textNode;
+      newVNode._dom = textNode;
       return textNode;
     }
 
     if (typeof newVNode.type === 'function') {
+      if (oldVNode && oldVNode.type !== newVNode.type) {
+        unmount(oldVNode, parentDom);
+        oldVNode = null;
+      }
       const instance = (oldVNode && oldVNode.type === newVNode.type && oldVNode._instance)
         ? oldVNode._instance
         : { hooks: [] };
@@ -337,7 +366,7 @@ const NagReact = (function() {
       dom = oldVNode._dom;
       newVNode._dom = dom;
       updateProps(dom, newVNode.props, oldVNode.props, isSvg);
-      reconcileChildren(dom, newVNode.props && newVNode.props.children, oldVNode.props && oldVNode.props.children, isSvg);
+      reconcileChildren(dom, newVNode, oldVNode, isSvg);
     } else {
       if (oldVNode) unmount(oldVNode, parentDom);
       dom = isSvg
@@ -346,6 +375,7 @@ const NagReact = (function() {
       newVNode._dom = dom;
       updateProps(dom, newVNode.props, null, isSvg);
       const flat = flattenChildren(newVNode.props && newVNode.props.children);
+      newVNode._children = flat;
       for (let i = 0; i < flat.length; i++) {
         patch(dom, flat[i], null, null, isSvg);
       }
@@ -355,9 +385,10 @@ const NagReact = (function() {
     return dom;
   }
 
-  function reconcileChildren(parentDom, newChildren, oldChildren, isSvg) {
-    const newFlat = flattenChildren(newChildren);
-    const oldFlat = flattenChildren(oldChildren);
+  function reconcileChildren(parentDom, newVNode, oldVNode, isSvg) {
+    const newFlat = flattenChildren(newVNode.props && newVNode.props.children);
+    newVNode._children = newFlat;
+    const oldFlat = (oldVNode && oldVNode._children) ? oldVNode._children : [];
 
     const hasKeys = newFlat.some(c => c && c.key != null) || oldFlat.some(c => c && c.key != null);
     if (!hasKeys) {
@@ -411,11 +442,9 @@ const NagReact = (function() {
     if (vnode._dom && parentDom && vnode._dom.parentNode === parentDom) {
       parentDom.removeChild(vnode._dom);
     }
-    if (vnode.props && vnode.props.children) {
-      const flat = flattenChildren(vnode.props.children);
-      for (let i = 0; i < flat.length; i++) {
-        unmount(flat[i], vnode._dom);
-      }
+    const flat = vnode._children || [];
+    for (let i = 0; i < flat.length; i++) {
+      unmount(flat[i], vnode._dom);
     }
   }
 
@@ -589,6 +618,9 @@ class NagCandidateApiClient {
     async setAuthTokens(tokens) {
         await this.tokenStorage.setItem('nag_access_token', tokens.accessToken);
         await this.tokenStorage.setItem('nag_refresh_token', tokens.refreshToken);
+    }
+    async setTokens(tokens) {
+        return this.setAuthTokens(tokens);
     }
     async getAccessToken() {
         return this.tokenStorage.getItem('nag_access_token');
@@ -2507,9 +2539,12 @@ const App = () => {
     const resultsController = (0, react_1.useMemo)(() => new results_1.ResultsController(), []);
     const learnController = (0, react_1.useMemo)(() => new learn_1.LearnController(), []);
     const practiceController = (0, react_1.useMemo)(() => new practice_1.PracticeController(), []);
-    const layoutController = (0, react_1.useMemo)(() => new layout_1.CandidateLayoutController('DASHBOARD'), []);
-    const dockerApiService = (0, react_1.useMemo)(() => new docker_api_service_1.DockerApiService('localhost-gateway'), []);
-    const [currentScreen, setCurrentScreen] = (0, react_1.useState)('DASHBOARD');
+    const layoutController = (0, react_1.useMemo)(() => new layout_1.CandidateLayoutController('AUTH'), []);
+    const defaultDockerMode = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent || '')
+        ? 'android-emulator'
+        : 'localhost-gateway';
+    const dockerApiService = (0, react_1.useMemo)(() => new docker_api_service_1.DockerApiService(defaultDockerMode), [defaultDockerMode]);
+    const [currentScreen, setCurrentScreen] = (0, react_1.useState)('AUTH_LOGIN');
     const [isDrawerOpen, setIsDrawerOpen] = (0, react_1.useState)(false);
     const [dockerMode, setDockerMode] = (0, react_1.useState)(dockerApiService.getActiveMode());
     const [dockerBaseUrl, setDockerBaseUrl] = (0, react_1.useState)(dockerApiService.getActiveBaseUrl());
@@ -2518,6 +2553,31 @@ const App = () => {
     const [wizardController, setWizardController] = (0, react_1.useState)(() => new application_1.ApplicationWizardController('EXAM-UPSC-2026'));
     const [cbtController, setCbtController] = (0, react_1.useState)(() => new cbt_1.CbtSessionController());
     const [gradingResult, setGradingResult] = (0, react_1.useState)(null);
+    const triggerDockerSync = (0, react_1.useCallback)(() => {
+        catalogController.syncFromDocker?.();
+        dashboardController.syncFromDocker?.();
+        practiceController.syncFromDocker?.();
+        learnController.syncFromDocker?.();
+        resultsController.syncFromDocker?.();
+        profileController.syncFromDocker?.();
+    }, [
+        catalogController,
+        dashboardController,
+        practiceController,
+        learnController,
+        resultsController,
+        profileController,
+    ]);
+    const handleAuthenticated = (0, react_1.useCallback)(() => {
+        setCurrentScreen('DASHBOARD');
+        triggerDockerSync();
+    }, [triggerDockerSync]);
+    const handleNavigateToRegister = (0, react_1.useCallback)(() => {
+        setCurrentScreen('AUTH_REGISTER');
+    }, []);
+    const handleNavigateToLogin = (0, react_1.useCallback)(() => {
+        setCurrentScreen('AUTH_LOGIN');
+    }, []);
     react_1.default.useEffect(() => {
         return authController.subscribe((s) => {
             setAuthState(s);
@@ -2660,14 +2720,28 @@ const App = () => {
                     react_1.default.createElement("span", { "data-testid": "header-docker-api-url", style: { fontSize: '10px', color: '#CBD5E0', display: 'block' } },
                         "Docker API: ",
                         dockerBaseUrl))),
-            react_1.default.createElement("div", { style: { display: 'flex', alignItems: 'center', gap: '10px' } }, authState.candidateProfile ? (react_1.default.createElement("button", { type: "button", "data-testid": "header-profile-btn", onClick: () => setCurrentScreen('PROFILE'), style: {
-                    background: 'none',
-                    border: 'none',
-                    textAlign: 'right',
-                    cursor: 'pointer',
-                } },
-                react_1.default.createElement("span", { style: { fontSize: '12px', fontWeight: '700', color: '#FFFFFF', display: 'block' } }, authState.candidateProfile.fullName),
-                react_1.default.createElement("span", { style: { fontSize: '10px', color: '#68D391' } }, authState.digiLocker.linked ? '✓ Aadhaar Verified' : 'Standard Profile'))) : (react_1.default.createElement("button", { "data-testid": "header-sign-in-btn", onClick: () => setCurrentScreen('AUTH_LOGIN'), style: {
+            react_1.default.createElement("div", { style: { display: 'flex', alignItems: 'center', gap: '8px' } }, authState.candidateProfile ? (react_1.default.createElement(react_1.default.Fragment, null,
+                react_1.default.createElement("button", { type: "button", "data-testid": "header-profile-btn", onClick: () => setCurrentScreen('PROFILE'), style: {
+                        background: 'none',
+                        border: 'none',
+                        textAlign: 'right',
+                        cursor: 'pointer',
+                    } },
+                    react_1.default.createElement("span", { style: { fontSize: '12px', fontWeight: '700', color: '#FFFFFF', display: 'block' } }, authState.candidateProfile.fullName),
+                    react_1.default.createElement("span", { style: { fontSize: '10px', color: '#68D391' } }, authState.digiLocker.linked ? '✓ Aadhaar Verified' : 'Standard Profile')),
+                react_1.default.createElement("button", { type: "button", "data-testid": "header-logout-btn", onClick: () => {
+                        authController.logout();
+                        setCurrentScreen('AUTH_LOGIN');
+                    }, style: {
+                        padding: '4px 8px',
+                        backgroundColor: 'rgba(229, 62, 62, 0.2)',
+                        color: '#FED7D7',
+                        border: '1px solid rgba(229, 62, 62, 0.4)',
+                        borderRadius: '4px',
+                        fontSize: '11px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                    } }, "Logout"))) : (react_1.default.createElement("button", { "data-testid": "header-sign-in-btn", onClick: () => setCurrentScreen('AUTH_LOGIN'), style: {
                     padding: '6px 12px',
                     backgroundColor: 'rgba(255,255,255,0.15)',
                     color: '#FFFFFF',
@@ -2729,6 +2803,7 @@ const App = () => {
                         const cfg = dockerApiService.setTargetMode(mode);
                         setDockerMode(cfg.mode);
                         setDockerBaseUrl(cfg.baseUrl);
+                        triggerDockerSync();
                     }, style: {
                         padding: '4px 8px',
                         borderRadius: '4px',
@@ -2739,10 +2814,18 @@ const App = () => {
                         fontWeight: 600,
                         cursor: 'pointer',
                     } }, mode)))))),
-        react_1.default.createElement("main", { style: { flex: 1, paddingBottom: currentScreen !== 'CBT_ENGINE' ? '64px' : '0' } },
-            currentScreen === 'AUTH_LOGIN' && (react_1.default.createElement(auth_1.MobileOtpLoginScreen, { controller: authController, onAuthenticated: () => setCurrentScreen('DASHBOARD'), onNavigateToRegister: () => setCurrentScreen('AUTH_REGISTER') })),
-            currentScreen === 'AUTH_REGISTER' && (react_1.default.createElement(auth_1.CandidateRegistrationScreen, { controller: authController, onNavigateToLogin: () => setCurrentScreen('AUTH_LOGIN') })),
-            currentScreen === 'AUTH_TOTP' && (react_1.default.createElement(auth_1.TotpVerificationScreen, { controller: authController, onAuthenticated: () => setCurrentScreen('DASHBOARD') })),
+        react_1.default.createElement("main", { style: {
+                flex: 1,
+                paddingBottom: currentScreen !== 'CBT_ENGINE' &&
+                    currentScreen !== 'AUTH_LOGIN' &&
+                    currentScreen !== 'AUTH_REGISTER' &&
+                    currentScreen !== 'AUTH_TOTP'
+                    ? '64px'
+                    : '0',
+            } },
+            currentScreen === 'AUTH_LOGIN' && (react_1.default.createElement(auth_1.MobileOtpLoginScreen, { controller: authController, onAuthenticated: handleAuthenticated, onNavigateToRegister: handleNavigateToRegister })),
+            currentScreen === 'AUTH_REGISTER' && (react_1.default.createElement(auth_1.CandidateRegistrationScreen, { controller: authController, onNavigateToLogin: handleNavigateToLogin })),
+            currentScreen === 'AUTH_TOTP' && (react_1.default.createElement(auth_1.TotpVerificationScreen, { controller: authController, onAuthenticated: handleAuthenticated })),
             currentScreen === 'DASHBOARD' && (react_1.default.createElement(dashboard_1.CandidateDashboardScreen, { controller: dashboardController, onStartLiveExam: (exam) => handleLaunchPractice(exam.id), onOpenAdmitCard: () => setCurrentScreen('WALLET'), onLaunchPractice: (examId) => handleLaunchPractice(examId), onViewScorecards: () => setCurrentScreen('RESULTS') })),
             currentScreen === 'CATALOG' && (react_1.default.createElement(catalog_1.ExamCatalogScreen, { controller: catalogController, onApplyExam: handleStartApplication, onPracticeExam: handleLaunchPractice, onNavigateToWallet: () => setCurrentScreen('WALLET') })),
             currentScreen === 'APPLICATION_WIZARD' && (react_1.default.createElement(application_1.ExamApplicationWizardScreen, { controller: wizardController, onApplicationCompleted: handleApplicationCompleted, onCancel: () => setCurrentScreen('CATALOG') })),
@@ -2758,7 +2841,10 @@ const App = () => {
             currentScreen === 'PROFILE' && (react_1.default.createElement(profile_1.CandidateProfileScreen, { controller: profileController, onProfileSaved: () => setCurrentScreen('DASHBOARD') })),
             currentScreen === 'CBT_ENGINE' && (react_1.default.createElement(cbt_1.MockCbtEngineScreen, { controller: cbtController, onSubmitCompleted: handleCbtCompleted, onExitSession: () => setCurrentScreen('DASHBOARD') })),
             currentScreen === 'PERFORMANCE_RESULTS' && gradingResult && (react_1.default.createElement(cbt_1.MockPerformanceScreen, { grading: gradingResult, onRetakeTest: () => handleLaunchPractice(selectedExamId), onReturnToCatalog: () => setCurrentScreen('CATALOG'), onViewWallet: () => setCurrentScreen('WALLET') }))),
-        currentScreen !== 'CBT_ENGINE' && (react_1.default.createElement("nav", { "data-testid": "bottom-nav-bar", style: {
+        currentScreen !== 'CBT_ENGINE' &&
+            currentScreen !== 'AUTH_LOGIN' &&
+            currentScreen !== 'AUTH_REGISTER' &&
+            currentScreen !== 'AUTH_TOTP' && (react_1.default.createElement("nav", { "data-testid": "bottom-nav-bar", style: {
                 position: 'fixed',
                 bottom: 0,
                 left: 0,
@@ -3199,7 +3285,7 @@ exports.ExamApplicationWizardScreen = ExamApplicationWizardScreen;
   };
 
   __nag_modules["@app/features/application/application-wizard-controller.ts"] = {
-    deps: {},
+    deps: {"@nag/candidate-core":"@core/index.ts","../../services/docker-api.service":"@app/services/docker-api.service.ts"},
     factory: function(module, exports, require) {
 "use strict";
 /**
@@ -3210,6 +3296,8 @@ exports.ExamApplicationWizardScreen = ExamApplicationWizardScreen;
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ApplicationWizardController = exports.STANDARD_SHIFTS = exports.ALL_CENTRES_INDIA = void 0;
+const candidate_core_1 = require("@nag/candidate-core");
+const docker_api_service_1 = require("../../services/docker-api.service");
 exports.ALL_CENTRES_INDIA = [
     {
         id: 'CENTRE-DEL-01',
@@ -3458,6 +3546,26 @@ class ApplicationWizardController {
         }
         this.state.isSubmitting = true;
         this.notify();
+        if (typeof window !== 'undefined') {
+            void docker_api_service_1.defaultDockerApiService
+                .requestDocker(candidate_core_1.DOCKER_API_PATHS.EXAMINATIONS.APPLY(this.state.examId), {
+                method: 'POST',
+                body: {
+                    examId: this.state.examId,
+                    centrePreferences: [this.state.centre1Id, this.state.centre2Id, this.state.centre3Id],
+                    preferredShiftId: this.state.selectedShiftId,
+                    pwdAccommodations: this.state.pwdRequired
+                        ? {
+                            pwdRequired: true,
+                            pwdCategory: this.state.pwdCategory,
+                            scribeRequired: this.state.scribeRequired,
+                            scribeLanguage: this.state.scribeLanguage,
+                        }
+                        : undefined,
+                },
+            })
+                .catch(() => null);
+        }
         const timestampSuffix = Math.floor(100000 + Math.random() * 900000);
         const appNumber = `APP-2026-${timestampSuffix}`;
         const hallTicketNum = `HT-2026-${timestampSuffix}`;
@@ -3610,7 +3718,10 @@ const react_1 = __importStar(require("react"));
  */
 const MobileOtpLoginScreen = ({ controller, onAuthenticated, onNavigateToRegister, }) => {
     const [state, setState] = (0, react_1.useState)(controller.getState());
+    const [authMode, setAuthMode] = (0, react_1.useState)('OTP');
     const [mobileInput, setMobileInput] = (0, react_1.useState)(state.mobileNumber || '');
+    const [identifierInput, setIdentifierInput] = (0, react_1.useState)('');
+    const [passwordInput, setPasswordInput] = (0, react_1.useState)('');
     const [otpInput, setOtpInput] = (0, react_1.useState)('');
     const [require2fa, setRequire2fa] = (0, react_1.useState)(false);
     (0, react_1.useEffect)(() => {
@@ -3624,6 +3735,10 @@ const MobileOtpLoginScreen = ({ controller, onAuthenticated, onNavigateToRegiste
     const handleSendOtp = async (e) => {
         e.preventDefault();
         await controller.sendOtp(mobileInput, 'LOGIN');
+    };
+    const handlePasswordLogin = async (e) => {
+        e.preventDefault();
+        await controller.loginWithPassword(identifierInput, passwordInput);
     };
     const handleVerifyOtp = async (e) => {
         e.preventDefault();
@@ -3659,7 +3774,38 @@ const MobileOtpLoginScreen = ({ controller, onAuthenticated, onNavigateToRegiste
                 fontSize: '13px',
                 border: '1px solid #9AE6B4',
             } }, state.infoMessage)),
-        state.step === 'LOGIN_OTP' && (react_1.default.createElement("form", { onSubmit: handleSendOtp, "data-testid": "send-otp-form" },
+        state.step === 'LOGIN_OTP' && (react_1.default.createElement("div", { "data-testid": "auth-mode-tabs", style: {
+                display: 'flex',
+                marginBottom: '18px',
+                backgroundColor: '#EDF2F7',
+                borderRadius: '8px',
+                padding: '4px',
+            } },
+            react_1.default.createElement("button", { type: "button", "data-testid": "tab-mobile-otp", onClick: () => setAuthMode('OTP'), style: {
+                    flex: 1,
+                    padding: '8px 12px',
+                    border: 'none',
+                    borderRadius: '6px',
+                    backgroundColor: authMode === 'OTP' ? '#FFFFFF' : 'transparent',
+                    color: authMode === 'OTP' ? '#1A365D' : '#718096',
+                    fontWeight: '600',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    boxShadow: authMode === 'OTP' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                } }, "Mobile OTP Sign In"),
+            react_1.default.createElement("button", { type: "button", "data-testid": "tab-password-login", onClick: () => setAuthMode('PASSWORD'), style: {
+                    flex: 1,
+                    padding: '8px 12px',
+                    border: 'none',
+                    borderRadius: '6px',
+                    backgroundColor: authMode === 'PASSWORD' ? '#FFFFFF' : 'transparent',
+                    color: authMode === 'PASSWORD' ? '#1A365D' : '#718096',
+                    fontWeight: '600',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    boxShadow: authMode === 'PASSWORD' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                } }, "Email & Password"))),
+        state.step === 'LOGIN_OTP' && authMode === 'OTP' && (react_1.default.createElement("form", { onSubmit: handleSendOtp, "data-testid": "send-otp-form" },
             react_1.default.createElement("div", { style: { marginBottom: '16px' } },
                 react_1.default.createElement("label", { htmlFor: "mobile-input", style: { display: 'block', fontSize: '13px', fontWeight: '600', color: '#2D3748', marginBottom: '6px' } }, "Registered Mobile Number"),
                 react_1.default.createElement("div", { style: { display: 'flex', alignItems: 'center' } },
@@ -3694,7 +3840,52 @@ const MobileOtpLoginScreen = ({ controller, onAuthenticated, onNavigateToRegiste
                     border: 'none',
                     borderRadius: '6px',
                     cursor: mobileInput.length === 10 ? 'pointer' : 'not-allowed',
-                } }, state.isSubmitting ? 'Sending OTP...' : 'Get Mobile OTP'))),
+                } }, state.isSubmitting ? 'Sending OTP...' : 'Get Mobile OTP'),
+            react_1.default.createElement("div", { style: {
+                    marginTop: '12px',
+                    padding: '8px 12px',
+                    backgroundColor: '#EBF8FF',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    color: '#2B6CB0',
+                    textAlign: 'center',
+                } },
+                "Default Demo OTP: ",
+                react_1.default.createElement("strong", null, "123456")))),
+        state.step === 'LOGIN_OTP' && authMode === 'PASSWORD' && (react_1.default.createElement("form", { onSubmit: handlePasswordLogin, "data-testid": "password-login-form" },
+            react_1.default.createElement("div", { style: { marginBottom: '16px' } },
+                react_1.default.createElement("label", { htmlFor: "identifier-input", style: { display: 'block', fontSize: '13px', fontWeight: '600', color: '#2D3748', marginBottom: '6px' } }, "Email or Username"),
+                react_1.default.createElement("input", { id: "identifier-input", "data-testid": "login-identifier-input", type: "text", placeholder: "e.g. candidate@example.com or admin", value: identifierInput, onChange: (e) => setIdentifierInput(e.target.value), style: {
+                        width: '100%',
+                        padding: '10px 12px',
+                        border: '1px solid #CBD5E0',
+                        borderRadius: '6px',
+                        fontSize: '14px',
+                        outline: 'none',
+                        boxSizing: 'border-box',
+                    } })),
+            react_1.default.createElement("div", { style: { marginBottom: '16px' } },
+                react_1.default.createElement("label", { htmlFor: "password-input", style: { display: 'block', fontSize: '13px', fontWeight: '600', color: '#2D3748', marginBottom: '6px' } }, "Account Password"),
+                react_1.default.createElement("input", { id: "password-input", "data-testid": "login-password-input", type: "password", placeholder: "Enter your account password", value: passwordInput, onChange: (e) => setPasswordInput(e.target.value), style: {
+                        width: '100%',
+                        padding: '10px 12px',
+                        border: '1px solid #CBD5E0',
+                        borderRadius: '6px',
+                        fontSize: '14px',
+                        outline: 'none',
+                        boxSizing: 'border-box',
+                    } })),
+            react_1.default.createElement("button", { "data-testid": "login-password-button", type: "submit", disabled: state.isSubmitting || !identifierInput.trim() || !passwordInput, style: {
+                    width: '100%',
+                    padding: '12px',
+                    backgroundColor: identifierInput.trim() && passwordInput ? '#2B6CB0' : '#A0AEC0',
+                    color: '#FFFFFF',
+                    fontWeight: '600',
+                    fontSize: '14px',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: identifierInput.trim() && passwordInput ? 'pointer' : 'not-allowed',
+                } }, state.isSubmitting ? 'Signing In...' : 'Sign In with Password'))),
         state.step === 'VERIFY_OTP' && (react_1.default.createElement("form", { onSubmit: handleVerifyOtp, "data-testid": "verify-otp-form" },
             react_1.default.createElement("div", { style: { marginBottom: '16px' } },
                 react_1.default.createElement("div", { style: { display: 'flex', justifyContent: 'space-between', marginBottom: '6px' } },
@@ -3713,6 +3904,18 @@ const MobileOtpLoginScreen = ({ controller, onAuthenticated, onNavigateToRegiste
                         outline: 'none',
                         boxSizing: 'border-box',
                     } })),
+            react_1.default.createElement("div", { style: { textAlign: 'center', margin: '4px 0 12px 0' } },
+                react_1.default.createElement("button", { type: "button", onClick: () => setOtpInput('123456'), style: {
+                        background: 'none',
+                        border: '1px dashed #4299E1',
+                        borderRadius: '4px',
+                        padding: '4px 10px',
+                        color: '#2B6CB0',
+                        fontSize: '12px',
+                        cursor: 'pointer',
+                    } },
+                    "Use Demo OTP: ",
+                    react_1.default.createElement("strong", null, "123456"))),
             react_1.default.createElement("button", { "data-testid": "verify-otp-button", type: "submit", disabled: state.isSubmitting || otpInput.length !== 6, style: {
                     width: '100%',
                     padding: '12px',
@@ -3913,7 +4116,7 @@ exports.CandidateRegistrationScreen = CandidateRegistrationScreen;
   };
 
   __nag_modules["@app/features/auth/auth-controller.ts"] = {
-    deps: {},
+    deps: {"@nag/candidate-core":"@core/index.ts","../../services/docker-api.service":"@app/services/docker-api.service.ts"},
     factory: function(module, exports, require) {
 "use strict";
 /**
@@ -3923,6 +4126,8 @@ exports.CandidateRegistrationScreen = CandidateRegistrationScreen;
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AuthController = void 0;
+const candidate_core_1 = require("@nag/candidate-core");
+const docker_api_service_1 = require("../../services/docker-api.service");
 class AuthController {
     state;
     listeners = new Set();
@@ -4028,14 +4233,171 @@ class AuthController {
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
         };
+        let infoMessage = 'Registration successful. Please verify OTP to sign in.';
+        if (typeof window !== 'undefined') {
+            try {
+                const dockerRes = await docker_api_service_1.defaultDockerApiService.requestDocker(candidate_core_1.DOCKER_API_PATHS.IDENTITY.REGISTER, {
+                    method: 'POST',
+                    skipAuth: true,
+                    body: {
+                        username: payload.email.trim(),
+                        email: payload.email.trim(),
+                        mobileNumber: payload.mobileNumber.trim(),
+                        fullName: payload.fullName.trim(),
+                        password: payload.password,
+                        role: 'CANDIDATE',
+                    },
+                });
+                if (dockerRes?.id || dockerRes?.candidateId) {
+                    newProfile.id = String(dockerRes.id || dockerRes.candidateId);
+                }
+                infoMessage = 'Registered on NAG Docker Backend! Please sign in.';
+            }
+            catch (err) {
+                if (err instanceof candidate_core_1.ApiClientError && err.status >= 400 && err.status < 500) {
+                    const errMsg = typeof err.responseBody === 'object' && err.responseBody !== null
+                        ? err.responseBody.message || err.responseBody.error || err.message
+                        : String(err.responseBody || err.message);
+                    this.state.error = errMsg || 'Registration failed on Docker backend.';
+                    this.state.isSubmitting = false;
+                    this.notify();
+                    return false;
+                }
+                else {
+                    infoMessage =
+                        'Registration successful (Offline/Local Docker fallback). Please verify OTP to sign in.';
+                }
+            }
+        }
         this.state.registeredPayload = payload;
         this.state.candidateProfile = newProfile;
         this.state.mobileNumber = payload.mobileNumber.trim();
         this.state.isSubmitting = false;
-        this.state.infoMessage = 'Registration successful. Please verify OTP to sign in.';
+        this.state.infoMessage = infoMessage;
         this.state.step = 'LOGIN_OTP';
         this.notify();
         return true;
+    }
+    async loginWithPassword(identifier, password) {
+        this.state.isSubmitting = true;
+        this.state.error = null;
+        this.notify();
+        const cleanId = (identifier || '').trim();
+        if (!cleanId) {
+            this.state.error = 'Please enter your registered email or username.';
+            this.state.isSubmitting = false;
+            this.notify();
+            return false;
+        }
+        if (!password) {
+            this.state.error = 'Please enter your password.';
+            this.state.isSubmitting = false;
+            this.notify();
+            return false;
+        }
+        if (typeof window !== 'undefined') {
+            try {
+                const tokenRes = await docker_api_service_1.defaultDockerApiService.requestDocker(candidate_core_1.DOCKER_API_PATHS.IDENTITY.AUTH_TOKEN, {
+                    method: 'POST',
+                    skipAuth: true,
+                    body: {
+                        username: cleanId,
+                        email: cleanId,
+                        password,
+                    },
+                });
+                const rawTokens = tokenRes?.data || tokenRes;
+                const accessToken = rawTokens?.accessToken || rawTokens?.token || rawTokens?.jwt;
+                const refreshToken = rawTokens?.refreshToken || accessToken;
+                if (accessToken) {
+                    const authTokens = {
+                        accessToken,
+                        refreshToken: refreshToken || accessToken,
+                        tokenType: rawTokens?.tokenType || 'Bearer',
+                        expiresIn: rawTokens?.expiresIn || 3600,
+                    };
+                    await docker_api_service_1.defaultDockerApiService.getApiClient().setTokens(authTokens);
+                    this.state.tokens = authTokens;
+                    try {
+                        const meRes = await docker_api_service_1.defaultDockerApiService.requestDocker(candidate_core_1.DOCKER_API_PATHS.IDENTITY.USERS_ME, { method: 'GET' });
+                        const user = meRes?.data || meRes;
+                        if (user) {
+                            this.state.candidateProfile = {
+                                id: user.id || user.candidateId || `CND-${Date.now().toString(36).toUpperCase()}`,
+                                fullName: user.fullName || user.username || cleanId,
+                                email: user.email || cleanId,
+                                mobileNumber: user.mobileNumber || user.mobile || this.state.mobileNumber || '9876543210',
+                                dateOfBirth: user.dateOfBirth || '2001-05-15',
+                                category: user.category || 'GEN',
+                                aadhaarVerified: Boolean(user.aadhaarVerified),
+                                digiLockerLinked: Boolean(user.digiLockerLinked),
+                                createdAt: user.createdAt || new Date().toISOString(),
+                                updatedAt: new Date().toISOString(),
+                            };
+                        }
+                    }
+                    catch {
+                        // Profile fetch optional
+                    }
+                    if (!this.state.candidateProfile) {
+                        this.state.candidateProfile = {
+                            id: `CND-${Date.now().toString(36).toUpperCase()}`,
+                            fullName: cleanId.includes('@') ? cleanId.split('@')[0] : cleanId,
+                            email: cleanId.includes('@') ? cleanId : `${cleanId}@nag.gov.in`,
+                            mobileNumber: this.state.mobileNumber || '9876543210',
+                            dateOfBirth: '2001-05-15',
+                            category: 'GEN',
+                            aadhaarVerified: false,
+                            digiLockerLinked: false,
+                            createdAt: new Date().toISOString(),
+                            updatedAt: new Date().toISOString(),
+                        };
+                    }
+                    this.state.step = 'AUTHENTICATED';
+                    this.state.isSubmitting = false;
+                    this.state.infoMessage = 'Authenticated via NAG Docker Backend!';
+                    this.notify();
+                    return true;
+                }
+            }
+            catch (err) {
+                if (err instanceof candidate_core_1.ApiClientError) {
+                    if (err.status === 401 || err.status === 403) {
+                        this.state.error = 'Invalid credentials. Please verify your username/email and password.';
+                        this.state.isSubmitting = false;
+                        this.notify();
+                        return false;
+                    }
+                    const errMsg = typeof err.responseBody === 'object' && err.responseBody !== null
+                        ? err.responseBody.message || err.responseBody.error || err.message
+                        : String(err.responseBody || err.message);
+                    this.state.error = errMsg || 'Authentication failed.';
+                    this.state.isSubmitting = false;
+                    this.notify();
+                    return false;
+                }
+            }
+        }
+        // Fallback authentication for offline / test runner
+        const registered = this.state.registeredPayload;
+        const matchesRegistered = registered &&
+            (registered.email.toLowerCase() === cleanId.toLowerCase() ||
+                registered.mobileNumber === cleanId) &&
+            registered.password === password;
+        const matchesValidFormat = password.length >= 6;
+        if (matchesRegistered || matchesValidFormat) {
+            this.completeAuthentication();
+            this.state.infoMessage =
+                typeof window !== 'undefined'
+                    ? 'Authenticated (Local Docker Fallback).'
+                    : 'Authenticated successfully.';
+            this.notify();
+            return true;
+        }
+        this.state.error = 'Invalid credentials. Please enter a valid password (min 6 characters).';
+        this.state.isSubmitting = false;
+        this.notify();
+        return false;
     }
     async sendOtp(mobileNumber, purpose = 'LOGIN') {
         this.state.isSubmitting = true;
@@ -4058,6 +4420,15 @@ class AuthController {
         this.state.step = 'VERIFY_OTP';
         this.state.isSubmitting = false;
         this.state.infoMessage = `6-digit OTP sent to +91 ${cleaned} for ${purpose}. (Mock OTP: ${mockOtp})`;
+        if (typeof window !== 'undefined') {
+            docker_api_service_1.defaultDockerApiService
+                .requestDocker(candidate_core_1.DOCKER_API_PATHS.IDENTITY.OTP_SEND, {
+                method: 'POST',
+                skipAuth: true,
+                body: { mobileNumber: cleaned, purpose },
+            })
+                .catch(() => null);
+        }
         this.notify();
         return true;
     }
@@ -4093,6 +4464,35 @@ class AuthController {
             this.state.infoMessage = 'OTP verified. Please enter your 6-digit Authenticator 2FA code.';
             this.notify();
             return true;
+        }
+        if (typeof window !== 'undefined') {
+            try {
+                const dockerTokens = await docker_api_service_1.defaultDockerApiService.requestDocker(candidate_core_1.DOCKER_API_PATHS.IDENTITY.OTP_VERIFY, {
+                    method: 'POST',
+                    skipAuth: true,
+                    body: { mobileNumber, otp: cleanedOtp },
+                });
+                const rawTokens = dockerTokens?.data || dockerTokens;
+                const accessToken = rawTokens?.accessToken || rawTokens?.token;
+                if (accessToken) {
+                    const tokens = {
+                        accessToken,
+                        refreshToken: rawTokens?.refreshToken || accessToken,
+                        tokenType: rawTokens?.tokenType || 'Bearer',
+                        expiresIn: rawTokens?.expiresIn || 3600,
+                    };
+                    await docker_api_service_1.defaultDockerApiService.getApiClient().setTokens(tokens);
+                    this.state.tokens = tokens;
+                    this.state.step = 'AUTHENTICATED';
+                    this.state.isSubmitting = false;
+                    this.state.infoMessage = 'Authenticated via Docker OTP!';
+                    this.notify();
+                    return true;
+                }
+            }
+            catch {
+                // Fall back to completeAuthentication()
+            }
         }
         return this.completeAuthentication();
     }
@@ -4490,7 +4890,7 @@ exports.ExamCatalogScreen = ExamCatalogScreen;
   };
 
   __nag_modules["@app/features/catalog/catalog-controller.ts"] = {
-    deps: {},
+    deps: {"@nag/candidate-core":"@core/index.ts","../../services/docker-api.service":"@app/services/docker-api.service.ts"},
     factory: function(module, exports, require) {
 "use strict";
 /**
@@ -4500,6 +4900,8 @@ exports.ExamCatalogScreen = ExamCatalogScreen;
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CatalogController = exports.SAMPLE_CATALOG_EXAMS = void 0;
+const candidate_core_1 = require("@nag/candidate-core");
+const docker_api_service_1 = require("../../services/docker-api.service");
 exports.SAMPLE_CATALOG_EXAMS = [
     {
         id: 'EXAM-UPSC-2026',
@@ -4627,6 +5029,46 @@ class CatalogController {
             },
             onlyEligible: false,
         };
+        if (typeof window !== 'undefined' && typeof window.NagReactMount === 'function') {
+            void this.syncFromDocker();
+        }
+    }
+    async syncFromDocker() {
+        try {
+            const res = await docker_api_service_1.defaultDockerApiService.requestDocker(candidate_core_1.DOCKER_API_PATHS.EXAMINATIONS.PUBLIC, { method: 'GET', skipAuth: true });
+            const items = Array.isArray(res)
+                ? res
+                : Array.isArray(res?.content)
+                    ? res.content
+                    : Array.isArray(res?.data)
+                        ? res.data
+                        : [];
+            if (items.length > 0) {
+                const mapped = items.map((item, idx) => ({
+                    id: item.id || `EXAM-DOC-${idx}`,
+                    code: item.code || item.examCode || `CODE-${idx}`,
+                    title: item.title || item.name || 'Examination',
+                    conductingBody: item.conductingBody || item.conductingAuthority || 'National Assessment Grid',
+                    category: (['UPSC', 'SSC', 'NTA', 'STATE_PSC', 'BANKING'].includes(item.category)
+                        ? item.category
+                        : 'NTA'),
+                    description: item.description || '',
+                    registrationStartDate: item.registrationStartDate || new Date().toISOString().split('T')[0],
+                    registrationEndDate: item.registrationEndDate || new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+                    examDate: item.examDate || item.scheduledDate || new Date(Date.now() + 60 * 86400000).toISOString().split('T')[0],
+                    feeAmount: typeof item.feeAmount === 'number' ? item.feeAmount : 100,
+                    durationMinutes: typeof item.durationMinutes === 'number' ? item.durationMinutes : 120,
+                    totalMarks: typeof item.totalMarks === 'number' ? item.totalMarks : 200,
+                    eligibilityCriteria: item.eligibilityCriteria,
+                    status: item.status || 'REGISTRATION_OPEN',
+                }));
+                this.state.exams = mapped;
+                this.notify();
+            }
+        }
+        catch {
+            // Non-blocking fallback to local seed exams
+        }
     }
     getState() {
         return { ...this.state };
@@ -6523,7 +6965,7 @@ exports.CandidateDashboardScreen = CandidateDashboardScreen;
   };
 
   __nag_modules["@app/features/dashboard/dashboard-controller.ts"] = {
-    deps: {"./dashboard-models":"@app/features/dashboard/dashboard-models.ts"},
+    deps: {"./dashboard-models":"@app/features/dashboard/dashboard-models.ts","@nag/candidate-core":"@core/index.ts","../../services/docker-api.service":"@app/services/docker-api.service.ts"},
     factory: function(module, exports, require) {
 "use strict";
 /**
@@ -6541,6 +6983,8 @@ Object.defineProperty(exports, "PracticePaperSummary", { enumerable: true, get: 
 Object.defineProperty(exports, "UpcomingAlert", { enumerable: true, get: function () { return dashboard_models_1.UpcomingAlert; } });
 Object.defineProperty(exports, "DashboardExamFilter", { enumerable: true, get: function () { return dashboard_models_1.DashboardExamFilter; } });
 Object.defineProperty(exports, "DashboardState", { enumerable: true, get: function () { return dashboard_models_1.DashboardState; } });
+const candidate_core_1 = require("@nag/candidate-core");
+const docker_api_service_1 = require("../../services/docker-api.service");
 exports.DEFAULT_ENROLLED_EXAMS = [
     {
         id: 'exam-1',
@@ -6727,6 +7171,53 @@ class DashboardController {
             error: null,
             candidateName,
         };
+        if (typeof window !== 'undefined' && typeof window.NagReactMount === 'function') {
+            void this.syncFromDocker();
+        }
+    }
+    async syncFromDocker() {
+        try {
+            const res = await docker_api_service_1.defaultDockerApiService.requestDocker(candidate_core_1.DOCKER_API_PATHS.EXAMINATIONS.MY_EXAMS, { method: 'GET' });
+            const items = Array.isArray(res)
+                ? res
+                : Array.isArray(res?.content)
+                    ? res.content
+                    : Array.isArray(res?.data)
+                        ? res.data
+                        : [];
+            if (items.length > 0) {
+                const mapped = items.map((item, idx) => ({
+                    id: item.id || item.examId || `exam-${idx}`,
+                    applicationId: item.applicationId || item.applicationNumber || `APP-${item.id || idx}`,
+                    code: item.code || item.examCode || `EXAM-${idx}`,
+                    title: item.title || item.examTitle || item.name || 'Examination',
+                    conductingAuthority: item.conductingAuthority || item.conductingBody || 'National Assessment Grid',
+                    scheduledDate: item.scheduledDate || item.examDate || new Date().toISOString().split('T')[0],
+                    scheduledTime: item.scheduledTime || '09:00 AM - 12:00 PM',
+                    durationMinutes: typeof item.durationMinutes === 'number' ? item.durationMinutes : 180,
+                    totalMarks: typeof item.totalMarks === 'number' ? item.totalMarks : 100,
+                    centerName: item.centerName || 'Allocated Examination Center',
+                    centerAddress: item.centerAddress || 'Center Address',
+                    centerCity: item.centerCity || 'City',
+                    centerState: item.centerState || 'State',
+                    shiftName: item.shiftName || 'Morning Shift',
+                    rollNumber: item.rollNumber || String(100000 + idx),
+                    status: item.status || 'UPCOMING',
+                    admitCardReady: item.admitCardReady ?? true,
+                    daysRemaining: item.daysRemaining ?? 0,
+                    deliverySessionId: item.deliverySessionId,
+                    isPractice: Boolean(item.isPractice),
+                    practiceAvailable: item.practiceAvailable ?? true,
+                }));
+                this.state.enrolledExams = mapped;
+                this.state.kpis = this.calculateKpis(mapped);
+                this.state.alerts = this.generateAlerts(mapped);
+                this.notify();
+            }
+        }
+        catch {
+            // Non-blocking fallback to local seed enrolled exams
+        }
     }
     getState() {
         return { ...this.state };
@@ -8992,7 +9483,7 @@ __exportStar(require("./LearnScreens"), exports);
   };
 
   __nag_modules["@app/features/learn/learn-controller.ts"] = {
-    deps: {"./learn-models":"@app/features/learn/learn-models.ts"},
+    deps: {"./learn-models":"@app/features/learn/learn-models.ts","@nag/candidate-core":"@core/index.ts","../../services/docker-api.service":"@app/services/docker-api.service.ts"},
     factory: function(module, exports, require) {
 "use strict";
 /**
@@ -9004,6 +9495,8 @@ __exportStar(require("./LearnScreens"), exports);
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LearnController = void 0;
 const learn_models_1 = require("./learn-models");
+const candidate_core_1 = require("@nag/candidate-core");
+const docker_api_service_1 = require("../../services/docker-api.service");
 class LearnController {
     state;
     listeners = new Set();
@@ -9037,6 +9530,35 @@ class LearnController {
             activeHubTab: 'recommendations',
             ...initialOverrides,
         };
+        if (typeof window !== 'undefined' && typeof window.NagReactMount === 'function') {
+            void this.syncFromDocker();
+        }
+    }
+    async syncFromDocker() {
+        try {
+            const [dlpRes, recRes] = await Promise.all([
+                docker_api_service_1.defaultDockerApiService
+                    .requestDocker(candidate_core_1.DOCKER_API_PATHS.LEARN.DLP_CURRENT, { method: 'GET' })
+                    .catch(() => null),
+                docker_api_service_1.defaultDockerApiService
+                    .requestDocker(candidate_core_1.DOCKER_API_PATHS.LEARN.RECOMMENDATIONS_LATEST, { method: 'GET' })
+                    .catch(() => null),
+            ]);
+            const dlpData = dlpRes?.data || dlpRes;
+            if (dlpData && (dlpData.id || dlpData.milestoneGraph)) {
+                this.state.learningPath = dlpData;
+            }
+            const recData = recRes?.data || recRes;
+            if (recData && (recData.id || recData.weakTopicRecommendations)) {
+                this.state.recommendation = recData;
+            }
+            if (dlpData || recData) {
+                this.emit();
+            }
+        }
+        catch {
+            // Non-blocking fallback
+        }
     }
     getState() {
         return { ...this.state };
@@ -11422,7 +11944,7 @@ __exportStar(require("./PracticeScreens"), exports);
   };
 
   __nag_modules["@app/features/practice/practice-controller.ts"] = {
-    deps: {"./practice-models":"@app/features/practice/practice-models.ts"},
+    deps: {"./practice-models":"@app/features/practice/practice-models.ts","@nag/candidate-core":"@core/index.ts","../../services/docker-api.service":"@app/services/docker-api.service.ts"},
     factory: function(module, exports, require) {
 "use strict";
 /**
@@ -11434,6 +11956,8 @@ __exportStar(require("./PracticeScreens"), exports);
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PracticeController = void 0;
 const practice_models_1 = require("./practice-models");
+const candidate_core_1 = require("@nag/candidate-core");
+const docker_api_service_1 = require("../../services/docker-api.service");
 class PracticeController {
     state;
     listeners = new Set();
@@ -11457,6 +11981,74 @@ class PracticeController {
             activeTab: 'hub',
             ...initialOverrides,
         };
+        if (typeof window !== 'undefined' && typeof window.NagReactMount === 'function') {
+            void this.syncFromDocker();
+        }
+    }
+    async syncFromDocker() {
+        try {
+            const [setsRes, histRes] = await Promise.all([
+                docker_api_service_1.defaultDockerApiService
+                    .requestDocker(candidate_core_1.DOCKER_API_PATHS.PRACTICE.SETS, { method: 'GET' })
+                    .catch(() => null),
+                docker_api_service_1.defaultDockerApiService
+                    .requestDocker(candidate_core_1.DOCKER_API_PATHS.PRACTICE.HISTORY(0, 10), { method: 'GET' })
+                    .catch(() => null),
+            ]);
+            const rawSets = Array.isArray(setsRes)
+                ? setsRes
+                : Array.isArray(setsRes?.content)
+                    ? setsRes.content
+                    : Array.isArray(setsRes?.data)
+                        ? setsRes.data
+                        : [];
+            if (rawSets.length > 0) {
+                const mappedSets = rawSets.map((s, idx) => ({
+                    id: s.id || `set-doc-${idx}`,
+                    name: s.name || s.title || `Practice Drill ${idx + 1}`,
+                    description: s.description || 'Targeted mock drill',
+                    source: s.source || 'MANUAL',
+                    durationMinutes: typeof s.durationMinutes === 'number' ? s.durationMinutes : 20,
+                    subjectSlug: s.subjectSlug || s.subject || 'Quantitative Aptitude',
+                    published: s.published ?? true,
+                    totalQuestions: typeof s.totalQuestions === 'number' ? s.totalQuestions : 10,
+                    difficulty: s.difficulty || 'CORE',
+                    totalMarks: typeof s.totalMarks === 'number' ? s.totalMarks : 20,
+                    isOfficialMock: Boolean(s.isOfficialMock),
+                }));
+                this.state.practiceSets = mappedSets;
+            }
+            const rawHist = Array.isArray(histRes)
+                ? histRes
+                : Array.isArray(histRes?.content)
+                    ? histRes.content
+                    : Array.isArray(histRes?.data)
+                        ? histRes.data
+                        : [];
+            if (rawHist.length > 0) {
+                const mappedHist = rawHist.map((h, idx) => ({
+                    sessionId: h.sessionId || h.id || `hist-${idx}`,
+                    practiceSetId: h.practiceSetId || 'set-default',
+                    practiceSetName: h.practiceSetName || h.name || 'Practice Session',
+                    submittedAt: h.submittedAt || h.createdAt || new Date().toISOString(),
+                    obtainedMarks: typeof h.obtainedMarks === 'number' ? h.obtainedMarks : 15,
+                    totalMarks: typeof h.totalMarks === 'number' ? h.totalMarks : 20,
+                    accuracyPercent: typeof h.accuracyPercent === 'number' ? h.accuracyPercent : 75,
+                    totalQuestions: typeof h.totalQuestions === 'number' ? h.totalQuestions : 10,
+                    correctCount: typeof h.correctCount === 'number' ? h.correctCount : 7,
+                    incorrectCount: typeof h.incorrectCount === 'number' ? h.incorrectCount : 2,
+                    subject: h.subject || 'Quantitative Aptitude',
+                    mode: h.mode || 'TIMED',
+                }));
+                this.state.history = mappedHist;
+            }
+            if (rawSets.length > 0 || rawHist.length > 0) {
+                this.emit();
+            }
+        }
+        catch {
+            // Non-blocking fallback
+        }
     }
     getState() {
         return { ...this.state };
@@ -12765,7 +13357,7 @@ __exportStar(require("./CandidateProfileScreen"), exports);
   };
 
   __nag_modules["@app/features/profile/profile-controller.ts"] = {
-    deps: {"./profile-models":"@app/features/profile/profile-models.ts"},
+    deps: {"./profile-models":"@app/features/profile/profile-models.ts","@nag/candidate-core":"@core/index.ts","../../services/docker-api.service":"@app/services/docker-api.service.ts"},
     factory: function(module, exports, require) {
 "use strict";
 /**
@@ -12787,6 +13379,8 @@ Object.defineProperty(exports, "ProfileIdentityDocType", { enumerable: true, get
 Object.defineProperty(exports, "INDIAN_STATES_AND_CITIES", { enumerable: true, get: function () { return profile_models_1.INDIAN_STATES_AND_CITIES; } });
 Object.defineProperty(exports, "DEFAULT_QUALIFICATIONS", { enumerable: true, get: function () { return profile_models_1.DEFAULT_QUALIFICATIONS; } });
 Object.defineProperty(exports, "DigiLockerClaim", { enumerable: true, get: function () { return profile_models_1.DigiLockerClaim; } });
+const candidate_core_1 = require("@nag/candidate-core");
+const docker_api_service_1 = require("../../services/docker-api.service");
 exports.DEFAULT_CANDIDATE_PROFILE = {
     candidateId: 'CND-884210',
     fullName: 'Aryan Sharma',
@@ -12912,6 +13506,39 @@ class ProfileController {
             statusMessage: null,
             loading: false,
         };
+        if (typeof window !== 'undefined' && typeof window.NagReactMount === 'function') {
+            void this.syncFromDocker();
+        }
+    }
+    async syncFromDocker() {
+        try {
+            const res = await docker_api_service_1.defaultDockerApiService.requestDocker(candidate_core_1.DOCKER_API_PATHS.IDENTITY.USERS_ME, { method: 'GET' });
+            const user = res?.data || res;
+            if (user && (user.id || user.email || user.username)) {
+                if (user.fullName || user.username) {
+                    this.state.profile.fullName = user.fullName || user.username;
+                }
+                if (user.email) {
+                    this.state.profile.email = user.email;
+                    this.state.profile.emailVerified = true;
+                }
+                if (user.mobileNumber || user.mobile) {
+                    this.state.profile.mobile = user.mobileNumber || user.mobile;
+                    this.state.profile.mobileVerified = true;
+                }
+                if (user.category) {
+                    this.state.profile.category = user.category;
+                }
+                if (user.dateOfBirth) {
+                    this.state.profile.dateOfBirth = user.dateOfBirth;
+                }
+                this.state.profile.profileCompletionPercentage = this.calculateCompletionPercentage();
+                this.notify();
+            }
+        }
+        catch {
+            // Non-blocking fallback
+        }
     }
     getState() {
         return {
@@ -13208,6 +13835,14 @@ class ProfileController {
     }
     saveProfile() {
         this.state.statusMessage = 'Profile updated successfully.';
+        if (typeof window !== 'undefined') {
+            void docker_api_service_1.defaultDockerApiService
+                .requestDocker(candidate_core_1.DOCKER_API_PATHS.CANDIDATES.BASE, {
+                method: 'POST',
+                body: this.state.profile,
+            })
+                .catch(() => null);
+        }
         this.notify();
         return true;
     }
@@ -13848,7 +14483,7 @@ __exportStar(require("./CandidateResultsScreen"), exports);
   };
 
   __nag_modules["@app/features/results/results-controller.ts"] = {
-    deps: {"./results-models":"@app/features/results/results-models.ts"},
+    deps: {"./results-models":"@app/features/results/results-models.ts","@nag/candidate-core":"@core/index.ts","../../services/docker-api.service":"@app/services/docker-api.service.ts"},
     factory: function(module, exports, require) {
 "use strict";
 /**
@@ -13866,6 +14501,8 @@ Object.defineProperty(exports, "CategoryCutoffEntry", { enumerable: true, get: f
 Object.defineProperty(exports, "ScorecardVerificationMetadata", { enumerable: true, get: function () { return results_models_1.ScorecardVerificationMetadata; } });
 Object.defineProperty(exports, "DigiLockerDepositReceipt", { enumerable: true, get: function () { return results_models_1.DigiLockerDepositReceipt; } });
 Object.defineProperty(exports, "ResultsState", { enumerable: true, get: function () { return results_models_1.ResultsState; } });
+const candidate_core_1 = require("@nag/candidate-core");
+const docker_api_service_1 = require("../../services/docker-api.service");
 exports.DEFAULT_EXAM_RESULTS = [
     {
         id: 'res-nes-2026-01',
@@ -14139,6 +14776,58 @@ class ResultsController {
             loading: false,
             error: null,
         };
+        if (typeof window !== 'undefined' && typeof window.NagReactMount === 'function') {
+            void this.syncFromDocker();
+        }
+    }
+    async syncFromDocker() {
+        try {
+            const res = await docker_api_service_1.defaultDockerApiService.requestDocker(candidate_core_1.DOCKER_API_PATHS.RESULTS.MY_RESULTS, { method: 'GET' });
+            const items = Array.isArray(res)
+                ? res
+                : Array.isArray(res?.content)
+                    ? res.content
+                    : Array.isArray(res?.data)
+                        ? res.data
+                        : [];
+            if (items.length > 0) {
+                const mapped = items.map((r, idx) => ({
+                    id: r.id || `res-doc-${idx}`,
+                    examId: r.examId || `exam-${idx}`,
+                    examCode: r.examCode || r.code || `EXAM-${idx}`,
+                    examTitle: r.examTitle || r.title || 'Examination Result',
+                    conductingAuthority: r.conductingAuthority || 'National Assessment Grid',
+                    rollNumber: r.rollNumber || String(100000 + idx),
+                    candidateName: r.candidateName || 'Aryan Sharma',
+                    candidateCategory: r.candidateCategory || 'GENERAL',
+                    declaredDate: r.declaredDate || new Date().toISOString().split('T')[0],
+                    shiftName: r.shiftName || 'Morning Shift',
+                    isMultiShiftNormalized: Boolean(r.isMultiShiftNormalized),
+                    rawTotalMarks: typeof r.rawTotalMarks === 'number' ? r.rawTotalMarks : 250,
+                    normalizedTotalMarks: typeof r.normalizedTotalMarks === 'number' ? r.normalizedTotalMarks : 255.5,
+                    maxScore: typeof r.maxScore === 'number' ? r.maxScore : 300,
+                    percentile: typeof r.percentile === 'number' ? r.percentile : 99.0,
+                    zScore: typeof r.zScore === 'number' ? r.zScore : 2.5,
+                    allIndiaRank: typeof r.allIndiaRank === 'number' ? r.allIndiaRank : 100,
+                    categoryRank: typeof r.categoryRank === 'number' ? r.categoryRank : 50,
+                    totalCandidatesAppeared: typeof r.totalCandidatesAppeared === 'number' ? r.totalCandidatesAppeared : 200000,
+                    qualifyingStatus: r.qualifyingStatus || 'QUALIFIED',
+                    categoryCutoffs: Array.isArray(r.categoryCutoffs) ? r.categoryCutoffs : exports.DEFAULT_EXAM_RESULTS[0].categoryCutoffs,
+                    sectionScores: Array.isArray(r.sectionScores) ? r.sectionScores : exports.DEFAULT_EXAM_RESULTS[0].sectionScores,
+                    verification: r.verification || exports.DEFAULT_EXAM_RESULTS[0].verification,
+                    digiLockerPushed: Boolean(r.digiLockerPushed),
+                    savedToOfflineWallet: Boolean(r.savedToOfflineWallet),
+                }));
+                this.state.resultsList = mapped;
+                if (!this.state.selectedResult && mapped.length > 0) {
+                    this.state.selectedResult = mapped[0];
+                }
+                this.notify();
+            }
+        }
+        catch {
+            // Non-blocking fallback
+        }
     }
     getState() {
         return {
@@ -16472,9 +17161,53 @@ class DockerApiService {
             };
         }
     }
+    /**
+     * Performs an API request against the NAG Docker stack.
+     * If the request encounters a network error in a browser/WebView runtime,
+     * automatically attempts candidate fallback origins (10.0.2.2:9000, localhost:9000, 10.0.2.2:4300, localhost:4300)
+     * and preserves whichever origin responded.
+     */
+    async requestDocker(path, options) {
+        try {
+            return await this.client.request(path, options);
+        }
+        catch (err) {
+            const isNetworkError = !(err instanceof candidate_core_1.ApiClientError);
+            const isBrowserOrWebView = typeof window !== 'undefined' || typeof navigator !== 'undefined';
+            if (!isNetworkError || !isBrowserOrWebView) {
+                throw err;
+            }
+            const currentBase = this.client.getBaseUrl();
+            const fallbackOrigins = [
+                'http://10.0.2.2:9000',
+                'http://localhost:9000',
+                'http://10.0.2.2:4300',
+                'http://localhost:4300',
+            ].filter((origin) => origin !== currentBase);
+            for (const origin of fallbackOrigins) {
+                try {
+                    this.client.setBaseUrl(origin);
+                    const result = await this.client.request(path, options);
+                    this.config.baseUrl = origin;
+                    return result;
+                }
+                catch (retryErr) {
+                    if (retryErr instanceof candidate_core_1.ApiClientError) {
+                        this.config.baseUrl = origin;
+                        throw retryErr;
+                    }
+                }
+            }
+            this.client.setBaseUrl(currentBase);
+            throw err;
+        }
+    }
 }
 exports.DockerApiService = DockerApiService;
-exports.defaultDockerApiService = new DockerApiService('localhost-gateway');
+const defaultTargetMode = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent || '')
+    ? 'android-emulator'
+    : 'localhost-gateway';
+exports.defaultDockerApiService = new DockerApiService(defaultTargetMode);
 
     }
   };

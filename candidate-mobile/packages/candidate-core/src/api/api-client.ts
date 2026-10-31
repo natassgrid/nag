@@ -152,6 +152,10 @@ export class NagCandidateApiClient {
     await this.tokenStorage.setItem('nag_refresh_token', tokens.refreshToken);
   }
 
+  public async setTokens(tokens: AuthTokens): Promise<void> {
+    return this.setAuthTokens(tokens);
+  }
+
   public async getAccessToken(): Promise<string | null> {
     return this.tokenStorage.getItem('nag_access_token');
   }
