@@ -37,13 +37,16 @@ try {
   // Headless test or dev fallback
 }
 
-const getNativeModule = (): Spec | null => {
+const getNativeModule = (): any => {
+  if (typeof (globalThis as any).NagKioskLockdownModule !== 'undefined') {
+    return (globalThis as any).NagKioskLockdownModule;
+  }
   if (typeof rnTurboModuleRegistry !== 'undefined' && rnTurboModuleRegistry.get) {
     const turbo = rnTurboModuleRegistry.get('NagKioskLockdownModule');
     if (turbo) return turbo;
   }
   if (rnNativeModules && rnNativeModules.NagKioskLockdownModule) {
-    return rnNativeModules.NagKioskLockdownModule as Spec;
+    return rnNativeModules.NagKioskLockdownModule;
   }
   return null;
 };
@@ -52,7 +55,8 @@ export const NativeKioskLockdown: Spec = {
   async startLockdown(): Promise<KioskStatus> {
     const native = getNativeModule();
     if (native && typeof native.startLockdown === 'function') {
-      return await native.startLockdown();
+      const res = await native.startLockdown();
+      return typeof res === 'string' ? JSON.parse(res) : res;
     }
     simulatedStatus = {
       isLockdownActive: true,
@@ -66,7 +70,8 @@ export const NativeKioskLockdown: Spec = {
   async stopLockdown(): Promise<KioskStatus> {
     const native = getNativeModule();
     if (native && typeof native.stopLockdown === 'function') {
-      return await native.stopLockdown();
+      const res = await native.stopLockdown();
+      return typeof res === 'string' ? JSON.parse(res) : res;
     }
     simulatedStatus = {
       isLockdownActive: false,
@@ -80,7 +85,8 @@ export const NativeKioskLockdown: Spec = {
   async getLockTaskModeState(): Promise<KioskStatus> {
     const native = getNativeModule();
     if (native && typeof native.getLockTaskModeState === 'function') {
-      return await native.getLockTaskModeState();
+      const res = await native.getLockTaskModeState();
+      return typeof res === 'string' ? JSON.parse(res) : res;
     }
     return { ...simulatedStatus };
   },
@@ -88,7 +94,8 @@ export const NativeKioskLockdown: Spec = {
   async isDeviceOwner(): Promise<boolean> {
     const native = getNativeModule();
     if (native && typeof native.isDeviceOwner === 'function') {
-      return await native.isDeviceOwner();
+      const res = await native.isDeviceOwner();
+      return typeof res === 'string' ? JSON.parse(res) : Boolean(res);
     }
     return simulatedStatus.isDeviceOwner;
   },
@@ -96,7 +103,8 @@ export const NativeKioskLockdown: Spec = {
   async suppressOverlays(): Promise<boolean> {
     const native = getNativeModule();
     if (native && typeof native.suppressOverlays === 'function') {
-      return await native.suppressOverlays();
+      const res = await native.suppressOverlays();
+      return typeof res === 'string' ? JSON.parse(res) : Boolean(res);
     }
     simulatedStatus.overlaySuppressed = true;
     return true;

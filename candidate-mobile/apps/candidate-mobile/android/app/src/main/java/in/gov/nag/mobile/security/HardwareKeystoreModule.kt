@@ -4,14 +4,10 @@ import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyInfo
 import android.security.keystore.KeyProperties
-import android.security.keystore.StrongBoxUnavailableException
 import android.util.Base64
 import android.util.Log
-import com.facebook.react.bridge.Arguments
-import com.facebook.react.bridge.Promise
-import com.facebook.react.bridge.ReactApplicationContext
-import com.facebook.react.bridge.ReactContextBaseJavaModule
-import com.facebook.react.bridge.ReactMethod
+import android.webkit.JavascriptInterface
+import org.json.JSONObject
 import java.security.KeyFactory
 import java.security.KeyPairGenerator
 import java.security.KeyStore
@@ -21,12 +17,11 @@ import java.security.cert.X509Certificate
 import java.security.spec.ECGenParameterSpec
 
 /**
- * NagHardwareKeystoreModule - Bridgeless TurboModule for Android Keystore Hardware Security.
+ * NagHardwareKeystoreModule - Android Keystore Hardware Security.
  * Generates ECDSA P-256 (secp256r1) key pairs in StrongBox Keymaster (with fallback to TEE)
  * and signs CBT exam submissions using SHA256withECDSA for non-repudiation and zero-trust verification.
  */
-class HardwareKeystoreModule(private val reactContext: ReactApplicationContext) :
-    ReactContextBaseJavaModule(reactContext) {
+class HardwareKeystoreModule {
 
     companion object {
         const val MODULE_NAME = "NagHardwareKeystoreModule"
@@ -37,8 +32,6 @@ class HardwareKeystoreModule(private val reactContext: ReactApplicationContext) 
         private const val TAG = "NagHardwareKeystore"
     }
 
-    override fun getName(): String = MODULE_NAME
-
     private val keyStore: KeyStore by lazy {
         KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
     }
@@ -47,42 +40,45 @@ class HardwareKeystoreModule(private val reactContext: ReactApplicationContext) 
      * Ensures an ECDSA P-256 key pair exists in AndroidKeyStore.
      * Prefers StrongBox Keymaster; gracefully falls back to Standard TEE hardware if StrongBox is unavailable.
      */
-    @ReactMethod
-    fun ensureHardwareKeyPair(aliasArg: String?, promise: Promise) {
+    @JavascriptInterface
+    fun ensureHardwareKeyPair(aliasArg: String?): String {
         val alias = if (aliasArg.isNullOrBlank()) DEFAULT_KEY_ALIAS else aliasArg
-        try {
+        return try {
             if (!keyStore.containsAlias(alias)) {
                 generateEcKeyPair(alias)
             }
 
-            val keyInfoMap = getKeyInfo(alias)
-            if (keyInfoMap != null) {
-                promise.resolve(keyInfoMap)
+            val keyInfoJson = getKeyInfoJson(alias)
+            if (keyInfoJson != null) {
+                keyInfoJson.toString()
             } else {
-                promise.reject("KEY_NOT_FOUND", "Key pair $alias could not be found after generation.")
+                JSONObject().apply {
+                    put("error", "Key pair $alias could not be found after generation.")
+                }.toString()
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to ensure hardware key pair: ${e.message}", e)
-            promise.reject("KEY_GENERATION_FAILED", "Could not generate or retrieve key: ${e.message}", e)
+            JSONObject().apply {
+                put("error", "Could not generate or retrieve key: ${e.message}")
+            }.toString()
         }
     }
 
     /**
      * Signs exam submission payload hash using the hardware-backed private key (SHA256withECDSA).
      */
-    @ReactMethod
-    fun signExamSubmission(payloadSha256Hex: String, aliasArg: String?, promise: Promise) {
+    @JavascriptInterface
+    fun signExamSubmission(payloadSha256Hex: String, aliasArg: String?): String {
         val alias = if (aliasArg.isNullOrBlank()) DEFAULT_KEY_ALIAS else aliasArg
-        try {
+        return try {
             if (!keyStore.containsAlias(alias)) {
                 generateEcKeyPair(alias)
             }
 
             val entry = keyStore.getEntry(alias, null) as? KeyStore.PrivateKeyEntry
-            if (entry == null) {
-                promise.reject("KEY_ENTRY_NOT_FOUND", "PrivateKeyEntry for alias $alias not found.")
-                return
-            }
+                ?: return JSONObject().apply {
+                    put("error", "PrivateKeyEntry for alias $alias not found.")
+                }.toString()
 
             val privateKey: PrivateKey = entry.privateKey
             val signer = Signature.getInstance(SIGNATURE_ALGORITHM)
@@ -101,37 +97,41 @@ class HardwareKeystoreModule(private val reactContext: ReactApplicationContext) 
 
             val isStrongBox = isStrongBoxBackedKey(privateKey)
 
-            val result = Arguments.createMap()
-            result.putString("alias", alias)
-            result.putString("payloadHash", payloadSha256Hex)
-            result.putString("signatureBase64", signatureBase64)
-            result.putString("algorithm", SIGNATURE_ALGORITHM)
-            result.putDouble("timestamp", System.currentTimeMillis().toDouble())
-            result.putBoolean("strongBoxBacked", isStrongBox)
+            val result = JSONObject().apply {
+                put("alias", alias)
+                put("payloadHash", payloadSha256Hex)
+                put("signatureBase64", signatureBase64)
+                put("algorithm", SIGNATURE_ALGORITHM)
+                put("timestamp", System.currentTimeMillis().toDouble())
+                put("strongBoxBacked", isStrongBox)
+            }
 
-            promise.resolve(result)
+            result.toString()
         } catch (e: Exception) {
             Log.e(TAG, "Signing failed: ${e.message}", e)
-            promise.reject("SIGNING_FAILED", "Failed to sign exam payload: ${e.message}", e)
+            JSONObject().apply {
+                put("error", "Failed to sign exam payload: ${e.message}")
+            }.toString()
         }
     }
 
     /**
      * Retrieves public key information, attestation details, and hardware backing status.
      */
-    @ReactMethod
-    fun getHardwareKeyInfo(aliasArg: String?, promise: Promise) {
+    @JavascriptInterface
+    fun getHardwareKeyInfo(aliasArg: String?): String? {
         val alias = if (aliasArg.isNullOrBlank()) DEFAULT_KEY_ALIAS else aliasArg
-        try {
+        return try {
             if (!keyStore.containsAlias(alias)) {
-                promise.resolve(null)
-                return
+                return null
             }
 
-            val infoMap = getKeyInfo(alias)
-            promise.resolve(infoMap)
+            getKeyInfoJson(alias)?.toString()
         } catch (e: Exception) {
-            promise.reject("KEY_QUERY_FAILED", e.message, e)
+            Log.e(TAG, "Error querying hardware key info: ${e.message}", e)
+            JSONObject().apply {
+                put("error", e.message)
+            }.toString()
         }
     }
 
@@ -172,7 +172,7 @@ class HardwareKeystoreModule(private val reactContext: ReactApplicationContext) 
         Log.i(TAG, "Successfully generated TEE-backed ECDSA key for alias: $alias")
     }
 
-    private fun getKeyInfo(alias: String): com.facebook.react.bridge.WritableMap? {
+    private fun getKeyInfoJson(alias: String): JSONObject? {
         val cert = keyStore.getCertificate(alias) as? X509Certificate ?: return null
         val publicKeyBytes = cert.publicKey.encoded
         val publicKeyBase64 = Base64.encodeToString(publicKeyBytes, Base64.NO_WRAP)
@@ -181,15 +181,15 @@ class HardwareKeystoreModule(private val reactContext: ReactApplicationContext) 
         val entry = keyStore.getEntry(alias, null) as? KeyStore.PrivateKeyEntry
         val isStrongBox = entry?.privateKey?.let { isStrongBoxBackedKey(it) } ?: false
 
-        val map = Arguments.createMap()
-        map.putString("alias", alias)
-        map.putString("algorithm", "EC/$EC_CURVE_NAME")
-        map.putString("publicKeyBase64", publicKeyBase64)
-        map.putBoolean("isHardwareBacked", true)
-        map.putBoolean("isStrongBoxBacked", isStrongBox)
-        map.putInt("certificateChainLength", certChain?.size ?: 1)
-        map.putDouble("createdAt", cert.notBefore.time.toDouble())
-        return map
+        return JSONObject().apply {
+            put("alias", alias)
+            put("algorithm", "EC/$EC_CURVE_NAME")
+            put("publicKeyBase64", publicKeyBase64)
+            put("isHardwareBacked", true)
+            put("isStrongBoxBacked", isStrongBox)
+            put("certificateChainLength", certChain?.size ?: 1)
+            put("createdAt", cert.notBefore.time.toDouble())
+        }
     }
 
     private fun isStrongBoxBackedKey(privateKey: PrivateKey): Boolean {

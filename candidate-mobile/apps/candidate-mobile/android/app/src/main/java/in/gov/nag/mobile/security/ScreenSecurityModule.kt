@@ -1,98 +1,136 @@
 package `in`.gov.nag.mobile.security
 
+import android.app.Activity
+import android.os.Looper
+import android.util.Log
 import android.view.WindowManager
-import com.facebook.react.bridge.Arguments
-import com.facebook.react.bridge.Promise
-import com.facebook.react.bridge.ReactApplicationContext
-import com.facebook.react.bridge.ReactContextBaseJavaModule
-import com.facebook.react.bridge.ReactMethod
+import android.webkit.JavascriptInterface
+import org.json.JSONObject
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 /**
- * NagScreenSecurityModule - Bridgeless TurboModule toggling WindowManager.LayoutParams.FLAG_SECURE
- * on the Android UI thread. Blocks screenshot capture, screen recording, task switcher previews,
- * and external Miracast/Chromecast screen mirroring during exams.
+ * NagScreenSecurityModule - Toggles WindowManager.LayoutParams.FLAG_SECURE on the Android UI thread.
+ * Blocks screenshot capture, screen recording, task switcher previews, and external screen mirroring during exams.
  */
-class ScreenSecurityModule(private val reactContext: ReactApplicationContext) :
-    ReactContextBaseJavaModule(reactContext) {
+class ScreenSecurityModule(private val activityProvider: () -> Activity?) {
 
     companion object {
         const val MODULE_NAME = "NagScreenSecurityModule"
+        private const val TAG = "NagScreenSecurity"
     }
-
-    override fun getName(): String = MODULE_NAME
 
     /**
      * Enable FLAG_SECURE on current window.
      */
-    @ReactMethod
-    fun enableFlagSecure(promise: Promise) {
-        val activity = currentActivity
-        if (activity == null) {
-            promise.reject("ACTIVITY_UNAVAILABLE", "Cannot enable FLAG_SECURE: currentActivity is null")
-            return
-        }
+    @JavascriptInterface
+    fun enableFlagSecure(): String {
+        val activity = activityProvider() ?: return buildStatusJson(false).toString()
 
-        activity.runOnUiThread {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
             try {
                 activity.window.setFlags(
                     WindowManager.LayoutParams.FLAG_SECURE,
                     WindowManager.LayoutParams.FLAG_SECURE
                 )
-                val map = Arguments.createMap()
-                map.putBoolean("secure", true)
-                map.putDouble("timestamp", System.currentTimeMillis().toDouble())
-                promise.resolve(map)
             } catch (e: Exception) {
-                promise.reject("FLAG_SECURE_ENABLE_FAILED", e.message, e)
+                Log.e(TAG, "Failed to enable FLAG_SECURE: ${e.message}", e)
+            }
+        } else {
+            val latch = CountDownLatch(1)
+            activity.runOnUiThread {
+                try {
+                    activity.window.setFlags(
+                        WindowManager.LayoutParams.FLAG_SECURE,
+                        WindowManager.LayoutParams.FLAG_SECURE
+                    )
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to enable FLAG_SECURE: ${e.message}", e)
+                } finally {
+                    latch.countDown()
+                }
+            }
+            try {
+                latch.await(2, TimeUnit.SECONDS)
+            } catch (e: InterruptedException) {
+                Thread.currentThread().interrupt()
             }
         }
+
+        return buildStatusJson(true).toString()
     }
 
     /**
      * Disable FLAG_SECURE on current window.
      */
-    @ReactMethod
-    fun disableFlagSecure(promise: Promise) {
-        val activity = currentActivity
-        if (activity == null) {
-            promise.reject("ACTIVITY_UNAVAILABLE", "Cannot disable FLAG_SECURE: currentActivity is null")
-            return
-        }
+    @JavascriptInterface
+    fun disableFlagSecure(): String {
+        val activity = activityProvider() ?: return buildStatusJson(false).toString()
 
-        activity.runOnUiThread {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
             try {
                 activity.window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-                val map = Arguments.createMap()
-                map.putBoolean("secure", false)
-                map.putDouble("timestamp", System.currentTimeMillis().toDouble())
-                promise.resolve(map)
             } catch (e: Exception) {
-                promise.reject("FLAG_SECURE_DISABLE_FAILED", e.message, e)
+                Log.e(TAG, "Failed to disable FLAG_SECURE: ${e.message}", e)
+            }
+        } else {
+            val latch = CountDownLatch(1)
+            activity.runOnUiThread {
+                try {
+                    activity.window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to disable FLAG_SECURE: ${e.message}", e)
+                } finally {
+                    latch.countDown()
+                }
+            }
+            try {
+                latch.await(2, TimeUnit.SECONDS)
+            } catch (e: InterruptedException) {
+                Thread.currentThread().interrupt()
             }
         }
+
+        return buildStatusJson(false).toString()
     }
 
     /**
      * Query whether FLAG_SECURE is active on the current window.
      */
-    @ReactMethod
-    fun getScreenSecurityStatus(promise: Promise) {
-        val activity = currentActivity
-        if (activity == null) {
-            val map = Arguments.createMap()
-            map.putBoolean("secure", false)
-            map.putDouble("timestamp", System.currentTimeMillis().toDouble())
-            promise.resolve(map)
-            return
+    @JavascriptInterface
+    fun getScreenSecurityStatus(): String {
+        val activity = activityProvider() ?: return buildStatusJson(false).toString()
+        var isSecure = false
+
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            val flags = activity.window.attributes.flags
+            isSecure = (flags and WindowManager.LayoutParams.FLAG_SECURE) != 0
+        } else {
+            val latch = CountDownLatch(1)
+            activity.runOnUiThread {
+                try {
+                    val flags = activity.window.attributes.flags
+                    isSecure = (flags and WindowManager.LayoutParams.FLAG_SECURE) != 0
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to query screen security status: ${e.message}", e)
+                } finally {
+                    latch.countDown()
+                }
+            }
+            try {
+                latch.await(2, TimeUnit.SECONDS)
+            } catch (e: InterruptedException) {
+                Thread.currentThread().interrupt()
+            }
         }
 
-        activity.runOnUiThread {
-            val flags = activity.window.attributes.flags
-            val isSecure = (flags and WindowManager.LayoutParams.FLAG_SECURE) != 0
-            val map = Arguments.createMap()
-            map.putBoolean("secure", isSecure)
-            map.putDouble("timestamp", System.currentTimeMillis().toDouble())
-            promise.resolve(map)
+        return buildStatusJson(isSecure).toString()
+    }
+
+    private fun buildStatusJson(isSecure: Boolean): JSONObject {
+        return JSONObject().apply {
+            put("secure", isSecure)
+            put("timestamp", System.currentTimeMillis().toDouble())
         }
     }
 }

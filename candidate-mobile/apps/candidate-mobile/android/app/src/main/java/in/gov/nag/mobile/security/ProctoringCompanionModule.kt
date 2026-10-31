@@ -9,24 +9,20 @@ import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.util.Log
-import com.facebook.react.bridge.Arguments
-import com.facebook.react.bridge.Promise
-import com.facebook.react.bridge.ReactApplicationContext
-import com.facebook.react.bridge.ReactContextBaseJavaModule
-import com.facebook.react.bridge.ReactMethod
+import android.webkit.JavascriptInterface
+import org.json.JSONObject
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.abs
 import kotlin.math.log10
 import kotlin.math.sqrt
 
 /**
- * NagProctoringCompanionModule - Bridgeless TurboModule for On-Device Sensor Proctoring Companion.
+ * NagProctoringCompanionModule - On-Device Sensor Proctoring Companion.
  * Continuously monitors ambient microphone dB (RMS amplitude calculation) and device attitude
  * (accelerometer + magnetometer pitch/roll/azimuth via SensorManager) to detect candidate posture
  * anomalies, suspicious movement, or unauthorized background conversations during CBT tests.
  */
-class ProctoringCompanionModule(private val reactContext: ReactApplicationContext) :
-    ReactContextBaseJavaModule(reactContext), SensorEventListener {
+class ProctoringCompanionModule(private val context: Context) : SensorEventListener {
 
     companion object {
         const val MODULE_NAME = "NagProctoringCompanionModule"
@@ -41,10 +37,8 @@ class ProctoringCompanionModule(private val reactContext: ReactApplicationContex
         private const val AUDIO_FORMAT = AudioFormat.ENCODING_PCM_16BIT
     }
 
-    override fun getName(): String = MODULE_NAME
-
     private val sensorManager: SensorManager? by lazy {
-        reactContext.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+        context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
     }
 
     private var audioRecord: AudioRecord? = null
@@ -76,51 +70,49 @@ class ProctoringCompanionModule(private val reactContext: ReactApplicationContex
     /**
      * Start background audio and orientation monitoring.
      */
-    @ReactMethod
+    @JavascriptInterface
     fun startSensorMonitoring(
         audioThresholdDbArg: Double,
-        orientationThresholdDegArg: Double,
-        promise: Promise
-    ) {
+        orientationThresholdDegArg: Double
+    ): Boolean {
         if (isMonitoring.get()) {
-            promise.resolve(true)
-            return
+            return true
         }
 
         audioThresholdDb = if (audioThresholdDbArg > 0) audioThresholdDbArg else DEFAULT_AUDIO_THRESHOLD_DB
         orientationThresholdDeg = if (orientationThresholdDegArg > 0) orientationThresholdDegArg else DEFAULT_ORIENTATION_THRESHOLD_DEG
 
-        try {
+        return try {
             registerSensors()
             startAudioRecording()
             isMonitoring.set(true)
-            promise.resolve(true)
+            true
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start sensor monitoring: ${e.message}", e)
             stopSensorsInternal()
-            promise.reject("MONITORING_INIT_FAILED", e.message, e)
+            false
         }
     }
 
     /**
      * Stop background sensor monitoring and release hardware resources.
      */
-    @ReactMethod
-    fun stopSensorMonitoring(promise: Promise) {
-        try {
+    @JavascriptInterface
+    fun stopSensorMonitoring(): Boolean {
+        return try {
             stopSensorsInternal()
-            promise.resolve(true)
+            true
         } catch (e: Exception) {
-            promise.reject("MONITORING_STOP_FAILED", e.message, e)
+            Log.e(TAG, "Failed to stop sensor monitoring: ${e.message}", e)
+            false
         }
     }
 
     /**
      * Evaluate current sensor sample against active thresholds.
      */
-    @ReactMethod
-    fun evaluateSensorSample(promise: Promise) {
-        val sample = Arguments.createMap()
+    @JavascriptInterface
+    fun evaluateSensorSample(): String {
         val noise = currentNoiseDb
         val pitch = currentPitchDeg
         val roll = currentRollDeg
@@ -129,15 +121,15 @@ class ProctoringCompanionModule(private val reactContext: ReactApplicationContex
         val noiseViolation = noise > audioThresholdDb
         val postureViolation = abs(pitch) > orientationThresholdDeg || abs(roll) > orientationThresholdDeg
 
-        sample.putDouble("ambientNoiseDb", Math.round(noise * 10.0) / 10.0)
-        sample.putDouble("pitchDeg", Math.round(pitch * 10.0) / 10.0)
-        sample.putDouble("rollDeg", Math.round(roll * 10.0) / 10.0)
-        sample.putDouble("azimuthDeg", Math.round(azimuth * 10.0) / 10.0)
-        sample.putBoolean("noiseViolation", noiseViolation)
-        sample.putBoolean("postureViolation", postureViolation)
-        sample.putDouble("timestamp", System.currentTimeMillis().toDouble())
-
-        promise.resolve(sample)
+        return JSONObject().apply {
+            put("ambientNoiseDb", Math.round(noise * 10.0) / 10.0)
+            put("pitchDeg", Math.round(pitch * 10.0) / 10.0)
+            put("rollDeg", Math.round(roll * 10.0) / 10.0)
+            put("azimuthDeg", Math.round(azimuth * 10.0) / 10.0)
+            put("noiseViolation", noiseViolation)
+            put("postureViolation", postureViolation)
+            put("timestamp", System.currentTimeMillis().toDouble())
+        }.toString()
     }
 
     private fun registerSensors() {

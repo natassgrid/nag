@@ -1,8 +1,4 @@
-import groovy.json.JsonOutput
-import groovy.json.JsonSlurper
-
 pluginManagement {
-    includeBuild(new File(rootDir, "../../../node_modules/@react-native/gradle-plugin"))
     repositories {
         google()
         mavenCentral()
@@ -19,46 +15,8 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
         maven { url "https://www.jitpack.io" }
-        maven {
-            url(new File(rootDir, "../../../node_modules/react-native/android"))
-        }
     }
 }
 
 rootProject.name = 'nag-candidate-mobile'
 include(":app")
-
-// Ensure autolinking.json is generated for React Native Gradle Plugin
-def autolinkingFile = new File(rootDir, "build/generated/autolinking/autolinking.json")
-autolinkingFile.parentFile.mkdirs()
-def workingDir = new File(rootDir, "../")
-def isWindows = System.getProperty("os.name").toLowerCase().contains("win")
-def command = isWindows ? ["cmd", "/c", "npx", "@react-native-community/cli", "config"] : ["npx", "@react-native-community/cli", "config"]
-
-try {
-    def process = new ProcessBuilder(command)
-        .directory(workingDir)
-        .redirectOutput(autolinkingFile)
-        .redirectError(ProcessBuilder.Redirect.INHERIT)
-        .start()
-    process.waitFor()
-} catch (Exception e) {
-    logger.error("Failed to execute cli config", e)
-}
-
-// Ensure project.android.packageName exists in autolinking.json
-try {
-    def jsonMap = autolinkingFile.exists() && autolinkingFile.length() > 0 ? new JsonSlurper().parse(autolinkingFile) : [:]
-    if (!(jsonMap instanceof Map)) jsonMap = [:]
-    if (!jsonMap.project) jsonMap.project = [:]
-    if (!jsonMap.project.android) jsonMap.project.android = [:]
-    if (!jsonMap.project.android.packageName) {
-        jsonMap.project.android.packageName = "in.gov.nag.mobile"
-        jsonMap.project.android.sourceDir = rootDir.absolutePath
-        jsonMap.project.android.appName = "app"
-    }
-    if (!jsonMap.dependencies) jsonMap.dependencies = [:]
-    autolinkingFile.text = JsonOutput.prettyPrint(JsonOutput.toJson(jsonMap))
-} catch (Exception e) {
-    logger.error("Failed to parse or write autolinking.json", e)
-}

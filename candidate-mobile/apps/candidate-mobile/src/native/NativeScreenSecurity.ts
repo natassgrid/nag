@@ -26,13 +26,16 @@ try {
   // Headless test or dev fallback
 }
 
-const getNativeModule = (): Spec | null => {
+const getNativeModule = (): any => {
+  if (typeof (globalThis as any).NagScreenSecurityModule !== 'undefined') {
+    return (globalThis as any).NagScreenSecurityModule;
+  }
   if (typeof rnTurboModuleRegistry !== 'undefined' && rnTurboModuleRegistry.get) {
     const turbo = rnTurboModuleRegistry.get('NagScreenSecurityModule');
     if (turbo) return turbo;
   }
   if (rnNativeModules && rnNativeModules.NagScreenSecurityModule) {
-    return rnNativeModules.NagScreenSecurityModule as Spec;
+    return rnNativeModules.NagScreenSecurityModule;
   }
   return null;
 };
@@ -41,7 +44,8 @@ export const NativeScreenSecurity: Spec = {
   async enableFlagSecure(): Promise<ScreenSecurityStatus> {
     const native = getNativeModule();
     if (native && typeof native.enableFlagSecure === 'function') {
-      return await native.enableFlagSecure();
+      const res = await native.enableFlagSecure();
+      return typeof res === 'string' ? JSON.parse(res) : res;
     }
     simulatedSecure = true;
     return {
@@ -53,7 +57,8 @@ export const NativeScreenSecurity: Spec = {
   async disableFlagSecure(): Promise<ScreenSecurityStatus> {
     const native = getNativeModule();
     if (native && typeof native.disableFlagSecure === 'function') {
-      return await native.disableFlagSecure();
+      const res = await native.disableFlagSecure();
+      return typeof res === 'string' ? JSON.parse(res) : res;
     }
     simulatedSecure = false;
     return {
@@ -65,7 +70,8 @@ export const NativeScreenSecurity: Spec = {
   async getScreenSecurityStatus(): Promise<ScreenSecurityStatus> {
     const native = getNativeModule();
     if (native && typeof native.getScreenSecurityStatus === 'function') {
-      return await native.getScreenSecurityStatus();
+      const res = await native.getScreenSecurityStatus();
+      return typeof res === 'string' ? JSON.parse(res) : res;
     }
     return {
       secure: simulatedSecure,

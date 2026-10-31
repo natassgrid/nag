@@ -1,22 +1,5 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
-apply plugin: "com.facebook.react"
-
-react {
-    /* Folders */
-    root = file("../../")
-    reactNativeDir = file("../../../../node_modules/react-native")
-    codegenDir = file("../../../../node_modules/@react-native/codegen")
-
-    /* Variants */
-    // hermes is enabled by default in react-native 0.77+
-    hermesFlags = ["-O", "-output-source-map"]
-
-    /* Autolinking */
-    if (file("${rootProject.buildDir}/generated/autolinking/autolinking.json").exists()) {
-        autolinkLibrariesWithApp()
-    }
-}
 
 def enableProguardInReleaseBuilds = true
 
@@ -34,9 +17,6 @@ android {
         versionCode 1
         versionName "0.9.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        ndk {
-            abiFilters "x86_64", "arm64-v8a", "armeabi-v7a", "x86"
-        }
     }
 
     signingConfigs {
@@ -77,6 +57,10 @@ android {
         }
     }
 
+    buildFeatures {
+        buildConfig true
+    }
+
     packagingOptions {
         resources {
             excludes += [
@@ -103,19 +87,11 @@ android {
 }
 
 dependencies {
-    // The version of react-native is set by the React Native Gradle Plugin
-    implementation("com.facebook.react:react-android")
-
-    if (hermesEnabled.toBoolean()) {
-        implementation("com.facebook.react:hermes-android")
-    } else {
-        implementation("org.webkit:android-jsc:+")
-    }
-
     // AndroidX & Kotlin
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.activity:activity-ktx:1.9.3")
+    implementation("androidx.webkit:webkit:1.12.1")
 
     // Hardware Security & Biometrics
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
