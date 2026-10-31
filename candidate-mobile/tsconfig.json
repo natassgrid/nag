@@ -1,0 +1,7 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/candidate-core" },
+    { "path": "./apps/candidate-mobile" }
+  ]
+}

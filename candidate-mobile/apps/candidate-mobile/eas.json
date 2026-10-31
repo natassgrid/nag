@@ -1,0 +1,54 @@
+{
+  "cli": {
+    "version": ">= 12.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleDebug"
+      },
+      "env": {
+        "HERMES_BYTECODE_MODE": "true",
+        "EXPO_PUBLIC_API_BASE_URL": "http://localhost:9000",
+        "EXPO_PUBLIC_ANDROID_EMULATOR_API_URL": "http://10.0.2.2:9000",
+        "EXPO_PUBLIC_DOCKER_NGINX_PROXY_URL": "http://localhost:4300",
+        "EXPO_PUBLIC_DOCKER_INTERNAL_GATEWAY_URL": "http://api-gateway:9000",
+        "EXPO_PUBLIC_MOCK_SERVER_URL": "http://localhost:8099",
+        "EXPO_PUBLIC_OCR_SERVICE_URL": "http://localhost:5005",
+        "EXPO_PUBLIC_TENANT_ID": "default"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease"
+      },
+      "env": {
+        "HERMES_BYTECODE_MODE": "true",
+        "EXPO_PUBLIC_API_BASE_URL": "http://10.0.2.2:9000"
+      }
+    },
+    "production": {
+      "android": {
+        "buildType": "app-bundle",
+        "gradleCommand": ":app:bundleRelease"
+      },
+      "env": {
+        "HERMES_BYTECODE_MODE": "true"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "android": {
+        "serviceAccountKeyPath": "./play-store-service-account.json",
+        "track": "internal"
+      }
+    }
+  }
+}

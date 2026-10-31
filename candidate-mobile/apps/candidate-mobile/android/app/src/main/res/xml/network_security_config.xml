@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- Local Docker Compose & Android Emulator Dev Domains (Ports :9000, :4300, :8099, :5005) -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">10.0.2.2</domain>
+        <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="true">127.0.0.1</domain>
+        <domain includeSubdomains="true">api-gateway</domain>
+        <domain includeSubdomains="true">monolith-app</domain>
+        <domain includeSubdomains="true">exam-monolith-app</domain>
+        <domain includeSubdomains="true">exam-candidate-delivery</domain>
+        <domain includeSubdomains="true">mock-server</domain>
+        <domain includeSubdomains="true">ocr-service</domain>
+    </domain-config>
+
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </debug-overrides>
+</network-security-config>

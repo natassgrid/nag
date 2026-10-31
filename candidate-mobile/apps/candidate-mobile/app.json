@@ -1,0 +1,85 @@
+{
+  "expo": {
+    "name": "NAG Candidate",
+    "slug": "nag-candidate-mobile",
+    "version": "0.9.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0F172A"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "in.gov.nag.mobile"
+    },
+    "android": {
+      "package": "in.gov.nag.mobile",
+      "versionCode": 1,
+      "minSdkVersion": 26,
+      "compileSdkVersion": 35,
+      "targetSdkVersion": 35,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0F172A"
+      },
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO",
+        "POST_NOTIFICATIONS",
+        "USE_BIOMETRIC",
+        "VIBRATE",
+        "ACCESS_NETWORK_STATE",
+        "WAKE_LOCK"
+      ],
+      "googleServicesFile": "./google-services.json"
+    },
+    "jsEngine": "hermes",
+    "newArchEnabled": true,
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#1E40AF"
+        }
+      ]
+    ],
+    "extra": {
+      "dockerApi": {
+        "defaultMode": "localhost-gateway",
+        "localhostGatewayUrl": "http://localhost:9000",
+        "androidEmulatorGatewayUrl": "http://10.0.2.2:9000",
+        "localhostNginxProxyUrl": "http://localhost:4300",
+        "androidEmulatorNginxProxyUrl": "http://10.0.2.2:4300",
+        "dockerInternalGatewayUrl": "http://api-gateway:9000",
+        "mockServerUrl": "http://localhost:8099",
+        "ocrServiceUrl": "http://localhost:5005",
+        "routes": {
+          "identity": "/api/v1/identity",
+          "candidates": "/api/v1/candidates",
+          "examinations": "/api/v1/examinations",
+          "papers": "/api/v1/papers",
+          "sessions": "/api/v1/sessions",
+          "responses": "/api/v1/responses",
+          "practice": "/api/practice",
+          "learner": "/api/v1/learner",
+          "learning": "/api/v1/learning",
+          "learningPath": "/api/learning-path",
+          "recommendations": "/api/recommendations",
+          "microlessons": "/api/v1/microlessons",
+          "explanations": "/api/v1/explanations",
+          "results": "/api/v1/results"
+        }
+      }
+    },
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
