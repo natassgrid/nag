@@ -6,6 +6,8 @@
  */
 
 import { DigitalAdmitCard } from '../wallet/wallet-controller';
+import { DOCKER_API_PATHS } from '@nag/candidate-core';
+import { defaultDockerApiService } from '../../services/docker-api.service';
 
 export interface PublicCentre {
   id: string;
@@ -340,6 +342,27 @@ export class ApplicationWizardController {
 
     this.state.isSubmitting = true;
     this.notify();
+
+    if (typeof window !== 'undefined') {
+      void defaultDockerApiService
+        .requestDocker<any>(DOCKER_API_PATHS.EXAMINATIONS.APPLY(this.state.examId), {
+          method: 'POST',
+          body: {
+            examId: this.state.examId,
+            centrePreferences: [this.state.centre1Id, this.state.centre2Id, this.state.centre3Id],
+            preferredShiftId: this.state.selectedShiftId,
+            pwdAccommodations: this.state.pwdRequired
+              ? {
+                  pwdRequired: true,
+                  pwdCategory: this.state.pwdCategory,
+                  scribeRequired: this.state.scribeRequired,
+                  scribeLanguage: this.state.scribeLanguage,
+                }
+              : undefined,
+          },
+        })
+        .catch(() => null);
+    }
 
     const timestampSuffix = Math.floor(100000 + Math.random() * 900000);
     const appNumber = `APP-2026-${timestampSuffix}`;

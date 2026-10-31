@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   AuthController,
   AuthState,
@@ -83,10 +83,14 @@ export const App: React.FC = () => {
   const resultsController = useMemo(() => new ResultsController(), []);
   const learnController = useMemo(() => new LearnController(), []);
   const practiceController = useMemo(() => new PracticeController(), []);
-  const layoutController = useMemo(() => new CandidateLayoutController('DASHBOARD'), []);
-  const dockerApiService = useMemo(() => new DockerApiService('localhost-gateway'), []);
+  const layoutController = useMemo(() => new CandidateLayoutController('AUTH'), []);
+  const defaultDockerMode: DockerTargetMode =
+    typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent || '')
+      ? 'android-emulator'
+      : 'localhost-gateway';
+  const dockerApiService = useMemo(() => new DockerApiService(defaultDockerMode), [defaultDockerMode]);
 
-  const [currentScreen, setCurrentScreen] = useState<AppNavScreen>('DASHBOARD');
+  const [currentScreen, setCurrentScreen] = useState<AppNavScreen>('AUTH_LOGIN');
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
   const [dockerMode, setDockerMode] = useState<DockerTargetMode>(
     dockerApiService.getActiveMode()
@@ -103,6 +107,35 @@ export const App: React.FC = () => {
     () => new CbtSessionController()
   );
   const [gradingResult, setGradingResult] = useState<LocalGradingBreakdown | null>(null);
+
+  const triggerDockerSync = useCallback(() => {
+    (catalogController as any).syncFromDocker?.();
+    (dashboardController as any).syncFromDocker?.();
+    (practiceController as any).syncFromDocker?.();
+    (learnController as any).syncFromDocker?.();
+    (resultsController as any).syncFromDocker?.();
+    (profileController as any).syncFromDocker?.();
+  }, [
+    catalogController,
+    dashboardController,
+    practiceController,
+    learnController,
+    resultsController,
+    profileController,
+  ]);
+
+  const handleAuthenticated = useCallback(() => {
+    setCurrentScreen('DASHBOARD');
+    triggerDockerSync();
+  }, [triggerDockerSync]);
+
+  const handleNavigateToRegister = useCallback(() => {
+    setCurrentScreen('AUTH_REGISTER');
+  }, []);
+
+  const handleNavigateToLogin = useCallback(() => {
+    setCurrentScreen('AUTH_LOGIN');
+  }, []);
 
   React.useEffect(() => {
     return authController.subscribe((s: AuthState) => {
@@ -285,26 +318,48 @@ export const App: React.FC = () => {
         </div>
 
         {/* Right Info: Candidate Profile / Auth State */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {authState.candidateProfile ? (
-            <button
-              type="button"
-              data-testid="header-profile-btn"
-              onClick={() => setCurrentScreen('PROFILE')}
-              style={{
-                background: 'none',
-                border: 'none',
-                textAlign: 'right',
-                cursor: 'pointer',
-              }}
-            >
-              <span style={{ fontSize: '12px', fontWeight: '700', color: '#FFFFFF', display: 'block' }}>
-                {authState.candidateProfile.fullName}
-              </span>
-              <span style={{ fontSize: '10px', color: '#68D391' }}>
-                {authState.digiLocker.linked ? '✓ Aadhaar Verified' : 'Standard Profile'}
-              </span>
-            </button>
+            <>
+              <button
+                type="button"
+                data-testid="header-profile-btn"
+                onClick={() => setCurrentScreen('PROFILE')}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  textAlign: 'right',
+                  cursor: 'pointer',
+                }}
+              >
+                <span style={{ fontSize: '12px', fontWeight: '700', color: '#FFFFFF', display: 'block' }}>
+                  {authState.candidateProfile.fullName}
+                </span>
+                <span style={{ fontSize: '10px', color: '#68D391' }}>
+                  {authState.digiLocker.linked ? '✓ Aadhaar Verified' : 'Standard Profile'}
+                </span>
+              </button>
+              <button
+                type="button"
+                data-testid="header-logout-btn"
+                onClick={() => {
+                  authController.logout();
+                  setCurrentScreen('AUTH_LOGIN');
+                }}
+                style={{
+                  padding: '4px 8px',
+                  backgroundColor: 'rgba(229, 62, 62, 0.2)',
+                  color: '#FED7D7',
+                  border: '1px solid rgba(229, 62, 62, 0.4)',
+                  borderRadius: '4px',
+                  fontSize: '11px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}
+              >
+                Logout
+              </button>
+            </>
           ) : (
             <button
               data-testid="header-sign-in-btn"
@@ -414,6 +469,7 @@ export const App: React.FC = () => {
                   const cfg = dockerApiService.setTargetMode(mode);
                   setDockerMode(cfg.mode);
                   setDockerBaseUrl(cfg.baseUrl);
+                  triggerDockerSync();
                 }}
                 style={{
                   padding: '4px 8px',
@@ -434,26 +490,37 @@ export const App: React.FC = () => {
       )}
 
       {/* Screen Router Viewport */}
-      <main style={{ flex: 1, paddingBottom: currentScreen !== 'CBT_ENGINE' ? '64px' : '0' }}>
+      <main
+        style={{
+          flex: 1,
+          paddingBottom:
+            currentScreen !== 'CBT_ENGINE' &&
+            currentScreen !== 'AUTH_LOGIN' &&
+            currentScreen !== 'AUTH_REGISTER' &&
+            currentScreen !== 'AUTH_TOTP'
+              ? '64px'
+              : '0',
+        }}
+      >
         {currentScreen === 'AUTH_LOGIN' && (
           <MobileOtpLoginScreen
             controller={authController}
-            onAuthenticated={() => setCurrentScreen('DASHBOARD')}
-            onNavigateToRegister={() => setCurrentScreen('AUTH_REGISTER')}
+            onAuthenticated={handleAuthenticated}
+            onNavigateToRegister={handleNavigateToRegister}
           />
         )}
 
         {currentScreen === 'AUTH_REGISTER' && (
           <CandidateRegistrationScreen
             controller={authController}
-            onNavigateToLogin={() => setCurrentScreen('AUTH_LOGIN')}
+            onNavigateToLogin={handleNavigateToLogin}
           />
         )}
 
         {currentScreen === 'AUTH_TOTP' && (
           <TotpVerificationScreen
             controller={authController}
-            onAuthenticated={() => setCurrentScreen('DASHBOARD')}
+            onAuthenticated={handleAuthenticated}
           />
         )}
 
@@ -551,8 +618,11 @@ export const App: React.FC = () => {
         )}
       </main>
 
-      {/* Bottom Navigation Bar (Hidden during fullscreen CBT) */}
-      {currentScreen !== 'CBT_ENGINE' && (
+      {/* Bottom Navigation Bar (Hidden during fullscreen CBT and auth screens) */}
+      {currentScreen !== 'CBT_ENGINE' &&
+        currentScreen !== 'AUTH_LOGIN' &&
+        currentScreen !== 'AUTH_REGISTER' &&
+        currentScreen !== 'AUTH_TOTP' && (
         <nav
           data-testid="bottom-nav-bar"
           style={{

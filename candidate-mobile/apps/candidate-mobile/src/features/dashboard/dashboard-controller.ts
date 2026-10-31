@@ -13,6 +13,8 @@ import {
   DashboardExamFilter,
   DashboardState,
 } from './dashboard-models';
+import { DOCKER_API_PATHS } from '@nag/candidate-core';
+import { defaultDockerApiService } from '../../services/docker-api.service';
 
 export {
   EnrolledExam,
@@ -218,6 +220,58 @@ export class DashboardController {
       error: null,
       candidateName,
     };
+
+    if (typeof window !== 'undefined' && typeof (window as any).NagReactMount === 'function') {
+      void this.syncFromDocker();
+    }
+  }
+
+  public async syncFromDocker(): Promise<void> {
+    try {
+      const res = await defaultDockerApiService.requestDocker<any>(
+        DOCKER_API_PATHS.EXAMINATIONS.MY_EXAMS,
+        { method: 'GET' }
+      );
+      const items = Array.isArray(res)
+        ? res
+        : Array.isArray(res?.content)
+        ? res.content
+        : Array.isArray(res?.data)
+        ? res.data
+        : [];
+
+      if (items.length > 0) {
+        const mapped: EnrolledExam[] = items.map((item: any, idx: number) => ({
+          id: item.id || item.examId || `exam-${idx}`,
+          applicationId: item.applicationId || item.applicationNumber || `APP-${item.id || idx}`,
+          code: item.code || item.examCode || `EXAM-${idx}`,
+          title: item.title || item.examTitle || item.name || 'Examination',
+          conductingAuthority: item.conductingAuthority || item.conductingBody || 'National Assessment Grid',
+          scheduledDate: item.scheduledDate || item.examDate || new Date().toISOString().split('T')[0],
+          scheduledTime: item.scheduledTime || '09:00 AM - 12:00 PM',
+          durationMinutes: typeof item.durationMinutes === 'number' ? item.durationMinutes : 180,
+          totalMarks: typeof item.totalMarks === 'number' ? item.totalMarks : 100,
+          centerName: item.centerName || 'Allocated Examination Center',
+          centerAddress: item.centerAddress || 'Center Address',
+          centerCity: item.centerCity || 'City',
+          centerState: item.centerState || 'State',
+          shiftName: item.shiftName || 'Morning Shift',
+          rollNumber: item.rollNumber || String(100000 + idx),
+          status: item.status || 'UPCOMING',
+          admitCardReady: item.admitCardReady ?? true,
+          daysRemaining: item.daysRemaining ?? 0,
+          deliverySessionId: item.deliverySessionId,
+          isPractice: Boolean(item.isPractice),
+          practiceAvailable: item.practiceAvailable ?? true,
+        }));
+        this.state.enrolledExams = mapped;
+        this.state.kpis = this.calculateKpis(mapped);
+        this.state.alerts = this.generateAlerts(mapped);
+        this.notify();
+      }
+    } catch {
+      // Non-blocking fallback to local seed enrolled exams
+    }
   }
 
   public getState(): DashboardState {

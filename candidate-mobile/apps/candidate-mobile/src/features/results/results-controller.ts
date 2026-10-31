@@ -13,6 +13,8 @@ import {
   DigiLockerDepositReceipt,
   ResultsState,
 } from './results-models';
+import { DOCKER_API_PATHS } from '@nag/candidate-core';
+import { defaultDockerApiService } from '../../services/docker-api.service';
 
 export {
   CandidateExamResult,
@@ -300,6 +302,64 @@ export class ResultsController {
       loading: false,
       error: null,
     };
+
+    if (typeof window !== 'undefined' && typeof (window as any).NagReactMount === 'function') {
+      void this.syncFromDocker();
+    }
+  }
+
+  public async syncFromDocker(): Promise<void> {
+    try {
+      const res = await defaultDockerApiService.requestDocker<any>(
+        DOCKER_API_PATHS.RESULTS.MY_RESULTS,
+        { method: 'GET' }
+      );
+      const items = Array.isArray(res)
+        ? res
+        : Array.isArray(res?.content)
+        ? res.content
+        : Array.isArray(res?.data)
+        ? res.data
+        : [];
+
+      if (items.length > 0) {
+        const mapped: CandidateExamResult[] = items.map((r: any, idx: number) => ({
+          id: r.id || `res-doc-${idx}`,
+          examId: r.examId || `exam-${idx}`,
+          examCode: r.examCode || r.code || `EXAM-${idx}`,
+          examTitle: r.examTitle || r.title || 'Examination Result',
+          conductingAuthority: r.conductingAuthority || 'National Assessment Grid',
+          rollNumber: r.rollNumber || String(100000 + idx),
+          candidateName: r.candidateName || 'Aryan Sharma',
+          candidateCategory: r.candidateCategory || 'GENERAL',
+          declaredDate: r.declaredDate || new Date().toISOString().split('T')[0],
+          shiftName: r.shiftName || 'Morning Shift',
+          isMultiShiftNormalized: Boolean(r.isMultiShiftNormalized),
+          rawTotalMarks: typeof r.rawTotalMarks === 'number' ? r.rawTotalMarks : 250,
+          normalizedTotalMarks: typeof r.normalizedTotalMarks === 'number' ? r.normalizedTotalMarks : 255.5,
+          maxScore: typeof r.maxScore === 'number' ? r.maxScore : 300,
+          percentile: typeof r.percentile === 'number' ? r.percentile : 99.0,
+          zScore: typeof r.zScore === 'number' ? r.zScore : 2.5,
+          allIndiaRank: typeof r.allIndiaRank === 'number' ? r.allIndiaRank : 100,
+          categoryRank: typeof r.categoryRank === 'number' ? r.categoryRank : 50,
+          totalCandidatesAppeared: typeof r.totalCandidatesAppeared === 'number' ? r.totalCandidatesAppeared : 200000,
+          qualifyingStatus: r.qualifyingStatus || 'QUALIFIED',
+          categoryCutoffs: Array.isArray(r.categoryCutoffs) ? r.categoryCutoffs : DEFAULT_EXAM_RESULTS[0].categoryCutoffs,
+          sectionScores: Array.isArray(r.sectionScores) ? r.sectionScores : DEFAULT_EXAM_RESULTS[0].sectionScores,
+          verification: r.verification || DEFAULT_EXAM_RESULTS[0].verification,
+          digiLockerPushed: Boolean(r.digiLockerPushed),
+          savedToOfflineWallet: Boolean(r.savedToOfflineWallet),
+        }));
+
+        this.state.resultsList = mapped;
+        if (!this.state.selectedResult && mapped.length > 0) {
+          this.state.selectedResult = mapped[0];
+        }
+        this.notify();
+      }
+    } catch {
+      // Non-blocking fallback
+    }
   }
 
   public getState(): ResultsState {

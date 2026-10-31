@@ -1,4 +1,5 @@
 import {
+  ApiClientError,
   DOCKER_API_PATHS,
   DOCKER_DEV_ORIGINS,
   DockerTargetMode,
@@ -133,6 +134,64 @@ export class DockerApiService {
       };
     }
   }
+
+  /**
+   * Performs an API request against the NAG Docker stack.
+   * If the request encounters a network error in a browser/WebView runtime,
+   * automatically attempts candidate fallback origins (10.0.2.2:9000, localhost:9000, 10.0.2.2:4300, localhost:4300)
+   * and preserves whichever origin responded.
+   */
+  public async requestDocker<T>(
+    path: string,
+    options?: {
+      method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+      body?: unknown;
+      headers?: Record<string, string>;
+      skipAuth?: boolean;
+    }
+  ): Promise<T> {
+    try {
+      return await this.client.request<T>(path, options);
+    } catch (err) {
+      const isNetworkError = !(err instanceof ApiClientError);
+      const isBrowserOrWebView =
+        typeof window !== 'undefined' || typeof navigator !== 'undefined';
+
+      if (!isNetworkError || !isBrowserOrWebView) {
+        throw err;
+      }
+
+      const currentBase = this.client.getBaseUrl();
+      const fallbackOrigins = [
+        'http://10.0.2.2:9000',
+        'http://localhost:9000',
+        'http://10.0.2.2:4300',
+        'http://localhost:4300',
+      ].filter((origin) => origin !== currentBase);
+
+      for (const origin of fallbackOrigins) {
+        try {
+          this.client.setBaseUrl(origin);
+          const result = await this.client.request<T>(path, options);
+          this.config.baseUrl = origin;
+          return result;
+        } catch (retryErr) {
+          if (retryErr instanceof ApiClientError) {
+            this.config.baseUrl = origin;
+            throw retryErr;
+          }
+        }
+      }
+
+      this.client.setBaseUrl(currentBase);
+      throw err;
+    }
+  }
 }
 
-export const defaultDockerApiService = new DockerApiService('localhost-gateway');
+const defaultTargetMode: DockerTargetMode =
+  typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent || '')
+    ? 'android-emulator'
+    : 'localhost-gateway';
+
+export const defaultDockerApiService = new DockerApiService(defaultTargetMode);

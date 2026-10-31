@@ -235,6 +235,29 @@ describe('2. Candidate Authentication Controller (Phase 1)', () => {
     expect(state.digiLocker.aadhaarNumberMasked).toBe('XXXX-XXXX-4321');
     expect(state.candidateProfile?.aadhaarVerified).toBe(true);
   });
+
+  it('authenticates via password login fallback and sets AUTHENTICATED step', async () => {
+    const success = await controller.loginWithPassword('candidate@example.gov.in', 'Password123');
+    expect(success).toBe(true);
+    const state = controller.getState();
+    expect(state.step).toBe('AUTHENTICATED');
+    expect(state.tokens).toBeDefined();
+    expect(state.infoMessage).toContain('Authenticated');
+  });
+
+  it('rejects password login with empty fields or invalid password length', async () => {
+    const emptyId = await controller.loginWithPassword('', 'Password123');
+    expect(emptyId).toBe(false);
+    expect(controller.getState().error).toContain('registered email or username');
+
+    const emptyPass = await controller.loginWithPassword('candidate@example.gov.in', '');
+    expect(emptyPass).toBe(false);
+    expect(controller.getState().error).toContain('password');
+
+    const shortPass = await controller.loginWithPassword('candidate@example.gov.in', '123');
+    expect(shortPass).toBe(false);
+    expect(controller.getState().error).toContain('min 6 characters');
+  });
 });
 
 describe('3. Offline Hall Ticket Wallet & Signed QR Code (Phase 1)', () => {

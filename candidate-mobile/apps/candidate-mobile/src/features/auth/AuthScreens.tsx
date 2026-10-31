@@ -22,7 +22,10 @@ export const MobileOtpLoginScreen: React.FC<AuthScreenProps> = ({
   onNavigateToRegister,
 }) => {
   const [state, setState] = useState<AuthState>(controller.getState());
+  const [authMode, setAuthMode] = useState<'OTP' | 'PASSWORD'>('OTP');
   const [mobileInput, setMobileInput] = useState<string>(state.mobileNumber || '');
+  const [identifierInput, setIdentifierInput] = useState<string>('');
+  const [passwordInput, setPasswordInput] = useState<string>('');
   const [otpInput, setOtpInput] = useState<string>('');
   const [require2fa, setRequire2fa] = useState<boolean>(false);
 
@@ -38,6 +41,11 @@ export const MobileOtpLoginScreen: React.FC<AuthScreenProps> = ({
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     await controller.sendOtp(mobileInput, 'LOGIN');
+  };
+
+  const handlePasswordLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await controller.loginWithPassword(identifierInput, passwordInput);
   };
 
   const handleVerifyOtp = async (e: React.FormEvent) => {
@@ -102,6 +110,58 @@ export const MobileOtpLoginScreen: React.FC<AuthScreenProps> = ({
       )}
 
       {state.step === 'LOGIN_OTP' && (
+        <div
+          data-testid="auth-mode-tabs"
+          style={{
+            display: 'flex',
+            marginBottom: '18px',
+            backgroundColor: '#EDF2F7',
+            borderRadius: '8px',
+            padding: '4px',
+          }}
+        >
+          <button
+            type="button"
+            data-testid="tab-mobile-otp"
+            onClick={() => setAuthMode('OTP')}
+            style={{
+              flex: 1,
+              padding: '8px 12px',
+              border: 'none',
+              borderRadius: '6px',
+              backgroundColor: authMode === 'OTP' ? '#FFFFFF' : 'transparent',
+              color: authMode === 'OTP' ? '#1A365D' : '#718096',
+              fontWeight: '600',
+              fontSize: '13px',
+              cursor: 'pointer',
+              boxShadow: authMode === 'OTP' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+            }}
+          >
+            Mobile OTP Sign In
+          </button>
+          <button
+            type="button"
+            data-testid="tab-password-login"
+            onClick={() => setAuthMode('PASSWORD')}
+            style={{
+              flex: 1,
+              padding: '8px 12px',
+              border: 'none',
+              borderRadius: '6px',
+              backgroundColor: authMode === 'PASSWORD' ? '#FFFFFF' : 'transparent',
+              color: authMode === 'PASSWORD' ? '#1A365D' : '#718096',
+              fontWeight: '600',
+              fontSize: '13px',
+              cursor: 'pointer',
+              boxShadow: authMode === 'PASSWORD' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+            }}
+          >
+            Email & Password
+          </button>
+        </div>
+      )}
+
+      {state.step === 'LOGIN_OTP' && authMode === 'OTP' && (
         <form onSubmit={handleSendOtp} data-testid="send-otp-form">
           <div style={{ marginBottom: '16px' }}>
             <label
@@ -175,6 +235,95 @@ export const MobileOtpLoginScreen: React.FC<AuthScreenProps> = ({
           >
             {state.isSubmitting ? 'Sending OTP...' : 'Get Mobile OTP'}
           </button>
+
+          <div
+            style={{
+              marginTop: '12px',
+              padding: '8px 12px',
+              backgroundColor: '#EBF8FF',
+              borderRadius: '6px',
+              fontSize: '12px',
+              color: '#2B6CB0',
+              textAlign: 'center',
+            }}
+          >
+            Default Demo OTP: <strong>123456</strong>
+          </div>
+        </form>
+      )}
+
+      {state.step === 'LOGIN_OTP' && authMode === 'PASSWORD' && (
+        <form onSubmit={handlePasswordLogin} data-testid="password-login-form">
+          <div style={{ marginBottom: '16px' }}>
+            <label
+              htmlFor="identifier-input"
+              style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#2D3748', marginBottom: '6px' }}
+            >
+              Email or Username
+            </label>
+            <input
+              id="identifier-input"
+              data-testid="login-identifier-input"
+              type="text"
+              placeholder="e.g. candidate@example.com or admin"
+              value={identifierInput}
+              onChange={(e) => setIdentifierInput(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                border: '1px solid #CBD5E0',
+                borderRadius: '6px',
+                fontSize: '14px',
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+
+          <div style={{ marginBottom: '16px' }}>
+            <label
+              htmlFor="password-input"
+              style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#2D3748', marginBottom: '6px' }}
+            >
+              Account Password
+            </label>
+            <input
+              id="password-input"
+              data-testid="login-password-input"
+              type="password"
+              placeholder="Enter your account password"
+              value={passwordInput}
+              onChange={(e) => setPasswordInput(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                border: '1px solid #CBD5E0',
+                borderRadius: '6px',
+                fontSize: '14px',
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+
+          <button
+            data-testid="login-password-button"
+            type="submit"
+            disabled={state.isSubmitting || !identifierInput.trim() || !passwordInput}
+            style={{
+              width: '100%',
+              padding: '12px',
+              backgroundColor: identifierInput.trim() && passwordInput ? '#2B6CB0' : '#A0AEC0',
+              color: '#FFFFFF',
+              fontWeight: '600',
+              fontSize: '14px',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: identifierInput.trim() && passwordInput ? 'pointer' : 'not-allowed',
+            }}
+          >
+            {state.isSubmitting ? 'Signing In...' : 'Sign In with Password'}
+          </button>
         </form>
       )}
 
@@ -209,6 +358,24 @@ export const MobileOtpLoginScreen: React.FC<AuthScreenProps> = ({
                 boxSizing: 'border-box',
               }}
             />
+          </div>
+
+          <div style={{ textAlign: 'center', margin: '4px 0 12px 0' }}>
+            <button
+              type="button"
+              onClick={() => setOtpInput('123456')}
+              style={{
+                background: 'none',
+                border: '1px dashed #4299E1',
+                borderRadius: '4px',
+                padding: '4px 10px',
+                color: '#2B6CB0',
+                fontSize: '12px',
+                cursor: 'pointer',
+              }}
+            >
+              Use Demo OTP: <strong>123456</strong>
+            </button>
           </div>
 
           <button

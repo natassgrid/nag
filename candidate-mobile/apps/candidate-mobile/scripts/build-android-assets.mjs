@@ -160,6 +160,22 @@ const NagReact = (function() {
   let isRenderPending = false;
   const pendingEffects = [];
 
+  function isShallowEqual(a, b) {
+    if (Object.is(a, b)) return true;
+    if (typeof a !== 'object' || a === null || typeof b !== 'object' || b === null) return false;
+    if (Array.isArray(a) !== Array.isArray(b)) return false;
+    const keysA = Object.keys(a);
+    const keysB = Object.keys(b);
+    if (keysA.length !== keysB.length) return false;
+    for (let i = 0; i < keysA.length; i++) {
+      const key = keysA[i];
+      if (!Object.prototype.hasOwnProperty.call(b, key) || !Object.is(a[key], b[key])) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   function createElement(type, props, ...children) {
     const p = Object.assign({}, props || {});
     const flat = children.flat(Infinity).filter(c => c !== null && c !== undefined && c !== false && c !== true);
@@ -197,7 +213,7 @@ const NagReact = (function() {
     const setState = (next) => {
       const currentVal = comp.hooks[idx];
       const nextVal = typeof next === 'function' ? next(currentVal) : next;
-      if (!Object.is(currentVal, nextVal)) {
+      if (!isShallowEqual(currentVal, nextVal)) {
         comp.hooks[idx] = nextVal;
         scheduleRender();
       }
@@ -258,7 +274,11 @@ const NagReact = (function() {
   function depsChanged(oldDeps, newDeps) {
     if (!oldDeps || !newDeps || oldDeps.length !== newDeps.length) return true;
     for (let i = 0; i < oldDeps.length; i++) {
-      if (!Object.is(oldDeps[i], newDeps[i])) return true;
+      const a = oldDeps[i];
+      const b = newDeps[i];
+      if (Object.is(a, b)) continue;
+      if (typeof a === 'function' && typeof b === 'function' && a.toString() === b.toString()) continue;
+      return true;
     }
     return false;
   }
@@ -284,15 +304,15 @@ const NagReact = (function() {
   function scheduleRender() {
     if (isRenderPending) return;
     isRenderPending = true;
-    queueMicrotask(() => {
+    setTimeout(() => {
       isRenderPending = false;
       renderRoot();
-    });
+    }, 0);
   }
 
   function renderRoot() {
     if (!rootContainer || !rootElement) return;
-    const nextVNode = rootElement;
+    const nextVNode = { type: rootElement.type, props: rootElement.props, key: rootElement.key };
     patch(rootContainer, nextVNode, rootVNode, null, false);
     rootVNode = nextVNode;
     flushEffects();
@@ -320,6 +340,8 @@ const NagReact = (function() {
           if (item.props && item.props.children) {
             walk(Array.isArray(item.props.children) ? item.props.children : [item.props.children]);
           }
+        } else if (typeof item === 'string' || typeof item === 'number') {
+          result.push({ type: '#text', text: String(item), props: null, key: null });
         } else {
           result.push(item);
         }
@@ -422,22 +444,29 @@ const NagReact = (function() {
     }
 
     if (typeof newVNode === 'string' || typeof newVNode === 'number') {
-      const text = String(newVNode);
-      if (oldVNode && (typeof oldVNode === 'string' || typeof oldVNode === 'number') && oldVNode._dom) {
-        if (oldVNode._dom.nodeValue !== text) {
-          oldVNode._dom.nodeValue = text;
+      newVNode = { type: '#text', text: String(newVNode), props: null, key: null };
+    }
+
+    if (newVNode.type === '#text') {
+      if (oldVNode && oldVNode.type === '#text' && oldVNode._dom) {
+        if (oldVNode._dom.nodeValue !== newVNode.text) {
+          oldVNode._dom.nodeValue = newVNode.text;
         }
-        newVNode = { _dom: oldVNode._dom };
+        newVNode._dom = oldVNode._dom;
         return oldVNode._dom;
       }
       if (oldVNode) unmount(oldVNode, parentDom);
-      const textNode = document.createTextNode(text);
+      const textNode = document.createTextNode(newVNode.text);
       parentDom.insertBefore(textNode, nextSibling || null);
-      if (typeof newVNode === 'object') newVNode._dom = textNode;
+      newVNode._dom = textNode;
       return textNode;
     }
 
     if (typeof newVNode.type === 'function') {
+      if (oldVNode && oldVNode.type !== newVNode.type) {
+        unmount(oldVNode, parentDom);
+        oldVNode = null;
+      }
       const instance = (oldVNode && oldVNode.type === newVNode.type && oldVNode._instance)
         ? oldVNode._instance
         : { hooks: [] };
@@ -473,7 +502,7 @@ const NagReact = (function() {
       dom = oldVNode._dom;
       newVNode._dom = dom;
       updateProps(dom, newVNode.props, oldVNode.props, isSvg);
-      reconcileChildren(dom, newVNode.props && newVNode.props.children, oldVNode.props && oldVNode.props.children, isSvg);
+      reconcileChildren(dom, newVNode, oldVNode, isSvg);
     } else {
       if (oldVNode) unmount(oldVNode, parentDom);
       dom = isSvg
@@ -482,6 +511,7 @@ const NagReact = (function() {
       newVNode._dom = dom;
       updateProps(dom, newVNode.props, null, isSvg);
       const flat = flattenChildren(newVNode.props && newVNode.props.children);
+      newVNode._children = flat;
       for (let i = 0; i < flat.length; i++) {
         patch(dom, flat[i], null, null, isSvg);
       }
@@ -491,9 +521,10 @@ const NagReact = (function() {
     return dom;
   }
 
-  function reconcileChildren(parentDom, newChildren, oldChildren, isSvg) {
-    const newFlat = flattenChildren(newChildren);
-    const oldFlat = flattenChildren(oldChildren);
+  function reconcileChildren(parentDom, newVNode, oldVNode, isSvg) {
+    const newFlat = flattenChildren(newVNode.props && newVNode.props.children);
+    newVNode._children = newFlat;
+    const oldFlat = (oldVNode && oldVNode._children) ? oldVNode._children : [];
 
     const hasKeys = newFlat.some(c => c && c.key != null) || oldFlat.some(c => c && c.key != null);
     if (!hasKeys) {
@@ -547,11 +578,9 @@ const NagReact = (function() {
     if (vnode._dom && parentDom && vnode._dom.parentNode === parentDom) {
       parentDom.removeChild(vnode._dom);
     }
-    if (vnode.props && vnode.props.children) {
-      const flat = flattenChildren(vnode.props.children);
-      for (let i = 0; i < flat.length; i++) {
-        unmount(flat[i], vnode._dom);
-      }
+    const flat = vnode._children || [];
+    for (let i = 0; i < flat.length; i++) {
+      unmount(flat[i], vnode._dom);
     }
   }
 

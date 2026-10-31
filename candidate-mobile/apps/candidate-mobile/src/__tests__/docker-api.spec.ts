@@ -156,4 +156,38 @@ describe('Docker-Based API Paths & Dev Configuration', () => {
       { url: 'http://10.0.2.2:9000/api/v1/results/my-results', method: 'GET' },
     ]);
   });
+
+  it('retries requestDocker against fallback origins on network failure in browser/WebView', async () => {
+    const attemptedUrls: string[] = [];
+    const mockFetch = (async (url: string) => {
+      attemptedUrls.push(url);
+      if (url.startsWith('http://10.0.2.2:9000')) {
+        throw new TypeError('Failed to fetch (connection refused)');
+      }
+      if (url.startsWith('http://localhost:9000')) {
+        return {
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          json: async () => ({ status: 'success', server: 'host-gateway' }),
+          text: async () => 'OK',
+        } as unknown as Response;
+      }
+      throw new TypeError('Failed to fetch');
+    }) as unknown as typeof fetch;
+
+    // Simulate browser environment
+    (global as any).window = {};
+
+    const service = new DockerApiService('android-emulator', { fetchFn: mockFetch });
+    expect(service.getActiveBaseUrl()).toBe('http://10.0.2.2:9000');
+
+    const result = await service.requestDocker<{ status: string }>('/api/v1/health');
+    expect(result.status).toBe('success');
+    expect(service.getActiveBaseUrl()).toBe('http://localhost:9000');
+    expect(attemptedUrls).toContain('http://10.0.2.2:9000/api/v1/health');
+    expect(attemptedUrls).toContain('http://localhost:9000/api/v1/health');
+
+    delete (global as any).window;
+  });
 });
