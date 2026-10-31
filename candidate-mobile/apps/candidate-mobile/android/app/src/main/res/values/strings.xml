@@ -1,0 +1,7 @@
+<resources>
+  <string name="app_name">NAG Candidate</string>
+  <string name="device_admin_label">NAG CBT Kiosk Administrator</string>
+  <string name="device_admin_description">Enables secure exam lockdown, single-app kiosk mode, and screen protection during CBT examinations.</string>
+  <string name="expo_splash_screen_resize_mode" translatable="false">contain</string>
+  <string name="expo_splash_screen_status_bar_translucent" translatable="false">false</string>
+</resources>
