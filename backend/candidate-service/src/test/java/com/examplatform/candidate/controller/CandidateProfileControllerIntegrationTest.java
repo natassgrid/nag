@@ -87,7 +87,7 @@ class CandidateProfileControllerIntegrationTest extends AbstractIntegrationTest 
                     .gender("Male")
                     .nationality("Indian")
                     .category("GENERAL")
-                    .mobile("+919876543210")
+                    .mobile("9876543210")
                     .email("aarav.sharma@example.com")
                     .identityDocNumber("123456789012")
                     .build();
@@ -121,7 +121,7 @@ class CandidateProfileControllerIntegrationTest extends AbstractIntegrationTest 
                     .dateOfBirth("2000-01-15")
                     .gender("Male")
                     .nationality("Indian")
-                    .mobile("+919876543210")
+                    .mobile("9876543210")
                     .email("spoofed@example.com")
                     .identityDocNumber("123456789012")
                     .build();
@@ -164,7 +164,7 @@ class CandidateProfileControllerIntegrationTest extends AbstractIntegrationTest 
                     .dateOfBirth("2000-01-15")
                     .gender("Male")
                     .nationality("Indian")
-                    .mobile("+919876543210")
+                    .mobile("9876543210")
                     .email("aarav.sharma@example.com")
                     .identityDocNumber("123456789012")
                     .build();
@@ -190,7 +190,7 @@ class CandidateProfileControllerIntegrationTest extends AbstractIntegrationTest 
                     .dateOfBirth("2000-01-15")
                     .gender("Male")
                     .nationality("Indian")
-                    .mobile("+919876543210")
+                    .mobile("9876543210")
                     .email("aarav.sharma@example.com")
                     .identityDocNumber("123456789012")
                     .build();
