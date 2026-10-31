@@ -1,4 +1,4 @@
-package in.gov.nag.mobile.security
+package `in`.gov.nag.mobile.security
 
 import android.view.View
 import com.facebook.react.ReactPackage

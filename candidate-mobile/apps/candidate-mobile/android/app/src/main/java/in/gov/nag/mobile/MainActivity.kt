@@ -1,4 +1,4 @@
-package in.gov.nag.mobile
+package `in`.gov.nag.mobile
 
 import android.os.Bundle
 import com.facebook.react.ReactActivity

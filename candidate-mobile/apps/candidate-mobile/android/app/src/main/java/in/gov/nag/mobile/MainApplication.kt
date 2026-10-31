@@ -1,4 +1,4 @@
-package in.gov.nag.mobile
+package `in`.gov.nag.mobile
 
 import android.app.Application
 import com.facebook.react.PackageList
@@ -9,7 +9,7 @@ import com.facebook.react.ReactPackage
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.load
 import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
 import com.facebook.react.defaults.DefaultReactNativeHost
-import in.gov.nag.mobile.security.NagSecurityPackage
+import `in`.gov.nag.mobile.security.NagSecurityPackage
 
 class MainApplication : Application(), ReactApplication {
 
