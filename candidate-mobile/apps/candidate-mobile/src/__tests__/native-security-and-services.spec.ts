@@ -167,6 +167,150 @@ describe('Phase 3 Bridgeless TurboModules & Security Layer', () => {
       expect(sample.postureViolation).toBe(true);
     });
   });
+
+  describe('Android WebView @JavascriptInterface Bridge', () => {
+    afterEach(() => {
+      delete (globalThis as any).NagKioskLockdownModule;
+      delete (globalThis as any).NagScreenSecurityModule;
+      delete (globalThis as any).NagHardwareKeystoreModule;
+      delete (globalThis as any).NagProctoringCompanionModule;
+    });
+
+    it('should parse JSON strings from NagKioskLockdownModule in WebView', async () => {
+      (globalThis as any).NagKioskLockdownModule = {
+        startLockdown: jest.fn().mockResolvedValue(JSON.stringify({
+          isLockdownActive: true,
+          lockTaskMode: 'LOCKED',
+          isDeviceOwner: true,
+          overlaySuppressed: true,
+        })),
+        stopLockdown: jest.fn().mockResolvedValue(JSON.stringify({
+          isLockdownActive: false,
+          lockTaskMode: 'NONE',
+          isDeviceOwner: true,
+          overlaySuppressed: false,
+        })),
+        getLockTaskModeState: jest.fn().mockResolvedValue(JSON.stringify({
+          isLockdownActive: true,
+          lockTaskMode: 'LOCKED',
+          isDeviceOwner: true,
+          overlaySuppressed: true,
+        })),
+        isDeviceOwner: jest.fn().mockResolvedValue(true),
+        suppressOverlays: jest.fn().mockResolvedValue('true'),
+      };
+
+      const startRes = await NativeKioskLockdown.startLockdown();
+      expect(startRes.isLockdownActive).toBe(true);
+      expect(startRes.lockTaskMode).toBe('LOCKED');
+
+      const stopRes = await NativeKioskLockdown.stopLockdown();
+      expect(stopRes.isLockdownActive).toBe(false);
+
+      const stateRes = await NativeKioskLockdown.getLockTaskModeState();
+      expect(stateRes.lockTaskMode).toBe('LOCKED');
+
+      const isOwner = await NativeKioskLockdown.isDeviceOwner();
+      expect(isOwner).toBe(true);
+
+      const suppressed = await NativeKioskLockdown.suppressOverlays();
+      expect(suppressed).toBe(true);
+    });
+
+    it('should parse JSON strings from NagScreenSecurityModule in WebView', async () => {
+      (globalThis as any).NagScreenSecurityModule = {
+        enableFlagSecure: jest.fn().mockResolvedValue(JSON.stringify({
+          secure: true,
+          timestamp: 123456789,
+        })),
+        disableFlagSecure: jest.fn().mockResolvedValue(JSON.stringify({
+          secure: false,
+          timestamp: 123456790,
+        })),
+        getScreenSecurityStatus: jest.fn().mockResolvedValue(JSON.stringify({
+          secure: true,
+          timestamp: 123456789,
+        })),
+      };
+
+      const enabled = await NativeScreenSecurity.enableFlagSecure();
+      expect(enabled.secure).toBe(true);
+      expect(enabled.timestamp).toBe(123456789);
+
+      const disabled = await NativeScreenSecurity.disableFlagSecure();
+      expect(disabled.secure).toBe(false);
+
+      const status = await NativeScreenSecurity.getScreenSecurityStatus();
+      expect(status.secure).toBe(true);
+    });
+
+    it('should parse JSON strings from NagHardwareKeystoreModule in WebView', async () => {
+      (globalThis as any).NagHardwareKeystoreModule = {
+        ensureHardwareKeyPair: jest.fn().mockResolvedValue(JSON.stringify({
+          alias: 'WV_KEY',
+          algorithm: 'EC/secp256r1',
+          publicKeyBase64: 'MOCK_KEY',
+          isHardwareBacked: true,
+          isStrongBoxBacked: true,
+          certificateChainLength: 1,
+          createdAt: 99999,
+        })),
+        signExamSubmission: jest.fn().mockResolvedValue(JSON.stringify({
+          alias: 'WV_KEY',
+          payloadHash: 'hash123',
+          signatureBase64: 'sig123',
+          algorithm: 'SHA256withECDSA',
+          timestamp: 99999,
+          strongBoxBacked: true,
+        })),
+        getHardwareKeyInfo: jest.fn().mockResolvedValue(JSON.stringify({
+          alias: 'WV_KEY',
+          algorithm: 'EC/secp256r1',
+          publicKeyBase64: 'MOCK_KEY',
+          isHardwareBacked: true,
+          isStrongBoxBacked: true,
+          certificateChainLength: 1,
+          createdAt: 99999,
+        })),
+      };
+
+      const keyInfo = await NativeHardwareKeystore.ensureHardwareKeyPair('WV_KEY');
+      expect(keyInfo.alias).toBe('WV_KEY');
+      expect(keyInfo.isStrongBoxBacked).toBe(true);
+
+      const sig = await NativeHardwareKeystore.signExamSubmission('hash123', 'WV_KEY');
+      expect(sig.signatureBase64).toBe('sig123');
+
+      const info = await NativeHardwareKeystore.getHardwareKeyInfo('WV_KEY');
+      expect(info?.alias).toBe('WV_KEY');
+    });
+
+    it('should parse JSON strings from NagProctoringCompanionModule in WebView', async () => {
+      (globalThis as any).NagProctoringCompanionModule = {
+        startSensorMonitoring: jest.fn().mockResolvedValue('true'),
+        stopSensorMonitoring: jest.fn().mockResolvedValue(true),
+        evaluateSensorSample: jest.fn().mockResolvedValue(JSON.stringify({
+          ambientNoiseDb: 40.0,
+          pitchDeg: 10.0,
+          rollDeg: 5.0,
+          azimuthDeg: 180.0,
+          noiseViolation: false,
+          postureViolation: false,
+          timestamp: 88888,
+        })),
+      };
+
+      const start = await NativeProctoringCompanion.startSensorMonitoring(65, 45);
+      expect(start).toBe(true);
+
+      const sample = await NativeProctoringCompanion.evaluateSensorSample();
+      expect(sample.ambientNoiseDb).toBe(40.0);
+      expect(sample.noiseViolation).toBe(false);
+
+      const stop = await NativeProctoringCompanion.stopSensorMonitoring();
+      expect(stop).toBe(true);
+    });
+  });
 });
 
 describe('Mobile Services Layer', () => {

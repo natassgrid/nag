@@ -1,34 +1,37 @@
-package in.gov.nag.mobile.security
+package `in`.gov.nag.mobile.security
 
-import android.view.View
-import com.facebook.react.ReactPackage
-import com.facebook.react.bridge.NativeModule
-import com.facebook.react.bridge.ReactApplicationContext
-import com.facebook.react.uimanager.ReactShadowNode
-import com.facebook.react.uimanager.ViewManager
+import android.annotation.SuppressLint
+import android.app.Activity
+import android.content.Context
+import android.webkit.WebView
 
 /**
- * NagSecurityPackage - ReactPackage registering all Phase 3 Bridgeless TurboModules
- * for NAG Candidate Mobile Application:
+ * NagSecurityPackage - Kotlin helper registering all Security Modules as JavascriptInterfaces
+ * on the CBT Examination WebView:
  * 1. NagKioskLockdownModule
  * 2. NagScreenSecurityModule
  * 3. NagHardwareKeystoreModule
  * 4. NagProctoringCompanionModule
  */
-class NagSecurityPackage : ReactPackage {
+class NagSecurityPackage(
+    private val context: Context,
+    private val activityProvider: () -> Activity?
+) {
 
-    override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> {
-        return listOf(
-            KioskLockdownModule(reactContext),
-            ScreenSecurityModule(reactContext),
-            HardwareKeystoreModule(reactContext),
-            ProctoringCompanionModule(reactContext)
-        )
+    val kioskLockdownModule = KioskLockdownModule(context, activityProvider)
+    val screenSecurityModule = ScreenSecurityModule(activityProvider)
+    val hardwareKeystoreModule = HardwareKeystoreModule()
+    val proctoringCompanionModule = ProctoringCompanionModule(context)
+
+    @SuppressLint("JavascriptInterface")
+    fun attachToWebView(webView: WebView) {
+        webView.addJavascriptInterface(kioskLockdownModule, KioskLockdownModule.MODULE_NAME)
+        webView.addJavascriptInterface(screenSecurityModule, ScreenSecurityModule.MODULE_NAME)
+        webView.addJavascriptInterface(hardwareKeystoreModule, HardwareKeystoreModule.MODULE_NAME)
+        webView.addJavascriptInterface(proctoringCompanionModule, ProctoringCompanionModule.MODULE_NAME)
     }
 
-    override fun createViewManagers(
-        reactContext: ReactApplicationContext
-    ): List<ViewManager<View, ReactShadowNode<*>>> {
-        return emptyList()
+    fun onDestroy() {
+        proctoringCompanionModule.stopSensorMonitoring()
     }
 }

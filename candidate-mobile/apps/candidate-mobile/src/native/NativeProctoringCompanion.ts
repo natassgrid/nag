@@ -39,13 +39,16 @@ try {
   // Headless test or dev fallback
 }
 
-const getNativeModule = (): Spec | null => {
+const getNativeModule = (): any => {
+  if (typeof (globalThis as any).NagProctoringCompanionModule !== 'undefined') {
+    return (globalThis as any).NagProctoringCompanionModule;
+  }
   if (typeof rnTurboModuleRegistry !== 'undefined' && rnTurboModuleRegistry.get) {
     const turbo = rnTurboModuleRegistry.get('NagProctoringCompanionModule');
     if (turbo) return turbo;
   }
   if (rnNativeModules && rnNativeModules.NagProctoringCompanionModule) {
-    return rnNativeModules.NagProctoringCompanionModule as Spec;
+    return rnNativeModules.NagProctoringCompanionModule;
   }
   return null;
 };
@@ -61,7 +64,8 @@ export const NativeProctoringCompanion: Spec = {
 
     const native = getNativeModule();
     if (native && typeof native.startSensorMonitoring === 'function') {
-      return await native.startSensorMonitoring(configuredAudioThreshold, configuredOrientationThreshold);
+      const res = await native.startSensorMonitoring(configuredAudioThreshold, configuredOrientationThreshold);
+      return typeof res === 'string' ? JSON.parse(res) : Boolean(res);
     }
 
     simulatedMonitoring = true;
@@ -71,7 +75,8 @@ export const NativeProctoringCompanion: Spec = {
   async stopSensorMonitoring(): Promise<boolean> {
     const native = getNativeModule();
     if (native && typeof native.stopSensorMonitoring === 'function') {
-      return await native.stopSensorMonitoring();
+      const res = await native.stopSensorMonitoring();
+      return typeof res === 'string' ? JSON.parse(res) : Boolean(res);
     }
 
     simulatedMonitoring = false;
@@ -81,7 +86,8 @@ export const NativeProctoringCompanion: Spec = {
   async evaluateSensorSample(sample?: Partial<SensorSample>): Promise<SensorSample> {
     const native = getNativeModule();
     if (!sample && native && typeof native.evaluateSensorSample === 'function') {
-      return await native.evaluateSensorSample();
+      const res = await native.evaluateSensorSample();
+      return typeof res === 'string' ? JSON.parse(res) : res;
     }
 
     // Evaluate provided sample or deterministic baseline

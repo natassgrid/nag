@@ -42,13 +42,16 @@ try {
   // Headless test or dev fallback
 }
 
-const getNativeModule = (): Spec | null => {
+const getNativeModule = (): any => {
+  if (typeof (globalThis as any).NagHardwareKeystoreModule !== 'undefined') {
+    return (globalThis as any).NagHardwareKeystoreModule;
+  }
   if (typeof rnTurboModuleRegistry !== 'undefined' && rnTurboModuleRegistry.get) {
     const turbo = rnTurboModuleRegistry.get('NagHardwareKeystoreModule');
     if (turbo) return turbo;
   }
   if (rnNativeModules && rnNativeModules.NagHardwareKeystoreModule) {
-    return rnNativeModules.NagHardwareKeystoreModule as Spec;
+    return rnNativeModules.NagHardwareKeystoreModule;
   }
   return null;
 };
@@ -88,7 +91,8 @@ export const NativeHardwareKeystore: Spec = {
     const targetAlias = alias || DEFAULT_ALIAS;
     const native = getNativeModule();
     if (native && typeof native.ensureHardwareKeyPair === 'function') {
-      return await native.ensureHardwareKeyPair(targetAlias);
+      const res = await native.ensureHardwareKeyPair(targetAlias);
+      return typeof res === 'string' ? JSON.parse(res) : res;
     }
 
     let existing = simulatedKeyStore.get(targetAlias);
@@ -111,7 +115,8 @@ export const NativeHardwareKeystore: Spec = {
     const targetAlias = alias || DEFAULT_ALIAS;
     const native = getNativeModule();
     if (native && typeof native.signExamSubmission === 'function') {
-      return await native.signExamSubmission(payloadSha256Hex, targetAlias);
+      const res = await native.signExamSubmission(payloadSha256Hex, targetAlias);
+      return typeof res === 'string' ? JSON.parse(res) : res;
     }
 
     const keyInfo = await this.ensureHardwareKeyPair(targetAlias);
@@ -135,7 +140,9 @@ export const NativeHardwareKeystore: Spec = {
     const targetAlias = alias || DEFAULT_ALIAS;
     const native = getNativeModule();
     if (native && typeof native.getHardwareKeyInfo === 'function') {
-      return await native.getHardwareKeyInfo(targetAlias);
+      const res = await native.getHardwareKeyInfo(targetAlias);
+      if (!res) return null;
+      return typeof res === 'string' ? JSON.parse(res) : res;
     }
 
     const key = simulatedKeyStore.get(targetAlias);

@@ -16,6 +16,16 @@ gradle-app.setting
 !gradle-wrapper.jar
 !gradle-wrapper.properties
 .gradletasknamecache
+gradle-daemon-jvm.properties
+**/gradle-daemon-jvm.properties
+
+# ── Android / React Native ──────────────────────────────────
+.cxx/
+**/.cxx/
+.externalNativeBuild/
+**/.externalNativeBuild/
+autolinking.json
+**/autolinking.json
 
 # ── Maven ────────────────────────────────────────────────────
 .mvn/

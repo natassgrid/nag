@@ -5,6 +5,7 @@
   "description": "NAG Candidate Mobile Application for Android (React Native, Expo, Hermes, Bridgeless TurboModules)",
   "scripts": {
     "build": "tsc -p tsconfig.json --noEmit",
+    "build:android-assets": "node scripts/build-android-assets.mjs",
     "android": "expo run:android",
     "start": "expo start",
     "ios": "expo run:ios"
