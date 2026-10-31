@@ -54,7 +54,7 @@ public final class TikaMetadataUtils {
                 double val = Double.parseDouble(duration.replaceAll(SharedConstants.NUM_REGEX, ""));
                 return val > 100000 ? val / 1000.0 : val;
             } catch (NumberFormatException _) {
-                // ignore
+                return null;
             }
         }
         return null;

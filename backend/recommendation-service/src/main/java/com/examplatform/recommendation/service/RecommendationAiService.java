@@ -83,40 +83,7 @@ public class RecommendationAiService {
             .build();
         recommendationRepository.save(rec);
 
-        boolean generatedByAi = false;
-        if (chatClient != null) {
-            try {
-                String userPrompt = buildPrompt(profile);
-                String response = chatClient
-                    .prompt()
-                    .system(SYSTEM_PROMPT)
-                    .user(userPrompt)
-                    .call()
-                    .content();
-
-                String jsonText = sanitizeJson(response);
-                if (!jsonText.isBlank()) {
-                    Map<String, Object> parsed = objectMapper.readValue(jsonText, new TypeReference<>() {});
-                    Object weakObj = parsed.get("weakTopicRecommendations");
-                    Object planObj = parsed.get("studyPlanItems");
-                    String msg = (String) parsed.get("motivationalMessage");
-
-                    if (weakObj instanceof List<?> wl && !wl.isEmpty() && planObj instanceof List<?> pl && !pl.isEmpty()) {
-                        rec.setWeakTopicRecommendations(objectMapper.writeValueAsString(wl));
-                        rec.setStudyPlanItems(objectMapper.writeValueAsString(pl));
-                        rec.setMotivationalMessage(msg != null ? msg : "");
-                        rec.setStatus("GENERATED");
-                        rec.setGeneratedAt(Instant.now());
-                        rec.setModelUsed("configured-model");
-                        generatedByAi = true;
-                    }
-                }
-            } catch (Exception e) {
-                log.warn("AI recommendation generation failed for candidate {}, falling back to deterministic synthesis: {}",
-                        profile.getCandidateId(), e.getMessage());
-            }
-        }
-
+        boolean generatedByAi = tryGenerateWithAi(rec, profile, "background");
         if (!generatedByAi) {
             populateDeterministicFallback(rec, profile, null);
         }
@@ -131,45 +98,49 @@ public class RecommendationAiService {
                 .build();
         recommendationRepository.save(rec);
 
-        boolean generatedByAi = false;
-        if (chatClient != null) {
-            try {
-                String userPrompt = buildPrompt(profile);
-                String response = chatClient
-                        .prompt()
-                        .system(SYSTEM_PROMPT)
-                        .user(userPrompt)
-                        .call()
-                        .content();
-
-                String jsonText = sanitizeJson(response);
-                if (!jsonText.isBlank()) {
-                    Map<String, Object> parsed = objectMapper.readValue(jsonText, new TypeReference<>() {});
-                    Object weakObj = parsed.get("weakTopicRecommendations");
-                    Object planObj = parsed.get("studyPlanItems");
-                    String msg = (String) parsed.get("motivationalMessage");
-
-                    if (weakObj instanceof List<?> wl && !wl.isEmpty() && planObj instanceof List<?> pl && !pl.isEmpty()) {
-                        rec.setWeakTopicRecommendations(objectMapper.writeValueAsString(wl));
-                        rec.setStudyPlanItems(objectMapper.writeValueAsString(pl));
-                        rec.setMotivationalMessage(msg != null ? msg : "");
-                        rec.setStatus("GENERATED");
-                        rec.setGeneratedAt(Instant.now());
-                        rec.setModelUsed("configured-model");
-                        generatedByAi = true;
-                    }
-                }
-            } catch (Exception e) {
-                log.warn("AI recommendation generation on-demand failed for candidate {}, falling back to deterministic: {}",
-                        profile.getCandidateId(), e.getMessage());
-            }
-        }
-
+        boolean generatedByAi = tryGenerateWithAi(rec, profile, "on-demand");
         if (!generatedByAi) {
             populateDeterministicFallback(rec, profile, examTarget);
         }
 
         return recommendationRepository.save(rec);
+    }
+
+    private boolean tryGenerateWithAi(Recommendation rec, LearnerProfile profile, String contextDesc) {
+        if (chatClient == null) {
+            return false;
+        }
+        try {
+            String userPrompt = buildPrompt(profile);
+            String response = chatClient
+                    .prompt()
+                    .system(SYSTEM_PROMPT)
+                    .user(userPrompt)
+                    .call()
+                    .content();
+
+            String jsonText = sanitizeJson(response);
+            if (!jsonText.isBlank()) {
+                Map<String, Object> parsed = objectMapper.readValue(jsonText, new TypeReference<>() {});
+                Object weakObj = parsed.get("weakTopicRecommendations");
+                Object planObj = parsed.get("studyPlanItems");
+                String msg = (String) parsed.get("motivationalMessage");
+
+                if (weakObj instanceof List<?> wl && !wl.isEmpty() && planObj instanceof List<?> pl && !pl.isEmpty()) {
+                    rec.setWeakTopicRecommendations(objectMapper.writeValueAsString(wl));
+                    rec.setStudyPlanItems(objectMapper.writeValueAsString(pl));
+                    rec.setMotivationalMessage(msg != null ? msg : "");
+                    rec.setStatus("GENERATED");
+                    rec.setGeneratedAt(Instant.now());
+                    rec.setModelUsed("configured-model");
+                    return true;
+                }
+            }
+        } catch (Exception e) {
+            log.warn("AI recommendation generation {} failed for candidate {}, falling back to deterministic synthesis: {}",
+                    contextDesc, profile.getCandidateId(), e.getMessage());
+        }
+        return false;
     }
 
     public Recommendation buildDeterministicRecommendation(LearnerProfile profile, UUID sessionId, String examTarget) {

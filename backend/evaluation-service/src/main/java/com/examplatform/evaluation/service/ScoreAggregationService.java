@@ -125,21 +125,11 @@ public class ScoreAggregationService {
 
         List<SectionScoreBreakdown> sectionBreakdowns = bySection.values().stream().map(list -> {
             Evaluation first = list.get(0);
-            UUID secId = first.getSectionId();
-            String secName = first.getSectionName();
-            BigDecimal secScore = list.stream().map(Evaluation::getScore).reduce(BigDecimal.ZERO, BigDecimal::add);
-            BigDecimal secMax = list.stream().map(Evaluation::getMaxMarks).reduce(BigDecimal.ZERO, BigDecimal::add);
-            int qCount = list.size();
-            int attempted = (int) list.stream().filter(e -> e.getScore() != null && e.getScore().compareTo(BigDecimal.ZERO) != 0).count();
-            int correct = (int) list.stream().filter(e -> e.getScore() != null && e.getScore().compareTo(BigDecimal.ZERO) > 0).count();
-            BigDecimal accuracy = qCount > 0
-                    ? BigDecimal.valueOf(correct * 100.0 / qCount).setScale(2, RoundingMode.HALF_UP)
-                    : BigDecimal.ZERO;
+            ScoreMetrics m = calculateMetrics(list);
             return new SectionScoreBreakdown(
-                    secId, secName,
-                    secScore.setScale(2, RoundingMode.HALF_UP),
-                    secMax.setScale(2, RoundingMode.HALF_UP),
-                    qCount, attempted, correct, accuracy);
+                    first.getSectionId(), first.getSectionName(),
+                    m.score(), m.maxMarks(),
+                    m.questionCount(), m.attempted(), m.correct(), m.accuracy());
         }).toList();
 
         // Compute topic breakdowns
@@ -152,21 +142,13 @@ public class ScoreAggregationService {
 
         List<TaxonomyScoreBreakdown> topicBreakdowns = byTopic.values().stream().map(list -> {
             Evaluation first = list.get(0);
-            BigDecimal tScore = list.stream().map(Evaluation::getScore).reduce(BigDecimal.ZERO, BigDecimal::add);
-            BigDecimal tMax = list.stream().map(Evaluation::getMaxMarks).reduce(BigDecimal.ZERO, BigDecimal::add);
-            int qCount = list.size();
-            int attempted = (int) list.stream().filter(e -> e.getScore() != null && e.getScore().compareTo(BigDecimal.ZERO) != 0).count();
-            int correct = (int) list.stream().filter(e -> e.getScore() != null && e.getScore().compareTo(BigDecimal.ZERO) > 0).count();
-            BigDecimal accuracy = qCount > 0
-                    ? BigDecimal.valueOf(correct * 100.0 / qCount).setScale(2, RoundingMode.HALF_UP)
-                    : BigDecimal.ZERO;
+            ScoreMetrics m = calculateMetrics(list);
             return new TaxonomyScoreBreakdown(
                     first.getSubjectId(), first.getSubject(),
                     first.getTopicId(), first.getTopic(),
                     null, null,
-                    tScore.setScale(2, RoundingMode.HALF_UP),
-                    tMax.setScale(2, RoundingMode.HALF_UP),
-                    qCount, attempted, correct, accuracy);
+                    m.score(), m.maxMarks(),
+                    m.questionCount(), m.attempted(), m.correct(), m.accuracy());
         }).toList();
 
         // Compute subtopic breakdowns
@@ -179,21 +161,13 @@ public class ScoreAggregationService {
 
         List<TaxonomyScoreBreakdown> subtopicBreakdowns = bySubtopic.values().stream().map(list -> {
             Evaluation first = list.get(0);
-            BigDecimal stScore = list.stream().map(Evaluation::getScore).reduce(BigDecimal.ZERO, BigDecimal::add);
-            BigDecimal stMax = list.stream().map(Evaluation::getMaxMarks).reduce(BigDecimal.ZERO, BigDecimal::add);
-            int qCount = list.size();
-            int attempted = (int) list.stream().filter(e -> e.getScore() != null && e.getScore().compareTo(BigDecimal.ZERO) != 0).count();
-            int correct = (int) list.stream().filter(e -> e.getScore() != null && e.getScore().compareTo(BigDecimal.ZERO) > 0).count();
-            BigDecimal accuracy = qCount > 0
-                    ? BigDecimal.valueOf(correct * 100.0 / qCount).setScale(2, RoundingMode.HALF_UP)
-                    : BigDecimal.ZERO;
+            ScoreMetrics m = calculateMetrics(list);
             return new TaxonomyScoreBreakdown(
                     first.getSubjectId(), first.getSubject(),
                     first.getTopicId(), first.getTopic(),
                     first.getSubtopicId(), first.getSubtopic(),
-                    stScore.setScale(2, RoundingMode.HALF_UP),
-                    stMax.setScale(2, RoundingMode.HALF_UP),
-                    qCount, attempted, correct, accuracy);
+                    m.score(), m.maxMarks(),
+                    m.questionCount(), m.attempted(), m.correct(), m.accuracy());
         }).toList();
 
         AggregatedScoreResult result = new AggregatedScoreResult(
@@ -310,5 +284,30 @@ public class ScoreAggregationService {
             log.error("Failed to publish EVALUATION_COMPLETED event for session={}: {}", sessionId, e.getMessage());
             // Never block the aggregation for event failures
         }
+    }
+
+    private record ScoreMetrics(
+            BigDecimal score,
+            BigDecimal maxMarks,
+            int questionCount,
+            int attempted,
+            int correct,
+            BigDecimal accuracy
+    ) {}
+
+    private ScoreMetrics calculateMetrics(List<Evaluation> list) {
+        BigDecimal totalScore = list.stream().map(Evaluation::getScore).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalMax = list.stream().map(Evaluation::getMaxMarks).reduce(BigDecimal.ZERO, BigDecimal::add);
+        int qCount = list.size();
+        int attempted = (int) list.stream().filter(e -> e.getScore() != null && e.getScore().compareTo(BigDecimal.ZERO) != 0).count();
+        int correct = (int) list.stream().filter(e -> e.getScore() != null && e.getScore().compareTo(BigDecimal.ZERO) > 0).count();
+        BigDecimal accuracy = qCount > 0
+                ? BigDecimal.valueOf(correct * 100.0 / qCount).setScale(2, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO;
+        return new ScoreMetrics(
+                totalScore.setScale(2, RoundingMode.HALF_UP),
+                totalMax.setScale(2, RoundingMode.HALF_UP),
+                qCount, attempted, correct, accuracy
+        );
     }
 }

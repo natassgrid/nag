@@ -73,7 +73,7 @@ public class ExamSyllabusClientImpl implements ExamSyllabusClient {
             log.debug("REST call to examination syllabus failed: {}", e.getMessage());
         }
 
-        return getDefaultSyllabusNodes(examId);
+        return getDefaultSyllabusNodes();
     }
 
     @Override
@@ -89,7 +89,7 @@ public class ExamSyllabusClientImpl implements ExamSyllabusClient {
         return normalizedWeights;
     }
 
-    private List<ExamSyllabusNodeDto> getDefaultSyllabusNodes(UUID examId) {
+    private List<ExamSyllabusNodeDto> getDefaultSyllabusNodes() {
         return List.of(
                 new ExamSyllabusNodeDto(1L, "Reasoning", 10L, "Logical Deductions", 101L, "Syllogisms", 25.0),
                 new ExamSyllabusNodeDto(1L, "Reasoning", 10L, "Logical Deductions", 102L, "Analogies", 15.0),

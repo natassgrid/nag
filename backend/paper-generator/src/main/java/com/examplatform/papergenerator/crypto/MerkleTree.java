@@ -70,6 +70,7 @@ public class MerkleTree {
         return new MerkleTree(leafHashes, true);
     }
 
+    @SuppressWarnings("PMD.UnusedFormalParameter")
     private MerkleTree(List<String> leafHashes, boolean alreadyHashed) {
         if (leafHashes == null || leafHashes.isEmpty()) {
             this.leafHashes = Collections.emptyList();

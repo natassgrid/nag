@@ -103,7 +103,7 @@ public class ExamApplicationService {
         }
 
         // Generate Hall Ticket Number
-        String hallTicketNumber = generateHallTicketNumber(exam.getCode(), candidateId);
+        String hallTicketNumber = generateHallTicketNumber(exam.getCode());
 
         // Generate verification hash
         String verificationHash = generateQrVerificationHash(hallTicketNumber, candidateId, examId, allocatedCentreId);
@@ -247,7 +247,7 @@ public class ExamApplicationService {
         return centres.isEmpty() ? null : centres.getFirst().getId();
     }
 
-    private String generateHallTicketNumber(String examCode, UUID candidateId) {
+    private String generateHallTicketNumber(String examCode) {
         String prefix = examCode != null && !examCode.isBlank()
                 ? examCode.replaceAll("[^A-Za-z0-9]", "").toUpperCase()
                 : "NAG2026";

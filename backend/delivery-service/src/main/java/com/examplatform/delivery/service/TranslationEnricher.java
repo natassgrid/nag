@@ -75,8 +75,8 @@ public class TranslationEnricher {
             if (q.getId() != null) {
                 try {
                     dtoMap.put(UUID.fromString(q.getId()), q);
-                } catch (IllegalArgumentException _) {
-                    // Ignore questions with invalid UUID format
+                } catch (IllegalArgumentException e) {
+                    log.debug("Ignore question with invalid UUID format '{}': {}", q.getId(), e.getMessage());
                 }
             }
         }
@@ -118,8 +118,8 @@ public class TranslationEnricher {
         if (obj != null) {
             try {
                 return UUID.fromString(obj.toString());
-            } catch (Exception _) {
-                // Ignore unparseable question ID object
+            } catch (Exception e) {
+                log.debug("Ignore unparseable question ID object '{}': {}", obj, e.getMessage());
             }
         }
         return null;

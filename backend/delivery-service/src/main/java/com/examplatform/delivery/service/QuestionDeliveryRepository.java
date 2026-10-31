@@ -204,8 +204,8 @@ public class QuestionDeliveryRepository {
                         break;
                     }
                 }
-            } catch (IllegalArgumentException _) {
-                // Ignore invalid question UUID formatting
+            } catch (IllegalArgumentException e) {
+                log.debug("Ignore invalid question UUID formatting: {}", e.getMessage());
             }
         }
     }
@@ -401,8 +401,8 @@ public class QuestionDeliveryRepository {
         for (QuestionDeliveryDto q : questions) {
             try {
                 qMap.put(UUID.fromString(q.getId()), q);
-            } catch (IllegalArgumentException _) {
-                // Ignore non-UUID question ID formatting
+            } catch (IllegalArgumentException e) {
+                log.debug("Ignore non-UUID question ID formatting: {}", e.getMessage());
             }
         }
         return qMap;

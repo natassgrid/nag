@@ -407,8 +407,8 @@ public class QuestionDeliveryParser {
         if (text != null && !text.isBlank()) {
             try {
                 accumulator.add(UUID.fromString(text));
-            } catch (IllegalArgumentException _) {
-                // Ignore non-UUID strings
+            } catch (IllegalArgumentException e) {
+                log.debug("Ignore non-UUID string '{}': {}", text, e.getMessage());
             }
         }
     }

@@ -288,9 +288,7 @@ public class PracticeEvaluationService {
                 return false;
             }
 
-            if (QuestionTypeConstants.MULTI_MCQ.equals(qType) || correctSet.size() > 1) {
-                // Multi-select MCQ: candidate's selected set must exactly match correct set
-            } else {
+            if (!QuestionTypeConstants.MULTI_MCQ.equals(qType) && correctSet.size() <= 1) {
                 // Single-select MCQ: candidate must have chosen exactly 1 option and it must match
                 if (selectedSet.size() != 1) {
                     return false;

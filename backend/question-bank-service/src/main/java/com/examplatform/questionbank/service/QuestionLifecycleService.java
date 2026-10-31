@@ -193,8 +193,8 @@ public class QuestionLifecycleService {
                 String prevState = null;
                 try {
                     prevState = questionRepository.findById(questionId).map(Question::getState).orElse(null);
-                } catch (Exception _) {
-                    // Just ignore
+                } catch (Exception ex) {
+                    log.debug("Failed to lookup previous state for {}: {}", questionId, ex.getMessage());
                 }
 
                 itemResults.add(BulkTransitionItemResult.builder()

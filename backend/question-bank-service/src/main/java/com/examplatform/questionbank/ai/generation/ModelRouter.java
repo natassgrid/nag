@@ -16,6 +16,8 @@
 package com.examplatform.questionbank.ai.generation;
 
 import com.examplatform.shared.constants.QuestionTaxonomyConstants;
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -54,6 +56,8 @@ import org.springframework.stereotype.Component;
  * @see <a href="https://docs.litellm.ai/">LiteLLM Documentation</a>
  */
 @Component
+@Getter
+@Setter
 public class ModelRouter {
 
     public enum AiProvider {
@@ -100,102 +104,6 @@ public class ModelRouter {
 
     @Value("${app.ai.models.extraction.text:paper-extract-text}")
     private String paperExtractionTextModel = "paper-extract-text";
-
-    public String getProvider() {
-        return provider;
-    }
-
-    public void setProvider(String provider) {
-        this.provider = provider;
-    }
-
-    public String getEasyModel() {
-        return easyModel;
-    }
-
-    public void setEasyModel(String easyModel) {
-        this.easyModel = easyModel;
-    }
-
-    public String getMediumModel() {
-        return mediumModel;
-    }
-
-    public void setMediumModel(String mediumModel) {
-        this.mediumModel = mediumModel;
-    }
-
-    public String getHardModel() {
-        return hardModel;
-    }
-
-    public void setHardModel(String hardModel) {
-        this.hardModel = hardModel;
-    }
-
-    public String getGeminiEasyModel() {
-        return geminiEasyModel;
-    }
-
-    public void setGeminiEasyModel(String geminiEasyModel) {
-        this.geminiEasyModel = geminiEasyModel;
-    }
-
-    public String getGeminiMediumModel() {
-        return geminiMediumModel;
-    }
-
-    public void setGeminiMediumModel(String geminiMediumModel) {
-        this.geminiMediumModel = geminiMediumModel;
-    }
-
-    public String getGeminiHardModel() {
-        return geminiHardModel;
-    }
-
-    public void setGeminiHardModel(String geminiHardModel) {
-        this.geminiHardModel = geminiHardModel;
-    }
-
-    public String getLocalEasyModel() {
-        return localEasyModel;
-    }
-
-    public void setLocalEasyModel(String localEasyModel) {
-        this.localEasyModel = localEasyModel;
-    }
-
-    public String getLocalMediumModel() {
-        return localMediumModel;
-    }
-
-    public void setLocalMediumModel(String localMediumModel) {
-        this.localMediumModel = localMediumModel;
-    }
-
-    public String getLocalHardModel() {
-        return localHardModel;
-    }
-
-    public void setLocalHardModel(String localHardModel) {
-        this.localHardModel = localHardModel;
-    }
-
-    public String getPaperExtractionVisionModel() {
-        return paperExtractionVisionModel;
-    }
-
-    public void setPaperExtractionVisionModel(String paperExtractionVisionModel) {
-        this.paperExtractionVisionModel = paperExtractionVisionModel;
-    }
-
-    public String getPaperExtractionTextModel() {
-        return paperExtractionTextModel;
-    }
-
-    public void setPaperExtractionTextModel(String paperExtractionTextModel) {
-        this.paperExtractionTextModel = paperExtractionTextModel;
-    }
 
     /**
      * Resolves the active AI provider based on configuration.
