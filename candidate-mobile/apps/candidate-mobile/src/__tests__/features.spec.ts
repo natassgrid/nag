@@ -11,6 +11,7 @@ import {
   repairEscapedArtifacts,
   renderSmilesToSvgDescriptor,
   parseFormulaText,
+  formatReadableLatex,
 } from '../features/formula/formula-parser';
 
 import {
@@ -83,6 +84,17 @@ describe('1. Formula Rendering Engine (LaTeX/KaTeX & SMILES Chemistry)', () => {
       const input = '\x0crac{1}{2} + \ttheta';
       const repaired = repairEscapedArtifacts(input);
       expect(repaired).toBe('\\frac{1}{2} + \\theta');
+    });
+
+    it('unwraps \\text{...} units and symbols into clean human-readable text', () => {
+      expect(formatReadableLatex('260\\text{ m}')).toBe('260 m');
+      expect(formatReadableLatex('60\\text{ km/h}')).toBe('60 km/h');
+    });
+
+    it('formats arithmetic operations, fractions, and square roots into readable Unicode', () => {
+      const derivation = '150\\text{ km/h} = 150 \\times \\frac{5}{18} = \\frac{125}{3}\\text{ m/s}';
+      expect(formatReadableLatex(derivation)).toBe('150 km/h = 150 × 5/18 = 125/3 m/s');
+      expect(formatReadableLatex('\\sqrt{a^2 + b^2} \\ge 0')).toBe('√(a² + b²) ≥ 0');
     });
   });
 

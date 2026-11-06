@@ -1,6 +1,6 @@
 /**
  * NAG Official Candidate Mobile - Complete Self-Contained Web Asset Bundle
- * Build Timestamp: 2026-10-31T13:08:24.079Z
+ * Build Timestamp: 2026-11-06T13:08:21.513Z
  * Target: Android WebView file:///android_asset/www/index.html
  */
 (function() {
@@ -188,7 +188,7 @@ const NagReact = (function() {
     'linearGradient', 'radialGradient', 'stop'
   ]);
 
-  const NON_DIMENSIONAL_PROPS = /acit|ex(?:s|g|n|p|$)|rph|grid|ows|mnc|ontw|oind|st[a-z]|wko/i;
+  const NON_DIMENSIONAL_PROPS = /acit|ex(?:s|g|n|p|$)|rph|grid|ows|mnc|ontw|oind|st[a-z]|wko|lineHeight|zIndex|flex|flexGrow|flexShrink|fontWeight|opacity|order/i;
 
   function flattenChildren(children) {
     if (children == null || typeof children === 'boolean') return [];
@@ -301,6 +301,14 @@ const NagReact = (function() {
     }
   }
 
+  function safeInsertBefore(parent, node, sibling) {
+    if (sibling && sibling.parentNode === parent) {
+      parent.insertBefore(node, sibling);
+    } else {
+      parent.insertBefore(node, null);
+    }
+  }
+
   function patch(parentDom, newVNode, oldVNode, nextSibling, isParentSvg) {
     if (newVNode == null || typeof newVNode === 'boolean') {
       if (oldVNode) unmount(oldVNode, parentDom);
@@ -321,7 +329,7 @@ const NagReact = (function() {
       }
       if (oldVNode) unmount(oldVNode, parentDom);
       const textNode = document.createTextNode(newVNode.text);
-      parentDom.insertBefore(textNode, nextSibling || null);
+      safeInsertBefore(parentDom, textNode, nextSibling);
       newVNode._dom = textNode;
       return textNode;
     }
@@ -365,6 +373,9 @@ const NagReact = (function() {
     if (oldVNode && oldVNode.type === newVNode.type && oldVNode._dom) {
       dom = oldVNode._dom;
       newVNode._dom = dom;
+      if (nextSibling && nextSibling.parentNode === parentDom && dom !== nextSibling && dom.nextSibling !== nextSibling) {
+        parentDom.insertBefore(dom, nextSibling);
+      }
       updateProps(dom, newVNode.props, oldVNode.props, isSvg);
       reconcileChildren(dom, newVNode, oldVNode, isSvg);
     } else {
@@ -379,7 +390,7 @@ const NagReact = (function() {
       for (let i = 0; i < flat.length; i++) {
         patch(dom, flat[i], null, null, isSvg);
       }
-      parentDom.insertBefore(dom, nextSibling || null);
+      safeInsertBefore(parentDom, dom, nextSibling);
     }
 
     return dom;
@@ -396,8 +407,11 @@ const NagReact = (function() {
       for (let i = 0; i < max; i++) {
         const n = newFlat[i];
         const o = oldFlat[i];
-        if (n && o) patch(parentDom, n, o, null, isSvg);
-        else if (n) patch(parentDom, n, null, null, isSvg);
+        const nextSibling = (parentDom.childNodes[i] && parentDom.childNodes[i].parentNode === parentDom)
+          ? parentDom.childNodes[i]
+          : null;
+        if (n && o) patch(parentDom, n, o, nextSibling, isSvg);
+        else if (n) patch(parentDom, n, null, nextSibling, isSvg);
         else if (o) unmount(o, parentDom);
       }
       return;
@@ -414,11 +428,14 @@ const NagReact = (function() {
       const n = newFlat[i];
       const k = (n && n.key != null) ? n.key : '__idx_' + i;
       const o = oldKeyMap.get(k);
+      const nextSibling = (parentDom.childNodes[i] && parentDom.childNodes[i].parentNode === parentDom)
+        ? parentDom.childNodes[i]
+        : null;
       if (o) {
         oldKeyMap.delete(k);
-        patch(parentDom, n, o, null, isSvg);
+        patch(parentDom, n, o, nextSibling, isSvg);
       } else {
-        patch(parentDom, n, null, null, isSvg);
+        patch(parentDom, n, null, nextSibling, isSvg);
       }
     }
 
@@ -449,8 +466,15 @@ const NagReact = (function() {
   }
 
   function mount(element, container) {
+    if (rootContainer && rootVNode) {
+      unmount(rootVNode, rootContainer);
+    }
     rootContainer = container;
     rootElement = element;
+    rootVNode = null;
+    if (container) {
+      container.innerHTML = '';
+    }
     renderRoot();
   }
 
@@ -7455,6 +7479,25 @@ exports.FormulaRenderer = void 0;
 const react_1 = __importDefault(require("react"));
 const formula_parser_1 = require("./formula-parser");
 /**
+ * Safely renders LaTeX expression to HTML using offline KaTeX if available.
+ */
+function renderKatexHtml(latex, displayMode) {
+    if (typeof window !== 'undefined' &&
+        window.katex &&
+        typeof window.katex.renderToString === 'function') {
+        try {
+            return window.katex.renderToString(latex, {
+                displayMode,
+                throwOnError: false,
+            });
+        }
+        catch {
+            return null;
+        }
+    }
+    return null;
+}
+/**
  * Formats chemical formula strings (subscripts and reaction arrows)
  * when rendered in offline/mobile environments.
  */
@@ -7489,15 +7532,18 @@ const FormulaRenderer = ({ content, inline = false, className = '', testId = 'fo
     }
     const tokens = (0, formula_parser_1.parseFormulaText)(content);
     const containerStyle = inline
-        ? { display: 'inline-flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '2px' }
+        ? { display: 'inline', verticalAlign: 'baseline' }
         : { display: 'block', margin: '4px 0', lineHeight: 1.6 };
     return (react_1.default.createElement("div", { "data-testid": testId, className: `nag-formula-renderer ${className}`.trim(), style: containerStyle }, tokens.map((token, index) => {
         const key = `token-${index}-${token.type}`;
         switch (token.type) {
             case 'text':
                 return (react_1.default.createElement("span", { key: key, className: "formula-text-segment", style: { whiteSpace: 'pre-wrap' } }, token.content));
-            case 'latex':
-                if (token.displayMode && !inline) {
+            case 'latex': {
+                const displayMode = Boolean(token.displayMode && !inline);
+                const katexHtml = renderKatexHtml(token.content, displayMode);
+                const readableFallback = (0, formula_parser_1.formatReadableLatex)(token.content);
+                if (displayMode) {
                     return (react_1.default.createElement("div", { key: key, className: "formula-latex-block", "data-testid": "latex-block", style: {
                             display: 'block',
                             textAlign: 'center',
@@ -7506,20 +7552,21 @@ const FormulaRenderer = ({ content, inline = false, className = '', testId = 'fo
                             backgroundColor: '#F7FAFC',
                             borderRadius: '6px',
                             fontFamily: 'KaTeX_Main, Times New Roman, serif',
-                            fontStyle: 'italic',
                             fontSize: '1.05em',
                             color: '#1A202C',
                             border: '1px solid #E2E8F0',
-                        } },
-                        react_1.default.createElement("span", { className: "latex-expression" }, token.content)));
+                            overflowX: 'auto',
+                        } }, katexHtml ? (react_1.default.createElement("span", { className: "latex-expression", dangerouslySetInnerHTML: { __html: katexHtml } })) : (react_1.default.createElement("span", { className: "latex-expression", style: { fontStyle: 'italic' } }, readableFallback))));
                 }
                 return (react_1.default.createElement("span", { key: key, className: "formula-latex-inline", "data-testid": "latex-inline", style: {
                         fontFamily: 'KaTeX_Main, Times New Roman, serif',
-                        fontStyle: 'italic',
                         padding: '0 2px',
                         color: '#2B6CB0',
                         fontWeight: 600,
-                    } }, token.content));
+                        display: 'inline',
+                        verticalAlign: 'baseline',
+                    } }, katexHtml ? (react_1.default.createElement("span", { dangerouslySetInnerHTML: { __html: katexHtml } })) : (react_1.default.createElement("span", null, readableFallback))));
+            }
             case 'chemistry':
                 return (react_1.default.createElement("span", { key: key, className: `formula-chem-${token.notation}`, "data-testid": `chem-${token.notation}`, style: {
                         fontFamily: 'system-ui, -apple-system, sans-serif',
@@ -7570,6 +7617,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.repairEscapedArtifacts = repairEscapedArtifacts;
 exports.normalizeLatexFormula = normalizeLatexFormula;
 exports.normalizeNewlinesPreservingLatex = normalizeNewlinesPreservingLatex;
+exports.formatReadableLatex = formatReadableLatex;
 exports.renderSmilesToSvgDescriptor = renderSmilesToSvgDescriptor;
 exports.parseFormulaText = parseFormulaText;
 /**
@@ -7628,6 +7676,70 @@ function normalizeNewlinesPreservingLatex(text) {
         return '';
     // Match literal backslash followed by 'n' NOT followed by [a-z]
     return text.replace(/\\n(?![a-z])/g, '\n');
+}
+/**
+ * Converts LaTeX formula syntax to clean, human-readable Unicode text
+ * for mobile WebView environments where KaTeX is unavailable or as an
+ * accessible fallback (e.g. 260\text{ m} -> 260 m).
+ */
+function formatReadableLatex(latex) {
+    if (!latex)
+        return '';
+    let text = normalizeLatexFormula(latex);
+    // 1. Unwrap \text{...}, \mathrm{...}, \mathbf{...}, \mathit{...}
+    text = text.replace(/\\(?:text|mathrm|mathbf|mathit)\{([^{}]*)\}/g, '$1');
+    // 2. Common arithmetic, relational & directional symbols
+    text = text
+        .replace(/\\times/g, ' × ')
+        .replace(/\\cdot/g, ' · ')
+        .replace(/\\div/g, ' ÷ ')
+        .replace(/\\pm/g, ' ± ')
+        .replace(/\\mp/g, ' ∓ ')
+        .replace(/\\le(?:q)?(?![a-zA-Z])/g, ' ≤ ')
+        .replace(/\\ge(?:q)?(?![a-zA-Z])/g, ' ≥ ')
+        .replace(/\\neq(?![a-zA-Z])/g, ' ≠ ')
+        .replace(/\\approx/g, ' ≈ ')
+        .replace(/\\equiv/g, ' ≡ ')
+        .replace(/\\to|\\rightarrow/g, ' → ')
+        .replace(/\\leftarrow/g, ' ← ')
+        .replace(/\\infty/g, ' ∞ ')
+        .replace(/\\degree|\^\\circ/g, '°');
+    // 3. Greek symbols
+    const greek = {
+        alpha: 'α', beta: 'β', gamma: 'γ', delta: 'δ', epsilon: 'ε',
+        theta: 'θ', lambda: 'λ', mu: 'μ', pi: 'π', rho: 'ρ',
+        sigma: 'σ', tau: 'τ', phi: 'φ', omega: 'ω',
+        Delta: 'Δ', Gamma: 'Γ', Theta: 'Θ', Lambda: 'Λ', Sigma: 'Σ', Omega: 'Ω',
+    };
+    for (const [name, sym] of Object.entries(greek)) {
+        text = text.replace(new RegExp(`\\\\${name}(?![a-zA-Z])`, 'g'), sym);
+    }
+    // 4. Fractions: \frac{a}{b} -> a/b
+    text = text.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, '($1/$2)');
+    text = text.replace(/\(([a-zA-Z0-9]+)\/([a-zA-Z0-9]+)\)/g, '$1/$2');
+    // 5. Square roots: \sqrt{x} -> √(x)
+    text = text.replace(/\\sqrt\{([^{}]+)\}/g, '√($1)');
+    // 6. Subscripts and superscripts
+    const supers = {
+        '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴',
+        '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹',
+        '+': '⁺', '-': '⁻', '=': '⁼', '(': '⁽', ')': '⁾', 'n': 'ⁿ'
+    };
+    const subs = {
+        '0': '₀', '1': '₁', '2': '₂', '3': '₃', '4': '₄',
+        '5': '₅', '6': '₆', '7': '₇', '8': '₈', '9': '₉',
+        '+': '₊', '-': '₋', '=': '₌', '(': '₍', ')': '₎', 'a': 'ₐ', 'e': 'ₑ', 'x': 'ₓ'
+    };
+    text = text.replace(/\^\{([0-9+-]+)\}/g, (_, s) => s.split('').map(c => supers[c] || c).join(''));
+    text = text.replace(/\^([0-9])/g, (_, s) => supers[s] || `^${s}`);
+    text = text.replace(/_\{([0-9a-ex+-]+)\}/g, (_, s) => s.split('').map(c => subs[c] || c).join(''));
+    text = text.replace(/_([0-9])/g, (_, s) => subs[s] || `_${s}`);
+    // 7. Spacing macros
+    text = text.replace(/\\[,;!]/g, ' ').replace(/\\(?:quad|qquad)/g, '  ');
+    // 8. Clean leftover backslashes and braces
+    text = text.replace(/\\([a-zA-Z]+)/g, '$1');
+    text = text.replace(/[{}]/g, '');
+    return text.trim().replace(/\s+/g, ' ');
 }
 const ELEMENT_COLORS = {
     C: '#2D3748',
@@ -11645,45 +11757,64 @@ const PracticeResultPanelScreen = ({ controller, onStudyWeakSubtopic, onReattemp
                                 fontSize: '14px',
                                 cursor: 'pointer',
                             } }, isBookmark ? '★' : '☆'))),
-                react_1.default.createElement("div", { style: { fontSize: '13px', fontWeight: 600, margin: '6px 0 10px 0' } },
+                react_1.default.createElement("div", { style: {
+                        fontSize: '14px',
+                        fontWeight: 600,
+                        lineHeight: 1.6,
+                        color: '#1A202C',
+                        margin: '8px 0 12px 0',
+                    } },
                     react_1.default.createElement(formula_1.FormulaRenderer, { content: q.content })),
-                react_1.default.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '10px' } }, opts.map((opt) => {
+                react_1.default.createElement("div", { style: { display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px' } }, opts.map((opt) => {
                     const isSelected = q.candidateAnswer === opt.id;
                     const isAnswer = q.correctAnswer === opt.id;
                     let border = '#E2E8F0';
                     let bg = '#F7FAFC';
-                    let label = '';
+                    let badge = null;
                     if (isAnswer) {
                         border = '#38A169';
                         bg = '#F0FFF4';
-                        label = ' ✓ Correct Answer';
+                        badge = { text: '✓ Correct Answer', bg: '#C6F6D5', color: '#22543D' };
                     }
                     else if (isSelected && !q.correct) {
                         border = '#E53E3E';
                         bg = '#FFF5F5';
-                        label = ' ✗ Your Answer';
+                        badge = { text: '✗ Your Answer', bg: '#FED7D7', color: '#742A2A' };
                     }
                     return (react_1.default.createElement("div", { key: opt.id, style: {
-                            padding: '6px 10px',
-                            borderRadius: '6px',
-                            border: `1px solid ${border}`,
+                            padding: '10px 14px',
+                            borderRadius: '8px',
+                            border: `1.5px solid ${border}`,
                             backgroundColor: bg,
-                            fontSize: '12px',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            gap: '8px',
                         } },
-                        react_1.default.createElement(formula_1.FormulaRenderer, { content: opt.text, inline: true }),
-                        label && react_1.default.createElement("strong", { style: { fontSize: '11px', marginLeft: '6px' } }, label)));
+                        react_1.default.createElement("div", { style: { flex: 1, fontSize: '13px', lineHeight: 1.5, color: '#2D3748' } },
+                            react_1.default.createElement(formula_1.FormulaRenderer, { content: opt.text, inline: true })),
+                        badge && (react_1.default.createElement("span", { style: {
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                padding: '3px 8px',
+                                borderRadius: '4px',
+                                backgroundColor: badge.bg,
+                                color: badge.color,
+                                whiteSpace: 'nowrap',
+                            } }, badge.text))));
                 })),
                 q.explanation && (react_1.default.createElement("div", { style: {
                         backgroundColor: '#F7FAFC',
                         border: '1px solid #E2E8F0',
-                        borderRadius: '6px',
-                        padding: '8px 10px',
+                        borderRadius: '8px',
+                        padding: '10px 14px',
                         fontSize: '12px',
+                        lineHeight: 1.6,
                         color: '#2D3748',
-                        marginBottom: '8px',
+                        marginBottom: '10px',
                     } },
-                    react_1.default.createElement("strong", null, "Solution Derivation:"),
-                    react_1.default.createElement("div", { style: { marginTop: '4px' } },
+                    react_1.default.createElement("strong", { style: { color: '#1A365D', display: 'block', marginBottom: '4px' } }, "Solution Derivation:"),
+                    react_1.default.createElement("div", null,
                         react_1.default.createElement(formula_1.FormulaRenderer, { content: q.explanation })))),
                 !q.correct && (react_1.default.createElement("button", { "data-testid": `study-weak-subtopic-btn-${q.questionId}`, onClick: () => handleStudySubtopic(q), style: {
                         width: '100%',
@@ -17717,6 +17848,7 @@ exports.mountMobileApp = mountMobileApp;
 const react_1 = __importDefault(require("react"));
 const App_1 = require("./App");
 Object.defineProperty(exports, "App", { enumerable: true, get: function () { return App_1.App; } });
+let isMounted = false;
 /**
  * Initializes and mounts the NAG Candidate Mobile Application
  * inside the Android WebView shell.
@@ -17724,8 +17856,11 @@ Object.defineProperty(exports, "App", { enumerable: true, get: function () { ret
 function mountMobileApp() {
     if (typeof document === 'undefined')
         return;
+    if (isMounted)
+        return;
     const root = document.getElementById('root');
     if (root && typeof window.NagReactMount === 'function') {
+        isMounted = true;
         window.NagReactMount(react_1.default.createElement(App_1.App), root);
     }
 }

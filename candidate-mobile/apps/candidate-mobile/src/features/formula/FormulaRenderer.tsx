@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   parseFormulaText,
+  formatReadableLatex,
   FormulaToken,
   SmilesSvgDescriptor,
 } from './formula-parser';
@@ -10,6 +11,27 @@ export interface FormulaRendererProps {
   inline?: boolean;
   className?: string;
   testId?: string;
+}
+
+/**
+ * Safely renders LaTeX expression to HTML using offline KaTeX if available.
+ */
+function renderKatexHtml(latex: string, displayMode: boolean): string | null {
+  if (
+    typeof window !== 'undefined' &&
+    (window as any).katex &&
+    typeof (window as any).katex.renderToString === 'function'
+  ) {
+    try {
+      return (window as any).katex.renderToString(latex, {
+        displayMode,
+        throwOnError: false,
+      });
+    } catch {
+      return null;
+    }
+  }
+  return null;
 }
 
 /**
@@ -56,7 +78,7 @@ export const FormulaRenderer: React.FC<FormulaRendererProps> = ({
   const tokens = parseFormulaText(content);
 
   const containerStyle: React.CSSProperties = inline
-    ? { display: 'inline-flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '2px' }
+    ? { display: 'inline', verticalAlign: 'baseline' }
     : { display: 'block', margin: '4px 0', lineHeight: 1.6 };
 
   return (
@@ -76,8 +98,12 @@ export const FormulaRenderer: React.FC<FormulaRendererProps> = ({
               </span>
             );
 
-          case 'latex':
-            if (token.displayMode && !inline) {
+          case 'latex': {
+            const displayMode = Boolean(token.displayMode && !inline);
+            const katexHtml = renderKatexHtml(token.content, displayMode);
+            const readableFallback = formatReadableLatex(token.content);
+
+            if (displayMode) {
               return (
                 <div
                   key={key}
@@ -91,16 +117,26 @@ export const FormulaRenderer: React.FC<FormulaRendererProps> = ({
                     backgroundColor: '#F7FAFC',
                     borderRadius: '6px',
                     fontFamily: 'KaTeX_Main, Times New Roman, serif',
-                    fontStyle: 'italic',
                     fontSize: '1.05em',
                     color: '#1A202C',
                     border: '1px solid #E2E8F0',
+                    overflowX: 'auto',
                   }}
                 >
-                  <span className="latex-expression">{token.content}</span>
+                  {katexHtml ? (
+                    <span
+                      className="latex-expression"
+                      dangerouslySetInnerHTML={{ __html: katexHtml }}
+                    />
+                  ) : (
+                    <span className="latex-expression" style={{ fontStyle: 'italic' }}>
+                      {readableFallback}
+                    </span>
+                  )}
                 </div>
               );
             }
+
             return (
               <span
                 key={key}
@@ -108,15 +144,21 @@ export const FormulaRenderer: React.FC<FormulaRendererProps> = ({
                 data-testid="latex-inline"
                 style={{
                   fontFamily: 'KaTeX_Main, Times New Roman, serif',
-                  fontStyle: 'italic',
                   padding: '0 2px',
                   color: '#2B6CB0',
                   fontWeight: 600,
+                  display: 'inline',
+                  verticalAlign: 'baseline',
                 }}
               >
-                {token.content}
+                {katexHtml ? (
+                  <span dangerouslySetInnerHTML={{ __html: katexHtml }} />
+                ) : (
+                  <span>{readableFallback}</span>
+                )}
               </span>
             );
+          }
 
           case 'chemistry':
             return (
