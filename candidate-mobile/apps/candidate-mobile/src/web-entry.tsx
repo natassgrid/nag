@@ -3,14 +3,18 @@ import { App } from './App';
 
 export { App };
 
+let isMounted = false;
+
 /**
  * Initializes and mounts the NAG Candidate Mobile Application
  * inside the Android WebView shell.
  */
 export function mountMobileApp(): void {
   if (typeof document === 'undefined') return;
+  if (isMounted) return;
   const root = document.getElementById('root');
   if (root && typeof (window as any).NagReactMount === 'function') {
+    isMounted = true;
     (window as any).NagReactMount(React.createElement(App), root);
   }
 }

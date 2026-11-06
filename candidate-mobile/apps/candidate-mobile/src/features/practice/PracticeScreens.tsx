@@ -559,43 +559,70 @@ export const PracticeResultPanelScreen: React.FC<PracticeResultPanelScreenProps>
               </div>
 
               {/* Question Stem */}
-              <div style={{ fontSize: '13px', fontWeight: 600, margin: '6px 0 10px 0' }}>
+              <div
+                style={{
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  lineHeight: 1.6,
+                  color: '#1A202C',
+                  margin: '8px 0 12px 0',
+                }}
+              >
                 <FormulaRenderer content={q.content} />
               </div>
 
               {/* Options */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '10px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px' }}>
                 {opts.map((opt) => {
                   const isSelected = q.candidateAnswer === opt.id;
                   const isAnswer = q.correctAnswer === opt.id;
 
                   let border = '#E2E8F0';
                   let bg = '#F7FAFC';
-                  let label = '';
+                  let badge: { text: string; bg: string; color: string } | null = null;
 
                   if (isAnswer) {
                     border = '#38A169';
                     bg = '#F0FFF4';
-                    label = ' ✓ Correct Answer';
+                    badge = { text: '✓ Correct Answer', bg: '#C6F6D5', color: '#22543D' };
                   } else if (isSelected && !q.correct) {
                     border = '#E53E3E';
                     bg = '#FFF5F5';
-                    label = ' ✗ Your Answer';
+                    badge = { text: '✗ Your Answer', bg: '#FED7D7', color: '#742A2A' };
                   }
 
                   return (
                     <div
                       key={opt.id}
                       style={{
-                        padding: '6px 10px',
-                        borderRadius: '6px',
-                        border: `1px solid ${border}`,
+                        padding: '10px 14px',
+                        borderRadius: '8px',
+                        border: `1.5px solid ${border}`,
                         backgroundColor: bg,
-                        fontSize: '12px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: '8px',
                       }}
                     >
-                      <FormulaRenderer content={opt.text} inline />
-                      {label && <strong style={{ fontSize: '11px', marginLeft: '6px' }}>{label}</strong>}
+                      <div style={{ flex: 1, fontSize: '13px', lineHeight: 1.5, color: '#2D3748' }}>
+                        <FormulaRenderer content={opt.text} inline />
+                      </div>
+                      {badge && (
+                        <span
+                          style={{
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            padding: '3px 8px',
+                            borderRadius: '4px',
+                            backgroundColor: badge.bg,
+                            color: badge.color,
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {badge.text}
+                        </span>
+                      )}
                     </div>
                   );
                 })}
@@ -607,15 +634,18 @@ export const PracticeResultPanelScreen: React.FC<PracticeResultPanelScreenProps>
                   style={{
                     backgroundColor: '#F7FAFC',
                     border: '1px solid #E2E8F0',
-                    borderRadius: '6px',
-                    padding: '8px 10px',
+                    borderRadius: '8px',
+                    padding: '10px 14px',
                     fontSize: '12px',
+                    lineHeight: 1.6,
                     color: '#2D3748',
-                    marginBottom: '8px',
+                    marginBottom: '10px',
                   }}
                 >
-                  <strong>Solution Derivation:</strong>
-                  <div style={{ marginTop: '4px' }}>
+                  <strong style={{ color: '#1A365D', display: 'block', marginBottom: '4px' }}>
+                    Solution Derivation:
+                  </strong>
+                  <div>
                     <FormulaRenderer content={q.explanation} />
                   </div>
                 </div>

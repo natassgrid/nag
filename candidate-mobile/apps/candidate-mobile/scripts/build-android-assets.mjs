@@ -24,6 +24,25 @@ console.log(`[NAG Assets Builder] Target Assets Dir: ${ASSETS_DIR}`);
 // Ensure output directories exist
 fs.mkdirSync(ASSETS_DIR, { recursive: true });
 
+// Copy KaTeX assets for offline formula rendering
+const KATEX_DIST_DIR = path.resolve(WORKSPACE_DIR, 'nag-frontend-workspace/node_modules/katex/dist');
+if (fs.existsSync(KATEX_DIST_DIR)) {
+  const katexFiles = ['katex.min.js', 'katex.min.css', 'contrib/mhchem.min.js'];
+  for (const kf of katexFiles) {
+    const src = path.join(KATEX_DIST_DIR, kf);
+    const dest = path.join(ASSETS_DIR, path.basename(kf));
+    if (fs.existsSync(src)) {
+      fs.copyFileSync(src, dest);
+    }
+  }
+  const fontsSrc = path.join(KATEX_DIST_DIR, 'fonts');
+  const fontsDest = path.join(ASSETS_DIR, 'fonts');
+  if (fs.existsSync(fontsSrc)) {
+    fs.cpSync(fontsSrc, fontsDest, { recursive: true });
+  }
+  console.log('[NAG Assets Builder] Copied KaTeX offline rendering assets to assets/www');
+}
+
 function collectSourceFiles(dir) {
   const result = [];
   const entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -324,7 +343,7 @@ const NagReact = (function() {
     'linearGradient', 'radialGradient', 'stop'
   ]);
 
-  const NON_DIMENSIONAL_PROPS = /acit|ex(?:s|g|n|p|$)|rph|grid|ows|mnc|ontw|oind|st[a-z]|wko/i;
+  const NON_DIMENSIONAL_PROPS = /acit|ex(?:s|g|n|p|$)|rph|grid|ows|mnc|ontw|oind|st[a-z]|wko|lineHeight|zIndex|flex|flexGrow|flexShrink|fontWeight|opacity|order/i;
 
   function flattenChildren(children) {
     if (children == null || typeof children === 'boolean') return [];
@@ -437,6 +456,14 @@ const NagReact = (function() {
     }
   }
 
+  function safeInsertBefore(parent, node, sibling) {
+    if (sibling && sibling.parentNode === parent) {
+      parent.insertBefore(node, sibling);
+    } else {
+      parent.insertBefore(node, null);
+    }
+  }
+
   function patch(parentDom, newVNode, oldVNode, nextSibling, isParentSvg) {
     if (newVNode == null || typeof newVNode === 'boolean') {
       if (oldVNode) unmount(oldVNode, parentDom);
@@ -457,7 +484,7 @@ const NagReact = (function() {
       }
       if (oldVNode) unmount(oldVNode, parentDom);
       const textNode = document.createTextNode(newVNode.text);
-      parentDom.insertBefore(textNode, nextSibling || null);
+      safeInsertBefore(parentDom, textNode, nextSibling);
       newVNode._dom = textNode;
       return textNode;
     }
@@ -501,6 +528,9 @@ const NagReact = (function() {
     if (oldVNode && oldVNode.type === newVNode.type && oldVNode._dom) {
       dom = oldVNode._dom;
       newVNode._dom = dom;
+      if (nextSibling && nextSibling.parentNode === parentDom && dom !== nextSibling && dom.nextSibling !== nextSibling) {
+        parentDom.insertBefore(dom, nextSibling);
+      }
       updateProps(dom, newVNode.props, oldVNode.props, isSvg);
       reconcileChildren(dom, newVNode, oldVNode, isSvg);
     } else {
@@ -515,7 +545,7 @@ const NagReact = (function() {
       for (let i = 0; i < flat.length; i++) {
         patch(dom, flat[i], null, null, isSvg);
       }
-      parentDom.insertBefore(dom, nextSibling || null);
+      safeInsertBefore(parentDom, dom, nextSibling);
     }
 
     return dom;
@@ -532,8 +562,11 @@ const NagReact = (function() {
       for (let i = 0; i < max; i++) {
         const n = newFlat[i];
         const o = oldFlat[i];
-        if (n && o) patch(parentDom, n, o, null, isSvg);
-        else if (n) patch(parentDom, n, null, null, isSvg);
+        const nextSibling = (parentDom.childNodes[i] && parentDom.childNodes[i].parentNode === parentDom)
+          ? parentDom.childNodes[i]
+          : null;
+        if (n && o) patch(parentDom, n, o, nextSibling, isSvg);
+        else if (n) patch(parentDom, n, null, nextSibling, isSvg);
         else if (o) unmount(o, parentDom);
       }
       return;
@@ -550,11 +583,14 @@ const NagReact = (function() {
       const n = newFlat[i];
       const k = (n && n.key != null) ? n.key : '__idx_' + i;
       const o = oldKeyMap.get(k);
+      const nextSibling = (parentDom.childNodes[i] && parentDom.childNodes[i].parentNode === parentDom)
+        ? parentDom.childNodes[i]
+        : null;
       if (o) {
         oldKeyMap.delete(k);
-        patch(parentDom, n, o, null, isSvg);
+        patch(parentDom, n, o, nextSibling, isSvg);
       } else {
-        patch(parentDom, n, null, null, isSvg);
+        patch(parentDom, n, null, nextSibling, isSvg);
       }
     }
 
@@ -585,8 +621,15 @@ const NagReact = (function() {
   }
 
   function mount(element, container) {
+    if (rootContainer && rootVNode) {
+      unmount(rootVNode, rootContainer);
+    }
     rootContainer = container;
     rootElement = element;
+    rootVNode = null;
+    if (container) {
+      container.innerHTML = '';
+    }
     renderRoot();
   }
 
@@ -701,6 +744,7 @@ const htmlContent = `<!DOCTYPE html>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#1A365D" />
   <title>NAG Candidate Mobile</title>
+  <link rel="stylesheet" href="katex.min.css" />
   <style>
     * {
       box-sizing: border-box;
@@ -726,6 +770,8 @@ const htmlContent = `<!DOCTYPE html>
 </head>
 <body>
   <div id="root"></div>
+  <script src="katex.min.js"></script>
+  <script src="mhchem.min.js"></script>
   <script src="app.bundle.js"></script>
 </body>
 </html>

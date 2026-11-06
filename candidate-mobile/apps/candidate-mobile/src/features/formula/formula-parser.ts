@@ -99,6 +99,79 @@ export function normalizeNewlinesPreservingLatex(text: string): string {
   return text.replace(/\\n(?![a-z])/g, '\n');
 }
 
+/**
+ * Converts LaTeX formula syntax to clean, human-readable Unicode text
+ * for mobile WebView environments where KaTeX is unavailable or as an
+ * accessible fallback (e.g. 260\text{ m} -> 260 m).
+ */
+export function formatReadableLatex(latex: string | null | undefined): string {
+  if (!latex) return '';
+  let text = normalizeLatexFormula(latex);
+
+  // 1. Unwrap \text{...}, \mathrm{...}, \mathbf{...}, \mathit{...}
+  text = text.replace(/\\(?:text|mathrm|mathbf|mathit)\{([^{}]*)\}/g, '$1');
+
+  // 2. Common arithmetic, relational & directional symbols
+  text = text
+    .replace(/\\times/g, ' × ')
+    .replace(/\\cdot/g, ' · ')
+    .replace(/\\div/g, ' ÷ ')
+    .replace(/\\pm/g, ' ± ')
+    .replace(/\\mp/g, ' ∓ ')
+    .replace(/\\le(?:q)?(?![a-zA-Z])/g, ' ≤ ')
+    .replace(/\\ge(?:q)?(?![a-zA-Z])/g, ' ≥ ')
+    .replace(/\\neq(?![a-zA-Z])/g, ' ≠ ')
+    .replace(/\\approx/g, ' ≈ ')
+    .replace(/\\equiv/g, ' ≡ ')
+    .replace(/\\to|\\rightarrow/g, ' → ')
+    .replace(/\\leftarrow/g, ' ← ')
+    .replace(/\\infty/g, ' ∞ ')
+    .replace(/\\degree|\^\\circ/g, '°');
+
+  // 3. Greek symbols
+  const greek: Record<string, string> = {
+    alpha: 'α', beta: 'β', gamma: 'γ', delta: 'δ', epsilon: 'ε',
+    theta: 'θ', lambda: 'λ', mu: 'μ', pi: 'π', rho: 'ρ',
+    sigma: 'σ', tau: 'τ', phi: 'φ', omega: 'ω',
+    Delta: 'Δ', Gamma: 'Γ', Theta: 'Θ', Lambda: 'Λ', Sigma: 'Σ', Omega: 'Ω',
+  };
+  for (const [name, sym] of Object.entries(greek)) {
+    text = text.replace(new RegExp(`\\\\${name}(?![a-zA-Z])`, 'g'), sym);
+  }
+
+  // 4. Fractions: \frac{a}{b} -> a/b
+  text = text.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, '($1/$2)');
+  text = text.replace(/\(([a-zA-Z0-9]+)\/([a-zA-Z0-9]+)\)/g, '$1/$2');
+
+  // 5. Square roots: \sqrt{x} -> √(x)
+  text = text.replace(/\\sqrt\{([^{}]+)\}/g, '√($1)');
+
+  // 6. Subscripts and superscripts
+  const supers: Record<string, string> = {
+    '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴',
+    '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹',
+    '+': '⁺', '-': '⁻', '=': '⁼', '(': '⁽', ')': '⁾', 'n': 'ⁿ'
+  };
+  const subs: Record<string, string> = {
+    '0': '₀', '1': '₁', '2': '₂', '3': '₃', '4': '₄',
+    '5': '₅', '6': '₆', '7': '₇', '8': '₈', '9': '₉',
+    '+': '₊', '-': '₋', '=': '₌', '(': '₍', ')': '₎', 'a': 'ₐ', 'e': 'ₑ', 'x': 'ₓ'
+  };
+  text = text.replace(/\^\{([0-9+-]+)\}/g, (_, s: string) => s.split('').map(c => supers[c] || c).join(''));
+  text = text.replace(/\^([0-9])/g, (_, s: string) => supers[s] || `^${s}`);
+  text = text.replace(/_\{([0-9a-ex+-]+)\}/g, (_, s: string) => s.split('').map(c => subs[c] || c).join(''));
+  text = text.replace(/_([0-9])/g, (_, s: string) => subs[s] || `_${s}`);
+
+  // 7. Spacing macros
+  text = text.replace(/\\[,;!]/g, ' ').replace(/\\(?:quad|qquad)/g, '  ');
+
+  // 8. Clean leftover backslashes and braces
+  text = text.replace(/\\([a-zA-Z]+)/g, '$1');
+  text = text.replace(/[{}]/g, '');
+
+  return text.trim().replace(/\s+/g, ' ');
+}
+
 const ELEMENT_COLORS: Record<string, string> = {
   C: '#2D3748',
   c: '#4A5568',
