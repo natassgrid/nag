@@ -32,10 +32,10 @@ export interface DockerDevEndpointOrigins {
 }
 
 export const DOCKER_DEV_ORIGINS: DockerDevEndpointOrigins = {
-  localhostGatewayUrl: 'http://localhost:9000',
-  androidEmulatorGatewayUrl: 'http://10.0.2.2:9000',
-  localhostNginxProxyUrl: 'http://localhost:4300',
-  androidEmulatorNginxProxyUrl: 'http://10.0.2.2:4300',
+  localhostGatewayUrl: 'http://192.168.29.252:9000',
+  androidEmulatorGatewayUrl: 'http://192.168.29.252:9000',
+  localhostNginxProxyUrl: 'http://192.168.29.252:4300',
+  androidEmulatorNginxProxyUrl: 'http://192.168.29.252:4300',
   dockerInternalGatewayUrl: 'http://api-gateway:9000',
   mockServerUrl: 'http://localhost:8099',
   ocrServiceUrl: 'http://localhost:5005',

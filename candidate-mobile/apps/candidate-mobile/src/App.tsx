@@ -84,11 +84,11 @@ export const App: React.FC = () => {
   const learnController = useMemo(() => new LearnController(), []);
   const practiceController = useMemo(() => new PracticeController(), []);
   const layoutController = useMemo(() => new CandidateLayoutController('AUTH'), []);
-  const defaultDockerMode: DockerTargetMode =
-    typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent || '')
-      ? 'android-emulator'
-      : 'localhost-gateway';
-  const dockerApiService = useMemo(() => new DockerApiService(defaultDockerMode), [defaultDockerMode]);
+  const dockerApiService = useMemo(() => new DockerApiService('localhost-gateway', {
+    envOverrides: {
+      EXPO_PUBLIC_API_BASE_URL: 'http://192.168.29.252:9000',
+    }
+  }), []);
 
   const [currentScreen, setCurrentScreen] = useState<AppNavScreen>('AUTH_LOGIN');
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);

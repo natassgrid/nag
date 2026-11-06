@@ -189,9 +189,10 @@ export class DockerApiService {
   }
 }
 
-const defaultTargetMode: DockerTargetMode =
-  typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent || '')
-    ? 'android-emulator'
-    : 'localhost-gateway';
+const defaultTargetMode: DockerTargetMode = 'localhost-gateway';
 
-export const defaultDockerApiService = new DockerApiService(defaultTargetMode);
+export const defaultDockerApiService = new DockerApiService(defaultTargetMode, {
+  envOverrides: {
+    EXPO_PUBLIC_API_BASE_URL: 'http://192.168.29.252:9000',
+  },
+});

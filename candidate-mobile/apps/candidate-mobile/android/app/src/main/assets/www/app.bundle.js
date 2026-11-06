@@ -6,7 +6,7 @@
 (function() {
   'use strict';
 
-  
+
 /**
  * NAG Official Candidate Mobile - Self-Contained React 18 & DOM Renderer Shim
  * Provides React 18 hooks (useState, useEffect, useMemo, useCallback, useRef, Fragment),
@@ -1043,10 +1043,10 @@ exports.DOCKER_API_PATHS = exports.DOCKER_DEV_ORIGINS = void 0;
 exports.resolveDockerDevApiConfig = resolveDockerDevApiConfig;
 exports.buildDockerApiUrl = buildDockerApiUrl;
 exports.DOCKER_DEV_ORIGINS = {
-    localhostGatewayUrl: 'http://localhost:9000',
-    androidEmulatorGatewayUrl: 'http://10.0.2.2:9000',
-    localhostNginxProxyUrl: 'http://localhost:4300',
-    androidEmulatorNginxProxyUrl: 'http://10.0.2.2:4300',
+    localhostGatewayUrl: 'http://192.168.29.252:9000',
+    androidEmulatorGatewayUrl: 'http://192.168.29.252:9000',
+    localhostNginxProxyUrl: 'http://192.168.29.252:4300',
+    androidEmulatorNginxProxyUrl: 'http://192.168.29.252:4300',
     dockerInternalGatewayUrl: 'http://api-gateway:9000',
     mockServerUrl: 'http://localhost:8099',
     ocrServiceUrl: 'http://localhost:5005',
@@ -17310,10 +17310,10 @@ class DockerApiService {
             }
             const currentBase = this.client.getBaseUrl();
             const fallbackOrigins = [
-                'http://10.0.2.2:9000',
+                'http://192.168.29.252:9000',
+                'http://192.168.29.252:4300',
                 'http://localhost:9000',
-                'http://10.0.2.2:4300',
-                'http://localhost:4300',
+                'http://10.0.2.2:9000',
             ].filter((origin) => origin !== currentBase);
             for (const origin of fallbackOrigins) {
                 try {
