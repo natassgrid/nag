@@ -225,12 +225,12 @@ describe('2. Candidate Authentication Controller (Phase 1)', () => {
     const state = controller.getState();
     expect(state.step).toBe('VERIFY_OTP');
     expect(state.mobileNumber).toBe('9876543210');
-    expect(state.mockOtpCode).toBe('123456');
+    expect(state.mockOtpCode).toBe('000000');
   });
 
-  it('verifies 6-digit OTP and authenticates candidate', async () => {
+  it('verifies 6-digit OTP (including backend test bypass 000000) and authenticates candidate', async () => {
     await controller.sendOtp('9876543210', 'LOGIN');
-    const success = await controller.verifyOtp('9876543210', '123456');
+    const success = await controller.verifyOtp('9876543210', '000000');
     expect(success).toBe(true);
     const state = controller.getState();
     expect(state.step).toBe('AUTHENTICATED');

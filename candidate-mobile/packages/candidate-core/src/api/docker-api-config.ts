@@ -35,13 +35,13 @@ export const CLOUDFLARE_TUNNEL_URL =
   'https://parking-gospel-entering-fundamentals.trycloudflare.com';
 
 export const DOCKER_DEV_ORIGINS: DockerDevEndpointOrigins = {
-  localhostGatewayUrl: CLOUDFLARE_TUNNEL_URL,
-  androidEmulatorGatewayUrl: CLOUDFLARE_TUNNEL_URL,
-  localhostNginxProxyUrl: CLOUDFLARE_TUNNEL_URL,
-  androidEmulatorNginxProxyUrl: CLOUDFLARE_TUNNEL_URL,
-  dockerInternalGatewayUrl: CLOUDFLARE_TUNNEL_URL,
-  mockServerUrl: CLOUDFLARE_TUNNEL_URL,
-  ocrServiceUrl: CLOUDFLARE_TUNNEL_URL,
+  localhostGatewayUrl: 'http://localhost:9000',
+  androidEmulatorGatewayUrl: 'http://10.0.2.2:9000',
+  localhostNginxProxyUrl: 'http://localhost:4300',
+  androidEmulatorNginxProxyUrl: 'http://10.0.2.2:4300',
+  dockerInternalGatewayUrl: 'http://api-gateway:9000',
+  mockServerUrl: 'http://localhost:8099',
+  ocrServiceUrl: 'http://localhost:5005',
 };
 
 /**

@@ -28,9 +28,23 @@ export const MobileOtpLoginScreen: React.FC<AuthScreenProps> = ({
   const [passwordInput, setPasswordInput] = useState<string>('');
   const [showLoginPassword, setShowLoginPassword] = useState<boolean>(false);
   const [otpInput, setOtpInput] = useState<string>('');
-  const [require2fa, setRequire2fa] = useState<boolean>(false);
+  const [rememberMe, setRememberMe] = useState<boolean>(state.rememberMe || false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
+    controller.loadRememberMe().then((remembered) => {
+      if (remembered) {
+        setRememberMe(true);
+        if (remembered.mode === 'PASSWORD') {
+          setAuthMode('PASSWORD');
+          setIdentifierInput(remembered.identifier);
+        } else {
+          setAuthMode('OTP');
+          setMobileInput(remembered.identifier);
+        }
+      }
+    });
+
     return controller.subscribe((s: AuthState) => {
       setState(s);
       if (s.step === 'AUTHENTICATED' && onAuthenticated) {
@@ -39,19 +53,82 @@ export const MobileOtpLoginScreen: React.FC<AuthScreenProps> = ({
     });
   }, [controller, onAuthenticated]);
 
+  const clearFieldError = (field: string) => {
+    if (fieldErrors[field]) {
+      const next = { ...fieldErrors };
+      delete next[field];
+      setFieldErrors(next);
+    }
+  };
+
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    await controller.sendOtp(mobileInput, 'LOGIN');
+    const errors: Record<string, string> = {};
+    const cleanMobile = (mobileInput || '').trim();
+
+    if (!cleanMobile) {
+      errors.mobile = 'Mobile number is required.';
+    } else if (cleanMobile.length !== 10) {
+      errors.mobile = 'Mobile number must be exactly 10 digits.';
+    } else if (!controller.validateMobile(cleanMobile)) {
+      errors.mobile =
+        'Mobile number must be a valid Indian mobile number starting with 6, 7, 8, or 9.';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      return;
+    }
+
+    setFieldErrors({});
+    await controller.sendOtp(cleanMobile, 'LOGIN');
   };
 
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    await controller.loginWithPassword(identifierInput, passwordInput);
+    const errors: Record<string, string> = {};
+    const cleanId = (identifierInput || '').trim();
+
+    if (!cleanId) {
+      errors.identifier = 'Please enter your registered email or username.';
+    } else if (cleanId.includes('@') && !controller.validateEmail(cleanId)) {
+      errors.identifier = 'Please enter a valid email address.';
+    }
+
+    if (!passwordInput) {
+      errors.password = 'Please enter your account password.';
+    } else if (passwordInput.length < 6) {
+      errors.password = 'Password must be at least 6 characters long.';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      return;
+    }
+
+    setFieldErrors({});
+    await controller.loginWithPassword(cleanId, passwordInput, rememberMe);
   };
 
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    await controller.verifyOtp(state.mobileNumber, otpInput, require2fa);
+    const errors: Record<string, string> = {};
+    const cleanOtp = (otpInput || '').trim();
+
+    if (!cleanOtp) {
+      errors.otp = 'OTP is required.';
+    } else if (cleanOtp.length !== 6 || !controller.validateOtp(cleanOtp)) {
+      errors.otp = 'OTP must be exactly 6 numeric digits.';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      return;
+    }
+
+    setFieldErrors({});
+    // Students/candidates do not require TOTP 2FA
+    await controller.verifyOtp(state.mobileNumber, cleanOtp, false, rememberMe);
   };
 
   return (
@@ -124,7 +201,10 @@ export const MobileOtpLoginScreen: React.FC<AuthScreenProps> = ({
           <button
             type="button"
             data-testid="tab-mobile-otp"
-            onClick={() => setAuthMode('OTP')}
+            onClick={() => {
+              setAuthMode('OTP');
+              setFieldErrors({});
+            }}
             style={{
               flex: 1,
               padding: '8px 12px',
@@ -143,7 +223,10 @@ export const MobileOtpLoginScreen: React.FC<AuthScreenProps> = ({
           <button
             type="button"
             data-testid="tab-password-login"
-            onClick={() => setAuthMode('PASSWORD')}
+            onClick={() => {
+              setAuthMode('PASSWORD');
+              setFieldErrors({});
+            }}
             style={{
               flex: 1,
               padding: '8px 12px',
@@ -176,11 +259,12 @@ export const MobileOtpLoginScreen: React.FC<AuthScreenProps> = ({
                 style={{
                   padding: '10px 12px',
                   backgroundColor: '#EDF2F7',
-                  border: '1px solid #CBD5E0',
+                  border: fieldErrors.mobile ? '1px solid #E53E3E' : '1px solid #CBD5E0',
                   borderRight: 'none',
                   borderRadius: '6px 0 0 6px',
                   fontSize: '14px',
                   color: '#4A5568',
+                  fontWeight: '600',
                 }}
               >
                 +91
@@ -191,37 +275,61 @@ export const MobileOtpLoginScreen: React.FC<AuthScreenProps> = ({
                 type="tel"
                 maxLength={10}
                 placeholder="10-digit mobile number"
+                aria-invalid={!!fieldErrors.mobile}
                 value={mobileInput}
-                onChange={(e) => setMobileInput(e.target.value.replace(/\D/g, ''))}
+                onChange={(e) => {
+                  setMobileInput(e.target.value.replace(/\D/g, ''));
+                  clearFieldError('mobile');
+                }}
                 style={{
                   flex: 1,
                   padding: '10px 12px',
-                  border: '1px solid #CBD5E0',
+                  border: fieldErrors.mobile ? '1px solid #E53E3E' : '1px solid #CBD5E0',
                   borderRadius: '0 6px 6px 0',
                   fontSize: '14px',
                   outline: 'none',
                 }}
               />
             </div>
+            {fieldErrors.mobile && (
+              <span
+                data-testid="login-mobile-error"
+                style={{ display: 'block', fontSize: '12px', color: '#E53E3E', marginTop: '4px' }}
+              >
+                {fieldErrors.mobile}
+              </span>
+            )}
           </div>
 
+          {/* Remember Me Option */}
           <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'flex', alignItems: 'center', fontSize: '13px', color: '#4A5568', cursor: 'pointer' }}>
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                fontSize: '13px',
+                color: '#4A5568',
+                cursor: 'pointer',
+              }}
+            >
               <input
                 type="checkbox"
-                data-testid="require-2fa-toggle"
-                checked={require2fa}
-                onChange={(e) => setRequire2fa(e.target.checked)}
+                data-testid="remember-me-checkbox"
+                checked={rememberMe}
+                onChange={(e) => {
+                  setRememberMe(e.target.checked);
+                  controller.setRememberMe(e.target.checked);
+                }}
                 style={{ marginRight: '8px' }}
               />
-              Require 2FA Authenticator TOTP after OTP
+              Remember me on this device
             </label>
           </div>
 
           <button
             data-testid="get-otp-button"
             type="submit"
-            disabled={state.isSubmitting || mobileInput.length !== 10}
+            disabled={state.isSubmitting}
             style={{
               width: '100%',
               padding: '12px',
@@ -248,7 +356,7 @@ export const MobileOtpLoginScreen: React.FC<AuthScreenProps> = ({
               textAlign: 'center',
             }}
           >
-            Default Demo OTP: <strong>123456</strong>
+            Default Test OTP: <strong>000000</strong>
           </div>
         </form>
       )}
@@ -267,21 +375,33 @@ export const MobileOtpLoginScreen: React.FC<AuthScreenProps> = ({
               data-testid="login-identifier-input"
               type="text"
               placeholder="e.g. candidate@example.com or admin"
+              aria-invalid={!!fieldErrors.identifier}
               value={identifierInput}
-              onChange={(e) => setIdentifierInput(e.target.value)}
+              onChange={(e) => {
+                setIdentifierInput(e.target.value);
+                clearFieldError('identifier');
+              }}
               style={{
                 width: '100%',
                 padding: '10px 12px',
-                border: '1px solid #CBD5E0',
+                border: fieldErrors.identifier ? '1px solid #E53E3E' : '1px solid #CBD5E0',
                 borderRadius: '6px',
                 fontSize: '14px',
                 outline: 'none',
                 boxSizing: 'border-box',
               }}
             />
+            {fieldErrors.identifier && (
+              <span
+                data-testid="login-identifier-error"
+                style={{ display: 'block', fontSize: '12px', color: '#E53E3E', marginTop: '4px' }}
+              >
+                {fieldErrors.identifier}
+              </span>
+            )}
           </div>
 
-          <div style={{ marginBottom: '16px' }}>
+          <div style={{ marginBottom: '12px' }}>
             <label
               htmlFor="password-input"
               style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#2D3748', marginBottom: '6px' }}
@@ -294,12 +414,16 @@ export const MobileOtpLoginScreen: React.FC<AuthScreenProps> = ({
                 data-testid="login-password-input"
                 type={showLoginPassword ? 'text' : 'password'}
                 placeholder="Enter your account password"
+                aria-invalid={!!fieldErrors.password}
                 value={passwordInput}
-                onChange={(e) => setPasswordInput(e.target.value)}
+                onChange={(e) => {
+                  setPasswordInput(e.target.value);
+                  clearFieldError('password');
+                }}
                 style={{
                   width: '100%',
                   padding: '10px 40px 10px 12px',
-                  border: '1px solid #CBD5E0',
+                  border: fieldErrors.password ? '1px solid #E53E3E' : '1px solid #CBD5E0',
                   borderRadius: '6px',
                   fontSize: '14px',
                   outline: 'none',
@@ -328,12 +452,67 @@ export const MobileOtpLoginScreen: React.FC<AuthScreenProps> = ({
                 {showLoginPassword ? '👁️' : '🙈'}
               </button>
             </div>
+            {fieldErrors.password && (
+              <span
+                data-testid="login-password-error"
+                style={{ display: 'block', fontSize: '12px', color: '#E53E3E', marginTop: '4px' }}
+              >
+                {fieldErrors.password}
+              </span>
+            )}
+          </div>
+
+          {/* Show password in plain text checkbox */}
+          <div style={{ marginBottom: '12px' }}>
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                fontSize: '13px',
+                color: '#4A5568',
+                cursor: 'pointer',
+              }}
+            >
+              <input
+                type="checkbox"
+                data-testid="show-password-checkbox"
+                checked={showLoginPassword}
+                onChange={(e) => setShowLoginPassword(e.target.checked)}
+                style={{ marginRight: '8px' }}
+              />
+              Show password in plain text
+            </label>
+          </div>
+
+          {/* Remember Me Option */}
+          <div style={{ marginBottom: '16px' }}>
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                fontSize: '13px',
+                color: '#4A5568',
+                cursor: 'pointer',
+              }}
+            >
+              <input
+                type="checkbox"
+                data-testid="remember-me-checkbox"
+                checked={rememberMe}
+                onChange={(e) => {
+                  setRememberMe(e.target.checked);
+                  controller.setRememberMe(e.target.checked);
+                }}
+                style={{ marginRight: '8px' }}
+              />
+              Remember me on this device
+            </label>
           </div>
 
           <button
             data-testid="login-password-button"
             type="submit"
-            disabled={state.isSubmitting || !identifierInput.trim() || !passwordInput}
+            disabled={state.isSubmitting}
             style={{
               width: '100%',
               padding: '12px',
@@ -367,13 +546,17 @@ export const MobileOtpLoginScreen: React.FC<AuthScreenProps> = ({
               data-testid="otp-code-input"
               type="text"
               maxLength={6}
-              placeholder="123456"
+              placeholder="000000"
+              aria-invalid={!!fieldErrors.otp}
               value={otpInput}
-              onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, ''))}
+              onChange={(e) => {
+                setOtpInput(e.target.value.replace(/\D/g, ''));
+                clearFieldError('otp');
+              }}
               style={{
                 width: '100%',
                 padding: '12px',
-                border: '1px solid #CBD5E0',
+                border: fieldErrors.otp ? '1px solid #E53E3E' : '1px solid #CBD5E0',
                 borderRadius: '6px',
                 fontSize: '18px',
                 letterSpacing: '6px',
@@ -382,12 +565,49 @@ export const MobileOtpLoginScreen: React.FC<AuthScreenProps> = ({
                 boxSizing: 'border-box',
               }}
             />
+            {fieldErrors.otp && (
+              <span
+                data-testid="login-otp-error"
+                style={{ display: 'block', fontSize: '12px', color: '#E53E3E', marginTop: '4px' }}
+              >
+                {fieldErrors.otp}
+              </span>
+            )}
+          </div>
+
+          {/* Remember Me Option on OTP Verification */}
+          <div style={{ marginBottom: '14px' }}>
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                fontSize: '13px',
+                color: '#4A5568',
+                cursor: 'pointer',
+              }}
+            >
+              <input
+                type="checkbox"
+                data-testid="remember-me-checkbox"
+                checked={rememberMe}
+                onChange={(e) => {
+                  setRememberMe(e.target.checked);
+                  controller.setRememberMe(e.target.checked);
+                }}
+                style={{ marginRight: '8px' }}
+              />
+              Remember me on this device
+            </label>
           </div>
 
           <div style={{ textAlign: 'center', margin: '4px 0 12px 0' }}>
             <button
               type="button"
-              onClick={() => setOtpInput('123456')}
+              data-testid="use-test-otp-button"
+              onClick={() => {
+                setOtpInput('000000');
+                clearFieldError('otp');
+              }}
               style={{
                 background: 'none',
                 border: '1px dashed #4299E1',
@@ -398,7 +618,7 @@ export const MobileOtpLoginScreen: React.FC<AuthScreenProps> = ({
                 cursor: 'pointer',
               }}
             >
-              Use Demo OTP: <strong>123456</strong>
+              Use Test OTP: <strong>000000</strong>
             </button>
           </div>
 
@@ -426,7 +646,10 @@ export const MobileOtpLoginScreen: React.FC<AuthScreenProps> = ({
             <button
               type="button"
               data-testid="change-mobile-button"
-              onClick={() => controller.setStep('LOGIN_OTP')}
+              onClick={() => {
+                controller.setStep('LOGIN_OTP');
+                setFieldErrors({});
+              }}
               style={{ background: 'none', border: 'none', color: '#2B6CB0', cursor: 'pointer', padding: 0 }}
             >
               Change Mobile

@@ -163,9 +163,13 @@ export class DockerApiService {
       }
 
       const currentBase = this.client.getBaseUrl();
-      const fallbackOrigins = [CLOUDFLARE_TUNNEL_URL].filter(
-        (origin) => origin !== currentBase
-      );
+      const fallbackOrigins = [
+        CLOUDFLARE_TUNNEL_URL,
+        'http://10.0.2.2:9000',
+        'http://localhost:9000',
+        'http://10.0.2.2:4300',
+        'http://localhost:4300',
+      ].filter((origin) => origin !== currentBase);
 
       for (const origin of fallbackOrigins) {
         try {
