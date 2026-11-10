@@ -1043,13 +1043,13 @@ exports.DOCKER_API_PATHS = exports.DOCKER_DEV_ORIGINS = void 0;
 exports.resolveDockerDevApiConfig = resolveDockerDevApiConfig;
 exports.buildDockerApiUrl = buildDockerApiUrl;
 exports.DOCKER_DEV_ORIGINS = {
-    localhostGatewayUrl: 'http://192.168.29.252:9000',
-    androidEmulatorGatewayUrl: 'http://192.168.29.252:9000',
-    localhostNginxProxyUrl: 'http://192.168.29.252:4300',
-    androidEmulatorNginxProxyUrl: 'http://192.168.29.252:4300',
-    dockerInternalGatewayUrl: 'http://api-gateway:9000',
-    mockServerUrl: 'http://localhost:8099',
-    ocrServiceUrl: 'http://localhost:5005',
+    localhostGatewayUrl: 'https://parking-gospel-entering-fundamentals.trycloudflare.com',
+    androidEmulatorGatewayUrl: 'https://parking-gospel-entering-fundamentals.trycloudflare.com',
+    localhostNginxProxyUrl: 'https://parking-gospel-entering-fundamentals.trycloudflare.com',
+    androidEmulatorNginxProxyUrl: 'https://parking-gospel-entering-fundamentals.trycloudflare.com',
+    dockerInternalGatewayUrl: 'https://parking-gospel-entering-fundamentals.trycloudflare.com',
+    mockServerUrl: 'https://parking-gospel-entering-fundamentals.trycloudflare.com',
+    ocrServiceUrl: 'https://parking-gospel-entering-fundamentals.trycloudflare.com',
 };
 /**
  * Canonical Docker-routed API paths matching `candidate-delivery` & `api-gateway:9000`.
@@ -17310,10 +17310,7 @@ class DockerApiService {
             }
             const currentBase = this.client.getBaseUrl();
             const fallbackOrigins = [
-                'http://192.168.29.252:9000',
-                'http://192.168.29.252:4300',
-                'http://localhost:9000',
-                'http://10.0.2.2:9000',
+                'https://parking-gospel-entering-fundamentals.trycloudflare.com',
             ].filter((origin) => origin !== currentBase);
             for (const origin of fallbackOrigins) {
                 try {

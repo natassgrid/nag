@@ -1,5 +1,6 @@
 import {
   ApiClientError,
+  CLOUDFLARE_TUNNEL_URL,
   DOCKER_API_PATHS,
   DOCKER_DEV_ORIGINS,
   DockerTargetMode,
@@ -162,12 +163,9 @@ export class DockerApiService {
       }
 
       const currentBase = this.client.getBaseUrl();
-      const fallbackOrigins = [
-        'http://10.0.2.2:9000',
-        'http://localhost:9000',
-        'http://10.0.2.2:4300',
-        'http://localhost:4300',
-      ].filter((origin) => origin !== currentBase);
+      const fallbackOrigins = [CLOUDFLARE_TUNNEL_URL].filter(
+        (origin) => origin !== currentBase
+      );
 
       for (const origin of fallbackOrigins) {
         try {
@@ -193,6 +191,6 @@ const defaultTargetMode: DockerTargetMode = 'localhost-gateway';
 
 export const defaultDockerApiService = new DockerApiService(defaultTargetMode, {
   envOverrides: {
-    EXPO_PUBLIC_API_BASE_URL: 'http://192.168.29.252:9000',
+    EXPO_PUBLIC_API_BASE_URL: CLOUDFLARE_TUNNEL_URL,
   },
 });

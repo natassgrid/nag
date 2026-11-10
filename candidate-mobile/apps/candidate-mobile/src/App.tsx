@@ -55,7 +55,7 @@ import {
   MobileRouteKey,
 } from './features/layout';
 import { DockerApiService } from './services/docker-api.service';
-import { DockerTargetMode } from '@nag/candidate-core';
+import { CLOUDFLARE_TUNNEL_URL, DockerTargetMode } from '@nag/candidate-core';
 
 export type AppNavScreen =
   | 'AUTH_LOGIN'
@@ -86,7 +86,7 @@ export const App: React.FC = () => {
   const layoutController = useMemo(() => new CandidateLayoutController('AUTH'), []);
   const dockerApiService = useMemo(() => new DockerApiService('localhost-gateway', {
     envOverrides: {
-      EXPO_PUBLIC_API_BASE_URL: 'http://192.168.29.252:9000',
+      EXPO_PUBLIC_API_BASE_URL: CLOUDFLARE_TUNNEL_URL,
     }
   }), []);
 
