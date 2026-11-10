@@ -1,6 +1,6 @@
 /**
  * NAG Official Candidate Mobile - Complete Self-Contained Web Asset Bundle
- * Build Timestamp: 2026-11-10T11:10:19.339Z
+ * Build Timestamp: 2026-11-10T11:26:40.053Z
  * Target: Android WebView file:///android_asset/www/index.html
  */
 (function() {
@@ -2863,7 +2863,7 @@ const App = () => {
                     currentScreen !== 'AUTH_LOGIN' &&
                     currentScreen !== 'AUTH_REGISTER' &&
                     currentScreen !== 'AUTH_TOTP'
-                    ? '64px'
+                    ? 'calc(72px + env(safe-area-inset-bottom, 0px))'
                     : '0',
             } },
             currentScreen === 'AUTH_LOGIN' && (react_1.default.createElement(auth_1.MobileOtpLoginScreen, { controller: authController, onAuthenticated: handleAuthenticated, onNavigateToRegister: handleNavigateToRegister })),
@@ -2892,7 +2892,9 @@ const App = () => {
                 bottom: 0,
                 left: 0,
                 right: 0,
-                height: '56px',
+                height: 'calc(56px + env(safe-area-inset-bottom, 0px))',
+                paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+                boxSizing: 'border-box',
                 backgroundColor: '#FFFFFF',
                 borderTop: '1px solid #CBD5E0',
                 display: 'flex',

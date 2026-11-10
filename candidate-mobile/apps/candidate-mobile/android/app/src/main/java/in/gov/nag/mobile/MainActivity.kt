@@ -9,6 +9,9 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 import `in`.gov.nag.mobile.security.NagSecurityPackage
 
 class MainActivity : AppCompatActivity() {
@@ -41,6 +44,19 @@ class MainActivity : AppCompatActivity() {
                     request?.grant(request.resources)
                 }
             }
+        }
+
+        ViewCompat.setOnApplyWindowInsetsListener(webView) { view, windowInsets ->
+            val insets = windowInsets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+            )
+            view.updatePadding(
+                left = insets.left,
+                top = insets.top,
+                right = insets.right,
+                bottom = insets.bottom
+            )
+            windowInsets
         }
 
         setContentView(webView)
