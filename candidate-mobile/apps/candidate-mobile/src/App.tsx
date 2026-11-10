@@ -498,7 +498,7 @@ export const App: React.FC = () => {
             currentScreen !== 'AUTH_LOGIN' &&
             currentScreen !== 'AUTH_REGISTER' &&
             currentScreen !== 'AUTH_TOTP'
-              ? '64px'
+              ? 'calc(72px + env(safe-area-inset-bottom, 0px))'
               : '0',
         }}
       >
@@ -630,7 +630,9 @@ export const App: React.FC = () => {
             bottom: 0,
             left: 0,
             right: 0,
-            height: '56px',
+            height: 'calc(56px + env(safe-area-inset-bottom, 0px))',
+            paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+            boxSizing: 'border-box',
             backgroundColor: '#FFFFFF',
             borderTop: '1px solid #CBD5E0',
             display: 'flex',
