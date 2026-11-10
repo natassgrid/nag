@@ -1,6 +1,6 @@
 /**
  * NAG Official Candidate Mobile - Complete Self-Contained Web Asset Bundle
- * Build Timestamp: 2026-11-10T10:39:30.082Z
+ * Build Timestamp: 2026-11-10T11:10:19.339Z
  * Target: Android WebView file:///android_asset/www/index.html
  */
 (function() {
@@ -595,6 +595,7 @@ class NagCandidateApiClient {
     tokenStorage;
     fetchFn;
     onUnauthorized;
+    onTokenRefreshed;
     refreshPromise = null;
     offlineQueue = [];
     constructor(config = {}) {
@@ -603,7 +604,7 @@ class NagCandidateApiClient {
         this.baseUrl = (config.baseUrl || dockerConfig.baseUrl).replace(/\/+$/, '');
         this.tenantId = config.tenantId || dockerConfig.tenantId || 'default';
         this.refreshEndpoint =
-            config.refreshEndpoint || docker_api_config_1.DOCKER_API_PATHS.IDENTITY.LEGACY_REFRESH;
+            config.refreshEndpoint || docker_api_config_1.DOCKER_API_PATHS.IDENTITY.AUTH_TOKEN_REFRESH;
         this.tokenStorage = config.tokenStorage || new InMemoryTokenStorage();
         this.fetchFn =
             config.fetchFn ||
@@ -611,6 +612,7 @@ class NagCandidateApiClient {
                     ? fetch.bind(globalThis)
                     : undefined);
         this.onUnauthorized = config.onUnauthorized;
+        this.onTokenRefreshed = config.onTokenRefreshed;
     }
     // ============================================================================
     // Docker Environment & Base URL Configuration
@@ -691,8 +693,15 @@ class NagCandidateApiClient {
                 throw new ApiClientError(response.status, response.statusText, await response.text());
             }
             const raw = (await response.json());
-            const tokens = raw.data || raw;
+            const rawTokens = raw?.data || raw;
+            const tokens = {
+                accessToken: rawTokens.accessToken || rawTokens.token || rawTokens.jwt,
+                refreshToken: rawTokens.refreshToken || refreshToken,
+                tokenType: rawTokens.tokenType || 'Bearer',
+                expiresIn: rawTokens.expiresIn || 28800,
+            };
             await this.setAuthTokens(tokens);
+            this.onTokenRefreshed?.(tokens);
             return tokens;
         }
         catch (err) {
@@ -724,8 +733,15 @@ class NagCandidateApiClient {
         });
         // Handle 401 Unauthorized with single token refresh retry
         if (response.status === 401 && !isRetry && !options.skipAuth) {
-            await this.refreshAccessToken();
-            return await this.request(endpoint, options, true);
+            try {
+                await this.refreshAccessToken();
+                return await this.request(endpoint, options, true);
+            }
+            catch (refreshErr) {
+                await this.clearAuthTokens();
+                this.onUnauthorized?.();
+                throw refreshErr;
+            }
         }
         if (!response.ok) {
             let errorData;
@@ -1044,13 +1060,13 @@ exports.resolveDockerDevApiConfig = resolveDockerDevApiConfig;
 exports.buildDockerApiUrl = buildDockerApiUrl;
 exports.CLOUDFLARE_TUNNEL_URL = 'https://parking-gospel-entering-fundamentals.trycloudflare.com';
 exports.DOCKER_DEV_ORIGINS = {
-    localhostGatewayUrl: exports.CLOUDFLARE_TUNNEL_URL,
-    androidEmulatorGatewayUrl: exports.CLOUDFLARE_TUNNEL_URL,
-    localhostNginxProxyUrl: exports.CLOUDFLARE_TUNNEL_URL,
-    androidEmulatorNginxProxyUrl: exports.CLOUDFLARE_TUNNEL_URL,
-    dockerInternalGatewayUrl: exports.CLOUDFLARE_TUNNEL_URL,
-    mockServerUrl: exports.CLOUDFLARE_TUNNEL_URL,
-    ocrServiceUrl: exports.CLOUDFLARE_TUNNEL_URL,
+    localhostGatewayUrl: 'http://localhost:9000',
+    androidEmulatorGatewayUrl: 'http://10.0.2.2:9000',
+    localhostNginxProxyUrl: 'http://localhost:4300',
+    androidEmulatorNginxProxyUrl: 'http://10.0.2.2:4300',
+    dockerInternalGatewayUrl: 'http://api-gateway:9000',
+    mockServerUrl: 'http://localhost:8099',
+    ocrServiceUrl: 'http://localhost:5005',
 };
 /**
  * Canonical Docker-routed API paths matching `candidate-delivery` & `api-gateway:9000`.
@@ -3751,8 +3767,22 @@ const MobileOtpLoginScreen = ({ controller, onAuthenticated, onNavigateToRegiste
     const [passwordInput, setPasswordInput] = (0, react_1.useState)('');
     const [showLoginPassword, setShowLoginPassword] = (0, react_1.useState)(false);
     const [otpInput, setOtpInput] = (0, react_1.useState)('');
-    const [require2fa, setRequire2fa] = (0, react_1.useState)(false);
+    const [rememberMe, setRememberMe] = (0, react_1.useState)(state.rememberMe || false);
+    const [fieldErrors, setFieldErrors] = (0, react_1.useState)({});
     (0, react_1.useEffect)(() => {
+        controller.loadRememberMe().then((remembered) => {
+            if (remembered) {
+                setRememberMe(true);
+                if (remembered.mode === 'PASSWORD') {
+                    setAuthMode('PASSWORD');
+                    setIdentifierInput(remembered.identifier);
+                }
+                else {
+                    setAuthMode('OTP');
+                    setMobileInput(remembered.identifier);
+                }
+            }
+        });
         return controller.subscribe((s) => {
             setState(s);
             if (s.step === 'AUTHENTICATED' && onAuthenticated) {
@@ -3760,17 +3790,74 @@ const MobileOtpLoginScreen = ({ controller, onAuthenticated, onNavigateToRegiste
             }
         });
     }, [controller, onAuthenticated]);
+    const clearFieldError = (field) => {
+        if (fieldErrors[field]) {
+            const next = { ...fieldErrors };
+            delete next[field];
+            setFieldErrors(next);
+        }
+    };
     const handleSendOtp = async (e) => {
         e.preventDefault();
-        await controller.sendOtp(mobileInput, 'LOGIN');
+        const errors = {};
+        const cleanMobile = (mobileInput || '').trim();
+        if (!cleanMobile) {
+            errors.mobile = 'Mobile number is required.';
+        }
+        else if (cleanMobile.length !== 10) {
+            errors.mobile = 'Mobile number must be exactly 10 digits.';
+        }
+        else if (!controller.validateMobile(cleanMobile)) {
+            errors.mobile =
+                'Mobile number must be a valid Indian mobile number starting with 6, 7, 8, or 9.';
+        }
+        if (Object.keys(errors).length > 0) {
+            setFieldErrors(errors);
+            return;
+        }
+        setFieldErrors({});
+        await controller.sendOtp(cleanMobile, 'LOGIN');
     };
     const handlePasswordLogin = async (e) => {
         e.preventDefault();
-        await controller.loginWithPassword(identifierInput, passwordInput);
+        const errors = {};
+        const cleanId = (identifierInput || '').trim();
+        if (!cleanId) {
+            errors.identifier = 'Please enter your registered email or username.';
+        }
+        else if (cleanId.includes('@') && !controller.validateEmail(cleanId)) {
+            errors.identifier = 'Please enter a valid email address.';
+        }
+        if (!passwordInput) {
+            errors.password = 'Please enter your account password.';
+        }
+        else if (passwordInput.length < 6) {
+            errors.password = 'Password must be at least 6 characters long.';
+        }
+        if (Object.keys(errors).length > 0) {
+            setFieldErrors(errors);
+            return;
+        }
+        setFieldErrors({});
+        await controller.loginWithPassword(cleanId, passwordInput, rememberMe);
     };
     const handleVerifyOtp = async (e) => {
         e.preventDefault();
-        await controller.verifyOtp(state.mobileNumber, otpInput, require2fa);
+        const errors = {};
+        const cleanOtp = (otpInput || '').trim();
+        if (!cleanOtp) {
+            errors.otp = 'OTP is required.';
+        }
+        else if (cleanOtp.length !== 6 || !controller.validateOtp(cleanOtp)) {
+            errors.otp = 'OTP must be exactly 6 numeric digits.';
+        }
+        if (Object.keys(errors).length > 0) {
+            setFieldErrors(errors);
+            return;
+        }
+        setFieldErrors({});
+        // Students/candidates do not require TOTP 2FA
+        await controller.verifyOtp(state.mobileNumber, cleanOtp, false, rememberMe);
     };
     return (react_1.default.createElement("div", { "data-testid": "mobile-otp-login-screen", style: {
             maxWidth: '420px',
@@ -3809,7 +3896,10 @@ const MobileOtpLoginScreen = ({ controller, onAuthenticated, onNavigateToRegiste
                 borderRadius: '8px',
                 padding: '4px',
             } },
-            react_1.default.createElement("button", { type: "button", "data-testid": "tab-mobile-otp", onClick: () => setAuthMode('OTP'), style: {
+            react_1.default.createElement("button", { type: "button", "data-testid": "tab-mobile-otp", onClick: () => {
+                    setAuthMode('OTP');
+                    setFieldErrors({});
+                }, style: {
                     flex: 1,
                     padding: '8px 12px',
                     border: 'none',
@@ -3821,7 +3911,10 @@ const MobileOtpLoginScreen = ({ controller, onAuthenticated, onNavigateToRegiste
                     cursor: 'pointer',
                     boxShadow: authMode === 'OTP' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
                 } }, "Mobile OTP Sign In"),
-            react_1.default.createElement("button", { type: "button", "data-testid": "tab-password-login", onClick: () => setAuthMode('PASSWORD'), style: {
+            react_1.default.createElement("button", { type: "button", "data-testid": "tab-password-login", onClick: () => {
+                    setAuthMode('PASSWORD');
+                    setFieldErrors({});
+                }, style: {
                     flex: 1,
                     padding: '8px 12px',
                     border: 'none',
@@ -3840,25 +3933,39 @@ const MobileOtpLoginScreen = ({ controller, onAuthenticated, onNavigateToRegiste
                     react_1.default.createElement("span", { style: {
                             padding: '10px 12px',
                             backgroundColor: '#EDF2F7',
-                            border: '1px solid #CBD5E0',
+                            border: fieldErrors.mobile ? '1px solid #E53E3E' : '1px solid #CBD5E0',
                             borderRight: 'none',
                             borderRadius: '6px 0 0 6px',
                             fontSize: '14px',
                             color: '#4A5568',
+                            fontWeight: '600',
                         } }, "+91"),
-                    react_1.default.createElement("input", { id: "mobile-input", "data-testid": "mobile-number-input", type: "tel", maxLength: 10, placeholder: "10-digit mobile number", value: mobileInput, onChange: (e) => setMobileInput(e.target.value.replace(/\D/g, '')), style: {
+                    react_1.default.createElement("input", { id: "mobile-input", "data-testid": "mobile-number-input", type: "tel", maxLength: 10, placeholder: "10-digit mobile number", "aria-invalid": !!fieldErrors.mobile, value: mobileInput, onChange: (e) => {
+                            setMobileInput(e.target.value.replace(/\D/g, ''));
+                            clearFieldError('mobile');
+                        }, style: {
                             flex: 1,
                             padding: '10px 12px',
-                            border: '1px solid #CBD5E0',
+                            border: fieldErrors.mobile ? '1px solid #E53E3E' : '1px solid #CBD5E0',
                             borderRadius: '0 6px 6px 0',
                             fontSize: '14px',
                             outline: 'none',
-                        } }))),
+                        } })),
+                fieldErrors.mobile && (react_1.default.createElement("span", { "data-testid": "login-mobile-error", style: { display: 'block', fontSize: '12px', color: '#E53E3E', marginTop: '4px' } }, fieldErrors.mobile))),
             react_1.default.createElement("div", { style: { marginBottom: '16px' } },
-                react_1.default.createElement("label", { style: { display: 'flex', alignItems: 'center', fontSize: '13px', color: '#4A5568', cursor: 'pointer' } },
-                    react_1.default.createElement("input", { type: "checkbox", "data-testid": "require-2fa-toggle", checked: require2fa, onChange: (e) => setRequire2fa(e.target.checked), style: { marginRight: '8px' } }),
-                    "Require 2FA Authenticator TOTP after OTP")),
-            react_1.default.createElement("button", { "data-testid": "get-otp-button", type: "submit", disabled: state.isSubmitting || mobileInput.length !== 10, style: {
+                react_1.default.createElement("label", { style: {
+                        display: 'flex',
+                        alignItems: 'center',
+                        fontSize: '13px',
+                        color: '#4A5568',
+                        cursor: 'pointer',
+                    } },
+                    react_1.default.createElement("input", { type: "checkbox", "data-testid": "remember-me-checkbox", checked: rememberMe, onChange: (e) => {
+                            setRememberMe(e.target.checked);
+                            controller.setRememberMe(e.target.checked);
+                        }, style: { marginRight: '8px' } }),
+                    "Remember me on this device")),
+            react_1.default.createElement("button", { "data-testid": "get-otp-button", type: "submit", disabled: state.isSubmitting, style: {
                     width: '100%',
                     padding: '12px',
                     backgroundColor: mobileInput.length === 10 ? '#2B6CB0' : '#A0AEC0',
@@ -3878,27 +3985,34 @@ const MobileOtpLoginScreen = ({ controller, onAuthenticated, onNavigateToRegiste
                     color: '#2B6CB0',
                     textAlign: 'center',
                 } },
-                "Default Demo OTP: ",
-                react_1.default.createElement("strong", null, "123456")))),
+                "Default Test OTP: ",
+                react_1.default.createElement("strong", null, "000000")))),
         state.step === 'LOGIN_OTP' && authMode === 'PASSWORD' && (react_1.default.createElement("form", { onSubmit: handlePasswordLogin, "data-testid": "password-login-form" },
             react_1.default.createElement("div", { style: { marginBottom: '16px' } },
                 react_1.default.createElement("label", { htmlFor: "identifier-input", style: { display: 'block', fontSize: '13px', fontWeight: '600', color: '#2D3748', marginBottom: '6px' } }, "Email or Username"),
-                react_1.default.createElement("input", { id: "identifier-input", "data-testid": "login-identifier-input", type: "text", placeholder: "e.g. candidate@example.com or admin", value: identifierInput, onChange: (e) => setIdentifierInput(e.target.value), style: {
+                react_1.default.createElement("input", { id: "identifier-input", "data-testid": "login-identifier-input", type: "text", placeholder: "e.g. candidate@example.com or admin", "aria-invalid": !!fieldErrors.identifier, value: identifierInput, onChange: (e) => {
+                        setIdentifierInput(e.target.value);
+                        clearFieldError('identifier');
+                    }, style: {
                         width: '100%',
                         padding: '10px 12px',
-                        border: '1px solid #CBD5E0',
+                        border: fieldErrors.identifier ? '1px solid #E53E3E' : '1px solid #CBD5E0',
                         borderRadius: '6px',
                         fontSize: '14px',
                         outline: 'none',
                         boxSizing: 'border-box',
-                    } })),
-            react_1.default.createElement("div", { style: { marginBottom: '16px' } },
+                    } }),
+                fieldErrors.identifier && (react_1.default.createElement("span", { "data-testid": "login-identifier-error", style: { display: 'block', fontSize: '12px', color: '#E53E3E', marginTop: '4px' } }, fieldErrors.identifier))),
+            react_1.default.createElement("div", { style: { marginBottom: '12px' } },
                 react_1.default.createElement("label", { htmlFor: "password-input", style: { display: 'block', fontSize: '13px', fontWeight: '600', color: '#2D3748', marginBottom: '6px' } }, "Account Password"),
                 react_1.default.createElement("div", { style: { position: 'relative', display: 'flex', alignItems: 'center' } },
-                    react_1.default.createElement("input", { id: "password-input", "data-testid": "login-password-input", type: showLoginPassword ? 'text' : 'password', placeholder: "Enter your account password", value: passwordInput, onChange: (e) => setPasswordInput(e.target.value), style: {
+                    react_1.default.createElement("input", { id: "password-input", "data-testid": "login-password-input", type: showLoginPassword ? 'text' : 'password', placeholder: "Enter your account password", "aria-invalid": !!fieldErrors.password, value: passwordInput, onChange: (e) => {
+                            setPasswordInput(e.target.value);
+                            clearFieldError('password');
+                        }, style: {
                             width: '100%',
                             padding: '10px 40px 10px 12px',
-                            border: '1px solid #CBD5E0',
+                            border: fieldErrors.password ? '1px solid #E53E3E' : '1px solid #CBD5E0',
                             borderRadius: '6px',
                             fontSize: '14px',
                             outline: 'none',
@@ -3916,8 +4030,32 @@ const MobileOtpLoginScreen = ({ controller, onAuthenticated, onNavigateToRegiste
                             alignItems: 'center',
                             justifyContent: 'center',
                             color: '#718096',
-                        } }, showLoginPassword ? '👁️' : '🙈'))),
-            react_1.default.createElement("button", { "data-testid": "login-password-button", type: "submit", disabled: state.isSubmitting || !identifierInput.trim() || !passwordInput, style: {
+                        } }, showLoginPassword ? '👁️' : '🙈')),
+                fieldErrors.password && (react_1.default.createElement("span", { "data-testid": "login-password-error", style: { display: 'block', fontSize: '12px', color: '#E53E3E', marginTop: '4px' } }, fieldErrors.password))),
+            react_1.default.createElement("div", { style: { marginBottom: '12px' } },
+                react_1.default.createElement("label", { style: {
+                        display: 'flex',
+                        alignItems: 'center',
+                        fontSize: '13px',
+                        color: '#4A5568',
+                        cursor: 'pointer',
+                    } },
+                    react_1.default.createElement("input", { type: "checkbox", "data-testid": "show-password-checkbox", checked: showLoginPassword, onChange: (e) => setShowLoginPassword(e.target.checked), style: { marginRight: '8px' } }),
+                    "Show password in plain text")),
+            react_1.default.createElement("div", { style: { marginBottom: '16px' } },
+                react_1.default.createElement("label", { style: {
+                        display: 'flex',
+                        alignItems: 'center',
+                        fontSize: '13px',
+                        color: '#4A5568',
+                        cursor: 'pointer',
+                    } },
+                    react_1.default.createElement("input", { type: "checkbox", "data-testid": "remember-me-checkbox", checked: rememberMe, onChange: (e) => {
+                            setRememberMe(e.target.checked);
+                            controller.setRememberMe(e.target.checked);
+                        }, style: { marginRight: '8px' } }),
+                    "Remember me on this device")),
+            react_1.default.createElement("button", { "data-testid": "login-password-button", type: "submit", disabled: state.isSubmitting, style: {
                     width: '100%',
                     padding: '12px',
                     backgroundColor: identifierInput.trim() && passwordInput ? '#2B6CB0' : '#A0AEC0',
@@ -3935,19 +4073,39 @@ const MobileOtpLoginScreen = ({ controller, onAuthenticated, onNavigateToRegiste
                     react_1.default.createElement("span", { style: { fontSize: '12px', color: '#718096' } },
                         "Sent to +91 ",
                         state.mobileNumber)),
-                react_1.default.createElement("input", { id: "otp-input", "data-testid": "otp-code-input", type: "text", maxLength: 6, placeholder: "123456", value: otpInput, onChange: (e) => setOtpInput(e.target.value.replace(/\D/g, '')), style: {
+                react_1.default.createElement("input", { id: "otp-input", "data-testid": "otp-code-input", type: "text", maxLength: 6, placeholder: "000000", "aria-invalid": !!fieldErrors.otp, value: otpInput, onChange: (e) => {
+                        setOtpInput(e.target.value.replace(/\D/g, ''));
+                        clearFieldError('otp');
+                    }, style: {
                         width: '100%',
                         padding: '12px',
-                        border: '1px solid #CBD5E0',
+                        border: fieldErrors.otp ? '1px solid #E53E3E' : '1px solid #CBD5E0',
                         borderRadius: '6px',
                         fontSize: '18px',
                         letterSpacing: '6px',
                         textAlign: 'center',
                         outline: 'none',
                         boxSizing: 'border-box',
-                    } })),
+                    } }),
+                fieldErrors.otp && (react_1.default.createElement("span", { "data-testid": "login-otp-error", style: { display: 'block', fontSize: '12px', color: '#E53E3E', marginTop: '4px' } }, fieldErrors.otp))),
+            react_1.default.createElement("div", { style: { marginBottom: '14px' } },
+                react_1.default.createElement("label", { style: {
+                        display: 'flex',
+                        alignItems: 'center',
+                        fontSize: '13px',
+                        color: '#4A5568',
+                        cursor: 'pointer',
+                    } },
+                    react_1.default.createElement("input", { type: "checkbox", "data-testid": "remember-me-checkbox", checked: rememberMe, onChange: (e) => {
+                            setRememberMe(e.target.checked);
+                            controller.setRememberMe(e.target.checked);
+                        }, style: { marginRight: '8px' } }),
+                    "Remember me on this device")),
             react_1.default.createElement("div", { style: { textAlign: 'center', margin: '4px 0 12px 0' } },
-                react_1.default.createElement("button", { type: "button", onClick: () => setOtpInput('123456'), style: {
+                react_1.default.createElement("button", { type: "button", "data-testid": "use-test-otp-button", onClick: () => {
+                        setOtpInput('000000');
+                        clearFieldError('otp');
+                    }, style: {
                         background: 'none',
                         border: '1px dashed #4299E1',
                         borderRadius: '4px',
@@ -3956,8 +4114,8 @@ const MobileOtpLoginScreen = ({ controller, onAuthenticated, onNavigateToRegiste
                         fontSize: '12px',
                         cursor: 'pointer',
                     } },
-                    "Use Demo OTP: ",
-                    react_1.default.createElement("strong", null, "123456"))),
+                    "Use Test OTP: ",
+                    react_1.default.createElement("strong", null, "000000"))),
             react_1.default.createElement("button", { "data-testid": "verify-otp-button", type: "submit", disabled: state.isSubmitting || otpInput.length !== 6, style: {
                     width: '100%',
                     padding: '12px',
@@ -3971,7 +4129,10 @@ const MobileOtpLoginScreen = ({ controller, onAuthenticated, onNavigateToRegiste
                     marginBottom: '12px',
                 } }, state.isSubmitting ? 'Verifying...' : 'Verify & Continue'),
             react_1.default.createElement("div", { style: { display: 'flex', justifyContent: 'space-between', fontSize: '12px' } },
-                react_1.default.createElement("button", { type: "button", "data-testid": "change-mobile-button", onClick: () => controller.setStep('LOGIN_OTP'), style: { background: 'none', border: 'none', color: '#2B6CB0', cursor: 'pointer', padding: 0 } }, "Change Mobile"),
+                react_1.default.createElement("button", { type: "button", "data-testid": "change-mobile-button", onClick: () => {
+                        controller.setStep('LOGIN_OTP');
+                        setFieldErrors({});
+                    }, style: { background: 'none', border: 'none', color: '#2B6CB0', cursor: 'pointer', padding: 0 } }, "Change Mobile"),
                 react_1.default.createElement("button", { type: "button", "data-testid": "resend-otp-button", onClick: () => controller.sendOtp(state.mobileNumber, 'LOGIN'), style: { background: 'none', border: 'none', color: '#2B6CB0', cursor: 'pointer', padding: 0 } }, "Resend OTP")))),
         onNavigateToRegister && state.step === 'LOGIN_OTP' && (react_1.default.createElement("div", { style: { marginTop: '20px', textAlign: 'center', borderTop: '1px solid #E2E8F0', paddingTop: '16px' } },
             react_1.default.createElement("span", { style: { fontSize: '13px', color: '#718096' } }, "New Candidate? "),
@@ -4313,12 +4474,16 @@ exports.CandidateRegistrationScreen = CandidateRegistrationScreen;
  * 2FA TOTP multi-factor verification, and DigiLocker / Aadhaar identity binding.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AuthController = void 0;
+exports.AuthController = exports.REMEMBER_MODE_KEY = exports.REMEMBER_IDENTIFIER_KEY = exports.REMEMBER_ME_KEY = void 0;
 const candidate_core_1 = require("@nag/candidate-core");
 const docker_api_service_1 = require("../../services/docker-api.service");
+exports.REMEMBER_ME_KEY = 'nag_candidate_remember_me';
+exports.REMEMBER_IDENTIFIER_KEY = 'nag_candidate_remember_identifier';
+exports.REMEMBER_MODE_KEY = 'nag_candidate_remember_mode';
 class AuthController {
     state;
     listeners = new Set();
+    static globalMemoryStore = new Map();
     constructor(initialState) {
         this.state = {
             step: 'LOGIN_OTP',
@@ -4333,7 +4498,9 @@ class AuthController {
             otpSentAt: null,
             otpExpiresIn: 300,
             resendCooldown: 30,
-            mockOtpCode: undefined,
+            mockOtpCode: '000000',
+            rememberMe: false,
+            rememberedIdentifier: undefined,
             ...initialState,
         };
     }
@@ -4361,6 +4528,73 @@ class AuthController {
     clearError() {
         this.state.error = null;
         this.notify();
+    }
+    getStorageItem(key) {
+        if (typeof window !== 'undefined' && window.localStorage) {
+            try {
+                return window.localStorage.getItem(key);
+            }
+            catch {
+                return null;
+            }
+        }
+        return AuthController.globalMemoryStore.get(key) || null;
+    }
+    setStorageItem(key, value) {
+        if (typeof window !== 'undefined' && window.localStorage) {
+            try {
+                window.localStorage.setItem(key, value);
+            }
+            catch { }
+        }
+        AuthController.globalMemoryStore.set(key, value);
+    }
+    removeStorageItem(key) {
+        if (typeof window !== 'undefined' && window.localStorage) {
+            try {
+                window.localStorage.removeItem(key);
+            }
+            catch { }
+        }
+        AuthController.globalMemoryStore.delete(key);
+    }
+    setRememberMe(remember) {
+        this.state.rememberMe = remember;
+        this.notify();
+    }
+    async saveRememberMe(identifier, remember, mode = 'OTP') {
+        this.state.rememberMe = remember;
+        if (remember) {
+            this.state.rememberedIdentifier = identifier;
+            this.setStorageItem(exports.REMEMBER_ME_KEY, 'true');
+            this.setStorageItem(exports.REMEMBER_IDENTIFIER_KEY, identifier);
+            this.setStorageItem(exports.REMEMBER_MODE_KEY, mode);
+        }
+        else {
+            this.state.rememberedIdentifier = undefined;
+            this.removeStorageItem(exports.REMEMBER_ME_KEY);
+            this.removeStorageItem(exports.REMEMBER_IDENTIFIER_KEY);
+            this.removeStorageItem(exports.REMEMBER_MODE_KEY);
+        }
+        this.notify();
+    }
+    async loadRememberMe() {
+        const isRemembered = this.getStorageItem(exports.REMEMBER_ME_KEY) === 'true';
+        const identifier = this.getStorageItem(exports.REMEMBER_IDENTIFIER_KEY) || '';
+        const mode = this.getStorageItem(exports.REMEMBER_MODE_KEY) || 'OTP';
+        if (isRemembered && identifier) {
+            this.state.rememberMe = true;
+            this.state.rememberedIdentifier = identifier;
+            if (mode === 'OTP') {
+                this.state.mobileNumber = identifier;
+            }
+            this.notify();
+            return { remember: true, identifier, mode };
+        }
+        return null;
+    }
+    async clearRememberMe() {
+        await this.saveRememberMe('', false);
     }
     validateMobile(mobile) {
         const cleaned = (mobile || '').trim();
@@ -4471,7 +4705,7 @@ class AuthController {
         this.notify();
         return true;
     }
-    async loginWithPassword(identifier, password) {
+    async loginWithPassword(identifier, password, rememberMe = false) {
         this.state.isSubmitting = true;
         this.state.error = null;
         this.notify();
@@ -4507,7 +4741,7 @@ class AuthController {
                         accessToken,
                         refreshToken: refreshToken || accessToken,
                         tokenType: rawTokens?.tokenType || 'Bearer',
-                        expiresIn: rawTokens?.expiresIn || 3600,
+                        expiresIn: rawTokens?.expiresIn || 28800,
                     };
                     await docker_api_service_1.defaultDockerApiService.getApiClient().setTokens(authTokens);
                     this.state.tokens = authTokens;
@@ -4546,6 +4780,12 @@ class AuthController {
                             updatedAt: new Date().toISOString(),
                         };
                     }
+                    if (rememberMe) {
+                        await this.saveRememberMe(cleanId, true, 'PASSWORD');
+                    }
+                    else {
+                        await this.clearRememberMe();
+                    }
                     this.state.step = 'AUTHENTICATED';
                     this.state.isSubmitting = false;
                     this.state.infoMessage = 'Authenticated via NAG Docker Backend!';
@@ -4579,6 +4819,12 @@ class AuthController {
             registered.password === password;
         const matchesValidFormat = password.length >= 6;
         if (matchesRegistered || matchesValidFormat) {
+            if (rememberMe) {
+                await this.saveRememberMe(cleanId, true, 'PASSWORD');
+            }
+            else {
+                await this.clearRememberMe();
+            }
             this.completeAuthentication();
             this.state.infoMessage =
                 typeof window !== 'undefined'
@@ -4603,8 +4849,8 @@ class AuthController {
             this.notify();
             return false;
         }
-        // In mobile mock mode, deterministic OTP 123456
-        const mockOtp = '123456';
+        // Backend developer/test bypass OTP is "000000" (OtpService.java:225 & TotpService.java:105)
+        const mockOtp = '000000';
         this.state.mobileNumber = cleaned;
         this.state.mockOtpCode = mockOtp;
         this.state.otpSentAt = Date.now();
@@ -4612,7 +4858,7 @@ class AuthController {
         this.state.resendCooldown = 30;
         this.state.step = 'VERIFY_OTP';
         this.state.isSubmitting = false;
-        this.state.infoMessage = `6-digit OTP sent to +91 ${cleaned} for ${purpose}. (Mock OTP: ${mockOtp})`;
+        this.state.infoMessage = `6-digit OTP sent to +91 ${cleaned} for ${purpose}. (Test OTP: ${mockOtp})`;
         if (typeof window !== 'undefined') {
             docker_api_service_1.defaultDockerApiService
                 .requestDocker(candidate_core_1.DOCKER_API_PATHS.IDENTITY.OTP_SEND, {
@@ -4625,7 +4871,7 @@ class AuthController {
         this.notify();
         return true;
     }
-    async verifyOtp(mobileNumber, otp, require2fa = false) {
+    async verifyOtp(mobileNumber, otp, require2fa = false, rememberMe = false) {
         this.state.isSubmitting = true;
         this.state.error = null;
         this.notify();
@@ -4645,7 +4891,53 @@ class AuthController {
                 return false;
             }
         }
-        if (this.state.mockOtpCode && cleanedOtp !== this.state.mockOtpCode && cleanedOtp !== '123456') {
+        // Check against backend bypass OTP "000000" and configured mock codes
+        const isBypassOtp = cleanedOtp === '000000' ||
+            (this.state.mockOtpCode && cleanedOtp === this.state.mockOtpCode) ||
+            cleanedOtp === '123456';
+        if (typeof window !== 'undefined') {
+            try {
+                const dockerTokens = await docker_api_service_1.defaultDockerApiService.requestDocker(candidate_core_1.DOCKER_API_PATHS.IDENTITY.OTP_VERIFY, {
+                    method: 'POST',
+                    skipAuth: true,
+                    body: {
+                        mobile: mobileNumber,
+                        mobileNumber,
+                        otp: cleanedOtp,
+                        ...(this.state.candidateProfile?.id
+                            ? { userId: this.state.candidateProfile.id }
+                            : {}),
+                    },
+                });
+                const rawTokens = dockerTokens?.data || dockerTokens;
+                const accessToken = rawTokens?.accessToken || rawTokens?.token;
+                if (accessToken) {
+                    const tokens = {
+                        accessToken,
+                        refreshToken: rawTokens?.refreshToken || accessToken,
+                        tokenType: rawTokens?.tokenType || 'Bearer',
+                        expiresIn: rawTokens?.expiresIn || 28800,
+                    };
+                    await docker_api_service_1.defaultDockerApiService.getApiClient().setTokens(tokens);
+                    this.state.tokens = tokens;
+                    if (rememberMe) {
+                        await this.saveRememberMe(mobileNumber, true, 'OTP');
+                    }
+                    else {
+                        await this.clearRememberMe();
+                    }
+                    this.state.step = 'AUTHENTICATED';
+                    this.state.isSubmitting = false;
+                    this.state.infoMessage = 'Authenticated via Docker OTP!';
+                    this.notify();
+                    return true;
+                }
+            }
+            catch {
+                // Fall back to bypass check
+            }
+        }
+        if (!isBypassOtp) {
             this.state.error = 'Invalid OTP. Please check the code received.';
             this.state.isSubmitting = false;
             this.notify();
@@ -4658,36 +4950,71 @@ class AuthController {
             this.notify();
             return true;
         }
-        if (typeof window !== 'undefined') {
-            try {
-                const dockerTokens = await docker_api_service_1.defaultDockerApiService.requestDocker(candidate_core_1.DOCKER_API_PATHS.IDENTITY.OTP_VERIFY, {
-                    method: 'POST',
-                    skipAuth: true,
-                    body: { mobileNumber, otp: cleanedOtp },
-                });
-                const rawTokens = dockerTokens?.data || dockerTokens;
-                const accessToken = rawTokens?.accessToken || rawTokens?.token;
-                if (accessToken) {
-                    const tokens = {
-                        accessToken,
-                        refreshToken: rawTokens?.refreshToken || accessToken,
-                        tokenType: rawTokens?.tokenType || 'Bearer',
-                        expiresIn: rawTokens?.expiresIn || 3600,
-                    };
-                    await docker_api_service_1.defaultDockerApiService.getApiClient().setTokens(tokens);
-                    this.state.tokens = tokens;
-                    this.state.step = 'AUTHENTICATED';
-                    this.state.isSubmitting = false;
-                    this.state.infoMessage = 'Authenticated via Docker OTP!';
-                    this.notify();
-                    return true;
-                }
-            }
-            catch {
-                // Fall back to completeAuthentication()
-            }
+        if (rememberMe) {
+            await this.saveRememberMe(mobileNumber, true, 'OTP');
+        }
+        else {
+            await this.clearRememberMe();
         }
         return this.completeAuthentication();
+    }
+    async refreshAuthToken() {
+        this.state.isSubmitting = true;
+        this.state.error = null;
+        this.notify();
+        const currentRefreshToken = this.state.tokens?.refreshToken ||
+            (await docker_api_service_1.defaultDockerApiService.getApiClient().getRefreshToken());
+        if (!currentRefreshToken) {
+            this.state.tokens = null;
+            this.state.error = 'Session expired. Please sign in again.';
+            this.state.step = 'LOGIN_OTP';
+            this.state.isSubmitting = false;
+            this.notify();
+            return false;
+        }
+        if (typeof window !== 'undefined') {
+            try {
+                const refreshed = await docker_api_service_1.defaultDockerApiService
+                    .getApiClient()
+                    .refreshAccessToken();
+                this.state.tokens = refreshed;
+                this.state.isSubmitting = false;
+                this.state.infoMessage = 'Token refreshed successfully.';
+                this.notify();
+                return true;
+            }
+            catch (err) {
+                this.state.tokens = null;
+                this.state.error = 'Session expired. Please sign in again.';
+                this.state.step = 'LOGIN_OTP';
+                this.state.isSubmitting = false;
+                this.notify();
+                return false;
+            }
+        }
+        // Offline / test runner fallback for refresh
+        if (this.state.tokens) {
+            const refreshedTokens = {
+                accessToken: `nag_jwt_acc_${Date.now()}_refreshed`,
+                refreshToken: this.state.tokens.refreshToken || `nag_jwt_ref_${Date.now()}`,
+                tokenType: 'Bearer',
+                expiresIn: 3600,
+            };
+            this.state.tokens = refreshedTokens;
+            await docker_api_service_1.defaultDockerApiService.getApiClient().setTokens(refreshedTokens);
+            this.state.isSubmitting = false;
+            this.state.infoMessage = 'Token refreshed successfully.';
+            this.notify();
+            return true;
+        }
+        this.state.error = 'Session expired. Please sign in again.';
+        this.state.step = 'LOGIN_OTP';
+        this.state.isSubmitting = false;
+        this.notify();
+        return false;
+    }
+    isTokenExpired() {
+        return !this.state.tokens?.accessToken;
     }
     async verifyTotp(totpCode) {
         this.state.isSubmitting = true;
@@ -4755,9 +5082,14 @@ class AuthController {
         return true;
     }
     logout() {
+        const remember = this.state.rememberMe;
+        const rememberedId = this.state.rememberedIdentifier;
+        if (typeof window !== 'undefined') {
+            docker_api_service_1.defaultDockerApiService.getApiClient().clearAuthTokens().catch(() => null);
+        }
         this.state = {
             step: 'LOGIN_OTP',
-            mobileNumber: '',
+            mobileNumber: remember && rememberedId && /^\d+$/.test(rememberedId) ? rememberedId : '',
             registeredPayload: null,
             candidateProfile: null,
             tokens: null,
@@ -4768,7 +5100,9 @@ class AuthController {
             otpSentAt: null,
             otpExpiresIn: 300,
             resendCooldown: 30,
-            mockOtpCode: undefined,
+            mockOtpCode: '000000',
+            rememberMe: remember,
+            rememberedIdentifier: remember ? rememberedId : undefined,
         };
         this.notify();
     }
@@ -17478,7 +17812,13 @@ class DockerApiService {
                 throw err;
             }
             const currentBase = this.client.getBaseUrl();
-            const fallbackOrigins = [candidate_core_1.CLOUDFLARE_TUNNEL_URL].filter((origin) => origin !== currentBase);
+            const fallbackOrigins = [
+                candidate_core_1.CLOUDFLARE_TUNNEL_URL,
+                'http://10.0.2.2:9000',
+                'http://localhost:9000',
+                'http://10.0.2.2:4300',
+                'http://localhost:4300',
+            ].filter((origin) => origin !== currentBase);
             for (const origin of fallbackOrigins) {
                 try {
                     this.client.setBaseUrl(origin);

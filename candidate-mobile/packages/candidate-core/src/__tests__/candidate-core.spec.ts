@@ -737,7 +737,7 @@ describe('@nag/candidate-core Shared Domain Library', () => {
       let refreshCount = 0;
 
       const mockFetch = jest.fn().mockImplementation(async (url: string) => {
-        if (url.includes('/identity/refresh')) {
+        if (url.includes('refresh')) {
           refreshCount++;
           return {
             ok: true,

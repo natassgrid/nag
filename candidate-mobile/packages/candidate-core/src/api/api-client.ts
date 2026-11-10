@@ -62,6 +62,7 @@ export interface ApiClientConfig {
   tokenStorage?: SecureTokenStorage;
   fetchFn?: typeof fetch;
   onUnauthorized?: () => void;
+  onTokenRefreshed?: (tokens: AuthTokens) => void;
 }
 
 export interface RequestOptions {
@@ -90,6 +91,7 @@ export class NagCandidateApiClient {
   private readonly tokenStorage: SecureTokenStorage;
   private readonly fetchFn: typeof fetch;
   private readonly onUnauthorized?: () => void;
+  private readonly onTokenRefreshed?: (tokens: AuthTokens) => void;
 
   private refreshPromise: Promise<AuthTokens> | null = null;
   private offlineQueue: OfflineResponsePacket[] = [];
@@ -102,7 +104,7 @@ export class NagCandidateApiClient {
     this.baseUrl = (config.baseUrl || dockerConfig.baseUrl).replace(/\/+$/, '');
     this.tenantId = config.tenantId || dockerConfig.tenantId || 'default';
     this.refreshEndpoint =
-      config.refreshEndpoint || DOCKER_API_PATHS.IDENTITY.LEGACY_REFRESH;
+      config.refreshEndpoint || DOCKER_API_PATHS.IDENTITY.AUTH_TOKEN_REFRESH;
     this.tokenStorage = config.tokenStorage || new InMemoryTokenStorage();
     this.fetchFn =
       config.fetchFn ||
@@ -110,6 +112,7 @@ export class NagCandidateApiClient {
         ? fetch.bind(globalThis)
         : (undefined as unknown as typeof fetch));
     this.onUnauthorized = config.onUnauthorized;
+    this.onTokenRefreshed = config.onTokenRefreshed;
   }
 
   // ============================================================================
@@ -209,9 +212,16 @@ export class NagCandidateApiClient {
         throw new ApiClientError(response.status, response.statusText, await response.text());
       }
 
-      const raw = (await response.json()) as { data?: AuthTokens } & AuthTokens;
-      const tokens: AuthTokens = raw.data || raw;
+      const raw = (await response.json()) as any;
+      const rawTokens = raw?.data || raw;
+      const tokens: AuthTokens = {
+        accessToken: rawTokens.accessToken || rawTokens.token || rawTokens.jwt,
+        refreshToken: rawTokens.refreshToken || refreshToken,
+        tokenType: rawTokens.tokenType || 'Bearer',
+        expiresIn: rawTokens.expiresIn || 28800,
+      };
       await this.setAuthTokens(tokens);
+      this.onTokenRefreshed?.(tokens);
       return tokens;
     } catch (err) {
       await this.clearAuthTokens();
@@ -247,8 +257,14 @@ export class NagCandidateApiClient {
 
     // Handle 401 Unauthorized with single token refresh retry
     if (response.status === 401 && !isRetry && !options.skipAuth) {
-      await this.refreshAccessToken();
-      return await this.request<T>(endpoint, options, true);
+      try {
+        await this.refreshAccessToken();
+        return await this.request<T>(endpoint, options, true);
+      } catch (refreshErr) {
+        await this.clearAuthTokens();
+        this.onUnauthorized?.();
+        throw refreshErr;
+      }
     }
 
     if (!response.ok) {

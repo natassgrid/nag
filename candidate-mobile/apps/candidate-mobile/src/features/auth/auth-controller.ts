@@ -71,11 +71,18 @@ export interface AuthState {
   otpExpiresIn: number;
   resendCooldown: number;
   mockOtpCode?: string;
+  rememberMe: boolean;
+  rememberedIdentifier?: string;
 }
+
+export const REMEMBER_ME_KEY = 'nag_candidate_remember_me';
+export const REMEMBER_IDENTIFIER_KEY = 'nag_candidate_remember_identifier';
+export const REMEMBER_MODE_KEY = 'nag_candidate_remember_mode';
 
 export class AuthController {
   private state: AuthState;
   private listeners: Set<(state: AuthState) => void> = new Set();
+  private static globalMemoryStore: Map<string, string> = new Map();
 
   constructor(initialState?: Partial<AuthState>) {
     this.state = {
@@ -91,7 +98,9 @@ export class AuthController {
       otpSentAt: null,
       otpExpiresIn: 300,
       resendCooldown: 30,
-      mockOtpCode: undefined,
+      mockOtpCode: '000000',
+      rememberMe: false,
+      rememberedIdentifier: undefined,
       ...initialState,
     };
   }
@@ -124,6 +133,84 @@ export class AuthController {
   public clearError(): void {
     this.state.error = null;
     this.notify();
+  }
+
+  private getStorageItem(key: string): string | null {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        return window.localStorage.getItem(key);
+      } catch {
+        return null;
+      }
+    }
+    return AuthController.globalMemoryStore.get(key) || null;
+  }
+
+  private setStorageItem(key: string, value: string): void {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        window.localStorage.setItem(key, value);
+      } catch {}
+    }
+    AuthController.globalMemoryStore.set(key, value);
+  }
+
+  private removeStorageItem(key: string): void {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        window.localStorage.removeItem(key);
+      } catch {}
+    }
+    AuthController.globalMemoryStore.delete(key);
+  }
+
+  public setRememberMe(remember: boolean): void {
+    this.state.rememberMe = remember;
+    this.notify();
+  }
+
+  public async saveRememberMe(
+    identifier: string,
+    remember: boolean,
+    mode: 'OTP' | 'PASSWORD' = 'OTP'
+  ): Promise<void> {
+    this.state.rememberMe = remember;
+    if (remember) {
+      this.state.rememberedIdentifier = identifier;
+      this.setStorageItem(REMEMBER_ME_KEY, 'true');
+      this.setStorageItem(REMEMBER_IDENTIFIER_KEY, identifier);
+      this.setStorageItem(REMEMBER_MODE_KEY, mode);
+    } else {
+      this.state.rememberedIdentifier = undefined;
+      this.removeStorageItem(REMEMBER_ME_KEY);
+      this.removeStorageItem(REMEMBER_IDENTIFIER_KEY);
+      this.removeStorageItem(REMEMBER_MODE_KEY);
+    }
+    this.notify();
+  }
+
+  public async loadRememberMe(): Promise<{
+    remember: boolean;
+    identifier: string;
+    mode: 'OTP' | 'PASSWORD';
+  } | null> {
+    const isRemembered = this.getStorageItem(REMEMBER_ME_KEY) === 'true';
+    const identifier = this.getStorageItem(REMEMBER_IDENTIFIER_KEY) || '';
+    const mode = (this.getStorageItem(REMEMBER_MODE_KEY) as 'OTP' | 'PASSWORD') || 'OTP';
+    if (isRemembered && identifier) {
+      this.state.rememberMe = true;
+      this.state.rememberedIdentifier = identifier;
+      if (mode === 'OTP') {
+        this.state.mobileNumber = identifier;
+      }
+      this.notify();
+      return { remember: true, identifier, mode };
+    }
+    return null;
+  }
+
+  public async clearRememberMe(): Promise<void> {
+    await this.saveRememberMe('', false);
   }
 
   public validateMobile(mobile: string): boolean {
@@ -250,7 +337,11 @@ export class AuthController {
     return true;
   }
 
-  public async loginWithPassword(identifier: string, password: string): Promise<boolean> {
+  public async loginWithPassword(
+    identifier: string,
+    password: string,
+    rememberMe = false
+  ): Promise<boolean> {
     this.state.isSubmitting = true;
     this.state.error = null;
     this.notify();
@@ -294,7 +385,7 @@ export class AuthController {
             accessToken,
             refreshToken: refreshToken || accessToken,
             tokenType: rawTokens?.tokenType || 'Bearer',
-            expiresIn: rawTokens?.expiresIn || 3600,
+            expiresIn: rawTokens?.expiresIn || 28800,
           };
           await defaultDockerApiService.getApiClient().setTokens(authTokens);
           this.state.tokens = authTokens;
@@ -338,6 +429,12 @@ export class AuthController {
             };
           }
 
+          if (rememberMe) {
+            await this.saveRememberMe(cleanId, true, 'PASSWORD');
+          } else {
+            await this.clearRememberMe();
+          }
+
           this.state.step = 'AUTHENTICATED';
           this.state.isSubmitting = false;
           this.state.infoMessage = 'Authenticated via NAG Docker Backend!';
@@ -375,6 +472,11 @@ export class AuthController {
     const matchesValidFormat = password.length >= 6;
 
     if (matchesRegistered || matchesValidFormat) {
+      if (rememberMe) {
+        await this.saveRememberMe(cleanId, true, 'PASSWORD');
+      } else {
+        await this.clearRememberMe();
+      }
       this.completeAuthentication();
       this.state.infoMessage =
         typeof window !== 'undefined'
@@ -390,7 +492,10 @@ export class AuthController {
     return false;
   }
 
-  public async sendOtp(mobileNumber: string, purpose: 'REGISTRATION' | 'LOGIN' = 'LOGIN'): Promise<boolean> {
+  public async sendOtp(
+    mobileNumber: string,
+    purpose: 'REGISTRATION' | 'LOGIN' = 'LOGIN'
+  ): Promise<boolean> {
     this.state.isSubmitting = true;
     this.state.error = null;
     this.notify();
@@ -403,8 +508,8 @@ export class AuthController {
       return false;
     }
 
-    // In mobile mock mode, deterministic OTP 123456
-    const mockOtp = '123456';
+    // Backend developer/test bypass OTP is "000000" (OtpService.java:225 & TotpService.java:105)
+    const mockOtp = '000000';
     this.state.mobileNumber = cleaned;
     this.state.mockOtpCode = mockOtp;
     this.state.otpSentAt = Date.now();
@@ -412,7 +517,7 @@ export class AuthController {
     this.state.resendCooldown = 30;
     this.state.step = 'VERIFY_OTP';
     this.state.isSubmitting = false;
-    this.state.infoMessage = `6-digit OTP sent to +91 ${cleaned} for ${purpose}. (Mock OTP: ${mockOtp})`;
+    this.state.infoMessage = `6-digit OTP sent to +91 ${cleaned} for ${purpose}. (Test OTP: ${mockOtp})`;
 
     if (typeof window !== 'undefined') {
       defaultDockerApiService
@@ -428,7 +533,12 @@ export class AuthController {
     return true;
   }
 
-  public async verifyOtp(mobileNumber: string, otp: string, require2fa = false): Promise<boolean> {
+  public async verifyOtp(
+    mobileNumber: string,
+    otp: string,
+    require2fa = false,
+    rememberMe = false
+  ): Promise<boolean> {
     this.state.isSubmitting = true;
     this.state.error = null;
     this.notify();
@@ -451,7 +561,57 @@ export class AuthController {
       }
     }
 
-    if (this.state.mockOtpCode && cleanedOtp !== this.state.mockOtpCode && cleanedOtp !== '123456') {
+    // Check against backend bypass OTP "000000" and configured mock codes
+    const isBypassOtp =
+      cleanedOtp === '000000' ||
+      (this.state.mockOtpCode && cleanedOtp === this.state.mockOtpCode) ||
+      cleanedOtp === '123456';
+
+    if (typeof window !== 'undefined') {
+      try {
+        const dockerTokens = await defaultDockerApiService.requestDocker<any>(
+          DOCKER_API_PATHS.IDENTITY.OTP_VERIFY,
+          {
+            method: 'POST',
+            skipAuth: true,
+            body: {
+              mobile: mobileNumber,
+              mobileNumber,
+              otp: cleanedOtp,
+              ...(this.state.candidateProfile?.id
+                ? { userId: this.state.candidateProfile.id }
+                : {}),
+            },
+          }
+        );
+        const rawTokens = dockerTokens?.data || dockerTokens;
+        const accessToken = rawTokens?.accessToken || rawTokens?.token;
+        if (accessToken) {
+          const tokens: AuthTokens = {
+            accessToken,
+            refreshToken: rawTokens?.refreshToken || accessToken,
+            tokenType: rawTokens?.tokenType || 'Bearer',
+            expiresIn: rawTokens?.expiresIn || 28800,
+          };
+          await defaultDockerApiService.getApiClient().setTokens(tokens);
+          this.state.tokens = tokens;
+          if (rememberMe) {
+            await this.saveRememberMe(mobileNumber, true, 'OTP');
+          } else {
+            await this.clearRememberMe();
+          }
+          this.state.step = 'AUTHENTICATED';
+          this.state.isSubmitting = false;
+          this.state.infoMessage = 'Authenticated via Docker OTP!';
+          this.notify();
+          return true;
+        }
+      } catch {
+        // Fall back to bypass check
+      }
+    }
+
+    if (!isBypassOtp) {
       this.state.error = 'Invalid OTP. Please check the code received.';
       this.state.isSubmitting = false;
       this.notify();
@@ -466,39 +626,78 @@ export class AuthController {
       return true;
     }
 
-    if (typeof window !== 'undefined') {
-      try {
-        const dockerTokens = await defaultDockerApiService.requestDocker<any>(
-          DOCKER_API_PATHS.IDENTITY.OTP_VERIFY,
-          {
-            method: 'POST',
-            skipAuth: true,
-            body: { mobileNumber, otp: cleanedOtp },
-          }
-        );
-        const rawTokens = dockerTokens?.data || dockerTokens;
-        const accessToken = rawTokens?.accessToken || rawTokens?.token;
-        if (accessToken) {
-          const tokens: AuthTokens = {
-            accessToken,
-            refreshToken: rawTokens?.refreshToken || accessToken,
-            tokenType: rawTokens?.tokenType || 'Bearer',
-            expiresIn: rawTokens?.expiresIn || 3600,
-          };
-          await defaultDockerApiService.getApiClient().setTokens(tokens);
-          this.state.tokens = tokens;
-          this.state.step = 'AUTHENTICATED';
-          this.state.isSubmitting = false;
-          this.state.infoMessage = 'Authenticated via Docker OTP!';
-          this.notify();
-          return true;
-        }
-      } catch {
-        // Fall back to completeAuthentication()
-      }
+    if (rememberMe) {
+      await this.saveRememberMe(mobileNumber, true, 'OTP');
+    } else {
+      await this.clearRememberMe();
     }
 
     return this.completeAuthentication();
+  }
+
+  public async refreshAuthToken(): Promise<boolean> {
+    this.state.isSubmitting = true;
+    this.state.error = null;
+    this.notify();
+
+    const currentRefreshToken =
+      this.state.tokens?.refreshToken ||
+      (await defaultDockerApiService.getApiClient().getRefreshToken());
+
+    if (!currentRefreshToken) {
+      this.state.tokens = null;
+      this.state.error = 'Session expired. Please sign in again.';
+      this.state.step = 'LOGIN_OTP';
+      this.state.isSubmitting = false;
+      this.notify();
+      return false;
+    }
+
+    if (typeof window !== 'undefined') {
+      try {
+        const refreshed = await defaultDockerApiService
+          .getApiClient()
+          .refreshAccessToken();
+        this.state.tokens = refreshed;
+        this.state.isSubmitting = false;
+        this.state.infoMessage = 'Token refreshed successfully.';
+        this.notify();
+        return true;
+      } catch (err: any) {
+        this.state.tokens = null;
+        this.state.error = 'Session expired. Please sign in again.';
+        this.state.step = 'LOGIN_OTP';
+        this.state.isSubmitting = false;
+        this.notify();
+        return false;
+      }
+    }
+
+    // Offline / test runner fallback for refresh
+    if (this.state.tokens) {
+      const refreshedTokens: AuthTokens = {
+        accessToken: `nag_jwt_acc_${Date.now()}_refreshed`,
+        refreshToken: this.state.tokens.refreshToken || `nag_jwt_ref_${Date.now()}`,
+        tokenType: 'Bearer',
+        expiresIn: 3600,
+      };
+      this.state.tokens = refreshedTokens;
+      await defaultDockerApiService.getApiClient().setTokens(refreshedTokens);
+      this.state.isSubmitting = false;
+      this.state.infoMessage = 'Token refreshed successfully.';
+      this.notify();
+      return true;
+    }
+
+    this.state.error = 'Session expired. Please sign in again.';
+    this.state.step = 'LOGIN_OTP';
+    this.state.isSubmitting = false;
+    this.notify();
+    return false;
+  }
+
+  public isTokenExpired(): boolean {
+    return !this.state.tokens?.accessToken;
   }
 
   public async verifyTotp(totpCode: string): Promise<boolean> {
@@ -577,9 +776,16 @@ export class AuthController {
   }
 
   public logout(): void {
+    const remember = this.state.rememberMe;
+    const rememberedId = this.state.rememberedIdentifier;
+    if (typeof window !== 'undefined') {
+      defaultDockerApiService.getApiClient().clearAuthTokens().catch(() => null);
+    }
+
     this.state = {
       step: 'LOGIN_OTP',
-      mobileNumber: '',
+      mobileNumber:
+        remember && rememberedId && /^\d+$/.test(rememberedId) ? rememberedId : '',
       registeredPayload: null,
       candidateProfile: null,
       tokens: null,
@@ -590,7 +796,9 @@ export class AuthController {
       otpSentAt: null,
       otpExpiresIn: 300,
       resendCooldown: 30,
-      mockOtpCode: undefined,
+      mockOtpCode: '000000',
+      rememberMe: remember,
+      rememberedIdentifier: remember ? rememberedId : undefined,
     };
     this.notify();
   }
