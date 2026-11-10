@@ -175,6 +175,20 @@ describe('2. Candidate Authentication Controller (Phase 1)', () => {
     expect(controller.validateMobile('98765')).toBe(false); // too short
   });
 
+  it('enforces minimum 3 characters for full legal name', async () => {
+    const invalidPayload: CandidateRegistrationPayload = {
+      fullName: 'Aa',
+      mobileNumber: '9876543210',
+      email: 'aarav@example.com',
+      password: 'SecurePassword123',
+      dpdpConsentAccepted: true,
+    };
+
+    const success = await controller.register(invalidPayload);
+    expect(success).toBe(false);
+    expect(controller.getState().error).toContain('between 3 and 100 characters');
+  });
+
   it('requires DPDP consent on candidate registration', async () => {
     const invalidPayload: CandidateRegistrationPayload = {
       fullName: 'Aarav Sharma',

@@ -26,6 +26,7 @@ export const MobileOtpLoginScreen: React.FC<AuthScreenProps> = ({
   const [mobileInput, setMobileInput] = useState<string>(state.mobileNumber || '');
   const [identifierInput, setIdentifierInput] = useState<string>('');
   const [passwordInput, setPasswordInput] = useState<string>('');
+  const [showLoginPassword, setShowLoginPassword] = useState<boolean>(false);
   const [otpInput, setOtpInput] = useState<string>('');
   const [require2fa, setRequire2fa] = useState<boolean>(false);
 
@@ -287,23 +288,46 @@ export const MobileOtpLoginScreen: React.FC<AuthScreenProps> = ({
             >
               Account Password
             </label>
-            <input
-              id="password-input"
-              data-testid="login-password-input"
-              type="password"
-              placeholder="Enter your account password"
-              value={passwordInput}
-              onChange={(e) => setPasswordInput(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                border: '1px solid #CBD5E0',
-                borderRadius: '6px',
-                fontSize: '14px',
-                outline: 'none',
-                boxSizing: 'border-box',
-              }}
-            />
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <input
+                id="password-input"
+                data-testid="login-password-input"
+                type={showLoginPassword ? 'text' : 'password'}
+                placeholder="Enter your account password"
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '10px 40px 10px 12px',
+                  border: '1px solid #CBD5E0',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+              />
+              <button
+                type="button"
+                data-testid="toggle-login-password-visibility"
+                aria-label={showLoginPassword ? 'Hide password' : 'Show password'}
+                onClick={() => setShowLoginPassword((prev) => !prev)}
+                style={{
+                  position: 'absolute',
+                  right: '10px',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  padding: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#718096',
+                }}
+              >
+                {showLoginPassword ? '👁️' : '🙈'}
+              </button>
+            </div>
           </div>
 
           <button
@@ -570,6 +594,10 @@ export const CandidateRegistrationScreen: React.FC<AuthScreenProps> = ({
     category: 'GEN',
     dateOfBirth: '2002-01-01',
   });
+  const [confirmPassword, setConfirmPassword] = useState<string>('');
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     return controller.subscribe((s: AuthState) => {
@@ -577,8 +605,52 @@ export const CandidateRegistrationScreen: React.FC<AuthScreenProps> = ({
     });
   }, [controller]);
 
+  const clearFieldError = (field: string) => {
+    if (fieldErrors[field]) {
+      const updated = { ...fieldErrors };
+      delete updated[field];
+      setFieldErrors(updated);
+    }
+  };
+
+  const validateForm = (): boolean => {
+    const errors: Record<string, string> = {};
+
+    if (!form.fullName || form.fullName.trim().length < 3) {
+      errors.fullName = 'Full legal name must be between 3 and 100 characters.';
+    }
+
+    if (!controller.validateMobile(form.mobileNumber)) {
+      errors.mobileNumber = 'Please enter a valid 10-digit Indian mobile number (starts with 6-9).';
+    }
+
+    if (!controller.validateEmail(form.email)) {
+      errors.email = 'Please enter a valid email address.';
+    }
+
+    if (!form.password || form.password.length < 8) {
+      errors.password = 'Password must be at least 8 characters long.';
+    }
+
+    if (!confirmPassword) {
+      errors.confirmPassword = 'Please confirm your password.';
+    } else if (form.password !== confirmPassword) {
+      errors.confirmPassword = 'Passwords do not match.';
+    }
+
+    if (!form.dpdpConsentAccepted) {
+      errors.dpdpConsent = 'DPDP Act 2023 consent is mandatory to register.';
+    }
+
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validateForm()) {
+      return;
+    }
     const success = await controller.register(form);
     if (success && onNavigateToLogin) {
       onNavigateToLogin();
@@ -625,6 +697,7 @@ export const CandidateRegistrationScreen: React.FC<AuthScreenProps> = ({
       )}
 
       <form onSubmit={handleSubmit} data-testid="registration-form">
+        {/* Full Legal Name */}
         <div style={{ marginBottom: '14px' }}>
           <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#2D3748', marginBottom: '4px' }}>
             Full Legal Name (as per 10th / Matriculation Certificate)
@@ -635,27 +708,77 @@ export const CandidateRegistrationScreen: React.FC<AuthScreenProps> = ({
             required
             placeholder="e.g. Aarav Sharma"
             value={form.fullName}
-            onChange={(e) => setForm({ ...form, fullName: e.target.value })}
-            style={{ width: '100%', padding: '10px', border: '1px solid #CBD5E0', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box' }}
+            onChange={(e) => {
+              setForm({ ...form, fullName: e.target.value });
+              clearFieldError('fullName');
+            }}
+            style={{
+              width: '100%',
+              padding: '10px 12px',
+              border: fieldErrors.fullName ? '1px solid #E53E3E' : '1px solid #CBD5E0',
+              borderRadius: '6px',
+              fontSize: '14px',
+              boxSizing: 'border-box',
+              outline: 'none',
+            }}
           />
+          {fieldErrors.fullName && (
+            <span data-testid="reg-fullname-error" style={{ display: 'block', fontSize: '12px', color: '#E53E3E', marginTop: '4px' }}>
+              {fieldErrors.fullName}
+            </span>
+          )}
         </div>
 
+        {/* Mobile Number with +91 Prefix Badge */}
         <div style={{ marginBottom: '14px' }}>
           <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#2D3748', marginBottom: '4px' }}>
             Mobile Number (for OTP & Admit Card SMS)
           </label>
-          <input
-            data-testid="reg-mobile-input"
-            type="tel"
-            maxLength={10}
-            required
-            placeholder="10-digit mobile number"
-            value={form.mobileNumber}
-            onChange={(e) => setForm({ ...form, mobileNumber: e.target.value.replace(/\D/g, '') })}
-            style={{ width: '100%', padding: '10px', border: '1px solid #CBD5E0', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box' }}
-          />
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <span
+              style={{
+                padding: '10px 12px',
+                backgroundColor: '#EDF2F7',
+                border: fieldErrors.mobileNumber ? '1px solid #E53E3E' : '1px solid #CBD5E0',
+                borderRight: 'none',
+                borderRadius: '6px 0 0 6px',
+                fontSize: '14px',
+                color: '#4A5568',
+                fontWeight: '600',
+              }}
+            >
+              +91
+            </span>
+            <input
+              data-testid="reg-mobile-input"
+              type="tel"
+              maxLength={10}
+              required
+              placeholder="10-digit mobile number"
+              value={form.mobileNumber}
+              onChange={(e) => {
+                setForm({ ...form, mobileNumber: e.target.value.replace(/\D/g, '') });
+                clearFieldError('mobileNumber');
+              }}
+              style={{
+                flex: 1,
+                padding: '10px 12px',
+                border: fieldErrors.mobileNumber ? '1px solid #E53E3E' : '1px solid #CBD5E0',
+                borderRadius: '0 6px 6px 0',
+                fontSize: '14px',
+                boxSizing: 'border-box',
+                outline: 'none',
+              }}
+            />
+          </div>
+          {fieldErrors.mobileNumber && (
+            <span data-testid="reg-mobile-error" style={{ display: 'block', fontSize: '12px', color: '#E53E3E', marginTop: '4px' }}>
+              {fieldErrors.mobileNumber}
+            </span>
+          )}
         </div>
 
+        {/* Email Address */}
         <div style={{ marginBottom: '14px' }}>
           <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#2D3748', marginBottom: '4px' }}>
             Email Address
@@ -666,26 +789,138 @@ export const CandidateRegistrationScreen: React.FC<AuthScreenProps> = ({
             required
             placeholder="candidate@example.com"
             value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-            style={{ width: '100%', padding: '10px', border: '1px solid #CBD5E0', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box' }}
+            onChange={(e) => {
+              setForm({ ...form, email: e.target.value });
+              clearFieldError('email');
+            }}
+            style={{
+              width: '100%',
+              padding: '10px 12px',
+              border: fieldErrors.email ? '1px solid #E53E3E' : '1px solid #CBD5E0',
+              borderRadius: '6px',
+              fontSize: '14px',
+              boxSizing: 'border-box',
+              outline: 'none',
+            }}
           />
+          {fieldErrors.email && (
+            <span data-testid="reg-email-error" style={{ display: 'block', fontSize: '12px', color: '#E53E3E', marginTop: '4px' }}>
+              {fieldErrors.email}
+            </span>
+          )}
         </div>
 
+        {/* Account Password with Show/Hide Toggle */}
         <div style={{ marginBottom: '14px' }}>
           <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#2D3748', marginBottom: '4px' }}>
             Account Password
           </label>
-          <input
-            data-testid="reg-password-input"
-            type="password"
-            required
-            placeholder="Minimum 8 characters"
-            value={form.password}
-            onChange={(e) => setForm({ ...form, password: e.target.value })}
-            style={{ width: '100%', padding: '10px', border: '1px solid #CBD5E0', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box' }}
-          />
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <input
+              data-testid="reg-password-input"
+              type={showPassword ? 'text' : 'password'}
+              required
+              placeholder="Minimum 8 characters"
+              value={form.password}
+              onChange={(e) => {
+                setForm({ ...form, password: e.target.value });
+                clearFieldError('password');
+              }}
+              style={{
+                width: '100%',
+                padding: '10px 40px 10px 12px',
+                border: fieldErrors.password ? '1px solid #E53E3E' : '1px solid #CBD5E0',
+                borderRadius: '6px',
+                fontSize: '14px',
+                boxSizing: 'border-box',
+                outline: 'none',
+              }}
+            />
+            <button
+              type="button"
+              data-testid="toggle-reg-password-visibility"
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              onClick={() => setShowPassword((prev) => !prev)}
+              style={{
+                position: 'absolute',
+                right: '10px',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '16px',
+                padding: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#718096',
+              }}
+            >
+              {showPassword ? '👁️' : '🙈'}
+            </button>
+          </div>
+          {fieldErrors.password && (
+            <span data-testid="reg-password-error" style={{ display: 'block', fontSize: '12px', color: '#E53E3E', marginTop: '4px' }}>
+              {fieldErrors.password}
+            </span>
+          )}
         </div>
 
+        {/* Confirm Password with Show/Hide Toggle */}
+        <div style={{ marginBottom: '14px' }}>
+          <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#2D3748', marginBottom: '4px' }}>
+            Confirm Password
+          </label>
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <input
+              data-testid="reg-confirm-password-input"
+              type={showConfirmPassword ? 'text' : 'password'}
+              required
+              placeholder="Re-enter your account password"
+              value={confirmPassword}
+              onChange={(e) => {
+                setConfirmPassword(e.target.value);
+                clearFieldError('confirmPassword');
+              }}
+              style={{
+                width: '100%',
+                padding: '10px 40px 10px 12px',
+                border: fieldErrors.confirmPassword ? '1px solid #E53E3E' : '1px solid #CBD5E0',
+                borderRadius: '6px',
+                fontSize: '14px',
+                boxSizing: 'border-box',
+                outline: 'none',
+              }}
+            />
+            <button
+              type="button"
+              data-testid="toggle-reg-confirm-password-visibility"
+              aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+              onClick={() => setShowConfirmPassword((prev) => !prev)}
+              style={{
+                position: 'absolute',
+                right: '10px',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '16px',
+                padding: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#718096',
+              }}
+            >
+              {showConfirmPassword ? '👁️' : '🙈'}
+            </button>
+          </div>
+          {fieldErrors.confirmPassword && (
+            <span data-testid="reg-confirm-password-error" style={{ display: 'block', fontSize: '12px', color: '#E53E3E', marginTop: '4px' }}>
+              {fieldErrors.confirmPassword}
+            </span>
+          )}
+        </div>
+
+        {/* Category & Date of Birth */}
         <div style={{ display: 'flex', gap: '12px', marginBottom: '14px' }}>
           <div style={{ flex: 1 }}>
             <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#2D3748', marginBottom: '4px' }}>
@@ -719,19 +954,28 @@ export const CandidateRegistrationScreen: React.FC<AuthScreenProps> = ({
           </div>
         </div>
 
-        <div style={{ marginBottom: '18px', padding: '12px', backgroundColor: '#F7FAFC', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
+        {/* DPDP Act Consent */}
+        <div style={{ marginBottom: '18px', padding: '12px', backgroundColor: '#F7FAFC', borderRadius: '6px', border: fieldErrors.dpdpConsent ? '1px solid #FEB2B2' : '1px solid #E2E8F0' }}>
           <label style={{ display: 'flex', alignItems: 'flex-start', fontSize: '12px', color: '#4A5568', cursor: 'pointer' }}>
             <input
               type="checkbox"
               data-testid="dpdp-consent-checkbox"
               checked={form.dpdpConsentAccepted}
-              onChange={(e) => setForm({ ...form, dpdpConsentAccepted: e.target.checked })}
+              onChange={(e) => {
+                setForm({ ...form, dpdpConsentAccepted: e.target.checked });
+                clearFieldError('dpdpConsent');
+              }}
               style={{ marginTop: '2px', marginRight: '8px' }}
             />
             <span>
               I accept the terms under the <strong>Digital Personal Data Protection (DPDP) Act 2023</strong> and authorize NAG to verify my credentials via DigiLocker / UIDAI Aadhaar for examination issuance.
             </span>
           </label>
+          {fieldErrors.dpdpConsent && (
+            <span data-testid="reg-dpdp-error" style={{ display: 'block', fontSize: '12px', color: '#E53E3E', marginTop: '6px' }}>
+              {fieldErrors.dpdpConsent}
+            </span>
+          )}
         </div>
 
         <button

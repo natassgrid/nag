@@ -1,12 +1,12 @@
 /**
  * NAG Official Candidate Mobile - Complete Self-Contained Web Asset Bundle
- * Build Timestamp: 2026-11-06T13:08:21.513Z
+ * Build Timestamp: 2026-11-10T10:39:30.082Z
  * Target: Android WebView file:///android_asset/www/index.html
  */
 (function() {
   'use strict';
 
-
+  
 /**
  * NAG Official Candidate Mobile - Self-Contained React 18 & DOM Renderer Shim
  * Provides React 18 hooks (useState, useEffect, useMemo, useCallback, useRef, Fragment),
@@ -1039,17 +1039,18 @@ exports.NagCandidateApiClient = NagCandidateApiClient;
  * - `nag-frontend-workspace/apps/candidate-delivery/proxy.conf.json` (`http://localhost:9000`)
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DOCKER_API_PATHS = exports.DOCKER_DEV_ORIGINS = void 0;
+exports.DOCKER_API_PATHS = exports.DOCKER_DEV_ORIGINS = exports.CLOUDFLARE_TUNNEL_URL = void 0;
 exports.resolveDockerDevApiConfig = resolveDockerDevApiConfig;
 exports.buildDockerApiUrl = buildDockerApiUrl;
+exports.CLOUDFLARE_TUNNEL_URL = 'https://parking-gospel-entering-fundamentals.trycloudflare.com';
 exports.DOCKER_DEV_ORIGINS = {
-    localhostGatewayUrl: 'https://parking-gospel-entering-fundamentals.trycloudflare.com',
-    androidEmulatorGatewayUrl: 'https://parking-gospel-entering-fundamentals.trycloudflare.com',
-    localhostNginxProxyUrl: 'https://parking-gospel-entering-fundamentals.trycloudflare.com',
-    androidEmulatorNginxProxyUrl: 'https://parking-gospel-entering-fundamentals.trycloudflare.com',
-    dockerInternalGatewayUrl: 'https://parking-gospel-entering-fundamentals.trycloudflare.com',
-    mockServerUrl: 'https://parking-gospel-entering-fundamentals.trycloudflare.com',
-    ocrServiceUrl: 'https://parking-gospel-entering-fundamentals.trycloudflare.com',
+    localhostGatewayUrl: exports.CLOUDFLARE_TUNNEL_URL,
+    androidEmulatorGatewayUrl: exports.CLOUDFLARE_TUNNEL_URL,
+    localhostNginxProxyUrl: exports.CLOUDFLARE_TUNNEL_URL,
+    androidEmulatorNginxProxyUrl: exports.CLOUDFLARE_TUNNEL_URL,
+    dockerInternalGatewayUrl: exports.CLOUDFLARE_TUNNEL_URL,
+    mockServerUrl: exports.CLOUDFLARE_TUNNEL_URL,
+    ocrServiceUrl: exports.CLOUDFLARE_TUNNEL_URL,
 };
 /**
  * Canonical Docker-routed API paths matching `candidate-delivery` & `api-gateway:9000`.
@@ -2501,7 +2502,7 @@ function validateExamApplication(payload) {
   };
 
   __nag_modules["@app/App.tsx"] = {
-    deps: {"react":"react","./features/auth":"@app/features/auth/index.ts","./features/wallet":"@app/features/wallet/index.ts","./features/catalog":"@app/features/catalog/index.ts","./features/application":"@app/features/application/index.ts","./features/cbt":"@app/features/cbt/index.ts","./features/dashboard":"@app/features/dashboard/index.ts","./features/profile":"@app/features/profile/index.ts","./features/review":"@app/features/review/index.ts","./features/results":"@app/features/results/index.ts","./features/learn":"@app/features/learn/index.ts","./features/practice":"@app/features/practice/index.ts","./features/layout":"@app/features/layout/index.ts","./services/docker-api.service":"@app/services/docker-api.service.ts"},
+    deps: {"react":"react","./features/auth":"@app/features/auth/index.ts","./features/wallet":"@app/features/wallet/index.ts","./features/catalog":"@app/features/catalog/index.ts","./features/application":"@app/features/application/index.ts","./features/cbt":"@app/features/cbt/index.ts","./features/dashboard":"@app/features/dashboard/index.ts","./features/profile":"@app/features/profile/index.ts","./features/review":"@app/features/review/index.ts","./features/results":"@app/features/results/index.ts","./features/learn":"@app/features/learn/index.ts","./features/practice":"@app/features/practice/index.ts","./features/layout":"@app/features/layout/index.ts","./services/docker-api.service":"@app/services/docker-api.service.ts","@nag/candidate-core":"@core/index.ts"},
     factory: function(module, exports, require) {
 "use strict";
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
@@ -2553,6 +2554,7 @@ const learn_1 = require("./features/learn");
 const practice_1 = require("./features/practice");
 const layout_1 = require("./features/layout");
 const docker_api_service_1 = require("./services/docker-api.service");
+const candidate_core_1 = require("@nag/candidate-core");
 const App = () => {
     const authController = (0, react_1.useMemo)(() => new auth_1.AuthController(), []);
     const walletController = (0, react_1.useMemo)(() => new wallet_1.WalletController(), []);
@@ -2564,10 +2566,11 @@ const App = () => {
     const learnController = (0, react_1.useMemo)(() => new learn_1.LearnController(), []);
     const practiceController = (0, react_1.useMemo)(() => new practice_1.PracticeController(), []);
     const layoutController = (0, react_1.useMemo)(() => new layout_1.CandidateLayoutController('AUTH'), []);
-    const defaultDockerMode = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent || '')
-        ? 'android-emulator'
-        : 'localhost-gateway';
-    const dockerApiService = (0, react_1.useMemo)(() => new docker_api_service_1.DockerApiService(defaultDockerMode), [defaultDockerMode]);
+    const dockerApiService = (0, react_1.useMemo)(() => new docker_api_service_1.DockerApiService('localhost-gateway', {
+        envOverrides: {
+            EXPO_PUBLIC_API_BASE_URL: candidate_core_1.CLOUDFLARE_TUNNEL_URL,
+        }
+    }), []);
     const [currentScreen, setCurrentScreen] = (0, react_1.useState)('AUTH_LOGIN');
     const [isDrawerOpen, setIsDrawerOpen] = (0, react_1.useState)(false);
     const [dockerMode, setDockerMode] = (0, react_1.useState)(dockerApiService.getActiveMode());
@@ -3746,6 +3749,7 @@ const MobileOtpLoginScreen = ({ controller, onAuthenticated, onNavigateToRegiste
     const [mobileInput, setMobileInput] = (0, react_1.useState)(state.mobileNumber || '');
     const [identifierInput, setIdentifierInput] = (0, react_1.useState)('');
     const [passwordInput, setPasswordInput] = (0, react_1.useState)('');
+    const [showLoginPassword, setShowLoginPassword] = (0, react_1.useState)(false);
     const [otpInput, setOtpInput] = (0, react_1.useState)('');
     const [require2fa, setRequire2fa] = (0, react_1.useState)(false);
     (0, react_1.useEffect)(() => {
@@ -3890,15 +3894,29 @@ const MobileOtpLoginScreen = ({ controller, onAuthenticated, onNavigateToRegiste
                     } })),
             react_1.default.createElement("div", { style: { marginBottom: '16px' } },
                 react_1.default.createElement("label", { htmlFor: "password-input", style: { display: 'block', fontSize: '13px', fontWeight: '600', color: '#2D3748', marginBottom: '6px' } }, "Account Password"),
-                react_1.default.createElement("input", { id: "password-input", "data-testid": "login-password-input", type: "password", placeholder: "Enter your account password", value: passwordInput, onChange: (e) => setPasswordInput(e.target.value), style: {
-                        width: '100%',
-                        padding: '10px 12px',
-                        border: '1px solid #CBD5E0',
-                        borderRadius: '6px',
-                        fontSize: '14px',
-                        outline: 'none',
-                        boxSizing: 'border-box',
-                    } })),
+                react_1.default.createElement("div", { style: { position: 'relative', display: 'flex', alignItems: 'center' } },
+                    react_1.default.createElement("input", { id: "password-input", "data-testid": "login-password-input", type: showLoginPassword ? 'text' : 'password', placeholder: "Enter your account password", value: passwordInput, onChange: (e) => setPasswordInput(e.target.value), style: {
+                            width: '100%',
+                            padding: '10px 40px 10px 12px',
+                            border: '1px solid #CBD5E0',
+                            borderRadius: '6px',
+                            fontSize: '14px',
+                            outline: 'none',
+                            boxSizing: 'border-box',
+                        } }),
+                    react_1.default.createElement("button", { type: "button", "data-testid": "toggle-login-password-visibility", "aria-label": showLoginPassword ? 'Hide password' : 'Show password', onClick: () => setShowLoginPassword((prev) => !prev), style: {
+                            position: 'absolute',
+                            right: '10px',
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontSize: '16px',
+                            padding: '4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#718096',
+                        } }, showLoginPassword ? '👁️' : '🙈'))),
             react_1.default.createElement("button", { "data-testid": "login-password-button", type: "submit", disabled: state.isSubmitting || !identifierInput.trim() || !passwordInput, style: {
                     width: '100%',
                     padding: '12px',
@@ -4047,13 +4065,53 @@ const CandidateRegistrationScreen = ({ controller, onNavigateToLogin, }) => {
         category: 'GEN',
         dateOfBirth: '2002-01-01',
     });
+    const [confirmPassword, setConfirmPassword] = (0, react_1.useState)('');
+    const [showPassword, setShowPassword] = (0, react_1.useState)(false);
+    const [showConfirmPassword, setShowConfirmPassword] = (0, react_1.useState)(false);
+    const [fieldErrors, setFieldErrors] = (0, react_1.useState)({});
     (0, react_1.useEffect)(() => {
         return controller.subscribe((s) => {
             setState(s);
         });
     }, [controller]);
+    const clearFieldError = (field) => {
+        if (fieldErrors[field]) {
+            const updated = { ...fieldErrors };
+            delete updated[field];
+            setFieldErrors(updated);
+        }
+    };
+    const validateForm = () => {
+        const errors = {};
+        if (!form.fullName || form.fullName.trim().length < 3) {
+            errors.fullName = 'Full legal name must be between 3 and 100 characters.';
+        }
+        if (!controller.validateMobile(form.mobileNumber)) {
+            errors.mobileNumber = 'Please enter a valid 10-digit Indian mobile number (starts with 6-9).';
+        }
+        if (!controller.validateEmail(form.email)) {
+            errors.email = 'Please enter a valid email address.';
+        }
+        if (!form.password || form.password.length < 8) {
+            errors.password = 'Password must be at least 8 characters long.';
+        }
+        if (!confirmPassword) {
+            errors.confirmPassword = 'Please confirm your password.';
+        }
+        else if (form.password !== confirmPassword) {
+            errors.confirmPassword = 'Passwords do not match.';
+        }
+        if (!form.dpdpConsentAccepted) {
+            errors.dpdpConsent = 'DPDP Act 2023 consent is mandatory to register.';
+        }
+        setFieldErrors(errors);
+        return Object.keys(errors).length === 0;
+    };
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (!validateForm()) {
+            return;
+        }
         const success = await controller.register(form);
         if (success && onNavigateToLogin) {
             onNavigateToLogin();
@@ -4083,16 +4141,118 @@ const CandidateRegistrationScreen = ({ controller, onNavigateToLogin, }) => {
         react_1.default.createElement("form", { onSubmit: handleSubmit, "data-testid": "registration-form" },
             react_1.default.createElement("div", { style: { marginBottom: '14px' } },
                 react_1.default.createElement("label", { style: { display: 'block', fontSize: '13px', fontWeight: '600', color: '#2D3748', marginBottom: '4px' } }, "Full Legal Name (as per 10th / Matriculation Certificate)"),
-                react_1.default.createElement("input", { "data-testid": "reg-fullname-input", type: "text", required: true, placeholder: "e.g. Aarav Sharma", value: form.fullName, onChange: (e) => setForm({ ...form, fullName: e.target.value }), style: { width: '100%', padding: '10px', border: '1px solid #CBD5E0', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box' } })),
+                react_1.default.createElement("input", { "data-testid": "reg-fullname-input", type: "text", required: true, placeholder: "e.g. Aarav Sharma", value: form.fullName, onChange: (e) => {
+                        setForm({ ...form, fullName: e.target.value });
+                        clearFieldError('fullName');
+                    }, style: {
+                        width: '100%',
+                        padding: '10px 12px',
+                        border: fieldErrors.fullName ? '1px solid #E53E3E' : '1px solid #CBD5E0',
+                        borderRadius: '6px',
+                        fontSize: '14px',
+                        boxSizing: 'border-box',
+                        outline: 'none',
+                    } }),
+                fieldErrors.fullName && (react_1.default.createElement("span", { "data-testid": "reg-fullname-error", style: { display: 'block', fontSize: '12px', color: '#E53E3E', marginTop: '4px' } }, fieldErrors.fullName))),
             react_1.default.createElement("div", { style: { marginBottom: '14px' } },
                 react_1.default.createElement("label", { style: { display: 'block', fontSize: '13px', fontWeight: '600', color: '#2D3748', marginBottom: '4px' } }, "Mobile Number (for OTP & Admit Card SMS)"),
-                react_1.default.createElement("input", { "data-testid": "reg-mobile-input", type: "tel", maxLength: 10, required: true, placeholder: "10-digit mobile number", value: form.mobileNumber, onChange: (e) => setForm({ ...form, mobileNumber: e.target.value.replace(/\D/g, '') }), style: { width: '100%', padding: '10px', border: '1px solid #CBD5E0', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box' } })),
+                react_1.default.createElement("div", { style: { display: 'flex', alignItems: 'center' } },
+                    react_1.default.createElement("span", { style: {
+                            padding: '10px 12px',
+                            backgroundColor: '#EDF2F7',
+                            border: fieldErrors.mobileNumber ? '1px solid #E53E3E' : '1px solid #CBD5E0',
+                            borderRight: 'none',
+                            borderRadius: '6px 0 0 6px',
+                            fontSize: '14px',
+                            color: '#4A5568',
+                            fontWeight: '600',
+                        } }, "+91"),
+                    react_1.default.createElement("input", { "data-testid": "reg-mobile-input", type: "tel", maxLength: 10, required: true, placeholder: "10-digit mobile number", value: form.mobileNumber, onChange: (e) => {
+                            setForm({ ...form, mobileNumber: e.target.value.replace(/\D/g, '') });
+                            clearFieldError('mobileNumber');
+                        }, style: {
+                            flex: 1,
+                            padding: '10px 12px',
+                            border: fieldErrors.mobileNumber ? '1px solid #E53E3E' : '1px solid #CBD5E0',
+                            borderRadius: '0 6px 6px 0',
+                            fontSize: '14px',
+                            boxSizing: 'border-box',
+                            outline: 'none',
+                        } })),
+                fieldErrors.mobileNumber && (react_1.default.createElement("span", { "data-testid": "reg-mobile-error", style: { display: 'block', fontSize: '12px', color: '#E53E3E', marginTop: '4px' } }, fieldErrors.mobileNumber))),
             react_1.default.createElement("div", { style: { marginBottom: '14px' } },
                 react_1.default.createElement("label", { style: { display: 'block', fontSize: '13px', fontWeight: '600', color: '#2D3748', marginBottom: '4px' } }, "Email Address"),
-                react_1.default.createElement("input", { "data-testid": "reg-email-input", type: "email", required: true, placeholder: "candidate@example.com", value: form.email, onChange: (e) => setForm({ ...form, email: e.target.value }), style: { width: '100%', padding: '10px', border: '1px solid #CBD5E0', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box' } })),
+                react_1.default.createElement("input", { "data-testid": "reg-email-input", type: "email", required: true, placeholder: "candidate@example.com", value: form.email, onChange: (e) => {
+                        setForm({ ...form, email: e.target.value });
+                        clearFieldError('email');
+                    }, style: {
+                        width: '100%',
+                        padding: '10px 12px',
+                        border: fieldErrors.email ? '1px solid #E53E3E' : '1px solid #CBD5E0',
+                        borderRadius: '6px',
+                        fontSize: '14px',
+                        boxSizing: 'border-box',
+                        outline: 'none',
+                    } }),
+                fieldErrors.email && (react_1.default.createElement("span", { "data-testid": "reg-email-error", style: { display: 'block', fontSize: '12px', color: '#E53E3E', marginTop: '4px' } }, fieldErrors.email))),
             react_1.default.createElement("div", { style: { marginBottom: '14px' } },
                 react_1.default.createElement("label", { style: { display: 'block', fontSize: '13px', fontWeight: '600', color: '#2D3748', marginBottom: '4px' } }, "Account Password"),
-                react_1.default.createElement("input", { "data-testid": "reg-password-input", type: "password", required: true, placeholder: "Minimum 8 characters", value: form.password, onChange: (e) => setForm({ ...form, password: e.target.value }), style: { width: '100%', padding: '10px', border: '1px solid #CBD5E0', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box' } })),
+                react_1.default.createElement("div", { style: { position: 'relative', display: 'flex', alignItems: 'center' } },
+                    react_1.default.createElement("input", { "data-testid": "reg-password-input", type: showPassword ? 'text' : 'password', required: true, placeholder: "Minimum 8 characters", value: form.password, onChange: (e) => {
+                            setForm({ ...form, password: e.target.value });
+                            clearFieldError('password');
+                        }, style: {
+                            width: '100%',
+                            padding: '10px 40px 10px 12px',
+                            border: fieldErrors.password ? '1px solid #E53E3E' : '1px solid #CBD5E0',
+                            borderRadius: '6px',
+                            fontSize: '14px',
+                            boxSizing: 'border-box',
+                            outline: 'none',
+                        } }),
+                    react_1.default.createElement("button", { type: "button", "data-testid": "toggle-reg-password-visibility", "aria-label": showPassword ? 'Hide password' : 'Show password', onClick: () => setShowPassword((prev) => !prev), style: {
+                            position: 'absolute',
+                            right: '10px',
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontSize: '16px',
+                            padding: '4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#718096',
+                        } }, showPassword ? '👁️' : '🙈')),
+                fieldErrors.password && (react_1.default.createElement("span", { "data-testid": "reg-password-error", style: { display: 'block', fontSize: '12px', color: '#E53E3E', marginTop: '4px' } }, fieldErrors.password))),
+            react_1.default.createElement("div", { style: { marginBottom: '14px' } },
+                react_1.default.createElement("label", { style: { display: 'block', fontSize: '13px', fontWeight: '600', color: '#2D3748', marginBottom: '4px' } }, "Confirm Password"),
+                react_1.default.createElement("div", { style: { position: 'relative', display: 'flex', alignItems: 'center' } },
+                    react_1.default.createElement("input", { "data-testid": "reg-confirm-password-input", type: showConfirmPassword ? 'text' : 'password', required: true, placeholder: "Re-enter your account password", value: confirmPassword, onChange: (e) => {
+                            setConfirmPassword(e.target.value);
+                            clearFieldError('confirmPassword');
+                        }, style: {
+                            width: '100%',
+                            padding: '10px 40px 10px 12px',
+                            border: fieldErrors.confirmPassword ? '1px solid #E53E3E' : '1px solid #CBD5E0',
+                            borderRadius: '6px',
+                            fontSize: '14px',
+                            boxSizing: 'border-box',
+                            outline: 'none',
+                        } }),
+                    react_1.default.createElement("button", { type: "button", "data-testid": "toggle-reg-confirm-password-visibility", "aria-label": showConfirmPassword ? 'Hide confirm password' : 'Show confirm password', onClick: () => setShowConfirmPassword((prev) => !prev), style: {
+                            position: 'absolute',
+                            right: '10px',
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontSize: '16px',
+                            padding: '4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#718096',
+                        } }, showConfirmPassword ? '👁️' : '🙈')),
+                fieldErrors.confirmPassword && (react_1.default.createElement("span", { "data-testid": "reg-confirm-password-error", style: { display: 'block', fontSize: '12px', color: '#E53E3E', marginTop: '4px' } }, fieldErrors.confirmPassword))),
             react_1.default.createElement("div", { style: { display: 'flex', gap: '12px', marginBottom: '14px' } },
                 react_1.default.createElement("div", { style: { flex: 1 } },
                     react_1.default.createElement("label", { style: { display: 'block', fontSize: '13px', fontWeight: '600', color: '#2D3748', marginBottom: '4px' } }, "Category"),
@@ -4105,13 +4265,17 @@ const CandidateRegistrationScreen = ({ controller, onNavigateToLogin, }) => {
                 react_1.default.createElement("div", { style: { flex: 1 } },
                     react_1.default.createElement("label", { style: { display: 'block', fontSize: '13px', fontWeight: '600', color: '#2D3748', marginBottom: '4px' } }, "Date of Birth"),
                     react_1.default.createElement("input", { "data-testid": "reg-dob-input", type: "date", value: form.dateOfBirth, onChange: (e) => setForm({ ...form, dateOfBirth: e.target.value }), style: { width: '100%', padding: '9px', border: '1px solid #CBD5E0', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box' } }))),
-            react_1.default.createElement("div", { style: { marginBottom: '18px', padding: '12px', backgroundColor: '#F7FAFC', borderRadius: '6px', border: '1px solid #E2E8F0' } },
+            react_1.default.createElement("div", { style: { marginBottom: '18px', padding: '12px', backgroundColor: '#F7FAFC', borderRadius: '6px', border: fieldErrors.dpdpConsent ? '1px solid #FEB2B2' : '1px solid #E2E8F0' } },
                 react_1.default.createElement("label", { style: { display: 'flex', alignItems: 'flex-start', fontSize: '12px', color: '#4A5568', cursor: 'pointer' } },
-                    react_1.default.createElement("input", { type: "checkbox", "data-testid": "dpdp-consent-checkbox", checked: form.dpdpConsentAccepted, onChange: (e) => setForm({ ...form, dpdpConsentAccepted: e.target.checked }), style: { marginTop: '2px', marginRight: '8px' } }),
+                    react_1.default.createElement("input", { type: "checkbox", "data-testid": "dpdp-consent-checkbox", checked: form.dpdpConsentAccepted, onChange: (e) => {
+                            setForm({ ...form, dpdpConsentAccepted: e.target.checked });
+                            clearFieldError('dpdpConsent');
+                        }, style: { marginTop: '2px', marginRight: '8px' } }),
                     react_1.default.createElement("span", null,
                         "I accept the terms under the ",
                         react_1.default.createElement("strong", null, "Digital Personal Data Protection (DPDP) Act 2023"),
-                        " and authorize NAG to verify my credentials via DigiLocker / UIDAI Aadhaar for examination issuance."))),
+                        " and authorize NAG to verify my credentials via DigiLocker / UIDAI Aadhaar for examination issuance.")),
+                fieldErrors.dpdpConsent && (react_1.default.createElement("span", { "data-testid": "reg-dpdp-error", style: { display: 'block', fontSize: '12px', color: '#E53E3E', marginTop: '6px' } }, fieldErrors.dpdpConsent))),
             react_1.default.createElement("button", { "data-testid": "reg-submit-button", type: "submit", disabled: state.isSubmitting, style: {
                     width: '100%',
                     padding: '12px',
@@ -4214,8 +4378,8 @@ class AuthController {
         this.state.isSubmitting = true;
         this.state.error = null;
         this.notify();
-        if (!payload.fullName || payload.fullName.trim().length < 2) {
-            this.state.error = 'Full name must be at least 2 characters.';
+        if (!payload.fullName || payload.fullName.trim().length < 3) {
+            this.state.error = 'Full legal name must be between 3 and 100 characters.';
             this.state.isSubmitting = false;
             this.notify();
             return false;
@@ -4266,14 +4430,19 @@ class AuthController {
                     body: {
                         username: payload.email.trim(),
                         email: payload.email.trim(),
+                        mobile: payload.mobileNumber.trim(),
                         mobileNumber: payload.mobileNumber.trim(),
                         fullName: payload.fullName.trim(),
                         password: payload.password,
                         role: 'CANDIDATE',
                     },
                 });
-                if (dockerRes?.id || dockerRes?.candidateId) {
-                    newProfile.id = String(dockerRes.id || dockerRes.candidateId);
+                const regUserId = dockerRes?.data?.userId ||
+                    dockerRes?.userId ||
+                    dockerRes?.id ||
+                    dockerRes?.candidateId;
+                if (regUserId) {
+                    newProfile.id = String(regUserId);
                 }
                 infoMessage = 'Registered on NAG Docker Backend! Please sign in.';
             }
@@ -17309,9 +17478,7 @@ class DockerApiService {
                 throw err;
             }
             const currentBase = this.client.getBaseUrl();
-            const fallbackOrigins = [
-                'https://parking-gospel-entering-fundamentals.trycloudflare.com',
-            ].filter((origin) => origin !== currentBase);
+            const fallbackOrigins = [candidate_core_1.CLOUDFLARE_TUNNEL_URL].filter((origin) => origin !== currentBase);
             for (const origin of fallbackOrigins) {
                 try {
                     this.client.setBaseUrl(origin);
@@ -17332,10 +17499,12 @@ class DockerApiService {
     }
 }
 exports.DockerApiService = DockerApiService;
-const defaultTargetMode = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent || '')
-    ? 'android-emulator'
-    : 'localhost-gateway';
-exports.defaultDockerApiService = new DockerApiService(defaultTargetMode);
+const defaultTargetMode = 'localhost-gateway';
+exports.defaultDockerApiService = new DockerApiService(defaultTargetMode, {
+    envOverrides: {
+        EXPO_PUBLIC_API_BASE_URL: candidate_core_1.CLOUDFLARE_TUNNEL_URL,
+    },
+});
 
     }
   };

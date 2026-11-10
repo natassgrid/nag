@@ -146,8 +146,8 @@ export class AuthController {
     this.state.error = null;
     this.notify();
 
-    if (!payload.fullName || payload.fullName.trim().length < 2) {
-      this.state.error = 'Full name must be at least 2 characters.';
+    if (!payload.fullName || payload.fullName.trim().length < 3) {
+      this.state.error = 'Full legal name must be between 3 and 100 characters.';
       this.state.isSubmitting = false;
       this.notify();
       return false;
@@ -206,6 +206,7 @@ export class AuthController {
             body: {
               username: payload.email.trim(),
               email: payload.email.trim(),
+              mobile: payload.mobileNumber.trim(),
               mobileNumber: payload.mobileNumber.trim(),
               fullName: payload.fullName.trim(),
               password: payload.password,
@@ -213,8 +214,13 @@ export class AuthController {
             },
           }
         );
-        if (dockerRes?.id || dockerRes?.candidateId) {
-          newProfile.id = String(dockerRes.id || dockerRes.candidateId);
+        const regUserId =
+          dockerRes?.data?.userId ||
+          dockerRes?.userId ||
+          dockerRes?.id ||
+          dockerRes?.candidateId;
+        if (regUserId) {
+          newProfile.id = String(regUserId);
         }
         infoMessage = 'Registered on NAG Docker Backend! Please sign in.';
       } catch (err: any) {
