@@ -50,7 +50,7 @@
     "@nx/jest": "^23.3.0",
     "@nx/js": "23.3.0",
     "@nx/playwright": "^24.0.2",
-    "@nx/web": "23.3.0",
+    "@nx/web": "24.0.5",
     "@nx/workspace": "24.0.0",
     "@playwright/test": "^1.64.1",
     "@schematics/angular": "~22.2.1",
